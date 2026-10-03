@@ -69,6 +69,7 @@ export const FENCES = liveView('FENCES', FILE.FENCES);
 export const ENERGY_PACK = liveView('ENERGY_PACK', FILE.ENERGY_PACK);
 export const SHOP = liveView('SHOP', FILE.SHOP);
 export const PASS = liveView('PASS', FILE.PASS);
+export const DROWN = liveView('DROWN', FILE.DROWN);
 
 /** `regenPerHour(level)` on the live OUT_OF_RUN_ENERGY. */
 export const regenPerHour = (level: number): number => FILE.regenPerHour(level, OUT_OF_RUN_ENERGY);

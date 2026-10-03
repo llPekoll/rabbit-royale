@@ -136,6 +136,13 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   //    and stays in the file.
   { path: 'ENERGY.CROSSING_COST', kind: 'int', min: 0, max: 1_000, note: 'Énergie prise à la traversée vers une île' },
   { path: 'ENERGY.MIN_TO_CROSS', kind: 'int', min: 0, max: 1_000, note: 'Énergie minimale dans le réservoir pour traverser' },
+  /**
+   * A bomb is read at the moment it goes off (run.ts), so a change lands on
+   * the next blast and on nothing already paid. The sea follows it (alias
+   * DROWN.LOSS). Live since 3 October 2026, the user's call: 70 hurt too much
+   * and a deploy per try was too slow.
+   */
+  { path: 'ENERGY.BOMB_LOSS', kind: 'int', min: 1, max: 300, note: 'Énergie perdue sur une bombe (et à la noyade)' },
   { path: 'RAID_RUN.TOLL', kind: 'int', min: 0, max: 1_000, note: 'Péage d\'un raid, pris au premier pas' },
   { path: 'RAID_RUN.STAKE', kind: 'int', min: 1, max: 1_000, note: 'Mise maximale d\'un raid, péage compris' },
   { path: 'RAID_RUN.WALK_FLOOR', kind: 'int', min: 0, max: 100, note: 'Pas de marche exigés en réserve au-delà du péage pour entrer en raid' },
@@ -168,6 +175,7 @@ export const ALIASES: ReadonlyMap<string, string> = new Map([
   ['ENERGY_PACK.AMOUNT', 'OUT_OF_RUN_ENERGY.MAX'],
   ['TRAPS.CARROT_COST', 'SHOP.PRICES.trap'],
   ['FENCES.CARROT_COST', 'SHOP.PRICES.fence'],
+  ['DROWN.LOSS', 'ENERGY.BOMB_LOSS'],
 ]);
 
 /**

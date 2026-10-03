@@ -14,7 +14,7 @@ import * as FILE from '@config/tuning';
 import { ALIASES, OVERRIDABLE, RELATIONS } from '@config/overridable';
 import { clientOverrides, setTuningOverrides, resetTuningCache, tuned } from '@/lib/tuning/live';
 import {
-  ENERGY, ENERGY_PACK, OUT_OF_RUN_ENERGY, RAID_RUN, itemCap, raidFloor, regenPerHour, upgradeCost,
+  DROWN, ENERGY, ENERGY_PACK, OUT_OF_RUN_ENERGY, RAID_RUN, itemCap, raidFloor, regenPerHour, upgradeCost,
 } from '@/lib/tuning/tables';
 import { gardenCapacity, yieldPerHour } from '@/lib/game/garden-growth';
 import { currentEnergy, gardenYield } from '@/lib/game/regen';
@@ -113,6 +113,13 @@ describe('a row in the table moves the read', () => {
     set({ 'ENERGY.MIN_TO_CROSS': 15, 'ENERGY.CROSSING_COST': 10 });
     expect(canStartRun(row, at.getTime())).toBe(true);
     expect(chargeRun(row, at.getTime())?.energy).toBe(10);
+  });
+
+  it('the bomb, and the sea that follows it', () => {
+    expect(ENERGY.BOMB_LOSS).toBe(FILE.ENERGY.BOMB_LOSS);
+    set({ 'ENERGY.BOMB_LOSS': 60 });
+    expect(ENERGY.BOMB_LOSS).toBe(60);
+    expect(DROWN.LOSS).toBe(60);
   });
 
   it('trap caps', () => {

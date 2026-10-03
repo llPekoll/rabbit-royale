@@ -232,8 +232,10 @@ func shout(text: String) -> String:
 ## slogans (`doorstepTips`, pas `taglines` — la distinction est deliberee sur
 ## le web : un joueur devant l'ecran de connexion n'a pas besoin qu'on lui
 ## vende l'ambiance).
+## `{bomb}` est le cout reel d'une bombe : ENERGY.BOMB_LOSS se regle en base.
 func taglines() -> Array:
-	return list("doorstepTips")
+	var bomb := str(Tuning.i("ENERGY.BOMB_LOSS"))
+	return list("doorstepTips").map(func(tip: String) -> String: return tip.replace("{bomb}", bomb))
 
 
 ## LA LEGENDE D'UN BEAT DE LA PREMIERE MANCHE, par son id (`FirstRun.BEATS`).

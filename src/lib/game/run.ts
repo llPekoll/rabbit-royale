@@ -10,10 +10,10 @@
  * two objects it is handed and returns what happened, so a caller can broadcast
  * a delta rather than diffing whole islands.
  */
-import { BOMB, DROWN, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, FLAG, MULTIPLAYER, RUN, levelRow, xGainFor, mayFight } from '@config/tuning';
+import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, FLAG, MULTIPLAYER, RUN, levelRow, xGainFor, mayFight } from '@config/tuning';
 // LIVE view: the tank's ceiling (ENERGY.MAX, an alias of OUT_OF_RUN_ENERGY.MAX)
 // follows the `tuning` table; the run's rules (DIG_COST, BOMB_LOSS…) read the file.
-import { ENERGY } from '@/lib/tuning/tables';
+import { DROWN, ENERGY } from '@/lib/tuning/tables';
 import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';

@@ -1036,7 +1036,8 @@ export const en = {
    * actually is, one fact at a time.
    *
    * EVERY NUMBER HERE IS THE REAL ONE (config/tuning.ts): a dig costs 1 of a
-   * 300 bar (ENERGY.DIG_COST / MAX), a bomb takes 70 (BOMB_LOSS), a wrong X
+   * 300 bar (ENERGY.DIG_COST / MAX), a bomb takes {bomb} — BOMB_LOSS, live in
+   * the `tuning` table, filled in by Godot's I18N.taglines() — and a wrong X
    * takes 15 (FLAG.LOSS). If those move, these lines move with them — a
    * doorstep that teaches the wrong cost is worse than one that teaches
    * nothing.
@@ -1046,7 +1047,7 @@ export const en = {
    */
   doorstepTips: [
     'THE NUMBER ON A TILE COUNTS THE BOMBS TOUCHING IT',
-    'DIGGING COSTS 1 ENERGY - A BOMB COSTS 70',
+    'DIGGING COSTS 1 ENERGY - A BOMB COSTS {bomb}',
     'MARK A BOMB WITH A RED X: RIGHT PAYS ENERGY BACK, WRONG COSTS 15',
     'WALKING BACK OVER TILES YOU ALREADY DUG IS FREE',
     'EVERY CHEST YOU OPEN GOES HOME WITH YOU',
