@@ -36,7 +36,7 @@ server {
     types { application/json json; }
     add_header Cache-Control "no-cache";
   }
-  location ~ ^/play/android/game-[0-9a-f]{64}\.pck$ {
+  location ~ "^/play/android/game-[0-9a-f]{64}\.pck$" {
     types { application/octet-stream pck; }
     # Textures deja compressees : gzip -9 n'y gagne que 5 %, pour 18 Mo a
     # recompresser a chaque telechargement.
