@@ -1,0 +1,54 @@
+# ADD AN SSH KEY TO THE REGIONS' `deploy` USER — by hand, from Actions.
+#
+# The VPS only accept keys, and the one Actions deploys with (REGION_SSH_KEY)
+# is the way in. Run workflow → paste a public key → it lands in
+# /home/deploy/.ssh/authorized_keys on every region (skipped if already there).
+# Then: ssh deploy@<ip> — docker only, no sudo (deploy/region/bootstrap.sh).
+name: region-ssh-key
+
+on:
+  workflow_dispatch:
+    inputs:
+      pubkey:
+        description: "Public key to add (ssh-ed25519 AAAA... comment)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [sg, us]
+    steps:
+      - name: Host of this region
+        id: host
+        env:
+          SG: ${{ secrets.REGION_SG_HOST }}
+          US: ${{ secrets.REGION_US_HOST }}
+        run: |
+          case "${{ matrix.region }}" in
+            sg) echo "host=$SG" >> "$GITHUB_OUTPUT" ;;
+            us) echo "host=$US" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Add the key
+        if: steps.host.outputs.host != ''
+        env:
+          HOST: ${{ steps.host.outputs.host }}
+          KEY: ${{ secrets.REGION_SSH_KEY }}
+          PUBKEY: ${{ inputs.pubkey }}
+        run: |
+          case "$PUBKEY" in
+            ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-*) ;;
+            *) echo "not a public key"; exit 1 ;;
+          esac
+          install -m 600 /dev/null ~/key && printf '%s\n' "$KEY" > ~/key
+          ssh -i ~/key -o StrictHostKeyChecking=accept-new "deploy@$HOST" \
+            "umask 077; mkdir -p ~/.ssh
+             grep -qxF '$PUBKEY' ~/.ssh/authorized_keys 2>/dev/null \
+               && echo 'already there' \
+               || { printf '%s\n' '$PUBKEY' >> ~/.ssh/authorized_keys; echo added; }"
