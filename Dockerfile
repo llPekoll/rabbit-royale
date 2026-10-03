@@ -68,6 +68,28 @@ RUN mkdir -p dist/web/play \
 # sont copies a la main. Le worker DOIT etre sous /play/ pour avoir la portee
 # /play/ (un worker ne peut pas viser plus haut que son dossier sans en-tete).
 RUN cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web/play/
+# LE JEU ANDROID, TELECHARGE PAR L'APP ELLE-MEME (2026-10-03). L'APK n'est
+# qu'une coque : au lancement elle lit manifest.json et charge le pack s'il a
+# change (godot/scripts/boot.gd). Un push ici corrige donc aussi les
+# telephones, sans resoumettre au dApp Store.
+#
+# Le pack porte son hash dans son NOM : jamais deux versions sous le meme nom,
+# un telechargement coupe ne melange rien, et il se garde en cache sans fin.
+# --export-pack ne demande ni le template Android ni gradle.
+#
+# min_shell vient de boot.gd : la plus vieille coque qui sait faire tourner ce
+# code. Une coque plus vieille ne prend pas le pack et renvoie au store.
+RUN mkdir -p dist/web/play/android \
+  && godot --headless --path godot --export-pack "Android" /tmp/game.pck \
+  && test -s /tmp/game.pck \
+  && sha=$(sha256sum /tmp/game.pck | cut -c1-64) \
+  && size=$(stat -c %s /tmp/game.pck) \
+  && min=$(sed -n 's/^const MIN_SHELL := \([0-9]*\).*/\1/p' godot/scripts/boot.gd) \
+  && test -n "$min" \
+  && mv /tmp/game.pck "dist/web/play/android/game-$sha.pck" \
+  && printf '{"sha256":"%s","size":%s,"min_shell":%s,"pack":"game-%s.pck"}\n' \
+    "$sha" "$size" "$min" "$sha" > dist/web/play/android/manifest.json \
+  && cat dist/web/play/android/manifest.json
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime

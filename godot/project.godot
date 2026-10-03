@@ -23,6 +23,7 @@ config/macos_native_icon="res://assets/ui/icon.icns"
 
 [autoload]
 
+Boot="*res://scripts/boot.gd"
 I18N="*res://scripts/i18n.gd"
 Net="*res://scripts/net.gd"
 Wallet="*res://scripts/wallet.gd"

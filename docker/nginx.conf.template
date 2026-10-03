@@ -29,6 +29,21 @@ server {
     add_header Cache-Control "no-cache";
   }
 
+  # LE JEU ANDROID (godot/scripts/boot.gd). Le manifeste est relu a chaque
+  # lancement : jamais en cache, sinon un deploiement n'atteint pas les
+  # telephones. Le pack porte son hash dans son nom : il ne change jamais.
+  location = /play/android/manifest.json {
+    types { application/json json; }
+    add_header Cache-Control "no-cache";
+  }
+  location ~ ^/play/android/game-[0-9a-f]{64}\.pck$ {
+    types { application/octet-stream pck; }
+    # Textures deja compressees : gzip -9 n'y gagne que 5 %, pour 18 Mo a
+    # recompresser a chaque telechargement.
+    gzip off;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
   # FIREBASE, A COTE DU JEU : la config web et le worker des notifications
   # (godot/web/, copies par le Dockerfile). JAMAIS en cache long : un worker
   # perime continue d'intercepter les clics sur les notifications avec son
