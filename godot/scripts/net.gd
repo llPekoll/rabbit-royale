@@ -153,8 +153,8 @@ func probe() -> String:
 ##
 ## Hors du web, dans un thread qui regarde toutes les millisecondes : relever
 ## une fois par image ajoutait deux ou trois images (50 ms lus 88). Le web n'a
-## pas toujours de threads ; il relève par image, et le navigateur garde la
-## connexion de la premiere requete.
+## pas toujours de threads ; il relève par image, un client par requete, et
+## le navigateur garde la connexion de la premiere.
 func _ping_into(code: String, host: String, pending: Dictionary) -> void:
 	pings[code] = -1
 	if OS.has_feature("web"):
@@ -217,35 +217,43 @@ func _ping_blocking(host: String) -> int:
 	return ms
 
 
+## LE CLIENT WEB SE FERME APRES CHAQUE REPONSE (http_client_web.cpp : fin du
+## corps = STATUS_DISCONNECTED), une seconde requete sur le meme client ne
+## partait jamais : toutes les regions restaient muettes et la planche
+## « Serveur » ne sortait pas. Un client neuf par requete ; c'est le
+## navigateur qui garde la connexion, la seconde mesure reste un vrai ping.
 func _ping_by_frame(host: String) -> int:
-	var c := _open(host)
-	if c == null:
-		return -1
 	var deadline := Time.get_ticks_msec() + int(PROBE_SECONDS * 1000.0)
 	var ms := -1
-	while c.get_status() in [HTTPClient.STATUS_RESOLVING, HTTPClient.STATUS_CONNECTING] \
-			and Time.get_ticks_msec() < deadline:
-		c.poll()
-		await get_tree().process_frame
 	for i in 2:
+		var c := _open(host)
+		if c == null:
+			break
+		while c.get_status() in [HTTPClient.STATUS_RESOLVING, HTTPClient.STATUS_CONNECTING] \
+				and Time.get_ticks_msec() < deadline:
+			c.poll()
+			await get_tree().process_frame
 		if c.get_status() != HTTPClient.STATUS_CONNECTED:
+			c.close()
 			break
 		var sent := Time.get_ticks_msec()
 		if c.request(HTTPClient.METHOD_GET, "/health", []) != OK:
+			c.close()
 			break
 		while c.get_status() == HTTPClient.STATUS_REQUESTING and Time.get_ticks_msec() < deadline:
 			c.poll()
 			await get_tree().process_frame
 		var got := Time.get_ticks_msec()
 		if not c.has_response() or c.get_response_code() != 200:
+			c.close()
 			break
 		while c.get_status() == HTTPClient.STATUS_BODY and Time.get_ticks_msec() < deadline:
 			c.poll()
 			c.read_response_body_chunk()
 			await get_tree().process_frame
+		c.close()
 		if i == 1:
 			ms = got - sent
-	c.close()
 	return ms
 
 ## How long a call waits before it is called dead.
