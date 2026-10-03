@@ -27,7 +27,10 @@ extends Node
 ##
 ## LE PACK NE BLOQUE JAMAIS LE JEU. Pas de reseau, front en panne, hash faux :
 ## on joue la derniere version telechargee, ou a defaut celle de l'APK. Un pack
-## qui fait planter le demarrage trois fois de suite est abandonne.
+## qui fait planter le demarrage trois fois de suite est abandonne, et pas
+## retelecharge (bad.cfg) : on attend le deploiement suivant.
+##
+## Tout se lit dans `adb logcat -s godot`, lignes [boot].
 ##
 ## Ailleurs qu'Android (web, iOS, editeur) ce noeud ne fait rien, sauf pour
 ## tester le circuit sur le bureau avec un manifeste local :
@@ -35,20 +38,27 @@ extends Node
 
 ## Le version/code de l'APK qui porte ce fichier (preset Android). Le script
 ## de release refuse un APK dont les deux divergent.
-const SHELL := 2
+const SHELL := 3
 ## La plus vieille coque capable de faire tourner le code de CE depot. Lu par
 ## le Dockerfile, qui l'ecrit dans le manifeste. A monter avec SHELL quand un
 ## changement exige un nouvel APK (voir plus haut).
+## La coque 3 ne change que ce fichier : le jeu tourne toujours sur la 2.
 const MIN_SHELL := 2
 
 const MANIFEST_URL := "https://rabbit.rip/play/android/manifest.json"
 const DIR := "user://ota"
 const CURRENT := DIR + "/current.cfg"
+## Les packs qui ont fait planter le demarrage MAX_TRIES fois. Survit au
+## _wipe : sans lui, le meme pack casse est retelecharge aussitot, en boucle.
+const BAD := DIR + "/bad.cfg"
 ## Demarrages rates d'affilee avant d'abandonner le pack.
 const MAX_TRIES := 3
 ## Un demarrage qui tient ce temps-la est reussi.
 const ALIVE_SECONDS := 15.0
-const MANIFEST_TIMEOUT := 5.0
+## Large : le Seeker (coque 2) ne recevait jamais le manifeste. Au demarrage
+## le chargement du jeu tient la boucle principale, et a ~420 ms d'aller-retour
+## vers Helsinki la poignee TLS ne finissait pas en 5 s — echec muet.
+const MANIFEST_TIMEOUT := 30.0
 ## Plus un octet pendant ce temps : le telechargement est abandonne.
 const STALL_SECONDS := 20.0
 
@@ -74,14 +84,23 @@ func _init() -> void:
 	var tries: int = cfg.get_value("pack", "tries", 0)
 	# Une coque neuve (APK mis a jour) porte un jeu plus recent que le pack
 	# telecharge pour l'ancienne : on le jette.
-	if cfg.get_value("pack", "shell", 0) != SHELL or tries >= MAX_TRIES \
+	if tries >= MAX_TRIES:
+		_log("pack %s : %d demarrages rates, abandonne" % [cfg.get_value("pack", "sha256", "?"), tries])
+		_mark_bad(cfg.get_value("pack", "sha256", ""))
+		_wipe()
+		return
+	if cfg.get_value("pack", "shell", 0) != SHELL \
 			or not FileAccess.file_exists(DIR + "/" + file):
+		_log("pack d'une autre coque ou absent : jeu de l'APK")
 		_wipe()
 		return
 	cfg.set_value("pack", "tries", tries + 1)
 	cfg.save(CURRENT)
 	if ProjectSettings.load_resource_pack(DIR + "/" + file, true):
 		current = cfg.get_value("pack", "sha256", "")
+		_log("pack charge %s (essai %d)" % [current, tries + 1])
+	else:
+		_log("pack illisible %s : jeu de l'APK" % file)
 
 
 func _ready() -> void:
@@ -91,6 +110,13 @@ func _ready() -> void:
 	if current != "":
 		get_tree().create_timer(ALIVE_SECONDS).timeout.connect(_mark_alive)
 	_check()
+
+
+## Quitter l'app (accueil, autre app) n'est pas un plantage : sans ca, trois
+## sorties rapides d'affilee faisaient jeter un bon pack.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED and current != "":
+		_mark_alive()
 
 
 func _enabled() -> bool:
@@ -111,22 +137,37 @@ func _mark_alive() -> void:
 func _check() -> void:
 	var req := HTTPRequest.new()
 	req.timeout = MANIFEST_TIMEOUT
+	# Dans un thread : la poignee TLS avance meme quand le chargement du jeu
+	# fige la boucle principale.
+	req.use_threads = true
 	add_child(req)
 	# Le front sert le manifeste en no-cache ; le parametre passe aussi les
 	# caches intermediaires qui l'ignoreraient.
-	req.request("%s?t=%d" % [_manifest_url, Time.get_unix_time_from_system()])
+	var err := req.request("%s?t=%d" % [_manifest_url, Time.get_unix_time_from_system()])
+	if err != OK:
+		_log("manifeste : requete refusee (%s)" % error_string(err))
+		req.queue_free()
+		return
 	var res: Array = await req.request_completed
 	req.queue_free()
 	if res[0] != HTTPRequest.RESULT_SUCCESS or res[1] != 200:
+		_log("manifeste : echec result=%d http=%d" % [res[0], res[1]])
 		return
 	var m = JSON.parse_string((res[3] as PackedByteArray).get_string_from_utf8())
 	if not m is Dictionary or not m.has("sha256") or not m.has("pack"):
+		_log("manifeste illisible")
 		return
 	if m.sha256 == current:
+		_log("a jour (%s)" % current)
+		return
+	if _is_bad(m.sha256):
+		_log("pack %s deja abandonne, on attend le suivant" % m.sha256)
 		return
 	if int(m.get("min_shell", 0)) > SHELL:
+		_log("pack pour coque >= %d, la notre est %d" % [int(m.min_shell), SHELL])
 		_show("NEW VERSION ON THE DAPP STORE", true)
 		return
+	_log("nouveau pack %s (actuel : %s)" % [m.sha256, current if current != "" else "APK"])
 	_download(m)
 
 
@@ -146,7 +187,13 @@ func _download(m: Dictionary) -> void:
 	var res: Array = await _http.request_completed
 	_http.queue_free()
 	_http = null
-	if res[0] != HTTPRequest.RESULT_SUCCESS or res[1] != 200 or _sha256(part) != m.sha256:
+	if res[0] != HTTPRequest.RESULT_SUCCESS or res[1] != 200:
+		_log("pack : echec result=%d http=%d" % [res[0], res[1]])
+		DirAccess.remove_absolute(part)
+		_hide()
+		return
+	if _sha256(part) != m.sha256:
+		_log("pack : hash faux")
 		DirAccess.remove_absolute(part)
 		_hide()
 		return
@@ -158,8 +205,10 @@ func _download(m: Dictionary) -> void:
 	cfg.set_value("pack", "tries", 0)
 	cfg.save(CURRENT)
 	_prune(file)
+	_log("pack %s telecharge, relance" % m.sha256)
 	if not _restart():
 		# Pas de relance possible : le pack s'appliquera au prochain lancement.
+		_log("relance impossible : le pack attend le prochain lancement")
 		_hide()
 
 
@@ -217,7 +266,27 @@ func _prune(keep: String) -> void:
 
 func _wipe() -> void:
 	for f in DirAccess.get_files_at(DIR):
-		DirAccess.remove_absolute(DIR + "/" + f)
+		if DIR + "/" + f != BAD:
+			DirAccess.remove_absolute(DIR + "/" + f)
+
+
+func _mark_bad(sha: String) -> void:
+	if sha == "":
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(BAD)
+	cfg.set_value("bad", sha, true)
+	cfg.save(BAD)
+
+
+func _is_bad(sha: String) -> bool:
+	var cfg := ConfigFile.new()
+	return cfg.load(BAD) == OK and cfg.get_value("bad", sha, false)
+
+
+## Dans logcat sous le tag godot : `adb logcat -s godot`.
+func _log(msg: String) -> void:
+	print("[boot] " + msg)
 
 
 ## Un voile par-dessus tout, qui prend les doigts : on ne joue pas pendant un
