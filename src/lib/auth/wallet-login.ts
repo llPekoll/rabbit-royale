@@ -12,7 +12,7 @@
  * cannot be replayed.
  */
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { db } from '../db';
 import { loginNonces, players } from '../db/schema';
 import { isSolanaAddress, verifySignature } from './signature';
@@ -77,10 +77,16 @@ export async function resolveWalletPlayer(
   now: Date = new Date(),
 ): Promise<string> {
   const id = `sol:${address}`;
-  const existing = await db.query.players.findFirst({ where: eq(players.id, id) });
+  // BY THE WALLET TOO, not only the id: a guest who linked this wallet keeps
+  // their `guest:` id (link/route.ts). Looking up `sol:` alone missed them, the
+  // insert below hit the unique wallet index and did nothing, and the caller
+  // read a player that did not exist — a 500 the browser reported as offline.
+  const existing = await db.query.players.findFirst({
+    where: or(eq(players.id, id), eq(players.wallet, address)),
+  });
   if (existing) {
-    await db.update(players).set({ lastSeenAt: now }).where(eq(players.id, id));
-    return id;
+    await db.update(players).set({ lastSeenAt: now }).where(eq(players.id, existing.id));
+    return existing.id;
   }
 
   const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../tuning/tables');

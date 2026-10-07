@@ -170,8 +170,13 @@ export async function servirApi(
     return true;
   } catch (e) {
     console.error(`[api] ${methode} ${chemin} a echoue :`, e);
-    res.writeHead(500, { 'Content-Type': 'application/json' })
-      .end(JSON.stringify({ error: 'internal' }));
+    // L'origine AUSSI ici : sans elle le navigateur cache le 500, le client
+    // web lit un statut 0 et affiche « l'ile est injoignable » a la place.
+    const origine = req.headers.origin;
+    res.writeHead(500, {
+      'Content-Type': 'application/json',
+      ...(origine ? { 'Access-Control-Allow-Origin': origine, 'Access-Control-Allow-Credentials': 'true' } : {}),
+    }).end(JSON.stringify({ error: 'internal' }));
     return true;
   }
 }
