@@ -535,6 +535,10 @@ export const vi: Dict = {
     capped: (name, price) => `${name}: ${price}. Bạn đã mang tối đa rồi.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'XÁC NHẬN?',
+    tabPacks: 'GÓI',
+    tabItems: 'VẬT PHẨM',
+    tabSkins: 'SKIN',
+    viewSkins: 'XEM SKIN',
     yours: 'CỦA BẠN!',
     tooPoor: (name, price) => `${name}: ${price}. Chưa đủ cà rốt. Đi đào thêm.`,
     heldOf: (held, cap) => `${held}/${cap}`,

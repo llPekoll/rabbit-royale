@@ -531,6 +531,10 @@ export const ptBR: Dict = {
     capped: (name, price) => `${name}: ${price}. Você já carrega o máximo.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRMAR?',
+    tabPacks: 'PACOTES',
+    tabItems: 'ITENS',
+    tabSkins: 'SKINS',
+    viewSkins: 'VER SKINS',
     yours: 'É SEU!',
     tooPoor: (name, price) => `${name}: ${price}. Cenouras insuficientes. Vá cavar.`,
     heldOf: (held, cap) => `${held}/${cap}`,

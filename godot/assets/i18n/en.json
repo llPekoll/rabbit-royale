@@ -812,6 +812,10 @@
    "$t": "{0}: {1}. You are holding as many as you can."
   },
   "confirmBuy": "CONFIRM?",
+  "tabPacks": "PACKS",
+  "tabItems": "ITEMS",
+  "tabSkins": "SKINS",
+  "viewSkins": "VIEW SKINS",
   "yours": "GOT IT!",
   "tooPoor": {
    "$t": "{0}: {1}. Not enough carrots yet. Dig for more."

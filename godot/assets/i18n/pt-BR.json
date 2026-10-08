@@ -824,6 +824,10 @@
    "$t": "{0}: {1}. Você já carrega o máximo."
   },
   "confirmBuy": "CONFIRMAR?",
+  "tabPacks": "PACOTES",
+  "tabItems": "ITENS",
+  "tabSkins": "SKINS",
+  "viewSkins": "VER SKINS",
   "yours": "É SEU!",
   "tooPoor": {
    "$t": "{0}: {1}. Cenouras insuficientes. Vá cavar."

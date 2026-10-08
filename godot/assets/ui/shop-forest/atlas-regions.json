@@ -1,0 +1,155 @@
+{
+  "panel": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      43,
+      37,
+      450,
+      381
+    ],
+    "slice": [
+      252,
+      107,
+      99,
+      84
+    ]
+  },
+  "tab-off": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      529,
+      163,
+      478,
+      154
+    ],
+    "slice": [
+      69,
+      0,
+      69,
+      0
+    ]
+  },
+  "tab-on": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      1029,
+      164,
+      471,
+      153
+    ],
+    "slice": [
+      69,
+      0,
+      69,
+      0
+    ]
+  },
+  "action": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      46,
+      460,
+      448,
+      146
+    ],
+    "slice": [
+      66,
+      0,
+      66,
+      0
+    ]
+  },
+  "nameplate": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      567,
+      475,
+      490,
+      114
+    ],
+    "slice": [
+      51,
+      0,
+      51,
+      0
+    ]
+  },
+  "close": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      1167,
+      422,
+      205,
+      200
+    ]
+  },
+  "pedestal": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      36,
+      739,
+      507,
+      237
+    ]
+  },
+  "discount": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      624,
+      743,
+      354,
+      165
+    ]
+  },
+  "selected": {
+    "atlas": "forest-ui-kit.png",
+    "region": [
+      1063,
+      641,
+      438,
+      343
+    ],
+    "slice": [
+      245,
+      96,
+      96,
+      75
+    ]
+  },
+  "shiro_stash": {
+    "atlas": "pack-illustrations.png",
+    "region": [
+      41,
+      113,
+      579,
+      514
+    ]
+  },
+  "kuro_tantrum": {
+    "atlas": "pack-illustrations.png",
+    "region": [
+      637,
+      111,
+      576,
+      516
+    ]
+  },
+  "refill_3": {
+    "atlas": "pack-illustrations.png",
+    "region": [
+      41,
+      627,
+      575,
+      529
+    ]
+  },
+  "refill_10": {
+    "atlas": "pack-illustrations.png",
+    "region": [
+      630,
+      627,
+      590,
+      528
+    ]
+  }
+}

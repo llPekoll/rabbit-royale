@@ -527,6 +527,10 @@ export const fr: Dict = {
     capped: (name, price) => `${name} : ${price}. Tu en portes déjà le maximum.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRMER ?',
+    tabPacks: 'PACKS',
+    tabItems: 'OBJETS',
+    tabSkins: 'SKINS',
+    viewSkins: 'VOIR LES SKINS',
     yours: 'À TOI !',
     tooPoor: (name, price) => `${name} : ${price}. Pas assez de carottes. Va creuser.`,
     heldOf: (held, cap) => `${held}/${cap}`,

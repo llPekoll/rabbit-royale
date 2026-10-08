@@ -1,0 +1,16 @@
+{
+  "tool": "image_gen (built-in)",
+  "edits": [
+    {
+      "key": "items-corrected",
+      "path": "/Users/peko/work/ton/rabbit-royale/art-source/shop-forest-20261008/05-items-forest.png",
+      "prompt": "Edit this Rabbit Royale shop UI mockup with ONLY the following exact gameplay-copy corrections. Preserve every pixel-art composition, all objects, all controls, all names, stock quantities, prices, lighting, framing, materials, palette and proportions. Replace each small description sentence directly below its item illustration with this exact text: ENERGY: 'Save a full refill'; BOMB: 'Protect your burrow'; LIGHTNING: 'Zap a rival mid-run'; SHIELD: 'Keep raiders out'; BLOOP: 'Blind a rival with ink'; FENCE: 'Block a garden edge'; SMOKE: 'Hide burrow numbers'. Replace the footer 'Saved in your bag' with 'Build your kit'. The bomb is a defensive buried trap, smoke hides burrow numbers, and lightning targets a rival, hence these corrections. Do not add anything else. Keep text crisp and legible. Same 16:9 full image."
+    },
+    {
+      "key": "skins-corrected",
+      "path": "/Users/peko/work/ton/rabbit-royale/art-source/shop-forest-20261008/06-skins-forest.png",
+      "prompt": "Edit this Rabbit Royale skins shop UI mockup. Keep the entire artwork and interface exactly the same: wood, canopy, leaves, lighting, cards, rabbits, names, amounts, navigation, buttons. Change ONLY the ownership badges: remove the circular green-and-white checkmark at the bottom right of the CARROT thumbnail, restoring the wooden/floral artwork naturally behind it. Keep the SOLANA checkmark: it indicates the selected preview. Neither skin has been bought yet, so CARROT must not have a check. Absolutely no other change. Same full 16:9 image."
+    }
+  ],
+  "pack_correction": "Edit this transparent four-illustration pixel-art game atlas. Make ONE localized correction in the TOP LEFT Shiro bundle only: it currently has THREE black bombs, but the pack contains TWO. Remove the highest/rearmost bomb at the left, directly under the white rabbit's left cheek/paw and behind the two bombs in the foreground. Keep the TWO lower front-row bombs intact. Naturally restore the small wooden crate/green leaves behind the removed rear bomb. Preserve the white rabbit, the shield, both fences, and all other pixels/artwork as closely as possible. The top-right Kuro illustration and both bottom green/gold refill illustrations must stay unchanged. Maintain the exact same four positions and canvas dimensions. Preserve true transparent RGBA background and all alpha edges; do not add a backdrop, checkerboard, text, labels, borders or shadows beyond existing artwork."
+}

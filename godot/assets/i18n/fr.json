@@ -842,6 +842,10 @@
    "$t": "{0} : {1}. Tu en portes déjà le maximum."
   },
   "confirmBuy": "CONFIRMER ?",
+  "tabPacks": "PACKS",
+  "tabItems": "OBJETS",
+  "tabSkins": "SKINS",
+  "viewSkins": "VOIR LES SKINS",
   "yours": "À TOI !",
   "tooPoor": {
    "$t": "{0} : {1}. Pas assez de carottes. Va creuser."

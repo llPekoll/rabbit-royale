@@ -758,6 +758,10 @@
    "$t": "{0}: {1}. Bạn đã mang tối đa rồi."
   },
   "confirmBuy": "XÁC NHẬN?",
+  "tabPacks": "GÓI",
+  "tabItems": "VẬT PHẨM",
+  "tabSkins": "SKIN",
+  "viewSkins": "XEM SKIN",
   "yours": "CỦA BẠN!",
   "tooPoor": {
    "$t": "{0}: {1}. Chưa đủ cà rốt. Đi đào thêm."

@@ -758,6 +758,10 @@
    "$t": "{0}：{1}。你已经拿到上限了。"
   },
   "confirmBuy": "确认购买？",
+  "tabPacks": "礼包",
+  "tabItems": "道具",
+  "tabSkins": "皮肤",
+  "viewSkins": "查看皮肤",
   "yours": "到手了！",
   "tooPoor": {
    "$t": "{0}：{1}。胡萝卜还不够。去挖。"

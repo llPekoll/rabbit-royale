@@ -529,6 +529,10 @@ export const zh: Dict = {
     capped: (name, price) => `${name}：${price}。你已经拿到上限了。`,
     /** The price button, armed: a second press buys. */
     confirmBuy: '确认购买？',
+    tabPacks: '礼包',
+    tabItems: '道具',
+    tabSkins: '皮肤',
+    viewSkins: '查看皮肤',
     yours: '到手了！',
     tooPoor: (name, price) => `${name}：${price}。胡萝卜还不够。去挖。`,
     heldOf: (held, cap) => `${held}/${cap}`,

@@ -630,6 +630,11 @@ export const en = {
       `${name}: ${price}. You are holding as many as you can.`,
     /** The price button, armed: a second press buys. */
     confirmBuy: 'CONFIRM?',
+    /** The woodland shop's tabs, and the packs page's call to the skins. */
+    tabPacks: 'PACKS',
+    tabItems: 'ITEMS',
+    tabSkins: 'SKINS',
+    viewSkins: 'VIEW SKINS',
     /** The purchase reveal's headline, over the thing just bought. */
     yours: 'GOT IT!',
     tooPoor: (name: string, price: string) =>

@@ -159,12 +159,11 @@ func _init() -> void:
 	go_fullscreen()
 
 
-## OUVRIR L'ETAL sur le chrome, qui le pose sur tout l'ecran.
-static func open() -> Shop:
-	var dialog := Shop.new()
-	if Chrome.current != null:
-		Chrome.current.open(dialog)
-	return dialog
+## OUVRIR LA BOUTIQUE : l'echoppe de la foret depuis le 2026-10-08
+## (forest_shop.gd). L'etal en rangee reste ici pour ce que le jeu partage
+## (UsdcPay, les rails, l'art d'une sorte) et pour son banc.
+static func open() -> Control:
+	return ForestShop.open()
 
 
 func _ready() -> void:
