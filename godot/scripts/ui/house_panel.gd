@@ -26,7 +26,9 @@ extends Control
 ## qui devait les reprendre n'est plus dans la colonne (`quest_only`). Pas
 ## sur le potager, deja charge de HARVEST : sous AMELIORER, ce qui fait
 ## grandir le terrier. Seulement celles qu'on tient ; eteintes tant que la
-## precedente agit ; et replie, le point rouge bat aussi pour elles.
+## precedente agit. Replie, leurs icones suivent BURROW N : on comprend tout
+## de suite qu'il y a de quoi arroser, la ou un point rouge ne disait pas
+## quoi (le user, 2026-10-08).
 
 const SAFE_INK := Color("#ffd138")
 const EXPOSED_INK := Color("#ff8a7a")
@@ -171,14 +173,6 @@ static func _bottles(b: Dictionary) -> Array:
 	return out
 
 
-## Une bouteille qu'on peut verser maintenant : tenue, et rien n'agit.
-static func _pourable(d: Dictionary) -> bool:
-	if Home.pending:
-		return false
-	for bottle: Array in d.bottles:
-		if not bool(bottle[2]):
-			return true
-	return false
 
 
 func _rebuild() -> void:
@@ -449,14 +443,37 @@ func _build_button(d: Dictionary) -> Button:
 	button.add_child(level)
 	# Le Button ne range pas ses enfants : le mot prend sa place apres la
 	# maison, centre sur la hauteur, et le bouton prend la mesure du tout.
+	# LES BOUTEILLES TENUES, apres le mot : leur icone et leur nombre. Celle
+	# qui agit deja palit, comme son bouton dans le panneau.
+	var pour := Kit.hbox(_s(5))
+	pour.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for bottle: Array in d.bottles:
+		var one := Kit.hbox(_s(1))
+		one.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon := Kit.icon(Kit.ICONS[String(bottle[0])], _s(16))
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		one.add_child(icon)
+		var count := Kit.label("x%d" % int(bottle[1]), _f(9), Palette.CREAM)
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		one.add_child(count)
+		if bool(bottle[2]):
+			one.modulate.a = 0.45
+		pour.add_child(one)
+	pour.visible = pour.get_child_count() > 0
+	button.add_child(pour)
 	_dot = PulseDot.new()
 	_dot.size = Vector2.ONE * _s(DOT_SIZE)
-	_dot.visible = (d.cost != null and bool(d.can)) or _pourable(d)
+	_dot.visible = d.cost != null and bool(d.can)
 	var fit := func() -> void:
 		var word := level.get_combined_minimum_size()
-		button.custom_minimum_size = Vector2(s.content_margin_left + word.x + s.content_margin_right, h)
+		var tail := pour.get_combined_minimum_size() if pour.visible else Vector2.ZERO
+		var gap := _s(8) if pour.visible else 0.0
+		button.custom_minimum_size = Vector2(s.content_margin_left + word.x + gap + tail.x + s.content_margin_right, h)
 		level.position = Vector2(s.content_margin_left, roundf((h - word.y) * 0.5))
 		level.size = word
+		pour.position = Vector2(s.content_margin_left + word.x + gap, roundf((h - tail.y) * 0.5))
+		pour.size = tail
 		# Dans le coin, rentre d'une largeur et demie, a cheval sur le haut :
 		# a ras du bord il touchait le bord de l'ecran.
 		_dot.position = Vector2(button.custom_minimum_size.x - _dot.size.x * 1.5, -_dot.size.y * 0.45)
