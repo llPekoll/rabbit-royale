@@ -41,7 +41,8 @@ export interface GrantResult {
   /** What was actually DELIVERED — less than asked only for a gift that hit
    *  the bag's ceiling (a sale is always delivered in full). */
   qty: number;
-  /** For an energy refill: the bar after the top-up. Null for carried items. */
+  /** Always null since refills are carried (2026-10-08); kept so a receipt
+   *  keeps its shape for clients that read it. */
   energy: number | null;
   /** For a smoke screen: when the numbers come back. Null otherwise. */
   smokeUntil?: Date | null;
@@ -85,11 +86,11 @@ export function paidUsdcUnits(p: { token: string; amount: number; usdPrice: stri
  *
  * Three shapes, because the three storage decisions made elsewhere in the
  * schema are real and this is where they meet:
- *  - energy is APPLIED, not held — it tops the bar up and stamps the window;
- *  - smoke and the garden boosts are EXPIRY INSTANTS: what they give is a
- *    window, and a second one extends the first rather than replacing it;
+ *  - smoke is an EXPIRY INSTANT: what it gives is a window, and a second one
+ *    extends the first rather than replacing it;
  *  - traps live on the player row beside their free allowance;
- *  - everything else is a row in `inventory`.
+ *  - everything else is a row in `inventory` — energy refills included since
+ *    2026-10-08: bought ahead, poured later (`refillEnergy`).
  */
 export async function grantItem(
   tx: Tx,
@@ -149,11 +150,6 @@ export async function grantItem(
       }
     }
     return { kind, qty, energy: null, items };
-  }
-
-  if (kind === 'energy') {
-    const energy = await refillEnergy(tx, playerId, qty, now, true);
-    return { kind, qty, energy };
   }
 
   if (kind === 'smoke') {
@@ -217,8 +213,9 @@ export async function grantItem(
 /**
  * Top the bar up by `qty` full refills, inside the caller's transaction.
  *
- * `countsAsPack` stamps the paid-refill window (ENERGY_PACK.MAX_PER_DAY). The
- * shop's refill does; the season pass's daily chest does not.
+ * Called when a refill is POURED out of the bag (the burrow's `refill`
+ * action), no longer when one is bought. `countsAsPack` stamps the daily
+ * window (ENERGY_PACK.MAX_PER_DAY).
  */
 export async function refillEnergy(
   tx: Tx,

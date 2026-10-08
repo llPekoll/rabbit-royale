@@ -377,6 +377,8 @@
   "shieldAlready": "A shield is already up.",
   "noneLeft": "None left. Chests drop them.",
   "toppedUp": "Already topped up. Save it for later.",
+  "refilled": "Energy full. Go dig.",
+  "noRefill": "No refills saved. The shop sells them.",
   "islandSilent": "The island did not answer. Try again in a moment.",
   "runResumed": "Back to your run.",
   "reconnecting": "Reconnecting... try again in a moment.",
@@ -762,8 +764,20 @@
   },
   "noRefills": " No refills left today.",
   "noRefillsUntil": {
-   "$t": " New refills in {0}."
+   "$t": " Usable again in {0}."
   },
+  "inBag": {
+   "$t": " {0} saved.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " None saved."
+    }
+   ]
+  },
+  "useRefill": "Use a refill",
   "refillsLeft": {
    "$t": " {0} refills left today.",
    "$v": [
@@ -818,7 +832,7 @@
   "bagFull": "FULL",
   "active": "ACTIVE",
   "boughtEnergy": {
-   "$t": "Energy refilled. {0}"
+   "$t": "Refill saved for later. {0}"
   },
   "boughtTrap": {
    "$t": "{0} bombs in the bag. {1}",
@@ -955,6 +969,7 @@
   "inventory_full": "Your bag is full of those.",
   "bag_full": "One of those would not fit in your bag.",
   "daily_energy_limit": "No more refills today. The garden still grows.",
+  "tank_full": "Your energy is already full. Keep the refill for later.",
   "smoke_capped": "Your burrow is hidden as long as it can be.",
   "too_many_at_once": "Too many at once.",
   "bad_quantity": "That is not a quantity.",
@@ -1135,6 +1150,21 @@
  "energyPanel": {
   "open": "Energy details",
   "title": "ENERGY",
+  "reserve": {
+   "$t": "{0} refills saved",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 refill saved"
+    }
+   ]
+  },
+  "usableToday": {
+   "$t": "{0} usable today"
+  },
+  "buyMore": "Buy more",
   "reading": {
    "$t": "{0}/{1}"
   },
@@ -1579,7 +1609,7 @@
   },
   "energy": {
    "name": "Energy",
-   "blurb": "Refill your energy and dig now, instead of waiting it out."
+   "blurb": "A full tank to keep for later. Use it when you run dry."
   },
   "smoke": {
    "name": "Smoke screen",
@@ -1604,6 +1634,14 @@
   "kuro_tantrum": {
    "name": "Kuro's Tantrum",
    "blurb": "Bolts and bloops to ruin a rival’s run."
+  },
+  "refill_3": {
+   "name": "3 Refills",
+   "blurb": "Three full tanks, saved for later."
+  },
+  "refill_10": {
+   "name": "10 Refills",
+   "blurb": "Ten full tanks, kept until you need them."
   }
  },
  "quests": {

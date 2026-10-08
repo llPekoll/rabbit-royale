@@ -9,7 +9,10 @@
 import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, regenPerHour, upgradeCost } from '../tuning/tables';
 import { capHoursFor, currentEnergy, gardenYield, type RegenRow, type TankRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
-import { gardenBoostView, type GardenBoostState, type GardenKind, type Holdings } from './inventory';
+import {
+  energyPacksLeft, energyPacksResetInMs, gardenBoostView,
+  type EnergyPackRow, type GardenBoostState, type GardenKind, type Holdings,
+} from './inventory';
 
 export interface BurrowRow extends RegenRow {
   stock: number;
@@ -20,6 +23,23 @@ export interface BurrowRow extends RegenRow {
   /** Runs banked so far. Optional so older fixtures still type; zero means
    *  a player who has never been on an island. */
   runsPlayed?: number;
+  /** The daily window of refills poured. Optional for the same reason; a row
+   *  without it reads as a window never opened. */
+  energyPacksBought?: number;
+  energyPacksSince?: Date;
+}
+
+/**
+ * The refills in the bag, and how many more today's window lets the player
+ * pour (ENERGY_PACK.MAX_PER_DAY). On the burrow view because the energy dial
+ * and « out of energy » are where they are spent, and both read this.
+ */
+export interface RefillState {
+  held: number;
+  /** Pours the rolling window still allows. */
+  left: number;
+  /** When the window lapses, in ms from now; null when none has been poured. */
+  backInMs: number | null;
 }
 
 export interface BurrowView {
@@ -107,6 +127,7 @@ export interface BurrowView {
    * health bar the burrow does not have.
    */
   shieldMs: number | null;
+  refills: RefillState;
   /** Cost of the next level, or null at max. */
   upgradeCost: number | null;
   canUpgrade: boolean;
@@ -266,11 +287,20 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
     gardenCeiling: Math.floor(capHoursFor(row, now) * yieldPerHour(row.burrowLevel)),
     boosts: gardenBoostView(bag ?? empty, row, now),
     shieldMs: msOfShield(row.shieldedUntil ?? null, now),
+    refills: refillState(bag?.energy ?? 0, row, now),
     upgradeCost: cost,
     canUpgrade: cost !== null && row.stock >= cost,
     next: atMax ? null : { yieldPerHour: yieldPerHour(row.burrowLevel + 1), regenPerHour: regenPerHour(row.burrowLevel + 1) },
     runs: row.runsPlayed ?? 0,
   };
+}
+
+function refillState(held: number, row: BurrowRow, now: number): RefillState {
+  const window: EnergyPackRow = {
+    energyPacksBought: row.energyPacksBought ?? 0,
+    energyPacksSince: row.energyPacksSince ?? new Date(0),
+  };
+  return { held, left: energyPacksLeft(window, now), backInMs: energyPacksResetInMs(window, now) };
 }
 
 /**

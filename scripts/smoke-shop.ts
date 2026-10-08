@@ -21,6 +21,7 @@ import { ITEM_KINDS } from '../src/lib/game/inventory';
 import * as Shop from '../src/app/api/shop/route';
 import * as Traps from '../src/app/api/traps/route';
 import * as Pay from '../src/app/api/shop/pay/route';
+import * as Burrow from '../src/app/api/burrow/route';
 
 const ID = 'sol:SMOKETEST1111111111111111111111111111111111';
 const WALLET = 'SMOKETEST1111111111111111111111111111111111';
@@ -56,6 +57,7 @@ async function main() {
   const trapPlace = (body: unknown) => Traps.POST(req('POST', body)).then((r) => r.json());
   const trapLift = (body: unknown) => Traps.DELETE(req('DELETE', body)).then((r) => r.json());
   const quotePay = (body: unknown) => Pay.POST(req('POST', body)).then((r) => r.json());
+  const burrowAct = (body: unknown) => Burrow.POST(req('POST', body)).then((r) => r.json());
 
   console.log('\nshop, against the real database\n');
 
@@ -90,15 +92,20 @@ async function main() {
   check('a silly quantity is refused', (await shopBuy({ kind: 'bloop', qty: 999 })).error === 'too_many_at_once');
   check('a negative quantity is refused', (await shopBuy({ kind: 'bloop', qty: -3 })).error === 'bad_quantity');
 
-  // Energy: it is APPLIED, not carried.
-  const energy = await shopBuy({ kind: 'energy' });
-  check('buying energy refills the bar', energy.bought?.energy === OUT_OF_RUN_ENERGY.MAX, energy);
-  const player = await db.query.players.findFirst({ where: eq(players.id, ID) });
-  check('…and the bar is really full', player?.energy === OUT_OF_RUN_ENERGY.MAX, player?.energy);
+  // Energy: CARRIED since 2026-10-08 — bought into the bag, poured by hand.
+  const energy = await shopBuy({ kind: 'energy', qty: 2 });
+  check('buying refills puts them in the bag', !energy.error, energy);
+  const bagged = (await db.query.inventory.findMany({ where: eq(inventory.playerId, ID) }))
+    .find((r) => r.kind === 'energy');
+  check('…two of them', bagged?.qty === 2, bagged);
+  let player = await db.query.players.findFirst({ where: eq(players.id, ID) });
+  check('…and the bar has not moved', player?.energy === 1, player?.energy);
+  const poured = await burrowAct({ action: 'refill' });
+  check('pouring one fills the bar', poured.refilled === OUT_OF_RUN_ENERGY.MAX, poured);
+  check('…and the burrow says one is left', poured.burrow?.refills?.held === 1, poured.burrow?.refills);
+  player = await db.query.players.findFirst({ where: eq(players.id, ID) });
   check('…and the daily window opened', player?.energyPacksBought === 1);
-  check('energy is never carried in the bag',
-    (await db.query.inventory.findMany({ where: eq(inventory.playerId, ID) }))
-      .every((r) => r.kind !== 'energy'));
+  check('a refill is refused on a full bar', (await burrowAct({ action: 'refill' })).error === 'tank_full');
 
   // The receipt book. A purchase that leaves no trace is a support message
   // waiting to happen: the player sees a smaller number and nothing else.
@@ -111,7 +118,7 @@ async function main() {
     itemReceipt?.cost === SHOP.PRICES.bloop * 2, itemReceipt?.cost);
   check('...with no payment attached for a carrot purchase',
     itemReceipt?.paymentId === null);
-  check('an energy refill is receipted too, though nothing is carried',
+  check('an energy refill is receipted too',
     receipts.some((r) => r.kind === 'energy'));
 
   // Traps: buy, place, and the refusals that protect the board.

@@ -389,6 +389,8 @@
   "shieldAlready": "Já tem um escudo de pé.",
   "noneLeft": "Acabou. Baús soltam desses.",
   "toppedUp": "Já está cheio. Guarde para depois.",
+  "refilled": "Energia cheia. Bora cavar.",
+  "noRefill": "Nenhuma recarga guardada. A loja vende.",
   "islandSilent": "A ilha não respondeu. Tente de novo daqui a pouco.",
   "runResumed": "De volta à sua partida.",
   "reconnecting": "Reconectando... tente daqui a pouco.",
@@ -774,8 +776,20 @@
   },
   "noRefills": " Sem recargas hoje.",
   "noRefillsUntil": {
-   "$t": " Novas recargas em {0}."
+   "$t": " Utilizáveis de novo em {0}."
   },
+  "inBag": {
+   "$t": " {0} guardadas.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " Nenhuma guardada."
+    }
+   ]
+  },
+  "useRefill": "Usar uma recarga",
   "refillsLeft": {
    "$t": " {0} recargas hoje.",
    "$v": [
@@ -830,7 +844,7 @@
   "bagFull": "CHEIO",
   "active": "ATIVO",
   "boughtEnergy": {
-   "$t": "Energia recarregada. {0}"
+   "$t": "Recarga guardada. {0}"
   },
   "boughtTrap": {
    "$t": "{0} bombas na bolsa. {1}",
@@ -967,6 +981,7 @@
   "inventory_full": "Sua bolsa está cheia desses.",
   "bag_full": "Um dos itens não cabe mais na sua bolsa.",
   "daily_energy_limit": "Sem mais recargas hoje. A horta continua crescendo.",
+  "tank_full": "Sua energia já está cheia. Guarde a recarga para depois.",
   "smoke_capped": "Sua toca está escondida pelo máximo de tempo possível.",
   "too_many_at_once": "Demais de uma vez.",
   "bad_quantity": "Isso não é uma quantidade.",
@@ -1160,6 +1175,21 @@
  "energyPanel": {
   "open": "Detalhes da energia",
   "title": "ENERGIA",
+  "reserve": {
+   "$t": "{0} recargas guardadas",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 recarga guardada"
+    }
+   ]
+  },
+  "usableToday": {
+   "$t": "{0} para usar hoje"
+  },
+  "buyMore": "Comprar mais",
   "reading": {
    "$t": "{0}/{1}"
   },
@@ -1637,7 +1667,7 @@
   },
   "energy": {
    "name": "Energia",
-   "blurb": "Recarregue sua energia e cave agora, em vez de esperar."
+   "blurb": "Um tanque cheio para guardar. Use quando ficar sem energia."
   },
   "smoke": {
    "name": "Cortina de fumaça",
@@ -1662,6 +1692,14 @@
   "kuro_tantrum": {
    "name": "Birra do Kuro",
    "blurb": "Raios e bloops para estragar a partida de um rival."
+  },
+  "refill_3": {
+   "name": "3 recargas",
+   "blurb": "Três tanques cheios, guardados para depois."
+  },
+  "refill_10": {
+   "name": "10 recargas",
+   "blurb": "Dez tanques cheios, guardados até você precisar."
   }
  },
  "quests": {

@@ -313,6 +313,8 @@ export const en = {
     shieldAlready: 'A shield is already up.',
     noneLeft: 'None left. Chests drop them.',
     toppedUp: 'Already topped up. Save it for later.',
+    refilled: 'Energy full. Go dig.',
+    noRefill: 'No refills saved. The shop sells them.',
     islandSilent: 'The island did not answer. Try again in a moment.',
     runResumed: 'Back to your run.',
     reconnecting: 'Reconnecting... try again in a moment.',
@@ -610,7 +612,9 @@ export const en = {
       + ' Or refill now and keep digging.',
     fillsTo: (max: number) => `Refills your energy to ${max}.`,
     noRefills: ' No refills left today.',
-    noRefillsUntil: (wait: string) => ` New refills in ${wait}.`,
+    noRefillsUntil: (wait: string) => ` Usable again in ${wait}.`,
+    inBag: (n: number) => (n > 0 ? ` ${n} saved.` : ' None saved.'),
+    useRefill: 'Use a refill',
     refillsLeft: (n: number) => (n > 0 ? ` ${n} refill${n > 1 ? 's' : ''} left today.` : ' No refills left today.'),
     cardsOff: 'Card payments are not switched on yet. Carrots only for now.',
     connectForCard: 'Connect a wallet to pay by card. Everything here is diggable anyway.',
@@ -641,7 +645,7 @@ export const en = {
     active: 'ACTIVE',
     /* What a purchase says back. The count leads only when there is more than
        one of them — "bomb in the shed" and "3 bombs in the shed". */
-    boughtEnergy: (paid: string) => `Energy refilled. ${paid}`,
+    boughtEnergy: (paid: string) => `Refill saved for later. ${paid}`,
     boughtTrap: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} in the bag. ${paid}`,
     boughtBomb: (n: number, paid: string) => `${n > 1 ? `${n} bombs` : 'bomb'} armed. ${paid}`,
     boughtLightning: (n: number, paid: string) =>
@@ -668,6 +672,7 @@ export const en = {
     inventory_full: 'Your bag is full of those.',
     bag_full: 'One of those would not fit in your bag.',
     daily_energy_limit: 'No more refills today. The garden still grows.',
+    tank_full: 'Your energy is already full. Keep the refill for later.',
     smoke_capped: 'Your burrow is hidden as long as it can be.',
     too_many_at_once: 'Too many at once.',
     bad_quantity: 'That is not a quantity.',
@@ -805,6 +810,9 @@ export const en = {
   energyPanel: {
     open: 'Energy details',
     title: 'ENERGY',
+    reserve: (n: number) => (n === 1 ? '1 refill saved' : `${n} refills saved`),
+    usableToday: (n: number) => `${n} usable today`,
+    buyMore: 'Buy more',
     reading: (energy: number, max: number) => `${energy}/${max}`,
     /* "/h", not "an hour": the reading shares its line with the [X] on a
        340px panel, and the long form wrapped on the Seeker. */
@@ -1176,7 +1184,7 @@ export const en = {
     },
     energy: {
       name: 'Energy',
-      blurb: 'Refill your energy and dig now, instead of waiting it out.',
+      blurb: 'A full tank to keep for later. Use it when you run dry.',
     },
     smoke: {
       name: 'Smoke screen',
@@ -1204,6 +1212,14 @@ export const en = {
     kuro_tantrum: {
       name: "Kuro's Tantrum",
       blurb: 'Bolts and bloops to ruin a rival’s run.',
+    },
+    refill_3: {
+      name: '3 Refills',
+      blurb: 'Three full tanks, saved for later.',
+    },
+    refill_10: {
+      name: '10 Refills',
+      blurb: 'Ten full tanks, kept until you need them.',
     },
   } satisfies ItemTable,
 

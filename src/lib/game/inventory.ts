@@ -10,8 +10,11 @@
  * storage split:
  *  - TRAPS sit on the player row, beside the timestamp their free daily
  *    allowance is derived from (lib/game/traps);
- *  - ENERGY is not held at all — a refill is applied on purchase, so what the
- *    shelf reports for it is how many refills the daily cap still allows.
+ *  - SMOKE is an expiry instant on the row, reported in days.
+ *
+ * ENERGY REFILLS are ordinary rows since 2026-10-08: bought ahead, poured by
+ * hand (`refillBlocker`, the burrow's `refill` action). What is still special
+ * is the daily cap, which now counts refills POURED, on the row.
  */
 import { GARDEN_BOOST, SHOP, SMOKE, itemPrice, itemUsdcPrice } from '@config/tuning';
 import { ENERGY_PACK, itemCap } from '@/lib/tuning/tables';
@@ -68,8 +71,8 @@ export function isGardenKind(v: unknown): v is GardenKind {
   return typeof v === 'string' && (GARDEN_KINDS as readonly string[]).includes(v);
 }
 
-/** The kinds that are actually CARRIED. Energy is spent as it is bought. */
-export const CARRIED_KINDS = ['trap', 'lightning', 'shield', 'mirage', 'fence', 'bloop'] as const;
+/** The kinds that are actually CARRIED — refills too, since 2026-10-08. */
+export const CARRIED_KINDS = ['trap', 'lightning', 'shield', 'energy', 'mirage', 'fence', 'bloop'] as const;
 export type CarriedKind = (typeof CARRIED_KINDS)[number];
 
 export function isItemKind(v: unknown): v is ItemKind {
@@ -82,7 +85,8 @@ export interface InventoryRow {
   qty: number;
 }
 
-/** How many paid energy refills this player has left today, and their row. */
+/** The rolling window of refills POURED (the columns keep their first name,
+ *  from when a refill was poured the moment it was bought). */
 export interface EnergyPackRow {
   energyPacksBought: number;
   energyPacksSince: Date;
@@ -176,12 +180,12 @@ export function shieldBlocker(
 }
 
 /**
- * Paid refills already taken in the current rolling window.
+ * Refills already poured in the current rolling window.
  *
  * A ROLLING window, like the trap allowance and for the same reason: a midnight
  * reset punishes whoever plays at the wrong hour and invites a stampede at the
- * boundary. The window opens on the first purchase and closes WINDOW_MS later,
- * after which the count is stale and reads as zero.
+ * boundary. The window opens on the first refill poured and closes WINDOW_MS
+ * later, after which the count is stale and reads as zero.
  */
 export function energyPacksUsed(row: EnergyPackRow, now = Date.now()): number {
   const elapsed = now - row.energyPacksSince.getTime();
@@ -195,9 +199,9 @@ export function energyPacksLeft(row: EnergyPackRow, now = Date.now()): number {
 }
 
 /**
- * How long until the window lapses and every refill comes back at once, or
- * null when none has been bought in it. All five return together because the
- * window is one span opened by the first purchase, not one clock per refill.
+ * How long until the window lapses and the daily allowance comes back whole,
+ * or null when none has been poured in it. All five return together because
+ * the window is one span opened by the first refill, not one clock per refill.
  */
 export function energyPacksResetInMs(row: EnergyPackRow, now = Date.now()): number | null {
   if (energyPacksUsed(row, now) === 0) return null;
@@ -205,7 +209,7 @@ export function energyPacksResetInMs(row: EnergyPackRow, now = Date.now()): numb
 }
 
 /**
- * The window fields to write when a refill is bought.
+ * The window fields to write when a refill is poured.
  *
  * Restarts the window when the old one has lapsed, so five refills a day cannot
  * be turned into ten by straddling a boundary.
@@ -218,7 +222,30 @@ export function spendEnergyPack(row: EnergyPackRow, now = Date.now()): EnergyPac
 }
 
 /**
- * Fold the inventory rows, the trap columns and the energy window into one bag.
+ * Why a refill cannot be poured right now, or null when it can.
+ *
+ * `tank_full` guards the player against themselves: a refill tops the bar up
+ * to its ceiling, so one poured on a full bar is a refill thrown away. It is
+ * waived mid-run (`live`): the bar on the player row is not the tank the
+ * rabbit digs with then (`refillEnergy`), and only the client knows it is out.
+ * Waiving a guard that protects nobody but the caller costs nothing.
+ */
+export function refillBlocker(
+  bag: Holdings,
+  row: EnergyPackRow,
+  energy: number,
+  max: number,
+  live: boolean,
+  now = Date.now(),
+): string | null {
+  if (bag.energy < 1) return 'none_held';
+  if (energyPacksLeft(row, now) < 1) return 'daily_energy_limit';
+  if (!live && energy >= max) return 'tank_full';
+  return null;
+}
+
+/**
+ * Fold the inventory rows, the trap columns and the smoke instant into one bag.
  *
  * Every kind is present even at zero, so a client renders "0 bombs" rather than
  * an empty shelf — an item you cannot see is an item you do not know exists,
@@ -226,7 +253,7 @@ export function spendEnergyPack(row: EnergyPackRow, now = Date.now()): EnergyPac
  */
 export function holdings(
   rows: InventoryRow[],
-  row: TrapRow & EnergyPackRow & SmokeRow & GardenBoostRow,
+  row: TrapRow & SmokeRow & GardenBoostRow,
   now = Date.now(),
 ): Holdings {
   const bag = {
@@ -234,11 +261,10 @@ export function holdings(
     water: 0, fertiliser: 0, fence: 0, bloop: 0,
   } as Holdings;
   for (const r of rows) if (isItemKind(r.kind)) bag[r.kind] = r.qty;
-  // Traps, energy and smoke override whatever the table said: none is stored
-  // there. Traps live beside their free allowance, energy is applied on
-  // purchase, and smoke is an expiry instant rather than a thing carried.
+  // Traps and smoke override whatever the table said: neither is stored
+  // there. Traps live beside their free allowance, and smoke is an expiry
+  // instant rather than a thing carried. Refills are real rows (2026-10-08).
   bag.trap = availableTraps(row, now);
-  bag.energy = energyPacksUsed(row, now);
   bag.smoke = smokeDaysLeft(row, now);
   // The garden boosts are NOT overridden: they are real rows now, and the
   // count the loop above read off the table is how many bottles are in the bag.
@@ -408,8 +434,8 @@ export const purchaseUsdc = (kind: ShopKind, qty: number) =>
  * carrots" instead of a bare 400 — the same choice `upgradeBlocker` makes.
  *
  * `stock` is optional because the USDC route has no carrot stock to check:
- * omitted, everything but affordability is still enforced. The caps, the
- * quantity limit and the daily energy window apply to money exactly as they
+ * omitted, everything but affordability is still enforced. The caps and the
+ * quantity limit apply to money exactly as they
  * apply to carrots — that is what keeps the paid route a convenience rather
  * than a second, better game.
  */
@@ -421,11 +447,7 @@ export function purchaseBlocker(
 ): string | null {
   if (!Number.isInteger(qty) || qty < 1) return 'bad_quantity';
   if (qty > SHOP.MAX_QTY_PER_PURCHASE) return 'too_many_at_once';
-  // ONE REFILL PER PURCHASE. A refill fills the tank to its ceiling, so a
-  // second one in the same purchase would be billed and deliver nothing.
-  if (kind === 'energy' && qty !== 1) return 'too_many_at_once';
   if (bag[kind] + qty > itemCap(kind)) {
-    if (kind === 'energy') return 'daily_energy_limit';
     if (kind === 'smoke') return 'smoke_capped';
     return 'inventory_full';
   }

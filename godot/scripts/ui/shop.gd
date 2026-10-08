@@ -724,8 +724,7 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	# une mauvaise nouvelle. Doree quand l'etagere est pleine.
 	# Un pack ne se tient pas : pas de compte, son contenu est sur l'art.
 	var pack := ShopState.PACKS.has(kind)
-	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)),
-		_state.energy_back_in_ms())
+	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)))
 	var held_size := int(round(10 * k))
 	var chip_style := StyleBoxFlat.new()
 	chip_style.bg_color = Palette.TAB_ON_BOTTOM if full else Palette.BADGE_BOTTOM
@@ -873,7 +872,8 @@ static func _pack_art(kind: String, px: float) -> Control:
 	heap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var lines := ShopState.pack_items(kind)
 	var n := lines.size()
-	var side := px * 0.5
+	# Un seul objet (les recharges en gros) : il tient la carte a lui seul.
+	var side := px * (0.8 if n == 1 else 0.5)
 	var spots: Array = [Vector2(0.5, 0.5)]
 	if n == 2:
 		spots = [Vector2(0.27, 0.5), Vector2(0.73, 0.5)]

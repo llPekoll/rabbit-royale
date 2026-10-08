@@ -27,7 +27,7 @@ import { sql } from 'drizzle-orm';
  * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
  * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -140,9 +140,10 @@ export const players = pgTable('players', {
    */
   wateredUntil: timestamp('watered_until', { withTimezone: true }),
   fertilisedUntil: timestamp('fertilised_until', { withTimezone: true }),
-  /** Energy refills bought in the current rolling window, and when that
-   *  window opened. A daily cap on PAID energy is what keeps money buying the
-   *  wait rather than an unlimited session (ENERGY_PACK.MAX_PER_DAY). */
+  /** Energy refills POURED in the current rolling window, and when that
+   *  window opened (the name is from when a refill was poured on purchase).
+   *  A daily cap on refills is what keeps a bag full of them buying the wait
+   *  rather than an unlimited session (ENERGY_PACK.MAX_PER_DAY). */
   energyPacksBought: integer('energy_packs_bought').notNull().default(0),
   energyPacksSince: timestamp('energy_packs_since', { withTimezone: true }).notNull().defaultNow(),
 
@@ -193,6 +194,66 @@ export const players = pgTable('players', {
 export const loginNonces = pgTable('login_nonces', {
   address: text('address').primaryKey(),
   nonce: text('nonce').notNull(),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Ways back into an account other than a wallet: a Google account, an email.
+ *
+ * One row per proven identity, pointing at the player it opens. A player may
+ * hold several (Google AND an email), an identity opens exactly one player —
+ * the primary key on (provider, subject) is what stops two burrows sharing a
+ * Google account, the way `players_wallet_idx` does for wallets. See
+ * lib/auth/identity.ts.
+ *
+ * `subject` is Google's stable `sub`, or the lower-cased address for 'email'.
+ * `email` is kept for both: it is what the profile shows, and what lets a
+ * Google sign-in land on the burrow an email code made (both are verified).
+ */
+export const playerIdentities = pgTable('player_identities', {
+  provider: text('provider').notNull(),           // 'google' | 'email'
+  subject: text('subject').notNull(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  email: text('email'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('player_identities_pk').on(t.provider, t.subject),
+  index('player_identities_player_idx').on(t.playerId),
+  index('player_identities_email_idx').on(t.email),
+]);
+
+/**
+ * A browser sign-in in flight (Google), waited on by the game.
+ *
+ * The game cannot receive the browser's redirect — that would need a deep link
+ * declared in the APK, and the APK is a shell that is not resubmitted for a
+ * feature. So the game keeps `id` (the secret it polls with), the browser
+ * carries `state` (a different random, the only one Google ever sees), and the
+ * callback writes the outcome into `result` for the game's next poll.
+ * Short-lived; rows are read once and deleted.
+ */
+export const authHandoffs = pgTable('auth_handoffs', {
+  id: text('id').primaryKey(),
+  state: text('state').notNull(),
+  /** 'login', or 'link' to attach the identity to `playerId`. */
+  mode: text('mode').notNull(),
+  playerId: text('player_id').references(() => players.id, { onDelete: 'cascade' }),
+  result: jsonb('result'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('auth_handoffs_state_idx').on(t.state),
+]);
+
+/**
+ * Six-digit codes sent by email. Keyed by the (lower-cased) address: asking
+ * again replaces the code, like `login_nonces`. Only the hash is stored.
+ */
+export const emailCodes = pgTable('email_codes', {
+  email: text('email').primaryKey(),
+  codeHash: text('code_hash').notNull(),
+  mode: text('mode').notNull(),
+  playerId: text('player_id').references(() => players.id, { onDelete: 'cascade' }),
+  attempts: integer('attempts').notNull().default(0),
   issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

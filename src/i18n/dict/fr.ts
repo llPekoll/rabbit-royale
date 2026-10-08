@@ -266,6 +266,8 @@ export const fr: Dict = {
     shieldAlready: 'Un bouclier est déjà levé.',
     noneLeft: 'Plus rien. Les coffres en lâchent.',
     toppedUp: 'Déjà plein. Garde-le pour plus tard.',
+    refilled: 'Énergie au max. File creuser.',
+    noRefill: 'Aucune recharge en réserve. La boutique en vend.',
     islandSilent: "L'île n'a pas répondu. Réessaie dans un instant.",
     runResumed: 'Retour à ta partie.',
     reconnecting: 'Reconnexion... réessaie dans un instant.',
@@ -509,7 +511,9 @@ export const fr: Dict = {
       + ' Ou recharge maintenant et continue de creuser.',
     fillsTo: (max) => `Recharge ton énergie jusqu’à ${max}.`,
     noRefills: ' Plus de recharge aujourd’hui.',
-    noRefillsUntil: (wait) => ` Nouvelles recharges dans ${wait}.`,
+    noRefillsUntil: (wait) => ` Utilisables à nouveau dans ${wait}.`,
+    inBag: (n) => (n > 0 ? ` ${n} en réserve.` : ' Aucune en réserve.'),
+    useRefill: 'Utiliser une recharge',
     refillsLeft: (n) => (n > 0 ? ` ${n} recharge${n > 1 ? 's' : ''} aujourd’hui.` : ' Plus de recharge aujourd’hui.'),
     cardsOff: 'Le paiement par carte n’est pas encore ouvert. Carottes seulement.',
     connectForCard: 'Connecte un portefeuille pour payer par carte. Tout ici se creuse aussi.',
@@ -533,7 +537,7 @@ export const fr: Dict = {
     /* A pack that will not fit: one of its items would overflow the bag. */
     bagFull: 'PLEIN',
     active: 'ACTIF',
-    boughtEnergy: (paid) => `Énergie rechargée. ${paid}`,
+    boughtEnergy: (paid) => `Recharge mise en réserve. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombes` : 'Bombe'} dans le sac. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombes armées` : 'Bombe armée'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} éclairs` : 'Éclair'} en bouteille. ${paid}`,
@@ -554,6 +558,7 @@ export const fr: Dict = {
     inventory_full: 'Ton sac en est plein.',
     bag_full: 'Un des objets ne tient plus dans ton sac.',
     daily_energy_limit: 'Plus de recharge aujourd’hui. Le potager pousse quand même.',
+    tank_full: 'Ton énergie est déjà pleine. Garde la recharge pour plus tard.',
     smoke_capped: 'Ton terrier est caché aussi longtemps que possible.',
     too_many_at_once: 'Trop à la fois.',
     bad_quantity: 'Ce n’est pas une quantité.',
@@ -673,6 +678,9 @@ export const fr: Dict = {
   energyPanel: {
     open: 'D\u00e9tail de l\u2019\u00e9nergie',
     title: '\u00c9NERGIE',
+    reserve: (n) => (n === 1 ? '1 recharge en réserve' : `${n} recharges en réserve`),
+    usableToday: (n) => (n === 1 ? '1 utilisable aujourd’hui' : `${n} utilisables aujourd’hui`),
+    buyMore: 'En acheter',
     reading: (energy, max) => `${energy}/${max}`,
     rate: (regen) => `+${regen}/h`,
     full: 'plein',
@@ -976,7 +984,7 @@ export const fr: Dict = {
     },
     energy: {
       name: 'Énergie',
-      blurb: 'Recharge ton énergie et creuse maintenant, au lieu d’attendre.',
+      blurb: 'Un plein d’énergie à garder en réserve. À utiliser quand tu es à sec.',
     },
     smoke: {
       name: 'Écran de fumée',
@@ -1004,6 +1012,14 @@ export const fr: Dict = {
     kuro_tantrum: {
       name: 'Colère de Kuro',
       blurb: 'Éclairs et bloops pour gâcher la partie d’un rival.',
+    },
+    refill_3: {
+      name: '3 recharges',
+      blurb: 'Trois pleins à garder en réserve.',
+    },
+    refill_10: {
+      name: '10 recharges',
+      blurb: 'Dix pleins, rangés jusqu’à ce que tu en aies besoin.',
     },
   },
 

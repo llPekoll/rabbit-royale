@@ -407,6 +407,8 @@
   "shieldAlready": "Un bouclier est déjà levé.",
   "noneLeft": "Plus rien. Les coffres en lâchent.",
   "toppedUp": "Déjà plein. Garde-le pour plus tard.",
+  "refilled": "Énergie au max. File creuser.",
+  "noRefill": "Aucune recharge en réserve. La boutique en vend.",
   "islandSilent": "L'île n'a pas répondu. Réessaie dans un instant.",
   "runResumed": "Retour à ta partie.",
   "reconnecting": "Reconnexion... réessaie dans un instant.",
@@ -792,8 +794,20 @@
   },
   "noRefills": " Plus de recharge aujourd’hui.",
   "noRefillsUntil": {
-   "$t": " Nouvelles recharges dans {0}."
+   "$t": " Utilisables à nouveau dans {0}."
   },
+  "inBag": {
+   "$t": " {0} en réserve.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " Aucune en réserve."
+    }
+   ]
+  },
+  "useRefill": "Utiliser une recharge",
   "refillsLeft": {
    "$t": " {0} recharges aujourd’hui.",
    "$v": [
@@ -848,7 +862,7 @@
   "bagFull": "PLEIN",
   "active": "ACTIF",
   "boughtEnergy": {
-   "$t": "Énergie rechargée. {0}"
+   "$t": "Recharge mise en réserve. {0}"
   },
   "boughtTrap": {
    "$t": "{0} bombes dans le sac. {1}",
@@ -985,6 +999,7 @@
   "inventory_full": "Ton sac en est plein.",
   "bag_full": "Un des objets ne tient plus dans ton sac.",
   "daily_energy_limit": "Plus de recharge aujourd’hui. Le potager pousse quand même.",
+  "tank_full": "Ton énergie est déjà pleine. Garde la recharge pour plus tard.",
   "smoke_capped": "Ton terrier est caché aussi longtemps que possible.",
   "too_many_at_once": "Trop à la fois.",
   "bad_quantity": "Ce n’est pas une quantité.",
@@ -1189,6 +1204,29 @@
  "energyPanel": {
   "open": "Détail de l’énergie",
   "title": "ÉNERGIE",
+  "reserve": {
+   "$t": "{0} recharges en réserve",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 recharge en réserve"
+    }
+   ]
+  },
+  "usableToday": {
+   "$t": "{0} utilisables aujourd’hui",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 utilisable aujourd’hui"
+    }
+   ]
+  },
+  "buyMore": "En acheter",
   "reading": {
    "$t": "{0}/{1}"
   },
@@ -1678,7 +1716,7 @@
   },
   "energy": {
    "name": "Énergie",
-   "blurb": "Recharge ton énergie et creuse maintenant, au lieu d’attendre."
+   "blurb": "Un plein d’énergie à garder en réserve. À utiliser quand tu es à sec."
   },
   "smoke": {
    "name": "Écran de fumée",
@@ -1703,6 +1741,14 @@
   "kuro_tantrum": {
    "name": "Colère de Kuro",
    "blurb": "Éclairs et bloops pour gâcher la partie d’un rival."
+  },
+  "refill_3": {
+   "name": "3 recharges",
+   "blurb": "Trois pleins à garder en réserve."
+  },
+  "refill_10": {
+   "name": "10 recharges",
+   "blurb": "Dix pleins, rangés jusqu’à ce que tu en aies besoin."
   }
  },
  "quests": {

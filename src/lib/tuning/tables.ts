@@ -77,8 +77,8 @@ export const regenPerHour = (level: number): number => FILE.regenPerHour(level, 
 /** `upgradeCost(level)` on the live BURROW ladder. */
 export const upgradeCost = (level: number): number => FILE.upgradeCost(level, BURROW);
 
-/** `itemCap(kind)` with the live trap bag and refill allowance. */
-export const itemCap = (kind: keyof typeof FILE.SHOP.PRICES): number => FILE.itemCap(kind, TRAPS, ENERGY_PACK);
+/** `itemCap(kind)` with the live trap bag. */
+export const itemCap = (kind: keyof typeof FILE.SHOP.PRICES): number => FILE.itemCap(kind, TRAPS);
 
 /**
  * THE RAID FLOOR: the toll plus the walk the tank must hold past it to be let

@@ -36,7 +36,7 @@ import { farmableTiles, terrainNeighbors } from '../../src/lib/game/terrainBoard
 import { toColRow, toIndex, COLS, ROWS } from '../../src/config/gridConfig';
 import { burrowNeighbors, fieldTiles, isTrappable, isDoorstep, walkableTiles, setBurrowEdits } from '../../src/game/burrow/board';
 import { distanceToField } from '../../src/lib/game/raid';
-import { ENERGY_PACK, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, RAID, SHOP, levelRow } from '../../config/tuning';
+import { OUT_OF_RUN_ENERGY, RABBIT_LEVELS, RAID, SHOP, levelRow } from '../../config/tuning';
 
 const BASE = process.env.SWARM_URL ?? 'http://localhost:3011';
 const OUT = new URL('./out/', import.meta.url).pathname;
@@ -198,15 +198,21 @@ async function tank(b: Bot): Promise<number> {
 async function fakePay(b: Bot): Promise<boolean> {
   const p = await row(b.id);
   if (!p) return false;
-  const since = p.energyPacksSince?.getTime() ?? 0;
-  const inWindow = Date.now() - since < ENERGY_PACK.WINDOW_MS ? p.energyPacksBought ?? 0 : 0;
-  if (inWindow >= ENERGY_PACK.MAX_PER_DAY) { st(b, 'refill_capped'); return false; }
   await db.transaction((tx) => grantItem(tx as any, b.id, 'energy', 1, Date.now(), {
     currency: 'usdc', cost: Math.round(((SHOP.USDC_PRICES as any).energy ?? 0) * 1e6), paymentId: undefined as any,
   }));
   st(b, 'refill_money');
   event('refill_money', { bot: b.name });
-  return true;
+  return pour(b);
+}
+
+/** Pour a refill out of the bag (carried since 2026-10-08). False when the bag
+ *  is empty, the day's pours are spent, or the tank is already full. */
+async function pour(b: Bot): Promise<boolean> {
+  const { status, json } = await api(b.token, 'POST', '/api/burrow', { action: 'refill' });
+  if (status === 200 && !json?.error) { st(b, 'refill_poured'); return true; }
+  st(b, `refill_fail_${json?.error ?? status}`);
+  return false;
 }
 
 async function buy(b: Bot, kind: string, qty = 1): Promise<boolean> {
@@ -220,6 +226,7 @@ async function buy(b: Bot, kind: string, qty = 1): Promise<boolean> {
 async function ensureEnergy(b: Bot, need = 40): Promise<boolean> {
   let e = await tank(b);
   if (e >= need) return true;
+  if (await pour(b)) return (await tank(b)) >= need;
   const s = b.arch.spend;
   if (s === 'money-free' || s === 'money-on-empty') {
     if (s === 'money-free' || e < 10 || Math.random() < 0.5) if (await fakePay(b)) return (await tank(b)) >= need;
@@ -228,7 +235,7 @@ async function ensureEnergy(b: Bot, need = 40): Promise<boolean> {
     const p = await row(b.id);
     const price = (SHOP.PRICES as any).energy as number;
     if (p && p.stock >= price + 300 && Math.random() < 0.6) {
-      if (await buy(b, 'energy')) { e = await tank(b); return e >= need; }
+      if (await buy(b, 'energy') && await pour(b)) { e = await tank(b); return e >= need; }
     }
   }
   st(b, 'session_skipped_no_energy');

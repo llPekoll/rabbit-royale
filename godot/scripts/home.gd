@@ -47,7 +47,7 @@ const REFRESH_SECONDS := 60.0
 ## BurrowView (lib/game/burrow.ts) : level, stock, lifetime, gardenReady,
 ## energy, maxEnergy, nextEnergyInMs, runCost, nextRunInMs, yieldPerHour,
 ## regenPerHour, capHours, gardenCapacity, gardenCeiling, boosts, shieldMs,
-## upgradeCost, canUpgrade, next, runs.
+## refills {held, left, backInMs}, upgradeCost, canUpgrade, next, runs.
 var burrow: Dictionary = {}
 ## Le joueur tel que /api/burrow le rend (avec `applyRegen`).
 var player: Dictionary = {}
@@ -141,13 +141,14 @@ func refresh() -> void:
 
 
 ## UN GESTE SUR LE TERRIER : "harvest", "upgrade", "water", "fertilise",
-## "shield". Rend la reponse du serveur, et a deja dit ce qu'il y avait a
-## dire par `noted`, `burst`, `level_up`.
+## "shield", "refill". Rend la reponse du serveur, et a deja dit ce qu'il y
+## avait a dire par `noted`, `burst`, `level_up`. `extra` part avec l'action
+## (`live` pour une recharge versee en pleine run, voir `pour_refill`).
 ##
 ## LA RECOLTE EST OPTIMISTE (2026-10-01) : ce que le jardin tient se lit ici
 ## (`live_garden`), les carottes partent au doigt et la reponse ne fait que
 ## corriger le compte. Un refus relit le terrier.
-func act(action: String) -> Dictionary:
+func act(action: String, extra: Dictionary = {}) -> Dictionary:
 	if pending or not Session.signed_in():
 		return {}
 	pending = true
@@ -156,7 +157,9 @@ func act(action: String) -> Dictionary:
 		_harvest_now(guessed)
 	changed.emit()
 	_refresh_seq += 1
-	var answer: Answer = await Net.post_json("/api/burrow", {"action": action}, Session.token)
+	var payload := {"action": action}
+	payload.merge(extra)
+	var answer: Answer = await Net.post_json("/api/burrow", payload, Session.token)
 	pending = false
 	var res: Dictionary = answer.body
 	_adopt(res)
@@ -181,6 +184,13 @@ func act(action: String) -> Dictionary:
 		noted.emit(I18N.t("notes.watered"), false)
 	elif res.get("poured", "") == "fertiliser":
 		noted.emit(I18N.t("notes.fed"), false)
+	elif res.has("refilled"):
+		noted.emit(I18N.t("notes.refilled"), false)
+	elif res.has("error") and action == "refill":
+		# Les refus d'une recharge ont leurs mots a l'etal (`shopErrors`), et
+		# « rien dans le sac » n'est pas le « plus rien » des bouteilles.
+		var code := String(res["error"])
+		noted.emit(I18N.t("notes.noRefill") if code == "none_held" else ShopState.shared().message(code), true)
 	elif res.has("error"):
 		_refuse(String(res["error"]), res)
 	elif not answer.ok:
@@ -306,6 +316,41 @@ func live_energy() -> Dictionary:
 	var hours := maxf(0.0, (Time.get_ticks_msec() - _fetched_ms) / 3600000.0)
 	var energy := int(floor(float(burrow.get("energy", 0)) + hours * float(burrow.get("regenPerHour", 0))))
 	return {"energy": mini(max_energy, energy), "max": max_energy}
+
+
+## LES RECHARGES D'ENERGIE DU SAC (2026-10-08) : `held` dans le sac, `left`
+## versables encore dans la fenetre de 24 h, `back_in_ms` quand elle se
+## rouvre (null si aucune n'a ete versee), decompte depuis la lecture.
+func refills() -> Dictionary:
+	var r: Variant = burrow.get("refills", {})
+	var view: Dictionary = r if r is Dictionary else {}
+	var back: Variant = view.get("backInMs", null)
+	if back != null:
+		back = maxf(0.0, float(back) - float(Time.get_ticks_msec() - _fetched_ms))
+	return {"held": int(view.get("held", 0)), "left": int(view.get("left", 0)), "back_in_ms": back}
+
+
+## VERSER UNE RECHARGE : le reservoir au plein. En pleine run (`live`), le
+## serveur remplit aussi le lapin sur l'ile (`energy_granted`), et la garde
+## « reservoir deja plein » saute : la barre du terrier n'est pas celle du
+## lapin. Rend vrai si la recharge est versee.
+func pour_refill() -> bool:
+	var res := await act("refill", {"live": in_live_run()})
+	return res.has("refilled")
+
+
+## Mon lapin creuse sur l'ile en ce moment : son reservoir n'est pas la barre
+## du terrier, et une recharge versee va aux deux.
+func in_live_run() -> bool:
+	var me: Dictionary = RunState.current.me() if RunState.current != null else {}
+	return Screens.place == Screens.Place.ISLAND and bool(me.get("alive", false))
+
+
+## Verser maintenant serait perdre la recharge : la barre du terrier est
+## pleine et aucun lapin ne creuse (le serveur refuse pareil, `tank_full`).
+func refill_wasted() -> bool:
+	var live := live_energy()
+	return not in_live_run() and int(live["energy"]) >= int(live["max"])
 
 
 ## LE JARDIN MAINTENANT, de la meme facon : ce qui etait pret, plus ce qui a

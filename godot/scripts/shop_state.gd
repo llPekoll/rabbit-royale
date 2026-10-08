@@ -51,10 +51,11 @@ static var current: ShopState
 const KINDS := ["trap", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
 
 ## LES PACKS (SHOP_PACKS, 2026-10-02) : plusieurs objets pour un achat, un
-## par camp — Shiro defend, Kuro attaque. Pas des objets : le serveur les
-## sert a part (`packs`, avec leur contenu), et le sac recoit ce qu'il y a
-## dedans.
-const PACKS := ["shiro_stash", "kuro_tantrum"]
+## par camp — Shiro defend, Kuro attaque — et les recharges en gros
+## (2026-10-08), depuis qu'elles se gardent dans le sac. Pas des objets : le
+## serveur les sert a part (`packs`, avec leur contenu), et le sac recoit ce
+## qu'il y a dedans.
+const PACKS := ["shiro_stash", "kuro_tantrum", "refill_3", "refill_10"]
 
 ## L'ART D'UNE SORTE, la ou le jeu en a (item-meta.ts `art`). Quelques-unes
 ## seulement, et c'est voulu : ce sont les sprites du COFFRE, donc une sorte a
@@ -94,32 +95,28 @@ const TINT := {
 	# defense. Kuro, le noir : le violet de son skin.
 	"shiro_stash": Color("#5a8fb8"),
 	"kuro_tantrum": Color("#6a3d9a"),
+	# Les recharges en gros : l'orange de l'energie, plus profond.
+	"refill_3": Color("#c86424"),
+	"refill_10": Color("#a84e1a"),
 }
 
 ## COMMENT SE LIT LE COMPTE d'une sorte (item-meta.ts `counts`) : "carried",
-## une chose qu'on tient, "3/20" ; "daily", les recharges que la journee
-## permet encore — l'energie n'est jamais TENUE, elle s'applique a l'achat ;
-## "time", pas une chose du tout — la fumee est un instant d'expiration, dit
-## en jours de couverture.
+## une chose qu'on tient, "3/20" — les recharges d'energie aussi depuis le
+## 2026-10-08, achetees d'avance et versees a la main ; "time", pas une chose
+## du tout — la fumee est un instant d'expiration, dit en jours de couverture.
 const COUNTS := {
 	"trap": "carried",
 	"lightning": "carried",
 	"shield": "carried",
-	"energy": "daily",
+	"energy": "carried",
 	"smoke": "time",
 	"bloop": "carried",
 	"fence": "carried",
 }
 
 ## ShopState du web : stock, items[], traps{held, placed, armed, rearming,
-## nextRearmAt, maxPlaced, drain, freePerDay}, energyResetInMs, usdcEnabled,
-## tokens[], rates.
-var shop: Dictionary = {}:
-	set(value):
-		shop = value
-		_shop_read_ms = Time.get_ticks_msec()
-## Quand l'etal a ete lu : `energyResetInMs` compte depuis cet instant.
-var _shop_read_ms := 0
+## nextRearmAt, maxPlaced, drain, freePerDay}, usdcEnabled, tokens[], rates.
+var shop: Dictionary = {}
 ## TrapState : placed[], armed[], rearming[], held, maxPlaced, maxHeld, drain.
 var traps: Dictionary = {}
 ## FenceState : placed[], spans[], offers[], held, maxHeld.
@@ -404,29 +401,12 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 
 
 ## LA LIGNE DU COMPTE d'un objet (item-meta.ts `heldLabel`) : "3/20",
-## "2 today", "1d left". Partagee pour que l'etal et la case du kit disent la
-## meme chose des memes avoirs.
-## `back_ms` : dans combien les recharges reviennent (energy_back_in_ms) — a
-## zero, la pastille dit « dans 5h » plutot que « 0 aujourd'hui ».
-static func held_label(kind: String, held: int, cap: int, back_ms: Variant = null) -> String:
-	match COUNTS.get(kind, "carried"):
-		"daily":
-			if cap - held <= 0 and back_ms != null:
-				return I18N.f("shop.heldBackIn", [I18N.short_wait(float(back_ms))])
-			return I18N.f("shop.heldToday", [cap - held])
-		"time":
-			return I18N.f("shop.heldDaysLeft", [held]) if held > 0 else I18N.t("shop.heldOff")
+## "1d left". Partagee pour que l'etal et la case du kit disent la meme chose
+## des memes avoirs.
+static func held_label(kind: String, held: int, cap: int) -> String:
+	if COUNTS.get(kind, "carried") == "time":
+		return I18N.f("shop.heldDaysLeft", [held]) if held > 0 else I18N.t("shop.heldOff")
 	return I18N.f("shop.heldOf", [held, cap])
-
-
-## DANS COMBIEN LES RECHARGES REVIENNENT, en ms, ou null quand aucune n'a ete
-## prise dans la fenetre. Les cinq reviennent ensemble, 24 h apres la premiere.
-## Decompte depuis la lecture, a l'horloge du moteur : pas a celle du telephone.
-func energy_back_in_ms() -> Variant:
-	var ms: Variant = shop.get("energyResetInMs", null)
-	if ms == null:
-		return null
-	return maxf(0.0, float(ms) - float(Time.get_ticks_msec() - _shop_read_ms))
 
 
 ## Les objets de l'etal, dans l'ordre du serveur.

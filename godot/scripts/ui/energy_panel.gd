@@ -17,6 +17,11 @@ extends Dialog
 ##     et les deux planchers en traits — celui de la traversee, celui du
 ##     raid — pour que « needs 40 » ait une place sur l'image autant qu'un
 ##     nombre dans la ligne.
+##   • LA RESERVE DE RECHARGES (2026-10-08) : le cadran est l'endroit ou le
+##     joueur regarde son energie, donc celui ou il trouve les pleins qu'il a
+##     mis de cote — combien, combien il peut encore en verser aujourd'hui,
+##     et de quoi en verser un ou en acheter d'autres. Il n'y a pas d'ecran
+##     « sac » dans le jeu : c'est ICI qu'ils se voient.
 ##   • LE NIVEAU DU TERRIER est une raison d'ameliorer, et l'amelioration est
 ##     a la maison : sur l'ile la ligne est un fait sur lequel personne ne
 ##     peut agir, et c'est elle qui poussait le bouton hors d'un ecran de
@@ -26,7 +31,8 @@ extends Dialog
 ## connait deja cette forme comme « qu'est-ce que c'est et qu'est-ce que je
 ## peux en faire ».
 
-## Le joueur veut recharger — par defaut, `EnergyPopup.open()`.
+## Le joueur veut recharger et le sac est vide — par defaut,
+## `EnergyPopup.open()`. Un sac qui tient une recharge la verse sans detour.
 signal refill
 
 ## 380, depuis 340 : les lignes sont un libelle, une clause et un verdict
@@ -43,7 +49,10 @@ var _stock: Label
 var _track: Control
 var _ledger: GridContainer
 var _hint: Label
+var _reserve_count: Label
+var _reserve_say: Label
 var _button: PlankButton
+var _shop: PlankButton
 var _tick: Timer
 
 ## Ce que la piste dessine, relu a chaque rafraichissement.
@@ -115,14 +124,54 @@ func _build() -> void:
 	_hint = Kit.note("", Palette.BARK, 11)
 	body.add_child(_hint)
 
+	# LA RESERVE, sur une planche comme la barre du popup : le medaillon de
+	# la jauge, le compte en gros, et a droite ce que la journee permet.
+	var reserve := PanelContainer.new()
+	reserve.add_theme_stylebox_override("panel", Kit.style_plank(6.0, Kit.PLANK_CAP + 4.0, 5.0))
+	body.add_child(reserve)
+	var row := Kit.hbox(Kit.PAD_TIGHT)
+	reserve.add_child(row)
+	var medal := Kit.icon(ShopState.ART["energy"], 26)
+	medal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(medal)
+	_reserve_count = Kit.label("", 14, Palette.CREAM, true)
+	_reserve_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_reserve_count)
+	_reserve_say = Kit.label("", 10, Palette.CREAM.darkened(0.2))
+	_reserve_say.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_reserve_say.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_reserve_say.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Elle se replie plutot que d'elargir le panneau (« buy some ahead »).
+	_reserve_say.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(_reserve_say)
+
+	# Le pied : verser (ou, reserve vide, le plein a acheter), et l'etal
+	# pour en mettre d'autres de cote — les packs y sont.
+	var foot := Kit.hbox(Kit.PAD_TIGHT)
 	_button = Kit.button("", "green", 0, 44)
-	_button.pressed.connect(func() -> void:
-		# FERMER D'ABORD : `closed` ferme le dialogue COURANT du chrome, et
-		# emis apres, il fermait celui qu'on venait d'ouvrir — le bouton ne
-		# faisait rien (2026-10-01).
+	_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_button.pressed.connect(_on_button)
+	foot.add_child(_button)
+	_shop = Kit.button("", "wood", 120, 44)
+	_shop.label_size = 11
+	_shop.pressed.connect(func() -> void:
 		closed.emit()
-		refill.emit())
-	add_footer(_button)
+		Shop.open())
+	foot.add_child(_shop)
+	add_footer(foot)
+
+
+## UNE RECHARGE AU SAC : versee ici, le panneau reste ouvert et la piste se
+## remplit sous les yeux. Sinon la porte vers le plein a acheter.
+func _on_button() -> void:
+	if int(Home.refills()["held"]) > 0:
+		await Home.pour_refill()
+		return
+	# FERMER D'ABORD : `closed` ferme le dialogue COURANT du chrome, et
+	# emis apres, il fermait celui qu'on venait d'ouvrir — le bouton ne
+	# faisait rien (2026-10-01).
+	closed.emit()
+	refill.emit()
 
 
 ## Le dialogue mesure son contenu (voir shop.gd `_get_minimum_size`).
@@ -194,8 +243,33 @@ func _refresh() -> void:
 			I18N.f("energyPanel.levelRate", [regen, next_regen]), {})
 
 	_hint.text = I18N.t("energyPanel.homeHint") if on_island else I18N.t("energyPanel.raidRefund")
-	_button.visible = energy < max_energy
-	_button.relabel(I18N.shout(I18N.t("recap.getEnergy")))
+	var refills := Home.refills()
+	var held := int(refills["held"])
+	var left := int(refills["left"])
+	_reserve_count.text = I18N.f("energyPanel.reserve", [held])
+	# Reserve vide : rien a droite, « en acheter » est juste dessous.
+	if held <= 0:
+		_reserve_say.text = ""
+	elif left > 0:
+		_reserve_say.text = I18N.f("energyPanel.usableToday", [left])
+	elif refills["back_in_ms"] != null:
+		_reserve_say.text = I18N.f("shop.noRefillsUntil", [I18N.wait(float(refills["back_in_ms"]))]).strip_edges()
+	else:
+		_reserve_say.text = I18N.t("shop.noRefills").strip_edges()
+
+	# Sur l'ile en pleine run, le lapin a son propre reservoir : le bouton
+	# reste, une recharge versee le remplit lui aussi. Reserve pleine et
+	# reservoir plein : rien a verser, le bouton s'eteint sans disparaitre.
+	if held > 0:
+		_button.relabel(I18N.shout(I18N.t("shop.useRefill")))
+		var dead := Home.pending or left <= 0 or Home.refill_wasted()
+		_button.board = PlankButton.tone_board("wood" if dead else "green")
+		_button.disabled = dead
+	else:
+		_button.relabel(I18N.shout(I18N.t("recap.getEnergy")))
+		_button.board = PlankButton.tone_board("green")
+		_button.disabled = Home.refill_wasted()
+	_shop.relabel(I18N.shout(I18N.t("energyPanel.buyMore")))
 
 
 func _ready_verdict() -> Dictionary:

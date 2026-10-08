@@ -1428,14 +1428,36 @@ export const SHOP_PACKS = {
       { kind: 'bloop', qty: 3 },
     ],
   },
+  /**
+   * REFILLS IN BULK (2026-10-08). Since refills are carried rather than spent
+   * on purchase (ENERGY_PACK), they can be bought ahead, and a crate of them is
+   * the pack a player who plays every evening actually wants. Same cut as the
+   * other two; the bag's ceiling (SHOP.MAX_HELD) refuses a crate that would
+   * not fit, and ENERGY_PACK.MAX_PER_DAY still bounds how many are POURED.
+   */
+  refill_3: {
+    side: 'energy',
+    items: [{ kind: 'energy', qty: 3 }],
+  },
+  refill_10: {
+    side: 'energy',
+    items: [{ kind: 'energy', qty: 10 }],
+  },
 } as const;
 
 /**
- * What one energy purchase gives.
+ * What one energy refill gives.
  *
  * A refill rather than a stack of points, because energy is what gates a RUN:
- * the thing being sold is "go and play now", and a player who buys it should
+ * the thing being sold is "go and play now", and a player who pours one should
  * land on an island rather than on a slightly fuller bar.
+ *
+ * CARRIED, NOT APPLIED (2026-10-08). A refill bought (or found, or given at
+ * the start) goes into the bag like a bomb, up to SHOP.MAX_HELD, and the
+ * player POURS it when they want — at the burrow, dry on the island, or in the
+ * middle of a run. It used to fill the tank on purchase, which made a refill
+ * something you could only buy at the moment you needed it, and a pack of
+ * them meaningless.
  *
  * It tops up to OUT_OF_RUN_ENERGY.MAX and no further. Selling energy ABOVE the
  * natural ceiling would be selling a longer run than the game gives anyone,
@@ -1444,9 +1466,14 @@ export const SHOP_PACKS = {
 export const ENERGY_PACK = {
   /** A full tank: energy added, capped at OUT_OF_RUN_ENERGY.MAX. */
   AMOUNT: OUT_OF_RUN_ENERGY.MAX,
-  /** Refills per rolling day, so money cannot buy an unlimited session. */
+  /** Refills POURED per rolling day, so a bag full of them cannot become an
+   *  unlimited session. Counted on use since refills are carried: a cap on
+   *  buying would make a ten-pack unsellable. */
   MAX_PER_DAY: 5,
   WINDOW_MS: 24 * 60 * 60 * 1000,
+  /** In a new burrow's bag (starting-kit.ts), and given once to every burrow
+   *  that existed before refills were carried (migration 0033). */
+  STARTING: 3,
 } as const;
 
 /**
@@ -1486,17 +1513,15 @@ export function itemUsdcPrice(kind: keyof typeof SHOP.USDC_PRICES): number {
   return SHOP.USDC_PRICES[kind];
 }
 
-/** How many of `kind` a player may hold at once. Energy is not held — it is
- *  applied on purchase — so it has no bag ceiling of its own. */
+/** How many of `kind` a player may hold at once. Refills are carried like
+ *  everything else since 2026-10-08, under the shop's ceiling. */
 export function itemCap(
   kind: keyof typeof SHOP.PRICES,
   // The live tables on the server (src/lib/tuning/tables.ts), the file's here.
   T: { MAX_HELD: number } = TRAPS,
-  P: { MAX_PER_DAY: number } = ENERGY_PACK,
 ): number {
   if (kind === 'trap') return T.MAX_HELD;
   if (kind === 'fence') return FENCES.MAX_HELD;
-  if (kind === 'energy') return P.MAX_PER_DAY;
   // Smoke is TIME, not a thing carried: the ceiling is how many days of screen
   // may be banked at once, so the shelf can say "2 of 3 days" like it says
   // "4 of 20 bombs".

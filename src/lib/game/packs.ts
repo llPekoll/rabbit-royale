@@ -70,7 +70,7 @@ export function packBlocker(
 /** A pack on the shelf: the ShopItem fields plus what is inside. */
 export interface ShopPack {
   kind: PackKind;
-  side: 'defence' | 'attack';
+  side: (typeof SHOP_PACKS)[PackKind]['side'];
   price: number;
   usdc: number;
   /** The contents one by one, and the cut — the card shows the saving. */
@@ -85,7 +85,7 @@ export interface ShopPack {
   items: PackLine[];
 }
 
-/** Both packs, priced against a specific player. */
+/** Every pack, priced against a specific player. */
 export function packShelf(bag: Holdings, stock: number): ShopPack[] {
   return PACK_KINDS.map((kind) => {
     const hasRoom = packFits(kind, bag);

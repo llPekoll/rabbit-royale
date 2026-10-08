@@ -9,13 +9,14 @@ import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { inventory, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { applyRegen, gardenYield } from '@/lib/game/regen';
+import { applyRegen, currentEnergy, gardenYield } from '@/lib/game/regen';
 import { burrowView, upgradeBlocker } from '@/lib/game/burrow';
 import { questBoardOf } from '@/lib/game/quests';
 import {
-  extendGardenBoost, gardenBoostBlocker, holdings, shieldBlocker, type GardenKind,
+  energyPacksLeft, extendGardenBoost, gardenBoostBlocker, holdings, refillBlocker, shieldBlocker, type GardenKind,
 } from '@/lib/game/inventory';
-import { RAID, upgradeCost } from '@/lib/tuning/tables';
+import { refillEnergy } from '@/lib/game/grant';
+import { OUT_OF_RUN_ENERGY, RAID, upgradeCost } from '@/lib/tuning/tables';
 import { clientOverrides } from '@/lib/tuning/live';
 
 /**
@@ -65,6 +66,9 @@ export async function GET(req: Request) {
   });
 }
 
+/** The daily window closed between the check and the lock: roll back. */
+class RefillRefused extends Error {}
+
 /**
  * Spend one `kind` out of the bag, atomically.
  *
@@ -97,12 +101,12 @@ async function spendOne(
   });
 }
 
-/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' }`. */
+/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill', live? }`. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const { action } = (await req.json().catch(() => ({}))) as { action?: string };
+  const { action, live } = (await req.json().catch(() => ({}))) as { action?: string; live?: unknown };
   const now = new Date();
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
@@ -188,6 +192,46 @@ export async function POST(req: Request) {
     return Response.json({
       raised: 'shield',
       until: until.toISOString(),
+      burrow: (await ownerView(session.sub))!.view,
+    });
+  }
+
+  /**
+   * POURING A REFILL — one out of the bag, the tank to its ceiling.
+   *
+   * From anywhere: the burrow, an island gone dry, or mid-run (`live`), where
+   * `refillEnergy` tells the ws process to top up the rabbit's own tank. The
+   * daily window is stamped in the same transaction as the spend.
+   */
+  if (action === 'refill') {
+    const rows = await db.query.inventory.findMany({
+      where: eq(inventory.playerId, session.sub),
+    });
+    const bag = holdings(rows, player);
+    const blocker = refillBlocker(
+      bag, player, currentEnergy(player, now.getTime()), OUT_OF_RUN_ENERGY.MAX, live === true, now.getTime(),
+    );
+    if (blocker) return Response.json({ error: blocker, held: bag.energy }, { status: 400 });
+
+    let energy = 0;
+    const spent = await spendOne(session.sub, 'energy', async (tx) => {
+      // The row is LOCKED before the window is re-read: two taps racing on the
+      // last refill of the day would both have passed the check above.
+      const [locked] = await tx.select().from(players)
+        .where(eq(players.id, session.sub)).for('update');
+      if (!locked || energyPacksLeft(locked, now.getTime()) < 1) {
+        throw new RefillRefused();
+      }
+      energy = await refillEnergy(tx, session.sub, 1, now.getTime(), true);
+    }).catch((e) => {
+      if (e instanceof RefillRefused) return null;
+      throw e;
+    });
+    if (spent === null) return Response.json({ error: 'daily_energy_limit', held: bag.energy }, { status: 400 });
+    if (!spent) return Response.json({ error: 'none_held', held: 0 }, { status: 400 });
+
+    return Response.json({
+      refilled: energy,
       burrow: (await ownerView(session.sub))!.view,
     });
   }

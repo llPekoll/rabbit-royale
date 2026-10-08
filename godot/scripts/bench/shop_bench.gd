@@ -15,11 +15,8 @@ extends Control
 func _fake_items(stock: int) -> Array:
 	var prices := Tuning.table("SHOP.PRICES")
 	var usdc := Tuning.table("SHOP.USDC_PRICES")
-	var held := {"trap": 3, "bomb": 1, "lightning": 0, "shield": 20, "energy": 1, "smoke": 2, "mirage": 0, "bloop": 0, "fence": 4}
-	var caps := {"energy": 3, "smoke": 1}
-	# `-- --refills-out` : les recharges du jour sont toutes prises.
-	if "--refills-out" in OS.get_cmdline_user_args():
-		held["energy"] = caps["energy"]
+	var held := {"trap": 3, "bomb": 1, "lightning": 0, "shield": 20, "energy": _refills_held(), "smoke": 2, "mirage": 0, "bloop": 0, "fence": 4}
+	var caps := {"smoke": 1}
 	var out: Array = []
 	for kind in ShopState.KINDS:
 		var cap: int = caps.get(kind, Tuning.i("SHOP.MAX_HELD"))
@@ -70,6 +67,15 @@ func _fake_packs(stock: int) -> Array:
 	return out
 
 
+## LES RECHARGES DU SAC : 2 par defaut, `-- --refills=N` pour un autre
+## compte (0 : le dialogue vend au lieu de verser).
+func _refills_held() -> int:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--refills="):
+			return int(arg.trim_prefix("--refills="))
+	return 2
+
+
 func _ready() -> void:
 	# `-- --pass-open` : une saison a pass en cours (sinon le pass est grise).
 	PassState.shared().fake({"on": "--pass-open" in OS.get_cmdline_user_args(), "mine": {"holder": true, "skin": "kuro-violet"},
@@ -86,11 +92,14 @@ func _ready() -> void:
 		"nextRunInMs": null, "crossingCost": Tuning.i("ENERGY.CROSSING_COST"),
 		"regenPerHour": Tuning.regen_per_hour(3),
 		"next": {"regenPerHour": Tuning.regen_per_hour(4), "yieldPerHour": 0},
+		# `-- --refills-out` : les cinq versees du jour sont prises, la
+		# fenetre se rouvre dans 5h12.
+		"refills": {"held": _refills_held(), "left": 0, "backInMs": (5 * 60 + 12) * 60000}
+			if "--refills-out" in OS.get_cmdline_user_args()
+			else {"held": _refills_held(), "left": Tuning.i("ENERGY_PACK.MAX_PER_DAY"), "backInMs": null},
 	}
 	var state := ShopState.shared()
 	state.fake(_fake_items(1240), {"held": 3, "placed": 2, "armed": 2, "rearming": 0, "maxPlaced": 8}, false, _fake_packs(1240))
-	# Elles reviennent dans 5h12, comme `energyResetInMs` le dirait.
-	state.shop["energyResetInMs"] = (5 * 60 + 12) * 60000
 	Home.changed.emit()
 
 	# `-- --only=shop|popup|panel` : UN panneau, pose comme le chrome le

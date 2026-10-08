@@ -274,6 +274,8 @@ export const vi: Dict = {
     shieldAlready: 'Khiên đang dựng rồi.',
     noneLeft: 'Hết rồi. Rương có rơi ra.',
     toppedUp: 'Đã đầy rồi. Để dành sau.',
+    refilled: 'Năng lượng đầy. Đi đào thôi.',
+    noRefill: 'Chưa để dành lượt nạp nào. Cửa hàng có bán.',
     islandSilent: 'Đảo không trả lời. Thử lại sau một lát.',
     runResumed: 'Quay lại chuyến của bạn.',
     reconnecting: 'Đang kết nối lại... thử lại sau một lát.',
@@ -517,7 +519,9 @@ export const vi: Dict = {
       + ' Hoặc nạp ngay và đào tiếp.',
     fillsTo: (max) => `Nạp năng lượng tới ${max}.`,
     noRefills: ' Hôm nay hết lượt nạp.',
-    noRefillsUntil: (wait) => ` Lượt nạp mới sau ${wait}.`,
+    noRefillsUntil: (wait) => ` Dùng lại được sau ${wait}.`,
+    inBag: (n) => (n > 0 ? ` Để dành ${n}.` : ' Chưa để dành lượt nào.'),
+    useRefill: 'Dùng một lượt nạp',
     refillsLeft: (n) => (n > 0 ? ` Hôm nay còn ${n} lượt nạp.` : ' Hôm nay hết lượt nạp.'),
     cardsOff: 'Chưa mở thanh toán bằng thẻ. Tạm thời chỉ dùng cà rốt.',
     connectForCard: 'Kết nối ví để trả bằng thẻ. Mọi thứ ở đây cũng đào ra được.',
@@ -541,7 +545,7 @@ export const vi: Dict = {
     /* A pack that will not fit: one of its items would overflow the bag. */
     bagFull: 'ĐẦY',
     active: 'ĐANG BẬT',
-    boughtEnergy: (paid) => `Đã nạp năng lượng. ${paid}`,
+    boughtEnergy: (paid) => `Đã để dành một lượt nạp. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bom` : 'Bom'} đã vào túi. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bom` : 'Bom'} đã sẵn sàng. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} tia sét` : 'Tia sét'} đã vào chai. ${paid}`,
@@ -561,6 +565,7 @@ export const vi: Dict = {
     inventory_full: 'Túi của bạn đầy món này rồi.',
     bag_full: 'Một món trong gói không còn chỗ trong túi.',
     daily_energy_limit: 'Hôm nay hết lượt nạp. Vườn vẫn lớn.',
+    tank_full: 'Năng lượng đã đầy. Để dành lượt nạp cho sau.',
     smoke_capped: 'Hang của bạn đã được che lâu nhất có thể.',
     too_many_at_once: 'Quá nhiều cùng lúc.',
     bad_quantity: 'Đó không phải một số lượng.',
@@ -669,6 +674,9 @@ export const vi: Dict = {
   energyPanel: {
     open: 'Chi tiết năng lượng',
     title: 'NĂNG LƯỢNG',
+    reserve: (n) => `${n} lượt nạp để dành`,
+    usableToday: (n) => `Hôm nay dùng được ${n}`,
+    buyMore: 'Mua thêm',
     reading: (energy, max) => `${energy}/${max}`,
     rate: (regen) => `+${regen}/h`,
     full: 'đầy',
@@ -969,7 +977,7 @@ export const vi: Dict = {
     },
     energy: {
       name: 'Năng lượng',
-      blurb: 'Nạp đầy năng lượng và đào ngay, khỏi phải chờ.',
+      blurb: 'Một bình đầy để dành. Dùng khi hết năng lượng.',
     },
     smoke: {
       name: 'Màn khói',
@@ -996,6 +1004,14 @@ export const vi: Dict = {
     kuro_tantrum: {
       name: 'Cơn giận của Kuro',
       blurb: 'Sét và bloop để phá ván của đối thủ.',
+    },
+    refill_3: {
+      name: '3 lượt nạp',
+      blurb: 'Ba bình đầy để dành.',
+    },
+    refill_10: {
+      name: '10 lượt nạp',
+      blurb: 'Mười bình đầy, cất đến khi cần.',
     },
   },
 

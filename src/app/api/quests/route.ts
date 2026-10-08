@@ -18,9 +18,10 @@
  */
 import { and, eq, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { players } from '@/lib/db/schema';
+import { inventory, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { burrowView } from '@/lib/game/burrow';
+import { holdings } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { questBoardOf, questFacts } from '@/lib/game/quests';
 import { QUEST_MARK, isQuestDone, questById } from '@/config/quests';
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
       // dictionaries now. The client looks it up (see i18n/content.ts).
       lineFor: quest.id,
       quest: questBoardOf(after!),
-      burrow: burrowView(after!),
+      burrow: await viewWithBag(after!),
     });
   }
 
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
       ));
 
     const after = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-    return Response.json({ quest: questBoardOf(after!), burrow: burrowView(after!) });
+    return Response.json({ quest: questBoardOf(after!), burrow: await viewWithBag(after!) });
   }
 
   return Response.json({ error: 'unknown action' }, { status: 400 });
@@ -134,4 +135,11 @@ function markAllowed(mark: string, lifetimeCarrots: number): boolean {
     return !!chapter && lifetimeCarrots >= chapter.unlockAt;
   }
   return false;
+}
+
+/** The burrow WITH its bag: the refills and the garden bottles live in the
+ *  other table, and a view built from the row alone reads them as zero. */
+async function viewWithBag(row: NonNullable<Awaited<ReturnType<typeof db.query.players.findFirst>>>) {
+  const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, row.id) });
+  return burrowView(row, Date.now(), holdings(rows, row));
 }

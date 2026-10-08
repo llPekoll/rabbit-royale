@@ -18,6 +18,12 @@ extends Dialog
 ##   • LES RECHARGES QUI RESTENT, pas celles prises : le joueur decide s'il
 ##     en depense une, et « 3 prises » est le meme fait pose a l'envers.
 ##
+##   • LE SAC D'ABORD (2026-10-08) : les recharges se gardent, achetees
+##     d'avance, offertes au depart, tombees d'un coffre. Quand le sac en
+##     tient, le dialogue n'a qu'un bouton, l'UTILISER ; vide, il vend, et un
+##     plein achete ici est verse dans la foulee — qui l'achete a sec veut
+##     creuser, pas le ranger.
+##
 ## Il emprunte la palette de l'etal (ici : le meme parchemin, le meme
 ## cadre) — un second dialogue dans un second style se lirait comme un
 ## second jeu. L'argent : meme chemin que l'etal, `Shop.UsdcPay` ; sans
@@ -27,7 +33,8 @@ extends Dialog
 ## Le joueur veut le reste de la boutique.
 signal open_shop
 
-## Le plein est pris (carottes ou argent), apres la fermeture du dialogue.
+## Le plein est pris (verse du sac, ou achete puis verse), apres la
+## fermeture du dialogue.
 signal bought
 
 ## La largeur du web : 476, pour que le titre bitmap, la bourse et le [x]
@@ -46,6 +53,7 @@ var _count_max: Label
 var _say: Label
 var _blurb: Label
 var _left: Label
+var _use: PlankButton
 var _buy: PlankButton
 var _buy_money: PlankButton
 var _foot: VBoxContainer
@@ -108,8 +116,10 @@ func _ready() -> void:
 	_refresh()
 	_state.changed.connect(_refresh)
 	Home.changed.connect(_refresh)
-	# Les recharges du jour ont pu bouger depuis la derniere lecture de l'etal.
+	# Le prix et le sac ont pu bouger depuis la derniere lecture : l'etal pour
+	# le prix, le terrier pour les recharges qu'on tient.
 	_state.refresh()
+	Home.refresh()
 	I18N.locale_changed.connect(func(_code: String) -> void: _refresh())
 	_pay.changed.connect(_refresh)
 	closed.connect(func() -> void:
@@ -178,6 +188,11 @@ func _build() -> void:
 	words.add_child(_left)
 	var buttons := Kit.hbox(Kit.PAD_TIGHT)
 	offer.add_child(buttons)
+	_use = Kit.button("", "green", 0, 40)
+	_use.label_size = 12
+	_use.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_use.pressed.connect(_on_use)
+	buttons.add_child(_use)
 	_buy = Kit.button("", "gold", 0, 40)
 	_buy.label_size = 12
 	_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -242,13 +257,19 @@ func _refresh() -> void:
 		_say.text = I18N.f("shop.energySayEmpty", [_wait(next_energy)])
 
 	var item := _state.item("energy")
-	var left: int = int(item.get("cap", 0)) - int(item.get("held", 0)) if not item.is_empty() else -1
+	var refills := Home.refills()
+	var held := int(refills["held"])
 	_blurb.text = I18N.f("shop.fillsTo", [max_energy])
-	_left.visible = left >= 0
-	if left >= 0:
-		_left.text = _refills_line(left).strip_edges()
+	_left.text = _refills_line(refills).strip_edges()
 
-	var busy_now := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE
+	var busy_now := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE or Home.pending
+	# UN SAC QUI EN TIENT : le seul bouton est de verser. Vide : on vend.
+	_use.visible = held > 0
+	var pour_dead := busy_now or int(refills["left"]) <= 0 or Home.refill_wasted()
+	_use.board = PlankButton.tone_board("wood" if pour_dead else "green")
+	_use.disabled = pour_dead
+	_use.relabel(I18N.shout(I18N.t("shop.useRefill")))
+	_buy.visible = held <= 0
 	var can_buy := _state.can_buy(item)
 	var dead := busy_now or not can_buy
 	_buy.board = PlankButton.tone_board("wood" if dead else "gold")
@@ -259,7 +280,7 @@ func _refresh() -> void:
 	# L'argent : seulement avec une tresorerie ET un portefeuille (page.tsx :
 	# `payments && usdcEnabled && !guest` — les deux repondent a des questions
 	# differentes et seule la seconde engage).
-	var money := not item.is_empty() and bool(_state.shop.get("usdcEnabled", false)) \
+	var money := held <= 0 and not item.is_empty() and bool(_state.shop.get("usdcEnabled", false)) \
 		and not bool(Session.player.get("guest", false)) and Wallet.available()
 	_buy_money.visible = money
 	if money:
@@ -286,12 +307,13 @@ func _refresh() -> void:
 	_door.relabel(I18N.t("shop.backToBurrow" if _home.is_valid() else "shop.openShed"))
 
 
-## Plus de recharge : dire QUAND elles reviennent, pas seulement « plus
-## aujourd'hui » — la fenetre glisse, minuit n'y change rien.
-func _refills_line(left: int) -> String:
-	if left > 0:
-		return I18N.f("shop.refillsLeft", [left])
-	var back: Variant = _state.energy_back_in_ms()
+## Ce que le sac tient ; et quand la fenetre de 24 h est epuisee, QUAND on
+## peut reverser, pas seulement « plus aujourd'hui » — elle glisse, minuit n'y
+## change rien.
+func _refills_line(refills: Dictionary) -> String:
+	if int(refills["left"]) > 0 or int(refills["held"]) <= 0:
+		return I18N.f("shop.inBag", [int(refills["held"])])
+	var back: Variant = refills["back_in_ms"]
 	if back == null:
 		return I18N.t("shop.noRefills")
 	return I18N.f("shop.noRefillsUntil", [I18N.wait(float(back))])
@@ -319,14 +341,23 @@ func _carrot(button: PlankButton) -> void:
 	icon.position = Vector2(floor(ink.size.x * 0.5 + w * 0.5 - 12.0), floor((ink.size.y - 12.0) * 0.5))
 
 
-## ACHETER : l'etal fait l'achat et dit le recu ; le terrier est relu ; le
-## dialogue se ferme sur une reussite (page.tsx `buyEnergy`).
+## VERSER UNE RECHARGE DU SAC : le terrier dit le plein (Home.noted), le
+## dialogue se ferme et la suite part (`bought` : repartir creuser).
+func _on_use() -> void:
+	if await Home.pour_refill():
+		closed.emit()
+		bought.emit()
+	else:
+		_refresh()
+
+
+## ACHETER : l'etal fait l'achat et dit le recu, puis la recharge achetee est
+## versee tout de suite. Si la journee n'en permet plus, elle reste au sac et
+## le dialogue le montre (page.tsx `buyEnergy`).
 func _on_buy() -> void:
 	var res := await _state.buy("energy")
 	if not res.is_empty():
-		closed.emit()
-		bought.emit()
-		PurchaseReveal.announce("energy")
+		await _poured_after_buy()
 
 
 func _on_pay_money() -> void:
@@ -334,8 +365,18 @@ func _on_pay_money() -> void:
 	if not _pay.error.is_empty():
 		_state.noted.emit(_pay.error, true)
 	if not res.is_empty():
+		await _poured_after_buy()
+		return
+	_refresh()
+
+
+func _poured_after_buy() -> void:
+	PurchaseReveal.announce("energy")
+	if await Home.pour_refill():
 		closed.emit()
 		bought.emit()
-		PurchaseReveal.announce("energy")
 		return
+	# Gardee au sac (la fenetre de 24 h est pleine) : le terrier relu montre
+	# la recharge, et la ligne dit quand on pourra la verser.
+	await Home.refresh()
 	_refresh()

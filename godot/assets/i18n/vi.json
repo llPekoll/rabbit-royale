@@ -337,6 +337,8 @@
   "shieldAlready": "Khiên đang dựng rồi.",
   "noneLeft": "Hết rồi. Rương có rơi ra.",
   "toppedUp": "Đã đầy rồi. Để dành sau.",
+  "refilled": "Năng lượng đầy. Đi đào thôi.",
+  "noRefill": "Chưa để dành lượt nạp nào. Cửa hàng có bán.",
   "islandSilent": "Đảo không trả lời. Thử lại sau một lát.",
   "runResumed": "Quay lại chuyến của bạn.",
   "reconnecting": "Đang kết nối lại... thử lại sau một lát.",
@@ -714,8 +716,20 @@
   },
   "noRefills": " Hôm nay hết lượt nạp.",
   "noRefillsUntil": {
-   "$t": " Lượt nạp mới sau {0}."
+   "$t": " Dùng lại được sau {0}."
   },
+  "inBag": {
+   "$t": " Để dành {0}.",
+   "$v": [
+    {
+     "when": {
+      "0": 0
+     },
+     "t": " Chưa để dành lượt nào."
+    }
+   ]
+  },
+  "useRefill": "Dùng một lượt nạp",
   "refillsLeft": {
    "$t": " Hôm nay còn {0} lượt nạp.",
    "$v": [
@@ -764,7 +778,7 @@
   "bagFull": "ĐẦY",
   "active": "ĐANG BẬT",
   "boughtEnergy": {
-   "$t": "Đã nạp năng lượng. {0}"
+   "$t": "Đã để dành một lượt nạp. {0}"
   },
   "boughtTrap": {
    "$t": "{0} bom đã vào túi. {1}",
@@ -901,6 +915,7 @@
   "inventory_full": "Túi của bạn đầy món này rồi.",
   "bag_full": "Một món trong gói không còn chỗ trong túi.",
   "daily_energy_limit": "Hôm nay hết lượt nạp. Vườn vẫn lớn.",
+  "tank_full": "Năng lượng đã đầy. Để dành lượt nạp cho sau.",
   "smoke_capped": "Hang của bạn đã được che lâu nhất có thể.",
   "too_many_at_once": "Quá nhiều cùng lúc.",
   "bad_quantity": "Đó không phải một số lượng.",
@@ -1049,6 +1064,13 @@
  "energyPanel": {
   "open": "Chi tiết năng lượng",
   "title": "NĂNG LƯỢNG",
+  "reserve": {
+   "$t": "{0} lượt nạp để dành"
+  },
+  "usableToday": {
+   "$t": "Hôm nay dùng được {0}"
+  },
+  "buyMore": "Mua thêm",
   "reading": {
    "$t": "{0}/{1}"
   },
@@ -1456,7 +1478,7 @@
   },
   "energy": {
    "name": "Năng lượng",
-   "blurb": "Nạp đầy năng lượng và đào ngay, khỏi phải chờ."
+   "blurb": "Một bình đầy để dành. Dùng khi hết năng lượng."
   },
   "smoke": {
    "name": "Màn khói",
@@ -1481,6 +1503,14 @@
   "kuro_tantrum": {
    "name": "Cơn giận của Kuro",
    "blurb": "Sét và bloop để phá ván của đối thủ."
+  },
+  "refill_3": {
+   "name": "3 lượt nạp",
+   "blurb": "Ba bình đầy để dành."
+  },
+  "refill_10": {
+   "name": "10 lượt nạp",
+   "blurb": "Mười bình đầy, cất đến khi cần."
   }
  },
  "quests": {

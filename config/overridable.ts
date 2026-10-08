@@ -148,8 +148,8 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'RAID_RUN.WALK_FLOOR', kind: 'int', min: 0, max: 100, note: 'Pas de marche exigés en réserve au-delà du péage pour entrer en raid' },
   { path: 'RAID_RUN.STEP_REFUND_AT_FIELD', kind: 'ratio', min: 0, max: 1, note: 'Part des pas rendue au réservoir quand le raid atteint le champ' },
 
-  // ── Paid energy refills.
-  { path: 'ENERGY_PACK.MAX_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pleins d\'énergie achetables par jour' },
+  // ── Energy refills (carried since 2026-10-08).
+  { path: 'ENERGY_PACK.MAX_PER_DAY', kind: 'int', min: 0, max: 100, note: 'Pleins d\'énergie utilisables par 24 h glissantes' },
 ] as const;
 
 /** Index by path, for the loader and the seed script. */

@@ -165,7 +165,8 @@
  "ENERGY_PACK": {
   "AMOUNT": 300,
   "MAX_PER_DAY": 5,
-  "WINDOW_MS": 86400000
+  "WINDOW_MS": 86400000,
+  "STARTING": 3
  },
  "ERUPTION": {
   "WARN_STAGES": [
@@ -558,6 +559,24 @@
      "qty": 3
     }
    ]
+  },
+  "refill_3": {
+   "side": "energy",
+   "items": [
+    {
+     "kind": "energy",
+     "qty": 3
+    }
+   ]
+  },
+  "refill_10": {
+   "side": "energy",
+   "items": [
+    {
+     "kind": "energy",
+     "qty": 10
+    }
+   ]
   }
  },
  "SMOKE": {
@@ -566,14 +585,65 @@
   "MAX_MS": 259200000
  },
  "SNACK": {
-  "CARROTS": [
-   50,
-   75,
-   100,
-   125,
-   150,
-   200
-  ],
+  "WEEK": 7,
+  "BOX": {
+   "ODDS": {
+    "common": 80,
+    "rare": 15,
+    "epic": 4,
+    "jackpot": 1
+   },
+   "GOLDEN_ODDS": {
+    "common": 0,
+    "rare": 65,
+    "epic": 30,
+    "jackpot": 5
+   },
+   "COMMON": [
+    {
+     "kind": "carrots",
+     "qty": 0
+    },
+    {
+     "kind": "water",
+     "qty": 2
+    },
+    {
+     "kind": "fertiliser",
+     "qty": 1
+    }
+   ],
+   "RARE": [
+    {
+     "kind": "lightning",
+     "qty": 1
+    },
+    {
+     "kind": "shield",
+     "qty": 1
+    },
+    {
+     "kind": "energy",
+     "qty": 1
+    }
+   ],
+   "EPIC": [
+    {
+     "kind": "magic_hat",
+     "qty": 1
+    },
+    {
+     "kind": "lucky_foot",
+     "qty": 1
+    }
+   ],
+   "JACKPOT_SKINS": [
+    "skin_solana",
+    "skin_carrot"
+   ],
+   "JACKPOT_CARROTS": 1500,
+   "CARROTS_PER_LEVEL": 40
+  },
   "PACKS": {
    "magic_hat": [
     {
@@ -596,6 +666,16 @@
     }
    ]
   },
+  "BUFF": {
+   "MULT": 2,
+   "MAX_BONUS_PER_LEVEL": 75
+  },
+  "GIFTS": [
+   "mushroom",
+   "pumpkin",
+   "carrot",
+   "scarecrow"
+  ],
   "MIN_GAP_MS": 21600000
  },
  "TRAPS": {

@@ -270,6 +270,8 @@ export const ptBR: Dict = {
     shieldAlready: 'Já tem um escudo de pé.',
     noneLeft: 'Acabou. Baús soltam desses.',
     toppedUp: 'Já está cheio. Guarde para depois.',
+    refilled: 'Energia cheia. Bora cavar.',
+    noRefill: 'Nenhuma recarga guardada. A loja vende.',
     islandSilent: 'A ilha não respondeu. Tente de novo daqui a pouco.',
     runResumed: 'De volta à sua partida.',
     reconnecting: 'Reconectando... tente daqui a pouco.',
@@ -513,7 +515,9 @@ export const ptBR: Dict = {
       + ' Ou recarregue agora e continue cavando.',
     fillsTo: (max) => `Recarrega sua energia até ${max}.`,
     noRefills: ' Sem recargas hoje.',
-    noRefillsUntil: (wait) => ` Novas recargas em ${wait}.`,
+    noRefillsUntil: (wait) => ` Utilizáveis de novo em ${wait}.`,
+    inBag: (n) => (n > 0 ? ` ${n} guardadas.` : ' Nenhuma guardada.'),
+    useRefill: 'Usar uma recarga',
     refillsLeft: (n) => (n > 0 ? ` ${n} recarga${n > 1 ? 's' : ''} hoje.` : ' Sem recargas hoje.'),
     cardsOff: 'Pagamento com cartão ainda não está ligado. Só cenouras por enquanto.',
     connectForCard: 'Conecte uma carteira para pagar com cartão. Tudo aqui também se cava.',
@@ -537,7 +541,7 @@ export const ptBR: Dict = {
     /* A pack that will not fit: one of its items would overflow the bag. */
     bagFull: 'CHEIO',
     active: 'ATIVO',
-    boughtEnergy: (paid) => `Energia recarregada. ${paid}`,
+    boughtEnergy: (paid) => `Recarga guardada. ${paid}`,
     boughtTrap: (n, paid) => `${n > 1 ? `${n} bombas` : 'Bomba'} na bolsa. ${paid}`,
     boughtBomb: (n, paid) => `${n > 1 ? `${n} bombas armadas` : 'Bomba armada'}. ${paid}`,
     boughtLightning: (n, paid) => `${n > 1 ? `${n} raios` : 'Raio'} engarrafado${n > 1 ? 's' : ''}. ${paid}`,
@@ -558,6 +562,7 @@ export const ptBR: Dict = {
     inventory_full: 'Sua bolsa está cheia desses.',
     bag_full: 'Um dos itens não cabe mais na sua bolsa.',
     daily_energy_limit: 'Sem mais recargas hoje. A horta continua crescendo.',
+    tank_full: 'Sua energia já está cheia. Guarde a recarga para depois.',
     smoke_capped: 'Sua toca está escondida pelo máximo de tempo possível.',
     too_many_at_once: 'Demais de uma vez.',
     bad_quantity: 'Isso não é uma quantidade.',
@@ -675,6 +680,9 @@ export const ptBR: Dict = {
   energyPanel: {
     open: 'Detalhes da energia',
     title: 'ENERGIA',
+    reserve: (n) => (n === 1 ? '1 recarga guardada' : `${n} recargas guardadas`),
+    usableToday: (n) => `${n} para usar hoje`,
+    buyMore: 'Comprar mais',
     reading: (energy, max) => `${energy}/${max}`,
     rate: (regen) => `+${regen}/h`,
     full: 'cheia',
@@ -978,7 +986,7 @@ export const ptBR: Dict = {
     },
     energy: {
       name: 'Energia',
-      blurb: 'Recarregue sua energia e cave agora, em vez de esperar.',
+      blurb: 'Um tanque cheio para guardar. Use quando ficar sem energia.',
     },
     smoke: {
       name: 'Cortina de fumaça',
@@ -1006,6 +1014,14 @@ export const ptBR: Dict = {
     kuro_tantrum: {
       name: 'Birra do Kuro',
       blurb: 'Raios e bloops para estragar a partida de um rival.',
+    },
+    refill_3: {
+      name: '3 recargas',
+      blurb: 'Três tanques cheios, guardados para depois.',
+    },
+    refill_10: {
+      name: '10 recargas',
+      blurb: 'Dez tanques cheios, guardados até você precisar.',
     },
   },
 

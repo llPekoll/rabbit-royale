@@ -33,7 +33,7 @@ import { toColRow, toIndex, COLS, ROWS } from '../../src/config/gridConfig';
 import { fieldTiles, isTrappable, isDoorstep, walkableTiles, setBurrowEdits } from '../../src/game/burrow/board';
 import { fenceSpans } from '../../src/game/burrow/fence';
 import { distanceToField } from '../../src/lib/game/raid';
-import { ENERGY, ENERGY_PACK, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, RAID, RAID_RUN, SHOP, levelRow, upgradeCost } from '../../config/tuning';
+import { ENERGY, OUT_OF_RUN_ENERGY, RABBIT_LEVELS, RAID, RAID_RUN, SHOP, levelRow, upgradeCost } from '../../config/tuning';
 
 const BASE = process.env.TRIO_URL ?? 'http://localhost:3013';
 const OUT = new URL(`./${process.env.TRIO_OUT ?? 'trio-out'}/`, import.meta.url).pathname;
@@ -210,15 +210,21 @@ async function tank(b: Bot): Promise<number> {
 async function fakePay(b: Bot): Promise<boolean> {
   const p = await row(b.id);
   if (!p) return false;
-  const since = p.energyPacksSince?.getTime() ?? 0;
-  const inWindow = Date.now() - since < ENERGY_PACK.WINDOW_MS ? p.energyPacksBought ?? 0 : 0;
-  if (inWindow >= ENERGY_PACK.MAX_PER_DAY) { st(b, 'refill_capped'); return false; }
   await db.transaction((tx) => grantItem(tx as any, b.id, 'energy', 1, Date.now(), {
     currency: 'usdc', cost: Math.round(((SHOP.USDC_PRICES as any).energy ?? 0) * 1e6), paymentId: undefined as any,
   }));
   st(b, 'refill_money');
   event('refill_money', { bot: b.name });
-  return true;
+  return pour(b);
+}
+
+/** Pour a refill out of the bag (carried since 2026-10-08). False when the bag
+ *  is empty, the day's pours are spent, or the tank is already full. */
+async function pour(b: Bot): Promise<boolean> {
+  const { status, json } = await api(b.token, 'POST', '/api/burrow', { action: 'refill' });
+  if (status === 200 && !json?.error) { st(b, 'refill_poured'); return true; }
+  st(b, `refill_fail_${json?.error ?? status}`);
+  return false;
 }
 
 async function buy(b: Bot, kind: string, qty = 1): Promise<boolean> {
@@ -240,10 +246,10 @@ async function ensureEnergy(b: Bot, firstOfSession: boolean, need: number = ENER
   const p = await row(b.id);
   const price = SHOP.PRICES.energy;
   const s = b.arch.spend;
-  let how: string | null = null;
-  if (s === 'money-free' || s === 'money-on-empty') { if (await fakePay(b)) how = 'usdc'; }
+  let how: string | null = (await pour(b)) ? 'bag' : null;
+  if (!how && (s === 'money-free' || s === 'money-on-empty')) { if (await fakePay(b)) how = 'usdc'; }
   if (!how && (s === 'carrots' || s === 'money-on-empty') && p && p.stock >= price + RAID.SAFE_FLOOR) {
-    if (await buy(b, 'energy')) how = 'carrots';
+    if (await buy(b, 'energy') && await pour(b)) how = 'carrots';
   }
   event('empty_on_arrival', { bot: b.name, tank: e, stock: p?.stock, couldPayCarrots: (p?.stock ?? 0) >= price, bought: how, minutesToCross: Math.ceil((need - e) / 0.5) });
   if (how) { st(b, 'refill_' + how); return (await tank(b)) >= need; }

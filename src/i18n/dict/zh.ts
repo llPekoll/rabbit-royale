@@ -272,6 +272,8 @@ export const zh: Dict = {
     shieldAlready: '护盾已经起着了。',
     noneLeft: '没有了。宝箱里会掉。',
     toppedUp: '已经满了。留着以后用。',
+    refilled: '能量满了。去挖吧。',
+    noRefill: '没有存着的补充。商店有卖。',
     islandSilent: '岛屿没有回应。稍后再试。',
     runResumed: '回到你的这局。',
     reconnecting: '重新连接中...稍后再试。',
@@ -511,7 +513,9 @@ export const zh: Dict = {
     energySayEmpty: (wait) => `能量用光了。${wait}后会自己回一点。也可以现在补满，接着挖。`,
     fillsTo: (max) => `把能量补到 ${max}。`,
     noRefills: ' 今天不能再补了。',
-    noRefillsUntil: (wait) => ` ${wait}后可再补。`,
+    noRefillsUntil: (wait) => ` ${wait}后可再用。`,
+    inBag: (n) => (n > 0 ? ` 存着 ${n} 个。` : ' 没有存货。'),
+    useRefill: '使用一次补充',
     refillsLeft: (n) => (n > 0 ? ` 今天还能补 ${n} 次。` : ' 今天不能再补了。'),
     cardsOff: '刷卡支付尚未开放。目前只收胡萝卜。',
     connectForCard: '连接钱包即可刷卡。这里的东西照样能挖出来。',
@@ -535,7 +539,7 @@ export const zh: Dict = {
     /* A pack that will not fit: one of its items would overflow the bag. */
     bagFull: '满了',
     active: '生效中',
-    boughtEnergy: (paid) => `能量已补满。${paid}`,
+    boughtEnergy: (paid) => `补充已存起来。${paid}`,
     boughtTrap: (n, paid) => `${n} 颗炸弹进了背包。${paid}`,
     boughtBomb: (n, paid) => `${n} 颗炸弹已装好。${paid}`,
     boughtLightning: (n, paid) => `${n} 道闪电已装瓶。${paid}`,
@@ -554,6 +558,7 @@ export const zh: Dict = {
     inventory_full: '你的背包装满了。',
     bag_full: '有一件东西背包装不下。',
     daily_energy_limit: '今天不能再补了。菜园照样在长。',
+    tank_full: '能量已经满了。把补充留到以后。',
     smoke_capped: '你的兔窝已经藏到最久了。',
     too_many_at_once: '一次太多了。',
     bad_quantity: '这不是一个数量。',
@@ -660,6 +665,9 @@ export const zh: Dict = {
   energyPanel: {
     open: '\u80fd\u91cf\u8be6\u60c5',
     title: '\u80fd\u91cf',
+    reserve: (n) => `存着 ${n} 次补充`,
+    usableToday: (n) => `今天还能用 ${n} 次`,
+    buyMore: '再买',
     reading: (energy, max) => `${energy}/${max}`,
     rate: (regen) => `\u6bcf\u5c0f\u65f6 +${regen}`,
     full: '\u5df2\u6ee1',
@@ -962,7 +970,7 @@ export const zh: Dict = {
     },
     energy: {
       name: '能量',
-      blurb: '把能量补满，现在就去挖，不用干等。',
+      blurb: '一罐满能量，存起来。没能量时再用。',
     },
     smoke: {
       name: '烟幕',
@@ -990,6 +998,14 @@ export const zh: Dict = {
     kuro_tantrum: {
       name: 'Kuro 的火气',
       blurb: '闪电和墨鱼，让对手这一局玩不下去。',
+    },
+    refill_3: {
+      name: '3 次补充',
+      blurb: '三罐满能量，存起来。',
+    },
+    refill_10: {
+      name: '10 次补充',
+      blurb: '十罐满能量，需要时再用。',
     },
   },
 
