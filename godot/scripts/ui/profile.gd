@@ -124,6 +124,9 @@ var _history_asked := false
 var _new_raids := 0
 ## Ou sont les voleurs, par id — pousse par la socket tant que l'onglet est la.
 var _presence: Dictionary = {}
+## Les pastilles de presence de l'historique affiche, par joueur : une
+## nouvelle de presence les repeint SUR PLACE.
+var _dots: Dictionary = {}
 var _name_re := RegEx.new()
 ## Un banc : pas de reseau.
 var _offline := false
@@ -304,6 +307,7 @@ func _show_tab(which: Tab) -> void:
 	# apres ne doit pas les toucher.
 	for v in ["_name_edit", "_save_button", "_connect_button", "_connect_hint", "_connect_error", "_leave_button", "_leave_label", "_error", "_warn", "_guest_pill", "_rabbit_grid", "_portrait", "_scroll", "_page_title"]:
 		set(v, null)
+	_dots.clear()
 	for child in _board.get_children():
 		_board.remove_child(child)
 		child.queue_free()
@@ -832,10 +836,14 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 	elif owed:
 		# Ou ils sont MAINTENANT — le fait qui decide si riposter ce soir est
 		# une promenade ou un combat.
-		var where := String(_presence.get(String(r.get("otherId", "")), "away"))
+		var other_id := String(r.get("otherId", ""))
+		var where := String(_presence.get(other_id, "away"))
 		var dot := Kit.panel(_dot_style(where))
 		dot.tooltip_text = I18N.t("raid.presence." + where)
 		_put(dot, 40, 6, 9, 9, row, o)
+		if not _dots.has(other_id):
+			_dots[other_id] = []
+		_dots[other_id].append(dot)
 	if fresh:
 		var tag := Kit.panel(_news_style())
 		tag.add_child(Kit.label("NEW", maxi(8, roundi(12 * _k)), Palette.SOIL_DEEP))
@@ -1270,8 +1278,16 @@ func _on_socket_event(name: String, data: Variant) -> void:
 				_presence[String(entry.get("id", ""))] = String(entry.get("where", "away"))
 	else:
 		return
-	if _tab == Tab.HISTORY:
-		_show_tab(_tab)
+	# LES PASTILLES SEULES, pas le panneau : refaire le panneau a chaque
+	# nouvelle remplacait les onglets sous le doigt — l'appui s'animait sur
+	# l'ancien bouton, le relache tombait dans le vide, et il fallait taper
+	# plusieurs fois pour changer d'onglet (Seeker, 2026-10-08).
+	for id in _dots:
+		var where := String(_presence.get(id, "away"))
+		for dot in _dots[id]:
+			if is_instance_valid(dot):
+				dot.add_theme_stylebox_override("panel", _dot_style(where))
+				dot.tooltip_text = I18N.t("raid.presence." + where)
 
 
 func _exit_tree() -> void:

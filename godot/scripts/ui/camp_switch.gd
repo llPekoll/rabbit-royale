@@ -60,9 +60,13 @@ func toggle(words: Array = ["ON", "OFF"]) -> void:
 	toggled.emit(on)
 
 
+## UNE TAPE, UNE BASCULE. Au doigt, Godot rejoue chaque toucher en clic
+## (`emulate_mouse_from_touch`) : basculer sur le relache du toucher ET sur
+## celui du clic remettait l'interrupteur ou il etait (Music et Sound effects
+## ne changeaient plus au Seeker, 2026-10-08). Le clic seul suffit, il porte
+## aussi le doigt ; au relache, s'il n'a pas glisse (TouchScroll).
 func _gui_input(event: InputEvent) -> void:
-	var tap: bool = event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed
-	if tap or (event is InputEventScreenTouch and not event.pressed):
+	if TouchScroll.tapped(self, event):
 		toggle([_word_for(true), _word_for(false)])
 		accept_event()
 
