@@ -202,6 +202,7 @@
    "$t": "garden +{0}"
   },
   "gardenEmpty": "garden empty",
+  "gardenFull": "full",
   "shieldFor": {
    "$t": "shield {0}"
   },

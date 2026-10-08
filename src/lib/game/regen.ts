@@ -127,6 +127,32 @@ export function gardenYield(
 }
 
 /**
+ * Milliseconds until the garden stops producing, 0 once it is full.
+ *
+ * Read off the CLOCK, not off the carrots: the garden is full when its hours
+ * since the last harvest reach the cap, whatever water did to the count. A
+ * carrot-based guess (ceiling minus ready, over the rate) is wrong under a
+ * watering, which pays more carrots for the same hours.
+ *
+ * Fertiliser raises the cap only while it runs. If it lapses before the
+ * longer cap is reached, the garden stops at the lapse (or at the plain cap,
+ * whichever is later) — the same clip `gardenYield` applies at that instant.
+ */
+export function msToGardenFull(
+  row: Pick<RegenRow, 'gardenCollectedAt' | 'fertilisedUntil'>,
+  now = Date.now(),
+): number {
+  const fromMs = row.gardenCollectedAt.getTime();
+  const plain = fromMs + GARDEN.CAP_HOURS * HOUR;
+  let fullAt = plain;
+  if (boostActive(row.fertilisedUntil, now)) {
+    const fed = fromMs + (GARDEN.CAP_HOURS + GARDEN_BOOST.FERTILISER.EXTRA_CAP_HOURS) * HOUR;
+    fullAt = Math.min(fed, Math.max(plain, row.fertilisedUntil!.getTime()));
+  }
+  return Math.max(0, fullAt - now);
+}
+
+/**
  * The garden after a raid took `taken` of its `pending` carrots: the new
  * `gardenCollectedAt` to store.
  *

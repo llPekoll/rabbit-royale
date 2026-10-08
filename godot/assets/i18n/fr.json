@@ -202,6 +202,7 @@
    "$t": "potager +{0}"
   },
   "gardenEmpty": "potager vide",
+  "gardenFull": "plein",
   "shieldFor": {
    "$t": "bouclier {0}"
   },

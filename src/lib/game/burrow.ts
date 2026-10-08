@@ -7,7 +7,7 @@
  */
 // Live views (src/lib/tuning/tables): a `tuning` row moves these within 30 s.
 import { BURROW, ENERGY, OUT_OF_RUN_ENERGY, regenPerHour, upgradeCost } from '../tuning/tables';
-import { capHoursFor, currentEnergy, gardenYield, type RegenRow, type TankRow } from './regen';
+import { capHoursFor, currentEnergy, gardenYield, msToGardenFull, type RegenRow, type TankRow } from './regen';
 import { gardenCapacity, yieldPerHour } from './garden-growth';
 import {
   energyPacksLeft, energyPacksResetInMs, gardenBoostView,
@@ -109,6 +109,11 @@ export interface BurrowView {
    * prints beside "holds". Equal to `gardenCapacity` with no feeding running.
    */
   gardenCeiling: number;
+  /**
+   * Milliseconds until the garden stops growing, 0 when it is full — what the
+   * HARVEST sign prints at the end of its gauge ("7h40m"). See `msToGardenFull`.
+   */
+  gardenFullInMs: number;
   /**
    * The two things you can pour on the garden: bottles held, window running.
    *
@@ -285,6 +290,7 @@ export function burrowView(row: BurrowRow, now = Date.now(), bag?: Holdings): Bu
     capHours: capHoursFor(row, now),
     gardenCapacity: gardenCapacity(row.burrowLevel),
     gardenCeiling: Math.floor(capHoursFor(row, now) * yieldPerHour(row.burrowLevel)),
+    gardenFullInMs: msToGardenFull(row, now),
     boosts: gardenBoostView(bag ?? empty, row, now),
     shieldMs: msOfShield(row.shieldedUntil ?? null, now),
     refills: refillState(bag?.energy ?? 0, row, now),

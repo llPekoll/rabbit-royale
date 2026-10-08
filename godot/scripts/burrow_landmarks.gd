@@ -90,6 +90,11 @@ const BRIDGE_FADE := 0.5
 ## Les planches posees AU-DESSUS de leur batiment ; toutes les autres dessous.
 const SIGNS_ABOVE := ["upgrade", "shop"]
 const LINE_PX := 9
+## LA JAUGE DU POTAGER, en pixels d'ecran a l'echelle 1 : « +86 », une
+## gouttiere qui se remplit, et l'heure du plein au bout, sur la ligne de la
+## planche — HARVEST garde la hauteur des autres. Verte tant que ca
+## pousse, carotte une fois plein — la couleur seule dit « reviens ».
+const GAUGE_SIZE := Vector2(34, 6)
 ## L'air garde entre une planche et le bord de l'ecran.
 const SCREEN_EDGE := 6.0
 ## Au-dessus du monde, sous le chrome et ses dialogues.
@@ -724,12 +729,24 @@ func show_harvest(amount: int) -> void:
 
 
 ## La planche HARVEST dit ce que le potager tient, et s'il doit se montrer.
+## « +147 », LA JAUGE DU PLEIN et l'heure ou il tombe (« 7h40m », puis
+## « plein ») : passe ce moment le jardin ne produit plus, c'est l'heure a
+## laquelle revenir. Relue avec la planche, toutes les TICK_SECONDS.
 func _say_harvest(garden: int) -> void:
 	_harvest_want = garden > 0
 	var sign: Sign = _signs.get("harvest")
-	if sign != null:
-		sign.say(I18N.shout(I18N.t("burrow.harvest")),
-			"+%s" % I18N.group_digits(garden) if garden > 0 else I18N.t("loop.gardenEmpty"), garden > 0)
+	if sign == null:
+		return
+	var gauged := garden > 0 and Home.loaded()
+	sign.say(I18N.shout(I18N.t("burrow.harvest")),
+		"" if gauged else I18N.t("loop.gardenEmpty"), garden > 0)
+	if not gauged:
+		sign.show_gauge("", -1.0, "")
+		return
+	var full_in := Home.garden_full_in_ms()
+	sign.show_gauge("+%s" % I18N.group_digits(garden),
+		1.0 if full_in <= 0.0 else Home.garden_fill(),
+		I18N.wait(full_in).replace(" ", "") if full_in > 0.0 else I18N.t("loop.gardenFull"))
 
 
 ## La legende suit sa planche, centree, a `_harvest_note_y` de son haut.
@@ -1018,6 +1035,11 @@ class Sign extends Button:
 	## a la main, a l'encre, d'un autre style que tout le chrome (2026-10-01).
 	var badge: NineSlice
 	var _badge_mark: Label
+	## La jauge du potager (HARVEST seule), cachee ailleurs.
+	var gauge: Gauge
+	var gauge_lead: Label
+	var gauge_time: Label
+	var _gauge_row: HBoxContainer
 	var _body: PanelContainer
 	var _ui_scale := -1.0
 
@@ -1057,6 +1079,21 @@ class Sign extends Button:
 		energy_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		energy_icon.visible = false
 		details.add_child(energy_icon)
+		_gauge_row = HBoxContainer.new()
+		_gauge_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		_gauge_row.add_theme_constant_override("separation", 3)
+		_gauge_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_gauge_row.visible = false
+		col.add_child(_gauge_row)
+		gauge_lead = Kit.label("", LINE_PX, Palette.CREAM)
+		gauge_lead.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_gauge_row.add_child(gauge_lead)
+		gauge = Gauge.new()
+		gauge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_gauge_row.add_child(gauge)
+		gauge_time = Kit.label("", LINE_PX, Palette.CREAM)
+		gauge_time.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_gauge_row.add_child(gauge_time)
 		badge = Kit.badge(BADGE_PX)
 		badge.size = Vector2(BADGE_PX, BADGE_PX)
 		_badge_mark = Kit.label("!", VERB_PX, BADGE_YELLOW, true)
@@ -1084,11 +1121,35 @@ class Sign extends Button:
 		modulate = Color(tint, modulate.a)
 		_fit.call_deferred()
 
+	## La jauge a la place de la ligne : `lead` devant, `fill` 0..1, `time`
+	## au bout. `fill` negatif la cache.
+	func show_gauge(lead: String, fill: float, time: String) -> void:
+		var on := fill >= 0.0
+		if on != _gauge_row.visible:
+			_gauge_row.visible = on
+			_fit.call_deferred()
+		if not on:
+			return
+		if lead != gauge_lead.text:
+			gauge_lead.text = lead
+			_fit.call_deferred()
+		gauge.fill = clampf(fill, 0.0, 1.0)
+		gauge.queue_redraw()
+		if time != gauge_time.text:
+			gauge_time.text = time
+			gauge_time.visible = not time.is_empty()
+			gauge_time.add_theme_color_override("font_color", Palette.LAMP if fill >= 1.0 else Palette.CREAM)
+			_fit.call_deferred()
+
 	func set_ui_scale(value: float) -> void:
 		if is_equal_approx(value, _ui_scale):
 			return
 		_ui_scale = value
 		energy_icon.custom_minimum_size = Vector2.ONE * roundf(10.0 * value)
+		gauge.custom_minimum_size = (GAUGE_SIZE * value).round()
+		gauge.px = maxf(1.0, roundf(value))
+		gauge_time.add_theme_font_size_override("font_size", roundi(LINE_PX * value))
+		gauge_lead.add_theme_font_size_override("font_size", roundi(LINE_PX * value))
 		# Rasterize text at its final screen size instead of scaling glyphs.
 		verb.add_theme_font_size_override("font_size", roundi(VERB_PX * value))
 		line.add_theme_font_size_override("font_size", roundi(LINE_PX * value))
@@ -1107,6 +1168,32 @@ class Sign extends Button:
 		size = want
 		custom_minimum_size = want
 		badge.position = Vector2(want.x - badge.size.x * 0.6, -badge.size.y * 0.45)
+
+
+## LA GOUTTIERE : un liseré d'encre, le creux, et le plein par-dessus avec
+## sa levre claire d'un pixel — les couleurs de la piste d'energie
+## (Palette.TRACK_*), pour que ce soit une jauge du jeu et pas un rectangle.
+class Gauge extends Control:
+	var fill := 0.0
+	var px := 1.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = GAUGE_SIZE
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r, Palette.TRACK_RIM)
+		var inner := r.grow(-px)
+		draw_rect(inner, Palette.TRACK_FACE)
+		var w := roundf(inner.size.x * fill)
+		if w <= 0.0:
+			return
+		var full := fill >= 1.0
+		var body := Rect2(inner.position, Vector2(w, inner.size.y))
+		draw_rect(body, Palette.CARROT if full else Palette.LEAF)
+		draw_rect(Rect2(body.position, Vector2(w, px)),
+			Palette.LAMP if full else Palette.LEAF.lightened(0.35))
 
 
 ## LES PLANCHES A L'ECRAN, en pixels d'ecran (leur CanvasLayer n'a ni

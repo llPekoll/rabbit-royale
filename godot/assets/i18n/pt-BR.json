@@ -202,6 +202,7 @@
    "$t": "horta +{0}"
   },
   "gardenEmpty": "horta vazia",
+  "gardenFull": "cheia",
   "shieldFor": {
    "$t": "escudo {0}"
   },

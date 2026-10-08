@@ -190,6 +190,7 @@ export const zh: Dict = {
     aMoment: '片刻',
     gardenPlus: (n) => `菜园 +${n}`,
     gardenEmpty: '菜园空了',
+    gardenFull: '已满',
     shieldFor: (wait) => `护盾 ${wait}`,
     shieldBadge: (wait) => `护盾 ${wait}`,
     noShield: '无护盾',

@@ -184,6 +184,7 @@ export const fr: Dict = {
     aMoment: 'un instant',
     gardenPlus: (n) => `potager +${n}`,
     gardenEmpty: 'potager vide',
+    gardenFull: 'plein',
     shieldFor: (wait) => `bouclier ${wait}`,
     shieldBadge: (wait) => `Bouclier ${wait}`,
     noShield: 'sans bouclier',

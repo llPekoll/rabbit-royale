@@ -188,6 +188,7 @@ export const ptBR: Dict = {
     aMoment: 'um instante',
     gardenPlus: (n) => `horta +${n}`,
     gardenEmpty: 'horta vazia',
+    gardenFull: 'cheia',
     shieldFor: (wait) => `escudo ${wait}`,
     shieldBadge: (wait) => `Escudo ${wait}`,
     noShield: 'sem escudo',

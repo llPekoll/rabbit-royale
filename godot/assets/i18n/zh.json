@@ -202,6 +202,7 @@
    "$t": "菜园 +{0}"
   },
   "gardenEmpty": "菜园空了",
+  "gardenFull": "已满",
   "shieldFor": {
    "$t": "护盾 {0}"
   },

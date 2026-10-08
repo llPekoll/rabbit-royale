@@ -192,6 +192,7 @@ export const vi: Dict = {
     aMoment: 'một lát',
     gardenPlus: (n) => `vườn +${n}`,
     gardenEmpty: 'vườn trống',
+    gardenFull: 'đã đầy',
     shieldFor: (wait) => `khiên ${wait}`,
     shieldBadge: (wait) => `Khiên ${wait}`,
     noShield: 'không có khiên',

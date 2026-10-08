@@ -214,6 +214,8 @@ export const en = {
     aMoment: 'a moment',
     gardenPlus: (n: string) => `garden +${n}`,
     gardenEmpty: 'garden empty',
+    /* At the end of the HARVEST sign's gauge once the garden stops growing. */
+    gardenFull: 'full',
     shieldFor: (wait: string) => `shield ${wait}`,
     /* The badge over the burrow, drawn on the canvas. NAMED, because a bare
        "47H" over the house reads as a season clock — the word says what is

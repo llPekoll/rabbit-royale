@@ -46,8 +46,9 @@ const REFRESH_SECONDS := 60.0
 
 ## BurrowView (lib/game/burrow.ts) : level, stock, lifetime, gardenReady,
 ## energy, maxEnergy, nextEnergyInMs, runCost, nextRunInMs, yieldPerHour,
-## regenPerHour, capHours, gardenCapacity, gardenCeiling, boosts, shieldMs,
-## refills {held, left, backInMs}, upgradeCost, canUpgrade, next, runs.
+## regenPerHour, capHours, gardenCapacity, gardenCeiling, gardenFullInMs,
+## boosts, shieldMs, refills {held, left, backInMs}, upgradeCost, canUpgrade,
+## next, runs.
 var burrow: Dictionary = {}
 ## Le joueur tel que /api/burrow le rend (avec `applyRegen`).
 var player: Dictionary = {}
@@ -375,6 +376,24 @@ func garden_fill() -> float:
 	if ceiling <= 0.0:
 		return 0.0
 	return minf(1.0, float(live_garden()) / ceiling)
+
+
+## QUAND LE JARDIN SERA PLEIN, en ms, 0 s'il l'est deja : le `gardenFullInMs`
+## du serveur (lu sur l'horloge du jardin, arrosage et engrais compris),
+## decompte depuis la lecture. Repli sur les carottes pour un serveur qui ne
+## le rend pas encore.
+func garden_full_in_ms() -> float:
+	if burrow.is_empty():
+		return 0.0
+	var since := float(Time.get_ticks_msec() - _fetched_ms)
+	var full_in: Variant = burrow.get("gardenFullInMs", null)
+	if full_in is float or full_in is int:
+		return maxf(0.0, float(full_in) - since)
+	var rate := float(burrow.get("yieldPerHour", 0))
+	var ceiling := float(burrow.get("gardenCeiling", burrow.get("gardenCapacity", 0)))
+	if rate <= 0.0:
+		return 0.0
+	return maxf(0.0, (ceiling - float(live_garden())) / rate * 3600000.0)
 
 
 ## La quete a l'affiche, ou vide.
