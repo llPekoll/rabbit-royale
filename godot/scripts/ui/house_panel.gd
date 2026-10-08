@@ -219,16 +219,14 @@ func _f(v: float) -> int:
 	return roundi(v * _k)
 
 
-## LE RAIL DU HAUT A DROITE, la ou il est vraiment dessine.
+## LE HAUT A DROITE — le lapin du joueur —, la ou il est
+## vraiment dessine. C'etait le rail des boutons ; il est passe a gauche
+## (2026-10-08) et le volet l'y avait suivi, par-dessus la quete.
 func _rail_rect() -> Rect2:
-	var chrome := Chrome.current
-	if chrome == null:
+	var bar := TopBar.live
+	if bar == null or not is_instance_valid(bar):
 		return Rect2()
-	for bar in chrome.top_bar.find_children("*", "TopBar", true, false):
-		var rail: Variant = bar.get("_rail")
-		if rail is Control and (rail as Control).is_visible_in_tree():
-			return (rail as Control).get_global_rect()
-	return Rect2()
+	return bar.corner_rect()
 
 
 ## SOUS LE RAIL, son bord droit sur le bord droit du rail, le panneau et le

@@ -59,13 +59,16 @@ const PODIUM := 3
 const PODIUM_SIZE := 2.0
 const LEAD_RATIO := 1.5
 const LEAD_SIZE := PODIUM_SIZE * LEAD_RATIO
+## LE PODIUM SERRE, sous ROOMY_LIST de liste : les memes trois lapins, un
+## quart plus petits. Il disparaissait a la place — et le panneau du coin
+## etant toujours sous le seuil, personne n'avait jamais vu le podium
+## (« on voit pas les 3 premiers lapins », 2026-10-08).
+const PODIUM_SIZE_TIGHT := 1.5
+const ROOMY_LIST := 260.0
 ## Les anneaux de pierre autour d'un lapin du podium : l'anneau fait une fois
 ## et demie son lapin, ce qui pose le corps dans le trou de l'art (voir
 ## ring-1.webp, 128x128 dont ~96 de trou) sans l'ecraser.
 const RING_OVER := 1.5
-## La colonne des faces : celle du PLUS GRAND anneau, une seule largeur pour
-## toutes les lignes du podium — sinon les noms ne partent plus du meme bord.
-const FACE_COL := 14.0 * LEAD_SIZE * RING_OVER
 ## La couronne, podium.ts : sa largeur sur la tete (11/14 du cadre, un peu
 ## plus large pour deborder du crane), sa morsure et son inclinaison.
 const CROWN_W_RATIO := (11.0 / 14.0) * 1.1
@@ -116,6 +119,7 @@ var _roomy := true
 
 func _init() -> void:
 	super(I18N.t("chrome.season"), WIDTH, HEIGHT)
+	go_snug()
 
 
 func _ready() -> void:
@@ -154,11 +158,11 @@ func _ready() -> void:
 	_scroll.add_child(_list)
 	ScrollFade.attach(_scroll)
 	TouchScroll.attach(_scroll)
-	# LE PODIUM SUIT LA LARGEUR DE LA LISTE (PODIUM_MIN_PANEL, 260) : le
-	# panneau du coin fait 231px sur le Seeker, et les faces n'y tiennent pas.
-	# Mesuree a l'arrivee, pas supposee : on reconstruit quand elle change.
+	# LE PODIUM SUIT LA LARGEUR DE LA LISTE (ROOMY_LIST) : pleine taille, ou
+	# serre sur un Seeker. Mesuree a l'arrivee, pas supposee : on reconstruit
+	# quand elle change.
 	_scroll.resized.connect(func() -> void:
-		var roomy_now := _scroll.size.x >= 260.0
+		var roomy_now := _scroll.size.x >= ROOMY_LIST
 		if roomy_now != _roomy:
 			_roomy = roomy_now
 			_rebuild())
@@ -266,7 +270,8 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	var crowned := bool(e.get("crowned", false))
 	var digging := bool(e.get("digging", false))
 	var me := id == mine and not mine.is_empty()
-	var on_podium := roomy and rank <= PODIUM
+	var on_podium := rank <= PODIUM
+	var lead := _lead_size(roomy)
 
 	var panel := Kit.panel(_row_style(me, index % 2 == 0))
 	# L'AIR D'UNE LIGNE SUIT L'ECRAN (`.rr-lb-row` : clamp(4px, 1.1svh, 10px)
@@ -279,7 +284,10 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	if on_podium and crowned:
 		# La couronne deborde par le haut : la premiere ligne n'a personne
 		# au-dessus d'elle pour la recevoir, elle se reserve la place.
-		pad_top = _crown_box(LEAD_SIZE)["rise"] + pad_y
+		# L'anneau deborde deja la tete de son quart : la couronne ne
+		# reserve que ce qui depasse de la pierre.
+		var ring_air := AvatarFace.ART.size.y * lead * (RING_OVER - 1.0) * 0.5
+		pad_top = maxf(0.0, _crown_box(lead)["rise"] - ring_air) + pad_y
 	# SERRE quand la liste est etroite (le coin du Seeker, 231px) : le web y
 	# tient le nom entier parce que ses lettres sont plus petites.
 	var font := ROW_FONT if roomy else 10
@@ -297,7 +305,7 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	row.add_child(rank_label)
 
 	if on_podium:
-		row.add_child(_podium(Look.of(e), rank, crowned))
+		row.add_child(_podium(Look.of(e), rank, crowned, roomy))
 
 	var names := Kit.vbox(0)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -392,22 +400,27 @@ func _dot_style() -> StyleBoxFlat:
 ## LE PODIUM : l'anneau de pierre du rang, le lapin debout dedans, et la
 ## couronne sur la tete du meneur. Les lapins sont de hauteurs differentes et
 ## doivent tenir sur le meme sol : la cellule est alignee en bas.
-func _podium(avatar: Variant, rank: int, crowned: bool) -> Control:
-	var size := LEAD_SIZE if crowned else PODIUM_SIZE
+func _podium(avatar: Variant, rank: int, crowned: bool, roomy: bool) -> Control:
+	var lead := _lead_size(roomy)
+	var size := lead if crowned else lead / LEAD_RATIO
+	# La colonne des faces : celle du PLUS GRAND anneau, une seule largeur
+	# pour toutes les lignes du podium — sinon les noms ne partent plus du
+	# meme bord.
+	var face_col := AvatarFace.ART.size.x * lead * RING_OVER
 	var art := AvatarFace.ART.size * size
 	var ring_px := art.x * RING_OVER
 	var cell := Control.new()
-	cell.custom_minimum_size = Vector2(FACE_COL, ring_px)
+	cell.custom_minimum_size = Vector2(face_col, ring_px)
 	cell.size_flags_vertical = Control.SIZE_SHRINK_END
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var ring := Kit.icon([Kit.RING_1, Kit.RING_2, Kit.RING_3][clampi(rank - 1, 0, 2)], ring_px)
-	ring.position = Vector2((FACE_COL - ring_px) * 0.5, 0.0)
+	ring.position = Vector2((face_col - ring_px) * 0.5, 0.0)
 	ring.size = Vector2(ring_px, ring_px)
 	cell.add_child(ring)
 
 	var face := AvatarFace.portrait(avatar, size)
-	face.position = ((Vector2(FACE_COL, ring_px) - art) * 0.5).floor()
+	face.position = ((Vector2(face_col, ring_px) - art) * 0.5).floor()
 	face.size = art
 	cell.add_child(face)
 
@@ -419,11 +432,16 @@ func _podium(avatar: Variant, rank: int, crowned: bool) -> Control:
 		# dans le crane de `bite`, et la couronne penche (CROWN_TILT).
 		worn.pivot_offset = Vector2(crown["w"] * 0.5, crown["h"])
 		worn.position = Vector2(
-			FACE_COL * 0.5 + HEAD_DX * size - crown["w"] * 0.5,
+			face_col * 0.5 + HEAD_DX * size - crown["w"] * 0.5,
 			face.position.y + crown["bite"] - crown["h"])
 		worn.rotation = deg_to_rad(CROWN_TILT)
 		cell.add_child(worn)
 	return cell
+
+
+## La taille du meneur : pleine, ou serree sur une liste etroite.
+func _lead_size(roomy: bool) -> float:
+	return LEAD_SIZE if roomy else PODIUM_SIZE_TIGHT * LEAD_RATIO
 
 
 ## `crownBox(size)` de podium.ts : la boite dessinee de la couronne sur un

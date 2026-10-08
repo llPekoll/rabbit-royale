@@ -131,6 +131,21 @@ func _place_close() -> void:
 			right = size.x
 	close_button.position = Vector2(right - Kit.CLOSE_AIR - Kit.CLOSE_SIZE, top + Kit.CLOSE_AIR)
 
+## LA MARGE AU BOIS, pas a la coupe. La marge par defaut est la coupe
+## entiere du cadre (36) plus Kit.PAD, et de ces 36 le bois n'en prend que
+## ~16 : le reste est du papier vide. Sur le panneau etroit de la saison
+## (231 px au Seeker) il restait 140 px de liste entre deux bandes de 30 px
+## de parchemin nu (« le padding est enorme », 2026-10-08). Ici le contenu
+## part a Kit.PAD du bois, et l'en-tete s'aligne sur le [x].
+func go_snug() -> void:
+	var edge := _frame.inset()
+	_inset.add_theme_constant_override("margin_left", int(edge.x * Kit.LEAF_RAIL_RIGHT + Kit.PAD))
+	_inset.add_theme_constant_override("margin_right", int(edge.z * Kit.LEAF_RAIL_RIGHT + Kit.PAD))
+	_inset.add_theme_constant_override("margin_top", int(edge.y * Kit.LEAF_RAIL_TOP + Kit.CLOSE_AIR))
+	_inset.add_theme_constant_override("margin_bottom", int(edge.w * Kit.LEAF_RAIL_TOP + Kit.PAD))
+	_header.custom_minimum_size.y = Kit.CLOSE_SIZE
+
+
 ## LE DIALOGUE PREND TOUT L'ECRAN. Sur un telephone couche (890x400), un
 ## panneau centre dans son cadre de feuilles perdait 40px de chaque cote et
 ## en haut, et ce qu'il avait a montrer defilait. Le parchemin reste — le

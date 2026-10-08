@@ -1,11 +1,16 @@
 class_name TopBar
 extends Control
-## LA BARRE DU HAUT : le joueur a gauche, la pastille au centre, le rail a
-## droite. Porte de `.rr-topbar` (globals.css) et px-top-floor.css, avec ce
+## LA BARRE DU HAUT : le rail du jeu a gauche, la pastille au centre, le
+## lapin du joueur a droite. Porte de `.rr-topbar` (globals.css) et px-top-floor.css, avec ce
 ## qu'ils ont decide :
 ##
-##   • TROIS ZONES, `space-between` : la puce du joueur au bord gauche, la
-##     pastille au milieu, la saison et le son a droite. C'etait `flex-end`
+##   • TROIS ZONES, `space-between` : la boutique, l'histoire et la saison
+##     au bord gauche, la pastille au milieu, le lapin a droite. LE COMPTE EN
+##     HAUT A DROITE, EN UN SEUL BOUTON (2026-10-08) : une planche « LVL 6
+##     CursedRoot » tenait le coin gauche et un engrenage le coin droit ;
+##     personne ne cherchait son profil ni sa sortie a gauche. Il reste la
+##     tete du lapin dans un anneau, son niveau en pastille, et elle ouvre
+##     le profil — profil, historique et reglages en onglets de cote. C'etait `flex-end`
 ##     — tout en tas a droite — et la pastille, centree hors du flux,
 ##     heurtait sans cesse la puce. Chaque zone a son bout de barre et aucune
 ##     ne peut marcher dans une autre.
@@ -25,7 +30,7 @@ extends Control
 ##     is huge ») ; le Seeker a 400 le veut deja.
 ##   • LE RAIL : la boutique et l'histoire, puis le trophee de saison avec
 ##     son rang (« #59 » en puce discrete, pas un « 59 » rouge qui se lisait
-##     comme cinquante-neuf nouveautes), puis le son qui possede le coin.
+##     comme cinquante-neuf nouveautes).
 ##     Boutique et histoire n'ont de sens que sur le terrier.
 ##   • L'ARRIVEE : tout tombe du haut et se pose (UiEntrance), un pas
 ##     d'ecart entre deux pieces, a chaque retour au terrier.
@@ -49,16 +54,18 @@ const NARROW_W := 720.0
 ## Les delais de la cascade d'arrivee.
 
 var pill: CarrotPill
-var chip: PlayerChip
+## Le lapin du joueur : il ouvre le profil (et ses reglages).
+var me_button: HubIconButton
 var shop_button: HubIconButton
 var story_button: HubIconButton
 var season_button: HubIconButton
-var sound: SoundCluster
 
 ## Le banc la force visible sans monde derriere.
 var preview := false
 
 var _rail: HBoxContainer
+## Le coin droit : le lapin.
+var _corner: HBoxContainer
 
 
 ## LA BARRE A L'ECRAN, pour les panneaux qui se posent dessous (`hang_bottom`).
@@ -84,17 +91,44 @@ static func hang_bottom() -> float:
 	return live.pill.hang_bottom()
 
 
+## LE BAS DU RAIL DE GAUCHE, en y d'ecran, calcule comme `_measure` le pose :
+## la colonne du terrier part dessous. TOPBAR_H ne suffit plus depuis que le
+## rail tient le coin gauche — ses boutons grandissent avec l'ecran (68 px a
+## 616 de haut) et passaient sur la carte de quete (2026-10-08).
+static func rail_bottom(view: Vector2) -> float:
+	var square := Kit.ICON_MIN if view.x < NARROW_W else Kit.icon_square(view.y)
+	return maxf(Kit.TOPBAR_H, Kit.EDGE + square)
+
+
+## LE COIN DROIT A L'ECRAN — le lapin —, pour le volet du terrier qui se
+## pose dessous. Vide sans barre visible.
+func corner_rect() -> Rect2:
+	if not is_visible_in_tree():
+		return Rect2()
+	return _corner.get_global_rect()
+
+
+## Le bout droit du rail de gauche, en x d'ecran : la plaque d'armes de la
+## manche (run_hud) ne descend pas dessous. EDGE sans barre visible.
+static func rail_end() -> float:
+	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree():
+		return Kit.EDGE
+	return live._rail.get_global_rect().end.x
+
+
 func _ready() -> void:
 	live = self
-	chip = PlayerChip.new()
-	chip.pressed.connect(func() -> void: profile_pressed.emit())
-	add_child(chip)
 
 	_rail = Kit.hbox(Kit.PAD_TIGHT)
 	_rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_rail.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_rail.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_rail.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	add_child(_rail)
+
+	_corner = Kit.hbox(Kit.PAD_TIGHT)
+	_corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_corner.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(_corner)
 
 	shop_button = HubIconButton.make("Shop", Kit.ICONS["shop"])
 	shop_button.pressed.connect(func() -> void: shop_pressed.emit())
@@ -108,8 +142,9 @@ func _ready() -> void:
 	season_button.pressed.connect(func() -> void: season_pressed.emit())
 	_rail.add_child(season_button)
 
-	sound = SoundCluster.new()
-	_rail.add_child(sound)
+	me_button = HubIconButton.make("Profile")
+	me_button.pressed.connect(func() -> void: profile_pressed.emit())
+	_corner.add_child(me_button)
 
 	pill = CarrotPill.new()
 	pill.energy_tapped.connect(func() -> void: energy_tapped.emit())
@@ -117,17 +152,19 @@ func _ready() -> void:
 	add_child(pill)
 
 	_relabel()
-	I18N.locale_changed.connect(func(_c: String) -> void: _relabel())
+	_reflect_me()
+	I18N.locale_changed.connect(func(_c: String) -> void: _relabel(); _reflect_me())
 	Screens.world_shown.connect(_on_world_shown)
 	Screens.moved.connect(_on_moved)
-	Session.changed.connect(chip.refresh)
-	Home.changed.connect(chip.refresh)
-	# Le skin du ticket change la tete du chip (Look.mine).
-	PassState.shared().changed.connect(chip.refresh)
+	Session.changed.connect(_reflect_me)
+	Home.changed.connect(_reflect_me)
+	# Le skin du ticket change la tete du lapin (Look.mine).
+	PassState.shared().changed.connect(_reflect_me)
 	Home.changed.connect(_reflect_news)
 	ShopState.shared().changed.connect(_reflect_news)
 	get_viewport().size_changed.connect(_measure)
 	_rail.resized.connect(_measure)
+	_corner.resized.connect(_measure)
 	_measure()
 	_reflect_news()
 	reflect_place()
@@ -140,6 +177,22 @@ func _relabel() -> void:
 	shop_button.tooltip_text = I18N.t("shop.title")
 	story_button.tooltip_text = I18N.t("codex.title")
 	season_button.tooltip_text = I18N.t("board.show")
+	me_button.tooltip_text = I18N.t("profile.title")
+
+
+## LE LAPIN DU JOUEUR : sa tete en jeu (Look.mine, skin compris) dans
+## l'anneau, et son niveau en pastille comme le rang sur le trophee. Pas de
+## nom : c'etait la planche « LVL 6 CursedRoot », qui prenait la moitie de
+## la barre pour dire ce que le profil dit deja.
+func _reflect_me() -> void:
+	var crop := AtlasTexture.new()
+	crop.atlas = Look.sheet(Look.mine())
+	crop.region = AvatarFace.ART
+	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
+	crop.filter_clip = true
+	me_button.set_glyph(crop)
+	var level: Variant = Home.player.get("level")
+	me_button.set_badge(I18N.f("rabbitLevel.badge", [int(level)]) if level != null else "")
 
 
 ## LA MISE EN PAGE, a chaque changement de taille.
@@ -148,12 +201,15 @@ func _measure() -> void:
 	var square := Kit.ICON_MIN if view.x < NARROW_W else Kit.icon_square(view.y)
 	for b in [shop_button, story_button, season_button]:
 		(b as HubIconButton).set_square(square, view.y)
-	sound.set_square(square, view.y)
-	_rail.offset_right = -Kit.EDGE
-	# A la gouttiere de l'ecran, comme la puce du joueur : les pastilles
+	me_button.set_square(square, view.y)
+	# A la gouttiere de l'ecran : les pastilles
 	# posees a cheval sur les boutons gardent ainsi 5 px d'air au-dessus.
+	_rail.offset_left = Kit.EDGE
 	_rail.offset_top = Kit.EDGE
 	_rail.offset_bottom = Kit.EDGE + square
+	_corner.offset_right = -Kit.EDGE
+	_corner.offset_top = Kit.EDGE
+	_corner.offset_bottom = Kit.EDGE + square
 
 	# La pastille : centree sur l'ecran, collee au haut, mise a l'echelle
 	# depuis son centre haut pour rester accrochee au meme point.
@@ -161,20 +217,16 @@ func _measure() -> void:
 	# ET JAMAIS SOUS LE RAIL : ses boutons grandissent avec la hauteur de
 	# l'ecran, la pastille non — sur un ecran haut, le bout du bois passait
 	# sous la boutique (2026-09-23). Elle cede juste ce qu'il faut pour
-	# garder un ecart, toujours centree.
-	var rail_left := view.x - Kit.EDGE - _rail.get_combined_minimum_size().x
-	var half_room := rail_left - Kit.PAD - view.x * 0.5
+	# garder un ecart, toujours centree — des deux cotes : le rail a gauche,
+	# le lapin a droite.
+	var rail_right := Kit.EDGE + _rail.get_combined_minimum_size().x
+	var corner_left := view.x - Kit.EDGE - _corner.get_combined_minimum_size().x
+	var half_room := minf(view.x * 0.5 - rail_right, corner_left - view.x * 0.5) - Kit.PAD
 	if half_room > 0.0:
 		s = minf(s, half_room / (EnergyDial.ART.x * 0.5))
 	pill.pivot_offset = Vector2(EnergyDial.ART.x * 0.5, 0.0)
 	pill.scale = Vector2(s, s)
 	pill.position = Vector2(round((view.x - EnergyDial.ART.x) * 0.5), 0.0)
-
-	# La puce : au bord, centree dans la bande, et jusqu'a la pastille au
-	# plus — la moitie de la barre moins la moitie de la pastille moins un
-	# ecart, exactement la place.
-	chip.position = Vector2(Kit.EDGE, round((Kit.TOPBAR_H - PlayerChip.HEIGHT) * 0.5))
-	chip.set_max_width(view.x * 0.5 - EnergyDial.ART.x * 0.5 * s - Kit.PAD - Kit.EDGE)
 
 
 func _on_world_shown(shown: bool) -> void:
@@ -187,7 +239,6 @@ func _on_world_shown(shown: bool) -> void:
 
 func _on_moved(_place: int) -> void:
 	reflect_place()
-	sound.set_open(false)
 	if Screens.place == Screens.Place.BURROW:
 		# Pose de depart tout de suite, animation a la reouverture (voir
 		# BurrowColumn) : montee sous le noir, la barre se voyait en place.
@@ -195,11 +246,11 @@ func _on_moved(_place: int) -> void:
 		Screens.on_reveal(_arrive)
 
 
-## Histoire et profil n'existent que sur le terrier : sur l'ile, la puce du
-## joueur couvrait le coin sans rien a y faire en pleine manche.
+## L'histoire n'existe que sur le terrier. Le lapin, lui, reste partout :
+## il porte les reglages, et couper la musique en pleine manche passe par
+## lui depuis que l'engrenage n'est plus la.
 func reflect_place() -> void:
 	var home := Screens.place == Screens.Place.BURROW
-	chip.visible = home or preview
 	# LA BOUTIQUE PARTOUT, terrier compris (2026-10-02) : l'etal sur son
 	# ilot (burrow_landmarks.gd) reste, mais l'icone du haut ne disparait
 	# plus en rentrant — on la cherchait. En DIG et en RAID, c'est le seul
@@ -229,18 +280,18 @@ func _reflect_news() -> void:
 ## L'ARRIVEE EN CASCADE (UiEntrance), de gauche a droite, un pas d'ecart.
 func _arrive() -> void:
 	var rank := UiEntrance.TOP_FIRST
-	UiEntrance.play(chip, UiEntrance.FROM_TOP, rank)
-	pill.drop_in(rank + 1)
-	rank += 2
-	for node in [shop_button, story_button, season_button, sound]:
+	for node in [shop_button, story_button, season_button]:
 		UiEntrance.play(node, UiEntrance.FROM_TOP, rank)
 		if (node as Control).visible:
 			rank += 1
+	pill.drop_in(rank)
+	rank += 1
+	UiEntrance.play(me_button, UiEntrance.FROM_TOP, rank)
 
 
 ## La premiere image de l'arrivee : tout eteint.
 func _arrive_pose() -> void:
-	UiEntrance.pose([chip, shop_button, story_button, season_button, sound])
+	UiEntrance.pose([shop_button, story_button, season_button, me_button])
 	pill.drop_pose()
 
 

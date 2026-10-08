@@ -5,7 +5,7 @@ extends Control
 ## quand c'est OFF, et un bouton creme cerne d'encre qui glisse de l'un a
 ## l'autre avec un petit rebond. Le mot (ON/OFF) se lit du cote libre.
 ##
-## Ne pose aucune planche : il se range dans une rangee (SoundCluster), et
+## Ne pose aucune planche : il se range dans une rangee (SettingsPane), et
 ## c'est la RANGEE entiere qui le bascule au doigt (`toggle`).
 
 signal toggled(on: bool)
@@ -17,6 +17,7 @@ const LEAF_TOP := Color("#a6d84a")
 const LEAF_FACE := Color("#6fa82c")
 const LEAF_DEEP := Color("#3f6b17")
 
+var camp := false
 var on := false
 var disabled := false:
 	set(v):
@@ -29,7 +30,8 @@ var _word: Label
 var _lock: TextureRect
 
 
-func _init() -> void:
+func _init(dark: bool = false) -> void:
+	camp = dark
 	custom_minimum_size = Vector2(W, H)
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mouse_filter = Control.MOUSE_FILTER_PASS
@@ -112,12 +114,12 @@ func _draw() -> void:
 	var rad := int(size.y * 0.5)
 	# La levre sous la gouttiere, puis la gouttiere.
 	var lip := StyleBoxFlat.new()
-	lip.bg_color = Palette.WELL_RIM
+	lip.bg_color = CampStyle.NIGHT if camp else Palette.WELL_RIM
 	lip.set_corner_radius_all(rad)
 	lip.anti_aliasing = false
 	draw_style_box(lip, Rect2(r.position + Vector2(0, 2), r.size))
 	var track := StyleBoxFlat.new()
-	track.bg_color = LEAF_FACE if on else Palette.TRACK_FACE
+	track.bg_color = LEAF_FACE if on else (CampStyle.NIGHT if camp else Palette.TRACK_FACE)
 	track.set_border_width_all(2)
 	track.border_color = Palette.INK
 	track.set_corner_radius_all(rad)

@@ -52,6 +52,7 @@ const SCRIM_BLUR := preload("res://shaders/scrim_blur.gdshader")
 ## Les panneaux de cote s'arretent a la maquette (342 px de 1376) : plus
 ## large, ce n'est plus un panneau mais une bande de texte clairseme.
 const COLUMN_MAX := 360.0
+const BOARD_MIN := 280.0
 const BOARD_MAX := 380.0
 
 var _scrim: ColorRect
@@ -908,7 +909,8 @@ func _measure() -> void:
 	# les cartes sur 640 px pour trois lignes (2560 de large, 2026-09-23).
 	var column_w := clampf(view.x * 0.25, 220.0, COLUMN_MAX)
 	column.offset_left = Kit.EDGE
-	column.offset_top = Kit.TOPBAR_H
+	# Sous les boutons du rail, qui tiennent maintenant ce coin.
+	column.offset_top = TopBar.rail_bottom(view) + Kit.PAD_TIGHT
 	column.offset_right = Kit.EDGE + column_w
 	column.offset_bottom = -Kit.EDGE
 
@@ -1077,7 +1079,9 @@ func _center_dialog() -> void:
 		# sur la planche RAID et en cachait le mot (2026-09-23).
 		if _loop != null and _loop.visible:
 			board_bottom = maxf(board_bottom, Kit.EDGE + _loop.height() + Kit.PAD_TIGHT)
-		var board_w := minf(clampf(view.x * 0.26, 220.0, BOARD_MAX), view.x * 0.86)
+		# 280 au moins (le web disait 220) : a 231 au Seeker la liste n'avait
+		# pas la place d'un nom, d'un podium et d'un score (2026-10-08).
+		var board_w := minf(clampf(view.x * 0.3, BOARD_MIN, BOARD_MAX), view.x * 0.86)
 		_dialog.custom_minimum_size = Vector2(board_w, 0.0)
 		_dialog.size = Vector2(board_w, view.y - board_top - board_bottom)
 		_dialog.position = Vector2(view.x - side - board_w, board_top)

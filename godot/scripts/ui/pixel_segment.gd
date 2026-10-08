@@ -9,13 +9,15 @@ signal picked(index: int)
 
 const H := 30.0
 
+var camp := false
 var index := 0
 var _t := 0.0
 var _tween: Tween
 var _labels: Array[Label] = []
 
 
-func _init(width: float = 150.0) -> void:
+func _init(width: float = 150.0, dark: bool = false) -> void:
+	camp = dark
 	custom_minimum_size = Vector2(width, H)
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -56,7 +58,9 @@ func pick(i: int) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	# Au relache, s'il n'a pas glisse : il vit dans la liste du profil
+	# (TouchScroll).
+	if TouchScroll.tapped(self, event):
 		pick(0 if (event as InputEventMouseButton).position.x < size.x * 0.5 else 1)
 		accept_event()
 
@@ -83,12 +87,12 @@ func _layout() -> void:
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	var lip := StyleBoxFlat.new()
-	lip.bg_color = Palette.WELL_RIM
+	lip.bg_color = CampStyle.NIGHT if camp else Palette.WELL_RIM
 	lip.set_corner_radius_all(8)
 	lip.anti_aliasing = false
 	draw_style_box(lip, Rect2(r.position + Vector2(0, 2), r.size))
 	var track := StyleBoxFlat.new()
-	track.bg_color = Palette.TRACK_FACE
+	track.bg_color = CampStyle.NIGHT if camp else Palette.TRACK_FACE
 	track.set_border_width_all(2)
 	track.border_color = Palette.INK
 	track.set_corner_radius_all(8)
@@ -100,11 +104,11 @@ func _draw() -> void:
 	var half := size.x * 0.5
 	var thumb := Rect2(Vector2(3.0 + (half - 3.0) * _t, 3.0), Vector2(half - 3.0, size.y - 6.0))
 	var face := StyleBoxFlat.new()
-	face.bg_color = Palette.TAB_ON_BOTTOM
+	face.bg_color = CampStyle.COPPER if camp else Palette.TAB_ON_BOTTOM
 	face.set_border_width_all(2)
 	face.border_color = Palette.INK
 	face.set_corner_radius_all(6)
 	face.anti_aliasing = false
 	draw_style_box(face, thumb)
-	draw_rect(Rect2(thumb.position + Vector2(2, 2), Vector2(thumb.size.x - 4, (thumb.size.y - 4) * 0.5)), Palette.TAB_ON_TOP)
+	draw_rect(Rect2(thumb.position + Vector2(2, 2), Vector2(thumb.size.x - 4, (thumb.size.y - 4) * 0.5)), CampStyle.COPPER.lightened(0.12) if camp else Palette.TAB_ON_TOP)
 	draw_rect(Rect2(thumb.position + Vector2(5, 3), Vector2(thumb.size.x - 10, 2)), Color(1, 1, 1, 0.55))

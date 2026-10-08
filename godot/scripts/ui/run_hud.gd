@@ -308,10 +308,8 @@ func _place_arms() -> void:
 	for p in get_tree().root.find_children("*", "CarrotPill", true, false):
 		if p is Control and (p as Control).is_visible_in_tree():
 			pill = p
-	var floor_x := Kit.EDGE
-	for c in get_tree().root.find_children("*", "PlayerChip", true, false):
-		if c is Control and (c as Control).is_visible_in_tree():
-			floor_x = maxf(floor_x, (c as Control).get_global_rect().end.x - origin.x + Kit.PAD)
+	# Jamais sous le rail de gauche (boutique, saison) de la barre du haut.
+	var floor_x := maxf(Kit.EDGE, TopBar.rail_end() - origin.x + Kit.PAD)
 	if pill != null:
 		var r := pill.get_global_rect()
 		var x := r.position.x - origin.x - Kit.PAD - want.x
