@@ -79,6 +79,7 @@ func _ready() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	set_body(scroll)
+	TouchScroll.attach(scroll)
 	_columns = Kit.hbox(Kit.PAD * 2)
 	_columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_columns)

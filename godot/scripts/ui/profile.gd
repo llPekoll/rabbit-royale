@@ -184,6 +184,7 @@ func _ready() -> void:
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(_scroll)
 	ScrollFade.attach(_scroll)
+	TouchScroll.attach(_scroll)
 
 	I18N.locale_changed.connect(_on_locale_changed)
 	Session.failed.connect(_on_session_failed)

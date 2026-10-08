@@ -94,10 +94,12 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_scroll.clip_contents = true
-	_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 	_scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_scroll.offset_right = -PAD_RIGHT
 	add_child(_scroll)
+	# Les cartes laissent passer le doigt jusqu'a la colonne, qui l'arrete :
+	# sa hauteur est celle des cartes, rien du terrier n'est dessous.
+	TouchScroll.attach(_scroll)
 
 	var shader := Shader.new()
 	shader.code = FADE_SHADER
