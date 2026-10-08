@@ -112,8 +112,14 @@ const COUNTS := {
 }
 
 ## ShopState du web : stock, items[], traps{held, placed, armed, rearming,
-## nextRearmAt, maxPlaced, drain, freePerDay}, usdcEnabled, tokens[], rates.
-var shop: Dictionary = {}
+## nextRearmAt, maxPlaced, drain, freePerDay}, energyResetInMs, usdcEnabled,
+## tokens[], rates.
+var shop: Dictionary = {}:
+	set(value):
+		shop = value
+		_shop_read_ms = Time.get_ticks_msec()
+## Quand l'etal a ete lu : `energyResetInMs` compte depuis cet instant.
+var _shop_read_ms := 0
 ## TrapState : placed[], armed[], rearming[], held, maxPlaced, maxHeld, drain.
 var traps: Dictionary = {}
 ## FenceState : placed[], spans[], offers[], held, maxHeld.
@@ -400,13 +406,27 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 ## LA LIGNE DU COMPTE d'un objet (item-meta.ts `heldLabel`) : "3/20",
 ## "2 today", "1d left". Partagee pour que l'etal et la case du kit disent la
 ## meme chose des memes avoirs.
-static func held_label(kind: String, held: int, cap: int) -> String:
+## `back_ms` : dans combien les recharges reviennent (energy_back_in_ms) — a
+## zero, la pastille dit « dans 5h » plutot que « 0 aujourd'hui ».
+static func held_label(kind: String, held: int, cap: int, back_ms: Variant = null) -> String:
 	match COUNTS.get(kind, "carried"):
 		"daily":
+			if cap - held <= 0 and back_ms != null:
+				return I18N.f("shop.heldBackIn", [I18N.short_wait(float(back_ms))])
 			return I18N.f("shop.heldToday", [cap - held])
 		"time":
 			return I18N.f("shop.heldDaysLeft", [held]) if held > 0 else I18N.t("shop.heldOff")
 	return I18N.f("shop.heldOf", [held, cap])
+
+
+## DANS COMBIEN LES RECHARGES REVIENNENT, en ms, ou null quand aucune n'a ete
+## prise dans la fenetre. Les cinq reviennent ensemble, 24 h apres la premiere.
+## Decompte depuis la lecture, a l'horloge du moteur : pas a celle du telephone.
+func energy_back_in_ms() -> Variant:
+	var ms: Variant = shop.get("energyResetInMs", null)
+	if ms == null:
+		return null
+	return maxf(0.0, float(ms) - float(Time.get_ticks_msec() - _shop_read_ms))
 
 
 ## Les objets de l'etal, dans l'ordre du serveur.

@@ -15,7 +15,7 @@ import { db } from '@/lib/db';
 import { inventory, players, traps as trapsTable } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import {
-  holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf, type Holdings,
+  energyPacksResetInMs, holdings, isShopKind, purchaseBlocker, purchaseCost, shopShelf, type Holdings,
 } from '@/lib/game/inventory';
 import { grantItem } from '@/lib/game/grant';
 import { isPackKind, packBlocker, packPrice, packShelf } from '@/lib/game/packs';
@@ -69,6 +69,13 @@ export async function shopState(playerId: string) {
   return {
     stock: player.stock,
     items: shopShelf(bag, player.stock),
+    /**
+     * When the paid refills come back, so a capped shelf can say « in 5h »
+     * instead of « no more today » with no end in sight. Milliseconds rather
+     * than an instant, like `nextEnergyInMs`: the phone's clock is not ours.
+     * Null when no refill has been bought in the current window.
+     */
+    energyResetInMs: energyPacksResetInMs(player),
     /** The two packs (SHOP_PACKS), with what is inside each. */
     packs: packShelf(bag, player.stock),
     traps: {

@@ -195,6 +195,16 @@ export function energyPacksLeft(row: EnergyPackRow, now = Date.now()): number {
 }
 
 /**
+ * How long until the window lapses and every refill comes back at once, or
+ * null when none has been bought in it. All five return together because the
+ * window is one span opened by the first purchase, not one clock per refill.
+ */
+export function energyPacksResetInMs(row: EnergyPackRow, now = Date.now()): number | null {
+  if (energyPacksUsed(row, now) === 0) return null;
+  return Math.max(0, row.energyPacksSince.getTime() + ENERGY_PACK.WINDOW_MS - now);
+}
+
+/**
  * The window fields to write when a refill is bought.
  *
  * Restarts the window when the old one has lapsed, so five refills a day cannot

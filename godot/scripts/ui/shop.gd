@@ -724,7 +724,8 @@ func _card(it: Dictionary, tokens: Array, lead: bool) -> Control:
 	# une mauvaise nouvelle. Doree quand l'etagere est pleine.
 	# Un pack ne se tient pas : pas de compte, son contenu est sur l'art.
 	var pack := ShopState.PACKS.has(kind)
-	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)))
+	var held := ShopState.held_label(kind, int(it.get("held", 0)), int(it.get("cap", 0)),
+		_state.energy_back_in_ms())
 	var held_size := int(round(10 * k))
 	var chip_style := StyleBoxFlat.new()
 	chip_style.bg_color = Palette.TAB_ON_BOTTOM if full else Palette.BADGE_BOTTOM

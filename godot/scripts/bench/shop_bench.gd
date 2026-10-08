@@ -17,6 +17,9 @@ func _fake_items(stock: int) -> Array:
 	var usdc := Tuning.table("SHOP.USDC_PRICES")
 	var held := {"trap": 3, "bomb": 1, "lightning": 0, "shield": 20, "energy": 1, "smoke": 2, "mirage": 0, "bloop": 0, "fence": 4}
 	var caps := {"energy": 3, "smoke": 1}
+	# `-- --refills-out` : les recharges du jour sont toutes prises.
+	if "--refills-out" in OS.get_cmdline_user_args():
+		held["energy"] = caps["energy"]
 	var out: Array = []
 	for kind in ShopState.KINDS:
 		var cap: int = caps.get(kind, Tuning.i("SHOP.MAX_HELD"))
@@ -86,6 +89,8 @@ func _ready() -> void:
 	}
 	var state := ShopState.shared()
 	state.fake(_fake_items(1240), {"held": 3, "placed": 2, "armed": 2, "rearming": 0, "maxPlaced": 8}, false, _fake_packs(1240))
+	# Elles reviennent dans 5h12, comme `energyResetInMs` le dirait.
+	state.shop["energyResetInMs"] = (5 * 60 + 12) * 60000
 	Home.changed.emit()
 
 	# `-- --only=shop|popup|panel` : UN panneau, pose comme le chrome le

@@ -246,7 +246,7 @@ func _refresh() -> void:
 	_blurb.text = I18N.f("shop.fillsTo", [max_energy])
 	_left.visible = left >= 0
 	if left >= 0:
-		_left.text = (I18N.t("shop.noRefills") if left <= 0 else I18N.f("shop.refillsLeft", [left])).strip_edges()
+		_left.text = _refills_line(left).strip_edges()
 
 	var busy_now := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE
 	var can_buy := _state.can_buy(item)
@@ -284,6 +284,17 @@ func _refresh() -> void:
 	_status_text.text = status
 	_status_text.add_theme_color_override("font_color", Palette.BAD_ON_WOOD if bad else Palette.LEAF)
 	_door.relabel(I18N.t("shop.backToBurrow" if _home.is_valid() else "shop.openShed"))
+
+
+## Plus de recharge : dire QUAND elles reviennent, pas seulement « plus
+## aujourd'hui » — la fenetre glisse, minuit n'y change rien.
+func _refills_line(left: int) -> String:
+	if left > 0:
+		return I18N.f("shop.refillsLeft", [left])
+	var back: Variant = _state.energy_back_in_ms()
+	if back == null:
+		return I18N.t("shop.noRefills")
+	return I18N.f("shop.noRefillsUntil", [I18N.wait(float(back))])
 
 
 ## L'attente en mots : « a moment » quand la barre est pleine (null).
