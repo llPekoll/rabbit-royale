@@ -531,3 +531,20 @@ convertis en micro-dollars au cours figé de leur paiement :
 `cost = amount / 10^decimales × usd_price × 10^6`. Après : SOL 2,48 $,
 SKR 0,10 $, USDC 0,10 $. Le code écrit désormais le reçu ainsi
 (`paidUsdcUnits`, src/lib/game/grant.ts).
+
+### 2026-10-08 — `0032_player_identities` + `0033_carried_refills` : les recharges au sac
+
+Les recharges d'énergie se gardent (commit a4c8823) : achetées au sac,
+versées à la main (`/api/burrow` `refill`), 5 versées par 24 h, 3 au départ,
+packs `refill_3` / `refill_10`. La 0032 (tables Google/email d'une autre
+session, vides tant que leur code n'est pas poussé) passe avec, pour que les
+régions migrent dans l'ordre du journal — le migrateur saute toute migration
+plus ancienne que la dernière passée. Passé en EU par le user, en une
+transaction, **avant** le push : le contenu des deux fichiers tel quel
+(`ADD VALUE IF NOT EXISTS` pour l'enum), puis les deux lignes du registre
+(`1a4a0eb9…` / 1791434957567, `dbc3ae58…` / 1791465273423), absentes avant.
+
+Registre de prod : 33 → 35 (la ligne de trop d'avant 0023 est toujours là).
+149 joueurs, 149 lignes `inventory` `energy` à 3, `energy_packs_bought`
+remis à 0 (il comptait des achats, il compte des versées), `refill_3` et
+`refill_10` dans l'enum. SG et US : par `./migrate` au déploiement.
