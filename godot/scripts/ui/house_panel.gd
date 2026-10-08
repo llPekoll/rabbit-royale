@@ -19,6 +19,14 @@ extends Control
 ##
 ## SOMBRE ET TRANSLUCIDE comme les legendes ; le coffre en barre — l'or a
 ## l'abri, le rouge expose (choisi parmi trois propositions, 2026-10-01).
+##
+## LES BOUTEILLES SE VERSENT ICI (2026-10-08). Arrosoir et engrais tombent
+## des coffres, mais on ne pouvait les verser nulle part : l'onglet GARDEN de
+## la rangee du kit est parti (rien n'y etait branche), et la carte du jardin
+## qui devait les reprendre n'est plus dans la colonne (`quest_only`). Pas
+## sur le potager, deja charge de HARVEST : sous AMELIORER, ce qui fait
+## grandir le terrier. Seulement celles qu'on tient ; eteintes tant que la
+## precedente agit ; et replie, le point rouge bat aussi pour elles.
 
 const SAFE_INK := Color("#ffd138")
 const EXPOSED_INK := Color("#ff8a7a")
@@ -145,7 +153,32 @@ func _data() -> Dictionary:
 		"next_regen": int(next.get("regenPerHour", 0)) if next is Dictionary else -1,
 		"cost": b.get("upgradeCost", null),
 		"can": bool(b.get("canUpgrade", false)) and not Home.pending,
+		"bottles": _bottles(b),
 	}
+
+
+## Les bouteilles TENUES : `[kind, combien, en train d'agir]`, dans l'ordre
+## du jardin (`boosts` de /api/burrow, garden_card.gd).
+static func _bottles(b: Dictionary) -> Array:
+	var out := []
+	var boosts: Variant = b.get("boosts", {})
+	for kind in ["water", "fertiliser"]:
+		var boost: Variant = (boosts as Dictionary).get(kind) if boosts is Dictionary else null
+		if not boost is Dictionary or int(boost.get("held", 0)) <= 0:
+			continue
+		var active: Variant = boost.get("activeMs", null)
+		out.append([kind, int(boost.get("held", 0)), (active is float or active is int) and float(active) > 0.0])
+	return out
+
+
+## Une bouteille qu'on peut verser maintenant : tenue, et rien n'agit.
+static func _pourable(d: Dictionary) -> bool:
+	if Home.pending:
+		return false
+	for bottle: Array in d.bottles:
+		if not bool(bottle[2]):
+			return true
+	return false
 
 
 func _rebuild() -> void:
@@ -297,7 +330,41 @@ func _build_panel(d: Dictionary) -> PanelContainer:
 		slab.set_lit(bool(d.can))
 		slab.pressed.connect(_upgrade)
 	col.add_child(slab)
+
+	# LES BOUTEILLES, sous AMELIORER : arroser, fertiliser.
+	if not (d.bottles as Array).is_empty():
+		var pour_rule := ColorRect.new()
+		pour_rule.color = Color(1, 1, 1, 0.12)
+		pour_rule.custom_minimum_size = Vector2(0, 1)
+		col.add_child(pour_rule)
+		var pour := Kit.hbox(_s(6))
+		col.add_child(pour)
+		for bottle: Array in d.bottles:
+			pour.add_child(_bottle(String(bottle[0]), int(bottle[1]), bool(bottle[2])))
 	return card
+
+
+## UNE BOUTEILLE : son icone et ce qu'on en tient. Le serveur verse
+## (`/api/burrow` water / fertilise) ; Home.changed refait le volet.
+func _bottle(kind: String, held: int, running: bool) -> HubSlab:
+	var b := HubSlab.new("green", _s(26))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var row := Kit.hbox(_s(3))
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := Kit.icon(Kit.ICONS[kind], _s(14))
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	row.add_child(Kit.label("x%d" % held, _f(10), b.ink()))
+	b.content.add_child(row)
+	b.tooltip_text = "%s · %s" % [I18N.t("kit.tools." + ("water" if kind == "water" else "fertilise")),
+		I18N.t("kit.tools.%sEffect" % kind)]
+	b.set_lit(not running and not Home.pending)
+	b.pressed.connect(func() -> void:
+		if running or Home.pending:
+			return
+		Home.act("water" if kind == "water" else "fertilise"))
+	return b
 
 
 ## LA CROIX : un petit x dessine, pas le carre des dialogues (trop gros
@@ -384,7 +451,7 @@ func _build_button(d: Dictionary) -> Button:
 	# maison, centre sur la hauteur, et le bouton prend la mesure du tout.
 	_dot = PulseDot.new()
 	_dot.size = Vector2.ONE * _s(DOT_SIZE)
-	_dot.visible = d.cost != null and bool(d.can)
+	_dot.visible = (d.cost != null and bool(d.can)) or _pourable(d)
 	var fit := func() -> void:
 		var word := level.get_combined_minimum_size()
 		button.custom_minimum_size = Vector2(s.content_margin_left + word.x + s.content_margin_right, h)
