@@ -42,6 +42,7 @@ import { racesNow } from '../src/lib/game/season-pass';
 import { equippedSkinOf, lookOf } from '../src/lib/game/look';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
+import { snackBonus } from '../src/lib/game/snackState';
 import { refreshTuning } from '../src/lib/tuning/live';
 import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
@@ -650,6 +651,14 @@ async function bankRun(rabbit: Rabbit) {
   // "Heavy is the head": the #1's run scores a bonus (CROWN.GAIN_MULT). The
   // SCORE only — the carrots in the bank are the carrots dug.
   const scored = rabbit.crowned ? Math.round(carrots * CROWN.GAIN_MULT) : carrots;
+  // THE BONUS OF THE DAY (SNACK.BUFF): the first paying run after today's
+  // Snack Time box banks its carrots again, capped by level. Read before the
+  // run's row is closed, so this run cannot find itself as the one that
+  // already took it. A carrot event like the rest: stock, score, lifetime.
+  const bonus = await snackBonus(playerId, carrots, rabbit.level ?? 1).catch((e) => {
+    console.error('[bankRun] snack bonus failed', playerId, e);
+    return 0;
+  });
 
   /**
    * A RUN THAT DUG NOTHING IS REFUNDED, and does not count as a run.
@@ -693,9 +702,9 @@ async function bankRun(rabbit: Rabbit) {
     energyUpdatedAt: new Date(),
   };
   await db.update(players).set({
-    stock: raw`${players.stock} + ${carrots}`,
-    seasonScore: raw`${players.seasonScore} + ${scored}`,
-    lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
+    stock: raw`${players.stock} + ${carrots + bonus}`,
+    seasonScore: raw`${players.seasonScore} + ${scored + bonus}`,
+    lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots + bonus}`,
     runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
     ...settled,
     tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
@@ -762,7 +771,7 @@ async function bankRun(rabbit: Rabbit) {
   // read the old total and cache the very staleness this exists to clear.
   // The socket may be gone (a closed tab, a sweep banking for an absent player)
   // — the carrots are safe either way, and the next burrow load will show them.
-  socketOf(playerId)?.emit('banked', { carrots, loot: run.loot, nfts: run.nfts.length });
+  socketOf(playerId)?.emit('banked', { carrots, bonus, loot: run.loot, nfts: run.nfts.length });
 
   // The carrots are banked in Postgres by this point, which is what matters.
   // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`

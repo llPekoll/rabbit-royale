@@ -55,7 +55,7 @@ func _ready() -> void:
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		_hit.add_theme_stylebox_override(state, Kit.style_empty())
 	_hit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_hit.pressed.connect(func() -> void: SnackDialog.open())
+	_hit.pressed.connect(func() -> void: SnackBoxDialog.show_box())
 	add_child(_hit)
 
 	# Le compte a rebours bouge : une relecture du texte par minute suffit.

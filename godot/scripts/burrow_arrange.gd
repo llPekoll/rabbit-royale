@@ -53,7 +53,9 @@ var _rank_of: Dictionary = {}
 
 func _init(seed_value: String, edits: Dictionary) -> void:
 	seed_text = seed_value
-	base = BurrowLayout.of(seed_value)
+	# Les cadeaux de Snack Time sont des choses du terrier comme les arbres :
+	# dans `base`, pour qu'une tape les prenne et que `moves` les nomme.
+	base = BurrowLayout.with_gifts(BurrowLayout.of(seed_value), BurrowLayout.gift_count(edits))
 	for i in range(base.placements.size()):
 		_rank_of[String(base.placements[i].get("id", ""))] = i
 	saved = edits.duplicate(true)
@@ -347,4 +349,8 @@ static func _clean(edits: Dictionary) -> Dictionary:
 			moves.append([int(m[0]), int(m[1])])
 	if not moves.is_empty():
 		out["moves"] = moves
+	# Recopies tels quels : c'est le serveur qui les compte.
+	var gifts := BurrowLayout.gift_count(edits)
+	if gifts > 0:
+		out["gifts"] = gifts
 	return out

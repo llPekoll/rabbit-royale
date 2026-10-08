@@ -92,6 +92,19 @@ const NATURAL_PROPS := 15
 const PROP_FOOT_PX := [43.0, 47.0, 49.0, 37.0, 40.0, 49.0, 43.0, 49.0, 53.0,
 	46.0, 50.0, 51.0, 55.0, 47.0, 44.0, 104.0, 105.0, 169.0]
 
+## LES CADEAUX DE SNACK TIME (`gift`, SNACK.GIFTS) : un objet du decor en
+## plus grand, pour qu'il se lise comme un trophee et pas comme du fouillis.
+## Art provisoire (2026-10-08) : champignon et citrouille du pack, la grande
+## carotte de carrote.png, l'epouvantail dore. `prop` = rang dans PROPS, ou
+## -1 pour une image a part (`tex` + `region`).
+const CARROT_SHEET := preload("res://assets/deco/carrote.png")
+const GIFTS := [
+	{"prop": 2, "scale": 0.8},
+	{"prop": 12, "scale": 0.8},
+	{"prop": -1, "region": Rect2(100, 106, 34, 52), "foot": 50.0, "scale": 0.9},
+	{"prop": 17, "scale": 0.5, "tint": Color(1.35, 1.12, 0.5)},
+]
+
 ## LES VIVANTS : une bande d'images par feuille, la rangee 0 (le repos).
 ##
 ## LES FEUILLES SONT ROGNEES A LEUR PREMIERE RANGEE a la copie : le web charge
@@ -219,6 +232,8 @@ func build(ground: IslandGround, skip: Dictionary = {}, bushes: bool = false) ->
 			"tree":
 				node = _tree(variant)
 				phase = _wind_phase(cell)
+			"gift":
+				node = _gift(variant)
 			"sheep", "soldier":
 				var kinds: Array = SHEEP_KINDS if kind == "sheep" else SOLDIER_KINDS
 				unit = kinds[variant % kinds.size()]
@@ -576,6 +591,24 @@ func _prop(index: int) -> Sprite2D:
 	s.centered = false
 	s.offset = Vector2(-tex.get_width() * 0.5, -float(PROP_FOOT_PX[index]))
 	s.scale = Vector2(DECO_SCALE, DECO_SCALE)
+	return s
+
+
+func _gift(variant: int) -> Sprite2D:
+	var g: Dictionary = GIFTS[clampi(variant, 0, GIFTS.size() - 1)]
+	var s: Sprite2D
+	if int(g.prop) >= 0:
+		s = _prop(int(g.prop))
+	else:
+		s = Sprite2D.new()
+		s.texture = CARROT_SHEET
+		s.region_enabled = true
+		s.region_rect = g.region
+		s.centered = false
+		s.offset = Vector2(-g.region.size.x * 0.5, -float(g.foot))
+	s.scale = Vector2.ONE * float(g.scale)
+	if g.has("tint"):
+		s.modulate = g.tint
 	return s
 
 

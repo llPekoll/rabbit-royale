@@ -24,10 +24,12 @@ import {
   baseBurrowFor, burrowColRow, burrowIndex, isTrappable, setBurrowEdits,
 } from '@/game/burrow/board';
 import { houseTiles } from '@/game/burrow/buildings';
-import { editBurrow, hasEdits } from '@/game/burrow/generate';
+import { editBurrow, hasEdits, withGifts } from '@/game/burrow/generate';
 import { fieldReachable, isSpan } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
 import { burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
+import { giftsOwned } from '@/lib/game/snack';
+import { snackRowOf } from '@/lib/game/snackState';
 
 export async function GET(req: Request) {
   const session = await getSession(req);
@@ -43,14 +45,32 @@ export async function PUT(req: Request) {
   const id = session.sub;
 
   const body = (await req.json().catch(() => ({}))) as { edits?: unknown };
-  const edits = parseBurrowEdits(body.edits ?? {});
-  if (!edits) return Response.json({ error: 'bad_edits' }, { status: 400 });
+  const parsed = parseBurrowEdits(body.edits ?? {});
+  if (!parsed) return Response.json({ error: 'bad_edits' }, { status: 400 });
 
   const player = await db.query.players.findFirst({ where: eq(players.id, id) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
   if (await burrowUnderRaid(id)) return Response.json({ error: 'under_raid' }, { status: 409 });
 
   const base = baseBurrowFor(id);
+  // THE GIFTS ARE THE SERVER'S (SNACK.GIFTS): as many as the streak owns,
+  // whatever the client said. A client that knows them sends their moves and
+  // they are kept; one that does not (an older build) sends none, and they
+  // go back to their home cells — or by the house, if a thing covers one.
+  const owned = giftsOwned(await snackRowOf(id));
+  let edits = parsed;
+  if ((parsed.gifts ?? 0) !== owned || owned > 0) {
+    const asSent = { ...parsed, gifts: owned || undefined };
+    const fits = owned === 0 || typeof editBurrow(base, asSent) !== 'string';
+    if (fits) {
+      edits = asSent;
+      if (!owned) delete edits.gifts;
+    } else {
+      const placed = withGifts(base, parsed, owned);
+      if (!placed) return Response.json({ error: 'cells_overlap' }, { status: 400 });
+      edits = placed;
+    }
+  }
   if (hasEdits(edits)) {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return Response.json({ error: out }, { status: 400 });

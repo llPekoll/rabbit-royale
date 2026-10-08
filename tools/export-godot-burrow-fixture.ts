@@ -12,7 +12,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { burrowFor, setBurrowEdits } from '../src/game/burrow/board';
-import { editBurrow, burrowIndex, givesWay, type BurrowEdits } from '../src/game/burrow/generate';
+import { editBurrow, burrowIndex, giftHomes, givesWay, type BurrowEdits } from '../src/game/burrow/generate';
 import { levelAt } from '../src/game/island/generate';
 import { burrowBuilding, houseTile } from '../src/game/burrow/buildings';
 
@@ -80,6 +80,15 @@ function editCases(seed: string) {
     tries.push({ moves: [[clutter[0], solid[0]]] });
     tries.push({ moves: [[solid[0], clutter[1]], [clutter[0], clutter[1]]] });
     tries.push({ moves: [[clutter[0], clutter[1]]] });
+  }
+  // SNACK TIME GIFTS (2026-10-08): at their homes (`giftHomes`, mirrored by
+  // `gift_homes`), one moved, one set under the house, a tree set on one.
+  const homes = giftHomes(base);
+  for (const gifts of [1, 2, 4]) tries.push({ gifts });
+  if (homes.length) {
+    tries.push({ gifts: 2, moves: [[homes[0], (homes[0] + 40) % 361]] });
+    tries.push({ gifts: 1, moves: [[homes[0], at]] });
+    if (solid.length) tries.push({ gifts: 1, moves: [[solid[0], homes[0]]] });
   }
   return tries.map((edits) => {
     const out = editBurrow(base, edits);

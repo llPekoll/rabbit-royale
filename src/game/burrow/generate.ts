@@ -40,7 +40,7 @@ import { mulberry32, seedFrom, type Rng } from '@/lib/game/rng';
 import { generateTerrain, scatterDecor, type Placement } from '@/game/island/terrain';
 import { levelAt, type IslandMap } from '@/game/island/generate';
 import { blocksCell } from '@/game/island/blocking';
-import { TRAPS } from '@config/tuning';
+import { SNACK, TRAPS } from '@config/tuning';
 
 /**
  * The burrow's grid, kept at the size the whole game already speaks.
@@ -860,6 +860,13 @@ export interface BurrowEdits {
   field?: [number, number];
   house?: number;
   moves?: [number, number][];
+  /**
+   * How many Snack Time decorations stand in this burrow (SNACK.GIFTS, in
+   * order). Written by the server only — /api/snack when a week closes, and
+   * the layout route overrides whatever a client sends. Each one is a thing
+   * at its home cell (`giftHomes`) that `moves` relocates like a tree.
+   */
+  gifts?: number;
 }
 
 /** Why an edit is refused — the client names the same reasons. */
@@ -895,7 +902,43 @@ export function hasEdits(e: BurrowEdits | null | undefined): e is BurrowEdits {
   if (!e) return false;
   return (!!e.field && (e.field[0] !== 0 || e.field[1] !== 0))
     || e.house !== undefined
-    || (e.moves?.length ?? 0) > 0;
+    || (e.moves?.length ?? 0) > 0
+    || (e.gifts ?? 0) > 0;
+}
+
+/**
+ * WHERE EACH SNACK GIFT STANDS until its owner moves it: the bare ground
+ * nearest the house on the GENERATED burrow — no thing on it, not the field,
+ * not the door's ground — closest first by king's steps, ties to the lower
+ * tile. Gift n takes the n-th cell, whether the earlier ones are owned or
+ * not, so a cell never changes hands as gifts arrive.
+ *
+ * Read off the generated burrow and never the edited one: it is what `moves`
+ * names a gift by, and a name must not move when the owner rearranges.
+ * Mirrored in burrow_layout.gd `gift_homes`.
+ */
+export function giftHomes(base: BurrowTerrain): number[] {
+  const anchor = colRow(base.house ?? base.entrance);
+  const standing = new Set(base.placements.map((p) => index(p.x, p.y)));
+  const free: Array<{ tile: number; d: number }> = [];
+  for (let tile = 0; tile < base.cells.length; tile++) {
+    if (base.cells[tile] !== 'ground' || standing.has(tile)) continue;
+    const { col, row } = colRow(tile);
+    free.push({ tile, d: Math.max(Math.abs(col - anchor.col), Math.abs(row - anchor.row)) });
+  }
+  free.sort((a, b) => a.d - b.d || a.tile - b.tile);
+  return free.slice(0, SNACK.GIFTS.length).map((f) => f.tile);
+}
+
+/** The gift things of a burrow owning `count`, at their home cells. */
+export function giftPlacements(base: BurrowTerrain, count: number): Placement[] {
+  const homes = giftHomes(base);
+  const out: Placement[] = [];
+  for (let i = 0; i < Math.min(count, homes.length); i++) {
+    const { col, row } = colRow(homes[i]);
+    out.push({ id: `gift:${i}`, kind: 'gift', x: col, y: row, variant: i });
+  }
+  return out;
 }
 
 /**
@@ -914,6 +957,12 @@ export function editBurrow(
   base: BurrowTerrain,
   edits: BurrowEdits,
 ): BurrowTerrain | BurrowEditRefusal {
+  // The gifts first: things like the others, so `moves` can name them.
+  const gifts = edits.gifts ?? 0;
+  if (!Number.isInteger(gifts) || gifts < 0 || gifts > SNACK.GIFTS.length) return 'bad_edits';
+  if (gifts > 0 && !base.placements.some((p) => p.kind === 'gift')) {
+    base = { ...base, placements: [...base.placements, ...giftPlacements(base, gifts)] };
+  }
   const { map, entrance } = base;
   const n = BURROW_COLS * BURROW_ROWS;
   const onBoard = (t: unknown): t is number => Number.isInteger(t) && (t as number) >= 0 && (t as number) < n;
@@ -1003,4 +1052,60 @@ export function editBurrow(
   const { cells, doorstep, crossing } = settled;
 
   return { map, placements, cells, entrance, field, doorstep, crossing, seed: base.seed, house };
+}
+
+/**
+ * GIVE A BURROW ITS GIFTS: `edits` with `gifts` set to `count`, each gift on a
+ * cell the rules accept. A gift keeps the cell its owner moved it to; one
+ * whose cell is now covered (a tree, the house or the field set down on its
+ * home before it existed, or a client that did not know about gifts) is
+ * moved to the nearest bare ground by the house. Null only if nothing fits,
+ * which a 19x19 homestead does not do.
+ */
+export function withGifts(base: BurrowTerrain, edits: BurrowEdits, count: number): BurrowEdits | null {
+  const homes = giftHomes(base);
+  const n = Math.min(Math.max(0, count), homes.length);
+  // A home cell never holds a generated thing, so a move from one is a
+  // gift's — and a move naming a gift the burrow does not have is dropped.
+  const giftOf = (from: number) => homes.indexOf(from);
+  const keep = (edits.moves ?? []).filter(([from]) => giftOf(from) < n);
+  const shape = (gifts: number, moves: [number, number][]): BurrowEdits => {
+    const e: BurrowEdits = { ...edits, moves };
+    if (!moves.length) delete e.moves;
+    if (gifts > 0) e.gifts = gifts; else delete e.gifts;
+    return e;
+  };
+  // Gift by gift: each judged on the burrow with the ones before it settled.
+  let moves = keep.filter(([from]) => giftOf(from) < 0);
+  const anchor = colRow(base.house ?? base.entrance);
+  const near = (t: number) => {
+    const { col, row } = colRow(t);
+    return Math.max(Math.abs(col - anchor.col), Math.abs(row - anchor.row));
+  };
+  for (let i = 0; i < n; i++) {
+    const own = keep.find(([from]) => from === homes[i]);
+    const tryAt = (to: number) => {
+      const next = to === homes[i] ? moves : [...moves, [homes[i], to] as [number, number]];
+      return typeof editBurrow(base, shape(i + 1, next)) === 'string' ? null : next;
+    };
+    let placed = tryAt(own ? own[1] : homes[i]);
+    if (!placed) {
+      // Covered: the nearest bare ground by the house, on the burrow as it is.
+      const as = editBurrow(base, shape(i, moves));
+      if (typeof as === 'string') return null;
+      const standing = new Set(as.placements.map((p) => index(p.x, p.y)));
+      const free = as.cells
+        .map((c, t) => ({ c, t }))
+        .filter(({ c, t }) => (c === 'ground' || c === 'doorstep') && !standing.has(t))
+        .map(({ t }) => t)
+        .sort((a, b) => near(a) - near(b) || a - b);
+      for (const to of free) {
+        placed = tryAt(to);
+        if (placed) break;
+      }
+    }
+    if (!placed) return null;
+    moves = placed;
+  }
+  return shape(n, moves);
 }

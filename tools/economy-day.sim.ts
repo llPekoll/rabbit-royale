@@ -107,16 +107,37 @@ test('a day', () => {
     check(ra >= 0.1 && ra <= 0.5, `raids are ${f(100 * ra)} % of income (10-50)`);
     check(reg.perRun >= reg.haul * 0.4 && reg.perRun <= reg.haul * 2.5, `a run (${f(reg.perRun)}) against a raid (${f(reg.haul)}) and a garden visit (${f(gardenHour(1) * T.GARDEN.CAP_HOURS)}): similar weight`);
     check(T.SHOP.PRICES.shield / reg.total <= 4, `a shield is ${f(T.SHOP.PRICES.shield / reg.total, 1)} days of income (4 at most)`);
-    // SNACK TIME: a week of snacks, carrots plus the seventh day's pack at
-    // shelf price, spread over seven days. A reason to come back, never the
-    // income: under 30 % of what even a CASUAL earns on Meadow (the user
-    // took 27 % on 2026-10-02, halving the first cut's 42 %).
+    // SNACK TIME: what a box is worth on average — each prize at shelf price
+    // (the garden boosts at what they grow on a level-1 garden, a skin at
+    // the jackpot's carrots) — over a week with its golden box, plus the bonus
+    // of the day on the casual's one run. A reason to come back, never the
+    // income. Budget: 30 % of a casual's Meadow day until 2026-10-08 (the
+    // +50/day snack sat at 28 %); 50 % since the surprise box, which the user
+    // wanted to be worth coming back for (« plutôt que des +50 every day »).
+    const SNACK_BUDGET = 0.5;
+    const price = T.SHOP.PRICES as Record<string, number>;
     const packValue = (pack: readonly { kind: string; qty: number }[]) =>
-      pack.reduce((n, it) => n + it.qty * (T.SHOP.PRICES as Record<string, number>)[it.kind], 0);
-    const snackWeek = T.SNACK.CARROTS.reduce((a, b) => a + b, 0)
-      + Math.max(...Object.values(T.SNACK.PACKS).map(packValue));
-    const casual = day('Meadow', 'casual').total;
-    check(snackWeek / 7 <= casual * 0.3, `a snack is ${f(snackWeek / 7)} a day, ${f(100 * snackWeek / 7 / casual)} % of a casual's day (30 at most)`);
+      pack.reduce((n, it) => n + it.qty * price[it.kind], 0);
+    const prizeValue = (p: { kind: string; qty: number }, level: number): number => {
+      if (p.kind === 'carrots') return T.SNACK.BOX.CARROTS_PER_LEVEL * level;
+      if (p.kind === 'water') return p.qty * gardenHour(level) * (T.GARDEN_BOOST.WATER.RATE_MULT - 1) * T.GARDEN_BOOST.WATER.DURATION_MS / 3_600_000;
+      if (p.kind === 'fertiliser') return p.qty * gardenHour(level) * T.GARDEN_BOOST.FERTILISER.EXTRA_CAP_HOURS * 0.5;
+      if (p.kind in T.SNACK.PACKS) return packValue(T.SNACK.PACKS[p.kind as keyof typeof T.SNACK.PACKS]);
+      if (p.kind.startsWith('skin_')) return T.SNACK.BOX.JACKPOT_CARROTS;
+      return p.qty * price[p.kind];
+    };
+    const tierValue = (list: readonly { kind: string; qty: number }[]) =>
+      list.reduce((n, p) => n + prizeValue(p, 1), 0) / list.length;
+    const boxValue = (odds: Record<string, number>) =>
+      (odds.common * tierValue(T.SNACK.BOX.COMMON) + odds.rare * tierValue(T.SNACK.BOX.RARE)
+        + odds.epic * tierValue(T.SNACK.BOX.EPIC)
+        + odds.jackpot * tierValue(T.SNACK.BOX.JACKPOT_SKINS.map((kind) => ({ kind, qty: 1 })))) / 100;
+    const boxDay = ((T.SNACK.WEEK - 1) * boxValue(T.SNACK.BOX.ODDS) + boxValue(T.SNACK.BOX.GOLDEN_ODDS)) / T.SNACK.WEEK;
+    const casualDay = day('Meadow', 'casual');
+    const buffDay = Math.min(casualDay.perRun * (T.SNACK.BUFF.MULT - 1), T.SNACK.BUFF.MAX_BONUS_PER_LEVEL);
+    const snackDay = boxDay + buffDay;
+    const casual = casualDay.total;
+    check(snackDay <= casual * SNACK_BUDGET, `a snack is ${f(snackDay)} a day (box ${f(boxDay)} + bonus ${f(buffDay)}), ${f(100 * snackDay / casual)} % of a casual's day (${f(100 * SNACK_BUDGET)} at most)`);
     // ONE TANK: a refill is a full tank, and a run ends at zero (no robot ever
     // finishes with fuel left — the table at the top of tuning.ts), so a run
     // spends the whole tank whatever the X gives back along the way.

@@ -1972,6 +1972,8 @@ func _held_name() -> String:
 				key = PROP_NAMES[variant % IslandScenery.NATURAL_PROPS]
 			elif kind == "landmark":
 				key = LANDMARK_NAMES[variant % LANDMARK_NAMES.size()]
+			elif kind == "gift":
+				key = "gift_" + String(BurrowLayout.GIFT_KINDS[clampi(variant, 0, BurrowLayout.GIFT_KINDS.size() - 1)])
 	return I18N.t("arrange.things.%s" % key)
 
 

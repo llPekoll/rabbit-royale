@@ -48,7 +48,7 @@ export async function burrowUnderRaid(playerId: string): Promise<boolean> {
 }
 
 /**
- * Only the three known keys, each of the right shape — the body came off the
+ * Only the known keys, each of the right shape — the body came off the
  * wire. `null` when it is not an edit at all.
  */
 export function parseBurrowEdits(raw: unknown): BurrowEdits | null {
@@ -72,6 +72,12 @@ export function parseBurrowEdits(raw: unknown): BurrowEdits | null {
       if (m[0] !== m[1]) moves.push([m[0], m[1]]);
     }
     if (moves.length) out.moves = moves;
+  }
+  // Read but never trusted: the layout route sets `gifts` from the Snack
+  // Time streak, whatever came over the wire.
+  if (r.gifts !== undefined && r.gifts !== null) {
+    if (!Number.isInteger(r.gifts) || (r.gifts as number) < 0) return null;
+    if ((r.gifts as number) > 0) out.gifts = r.gifts as number;
   }
   return out;
 }

@@ -129,8 +129,10 @@ func week() -> Array:
 	return w if w is Array else []
 
 
+## L'ancien septieme jour (le comptoir, SnackDialog, garde pour ses bancs) :
+## il n'y a plus de pack a choisir depuis la boite surprise.
 func is_pack_day() -> bool:
-	return day() >= 7
+	return false
 
 
 ## Ce que donne le jour `d` (1 … 7) : {day, carrots, packs}.
@@ -174,34 +176,30 @@ static func runs_played() -> int:
 
 # ── Prendre ─────────────────────────────────────────────────────────────────
 
-## Prendre le snack du jour ; `pack` au septieme. Les carottes partent tout
-## de suite vers la pastille (comme une quete) ; le serveur tranche ensuite.
-func claim(pack: String = "") -> bool:
+## OUVRIR LA BOITE du jour. Le tirage est au serveur ; la reponse dit ce
+## qui est sorti (`reward` = {day, golden, tier, kind, qty, items, gift}) et
+## la fenetre le montre. Rend la recompense, ou {} sur un refus.
+func claim(_pack: String = "") -> Dictionary:
 	if pending or not ready() or not Session.signed_in():
-		return false
-	if is_pack_day() and not PACKS.has(pack):
-		return false
+		return {}
 	pending = true
-	var info := day_info(day())
-	var carrots := int(info.get("carrots", 0))
-	var payload := {"tz": Push._tz_offset_min()}
-	if not pack.is_empty():
-		payload["pick"] = pack
-	var answer: Answer = await Net.post_json("/api/snack", payload, Session.token)
+	var answer: Answer = await Net.post_json("/api/snack", {"tz": Push._tz_offset_min()}, Session.token)
 	pending = false
 	var res := answer.body
 	if answer.ok and res.get("reward") is Dictionary:
 		var reward: Dictionary = res["reward"]
-		carrots = int(reward.get("carrots", 0))
-		# `pack` est null les jours a carottes : String(null) arrete le script
-		# net, au milieu de la prise (vu en prod le 2026-10-02).
-		var pack_v: Variant = reward.get("pack")
-		Analytics.track("snack_claim", {"day": int(reward.get("day", 0)), "carrots": carrots, "pack": pack_v if pack_v is String else ""})
+		var kind: Variant = reward.get("kind")
+		var carrots := int(reward.get("qty", 0)) if kind is String and kind == "carrots" else 0
+		reward["carrots"] = carrots
+		Analytics.track("snack_claim", {"day": int(reward.get("day", 0)), "tier": str(reward.get("tier", "")), "kind": kind if kind is String else ""})
 		if res.get("snack") is Dictionary:
 			_adopt(res["snack"])
+		# UN CADEAU (semaine bouclee) : le terrier a un objet de plus, ou il
+		# est pose. Adopte tout de suite pour que le retour au terrier le montre.
+		if res.get("edits") is Dictionary:
+			Home.adopt_edits(res["edits"])
 		# AVANT le stock : la fenetre fait voler les carottes a la pastille,
 		# qui doit les retenir (CarrotPill.hold) avant que le chiffre monte.
-		# Elle pose `flown` et tire la rafale a l'arrivee de la derniere.
 		claimed.emit(reward)
 		if carrots > 0 and Home.loaded():
 			Home.burrow["stock"] = int(Home.burrow.get("stock", 0)) + carrots
@@ -210,17 +208,56 @@ func claim(pack: String = "") -> bool:
 			Home.changed.emit()
 		# Les objets vivent dans l'etat de la boutique, les carottes dans
 		# `Home` : les deux se relisent pour coller au serveur.
-		if not (reward.get("items", []) as Array).is_empty():
+		if carrots == 0:
 			ShopState.shared().refresh()
 		Home.refresh()
-		return true
+		return reward
 	var code := answer.error()
 	if res.get("snack") is Dictionary:
 		_adopt(res["snack"])
 	if Chrome.current != null:
 		var text := I18N.t("snack.notReady") if code == "not_ready" else (I18N.t("err_offline") if code == "offline" else code)
 		Chrome.current.toast(text, true)
-	return false
+	return {}
+
+
+# ── La boite (lectures de /api/snack) ───────────────────────────────────────
+
+## Les jours ou le joueur est venu, toutes semaines comprises.
+func days() -> int:
+	return int(state.get("days", 0))
+
+
+func golden() -> bool:
+	return bool(state.get("golden", false))
+
+
+func golden_in() -> int:
+	return int(state.get("goldenIn", 0))
+
+
+## {common, rare, epic, jackpot} sur 100.
+func odds(gold: bool) -> Dictionary:
+	var o: Variant = state.get("goldenOdds" if gold else "odds", {})
+	return o if o is Dictionary else {}
+
+
+## Ce que contient chaque rang : {common: [{kind, qty}], ...}.
+func box() -> Dictionary:
+	var b: Variant = state.get("box", {})
+	return b if b is Dictionary else {}
+
+
+## Les cadeaux du terrier : [{day, kind, got}].
+func gifts() -> Array:
+	var g: Variant = state.get("gifts", [])
+	return g if g is Array else []
+
+
+## Le bonus du jour : {state: idle|active|used, bonus, max, mult}.
+func buff() -> Dictionary:
+	var b: Variant = state.get("buff", {})
+	return b if b is Dictionary else {}
 
 
 # ── La fenetre qui s'ouvre seule ─────────────────────────────────────────────
@@ -254,4 +291,4 @@ func _try_open() -> void:
 		return
 	_auto_for = key
 	Analytics.track("snack_auto_open", {"day": day()})
-	SnackDialog.open()
+	SnackBoxDialog.show_box()

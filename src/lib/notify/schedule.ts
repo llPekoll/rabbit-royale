@@ -21,7 +21,7 @@
  *     they return — a player gone a week gets one, not two in a row;
  *   - Snack Time once per snack, when the phone's day has turned since the
  *     last one and they have not been back since (`snack_pack` on the
- *     seventh) — it stands in for the 24 h reminder when both are due;
+ *     golden box) — it stands in for the 24 h reminder when both are due;
  *   - none of those between 22:00 and 09:00 on the device's clock (they wait
  *     for the first sweep after nine), none within PUSH.MIN_GAP_MS of the
  *     previous one, and at most PUSH.DAILY_CAP in a day.
@@ -30,7 +30,7 @@
  * and outside the daily cap (`raid.ts`).
  */
 import { GARDEN_BOOST } from '../../../config/tuning';
-import { SNACK_DAYS, snackReadyAt, type SnackRow } from '../game/snack';
+import { isGolden, snackReadyAt, type SnackRow } from '../game/snack';
 import { GARDEN, OUT_OF_RUN_ENERGY, regenPerHour } from '../tuning/tables';
 
 const MINUTE = 60_000;
@@ -300,13 +300,13 @@ export function decideSweepPush(input: SweepInput): SweepDecision {
       return sent('garden_ready', { gardenFor: player.gardenCollectedAt });
     }
     // SNACK TIME: once per snack, when the phone's day turned while they were
-    // away. It says what the 24 h reminder would, better ("day 4/7" rather
+    // away. It says what the 24 h reminder would, better ("day 13" rather
     // than "come back"), so it uses that reminder up when both are due.
     const stamp = snackStamp(input.snack);
     const snackAt = snackReadyAt(input.snack, input.tzOffsetMin);
     if (state.snackFor?.getTime() !== stamp.getTime() && snackAt <= now && snackAt > seen) {
       const owedIdle = idleStageFor(away);
-      const pack = (input.snack?.step ?? 0) >= SNACK_DAYS - 1;
+      const pack = isGolden(input.snack);
       return sent(pack ? 'snack_pack' : 'snack_ready', {
         snackFor: stamp,
         ...(owedIdle > idleStage ? { idleFor: new Date(seen), idleStage: owedIdle } : {}),

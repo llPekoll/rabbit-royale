@@ -320,7 +320,11 @@
    "bone": "Bone",
    "skullSign": "Skull sign",
    "signpost": "Signpost",
-   "scarecrow": "Scarecrow"
+   "scarecrow": "Scarecrow",
+   "gift_mushroom": "Giant Mushroom",
+   "gift_pumpkin": "Lucky Pumpkin",
+   "gift_carrot": "Giant Carrot",
+   "gift_scarecrow": "Golden Scarecrow"
   },
   "planksBack": {
    "$t": "{0} fences back in your bag",
@@ -538,15 +542,15 @@
   "keepWeek": "A missed day never resets your week.",
   "title": "Snack Time",
   "dayOf": {
-   "$t": "Day {0}/7"
+   "$t": "Day {0}"
   },
   "day": {
    "$t": "Day {0}"
   },
-  "ready": "Your snack is ready!",
+  "ready": "Your surprise box is ready!",
   "take": "Take it",
   "nextIn": {
-   "$t": "Next snack in {0}"
+   "$t": "Next box in {0}"
   },
   "tomorrow": {
    "$t": "Tomorrow: {0} carrots"
@@ -570,7 +574,86 @@
   "taken": "Taken",
   "ruleShort": "A snack every day. On day 7, pick a pack!",
   "or": "or",
-  "pickOne": "Pick 1 of 2"
+  "pickOne": "Pick 1 of 2",
+  "box": {
+   "ready": "Your surprise box is ready!",
+   "golden": "GOLDEN BOX - better odds!",
+   "tomorrow": "Tomorrow's box",
+   "open": "Open",
+   "next": {
+    "$t": "Next box in {0}"
+   },
+   "day": "DAY",
+   "today": "today",
+   "taken": "taken",
+   "giftOn": {
+    "$t": "DAY {0} GIFT: {1}"
+   },
+   "decoration": "burrow decoration",
+   "dayN": {
+    "$t": "DAY {0}"
+   },
+   "allGifts": "Every gift collected!",
+   "unlocked": {
+    "$t": "UNLOCKED: {0} - it's in your burrow!"
+   },
+   "goldenToday": "Today's box is GOLDEN",
+   "goldenIn": {
+    "$t": "Golden box every 7th day - next in {0} days",
+    "$v": [
+     {
+      "when": {
+       "0": 1
+      },
+      "t": "Golden box every 7th day - next in 1 day"
+     }
+    ]
+   },
+   "neverResets": "missing a day never resets your progress",
+   "inside": "WHAT'S INSIDE",
+   "goldenTag": "GOLDEN BOX",
+   "tier": {
+    "common": "Common",
+    "rare": "Rare",
+    "epic": "Epic",
+    "jackpot": "Jackpot"
+   },
+   "detail": {
+    "carrots": {
+     "$t": "+{0} carrots"
+    },
+    "rare": "item",
+    "epic": "pack",
+    "jackpot": "skin"
+   },
+   "buffTitle": "BONUS OF THE DAY · BELLY FULL",
+   "buffBody": {
+    "$t": "Your first run today pays double carrots (up to +{0})."
+   },
+   "buffIdle": "Starts when you open the box",
+   "buffActive": "ACTIVE until midnight - go dig!",
+   "buffUsed": {
+    "$t": "Used today: +{0} carrots"
+   },
+   "gift": {
+    "mushroom": "Giant Mushroom",
+    "pumpkin": "Lucky Pumpkin",
+    "carrot": "Giant Carrot",
+    "scarecrow": "Golden Scarecrow"
+   },
+   "prize": {
+    "carrots": "Carrots",
+    "water": "Watering can",
+    "fertiliser": "Fertiliser",
+    "lightning": "Lightning",
+    "shield": "Shield",
+    "energy": "Full tank",
+    "magic_hat": "Magic Hat",
+    "lucky_foot": "Lucky Foot",
+    "skin_solana": "Solana skin",
+    "skin_carrot": "Carrot skin"
+   }
+  }
  },
  "pass": {
   "title": "Crown Race Ticket",

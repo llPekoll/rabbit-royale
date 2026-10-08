@@ -338,7 +338,11 @@
    "bone": "Os",
    "skullSign": "Panneau au crâne",
    "signpost": "Poteau indicateur",
-   "scarecrow": "Épouvantail"
+   "scarecrow": "Épouvantail",
+   "gift_mushroom": "Champignon géant",
+   "gift_pumpkin": "Citrouille porte-bonheur",
+   "gift_carrot": "Carotte géante",
+   "gift_scarecrow": "Épouvantail doré"
   },
   "planksBack": {
    "$t": "{0} clôtures de retour dans le sac",
@@ -568,15 +572,15 @@
   "keepWeek": "Un jour manqué ne remet jamais ta semaine à zéro.",
   "title": "Snack Time",
   "dayOf": {
-   "$t": "Jour {0}/7"
+   "$t": "Jour {0}"
   },
   "day": {
    "$t": "Jour {0}"
   },
-  "ready": "Ton snack est prêt !",
+  "ready": "Ta boîte surprise est prête !",
   "take": "Prendre",
   "nextIn": {
-   "$t": "Prochain snack dans {0}"
+   "$t": "Prochaine boîte dans {0}"
   },
   "tomorrow": {
    "$t": "Demain : {0} carottes"
@@ -600,7 +604,86 @@
   "taken": "Pris",
   "ruleShort": "Un snack par jour. Au 7e, choisis un pack !",
   "or": "ou",
-  "pickOne": "1 au choix"
+  "pickOne": "1 au choix",
+  "box": {
+   "ready": "Ta boîte surprise est prête !",
+   "golden": "BOÎTE DORÉE - meilleures chances !",
+   "tomorrow": "La boîte de demain",
+   "open": "Ouvrir",
+   "next": {
+    "$t": "Prochaine boîte dans {0}"
+   },
+   "day": "JOUR",
+   "today": "aujourd'hui",
+   "taken": "pris",
+   "giftOn": {
+    "$t": "CADEAU DU JOUR {0} : {1}"
+   },
+   "decoration": "déco du terrier",
+   "dayN": {
+    "$t": "JOUR {0}"
+   },
+   "allGifts": "Tous les cadeaux sont à toi !",
+   "unlocked": {
+    "$t": "DÉBLOQUÉ : {0} - il est dans ton terrier !"
+   },
+   "goldenToday": "La boîte du jour est DORÉE",
+   "goldenIn": {
+    "$t": "Boîte dorée tous les 7 jours - prochaine dans {0} jours",
+    "$v": [
+     {
+      "when": {
+       "0": 1
+      },
+      "t": "Boîte dorée tous les 7 jours - prochaine dans 1 jour"
+     }
+    ]
+   },
+   "neverResets": "un jour raté ne remet rien à zéro",
+   "inside": "DANS LA BOÎTE",
+   "goldenTag": "BOÎTE DORÉE",
+   "tier": {
+    "common": "Commun",
+    "rare": "Rare",
+    "epic": "Épique",
+    "jackpot": "Jackpot"
+   },
+   "detail": {
+    "carrots": {
+     "$t": "+{0} carottes"
+    },
+    "rare": "objet",
+    "epic": "pack",
+    "jackpot": "skin"
+   },
+   "buffTitle": "BONUS DU JOUR · VENTRE PLEIN",
+   "buffBody": {
+    "$t": "Ta 1re partie du jour rapporte double (jusqu'à +{0})."
+   },
+   "buffIdle": "Commence quand tu ouvres la boîte",
+   "buffActive": "ACTIF jusqu'à minuit - va creuser !",
+   "buffUsed": {
+    "$t": "Utilisé aujourd'hui : +{0} carottes"
+   },
+   "gift": {
+    "mushroom": "Champignon géant",
+    "pumpkin": "Citrouille porte-bonheur",
+    "carrot": "Carotte géante",
+    "scarecrow": "Épouvantail doré"
+   },
+   "prize": {
+    "carrots": "Carottes",
+    "water": "Arrosoir",
+    "fertiliser": "Engrais",
+    "lightning": "Éclair",
+    "shield": "Bouclier",
+    "energy": "Plein d'énergie",
+    "magic_hat": "Magic Hat",
+    "lucky_foot": "Lucky Foot",
+    "skin_solana": "Skin Solana",
+    "skin_carrot": "Skin Carotte"
+   }
+  }
  },
  "pass": {
   "title": "Crown Race Ticket",

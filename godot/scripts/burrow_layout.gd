@@ -116,7 +116,68 @@ static func has_edits(edits: Dictionary) -> bool:
 	if edits.get("house") != null:
 		return true
 	var m: Variant = edits.get("moves")
-	return m is Array and not m.is_empty()
+	if m is Array and not m.is_empty():
+		return true
+	return gift_count(edits) > 0
+
+
+## LES CADEAUX DE SNACK TIME (SNACK.GIFTS), dans l'ordre ou ils arrivent : un
+## par semaine bouclee. Le serveur seul ecrit `edits.gifts`.
+const GIFT_KINDS := ["mushroom", "pumpkin", "carrot", "scarecrow"]
+
+
+static func gift_count(edits: Dictionary) -> int:
+	var g: Variant = edits.get("gifts")
+	return int(g) if g is float or g is int else 0
+
+
+## generate.ts `giftHomes` : la case de chaque cadeau tant qu'on ne l'a pas
+## deplace — le sol nu le plus proche de la maison sur le terrier GENERE
+## (rien dessus, ni potager ni paillasson), au pas du roi, a egalite la case
+## de plus petit rang. Le cadeau n prend la n-ieme, possede ou non.
+static func gift_homes(base: BurrowLayout) -> Array[int]:
+	var anchor := base.building if base.building.x >= 0 else cell_of(base.entrance)
+	var standing := {}
+	for p in base.placements:
+		standing[index(Vector2i(int(p.x), int(p.y)))] = true
+	var free: Array = []
+	for t in range(COLS * ROWS):
+		if base.kind(t) != Cell.GROUND or standing.has(t):
+			continue
+		var c := cell_of(t)
+		free.append([maxi(absi(c.x - anchor.x), absi(c.y - anchor.y)), t])
+	free.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	var out: Array[int] = []
+	for i in range(mini(GIFT_KINDS.size(), free.size())):
+		out.append(int(free[i][1]))
+	return out
+
+
+## Le terrier `base` avec `count` cadeaux poses chez eux (generate.ts
+## `giftPlacements`) — des choses comme les autres, que `moves` deplace.
+## Rend `base` lui-meme s'il n'y a rien a ajouter.
+static func with_gifts(base: BurrowLayout, count: int) -> BurrowLayout:
+	if count <= 0:
+		return base
+	for p in base.placements:
+		if String(p.kind) == "gift":
+			return base
+	var out := BurrowLayout.new()
+	out.map = base.map
+	out.cells = base.cells
+	out.entrance = base.entrance
+	out.field = base.field
+	out.doorstep = base.doorstep
+	out.crossing = base.crossing
+	out.seed_text = base.seed_text
+	out.building = base.building
+	out.placements = base.placements.duplicate()
+	var homes := gift_homes(base)
+	for i in range(mini(count, homes.size())):
+		var c := cell_of(homes[i])
+		out.placements.append({"id": "gift:%d" % i, "kind": "gift", "x": c.x, "y": c.y, "variant": i})
+	return out
 
 
 ## generate.ts `editBurrow` : le terrier pousse, avec l'amenagement dessus —
@@ -132,6 +193,11 @@ static func gives_way(kind: String) -> bool:
 
 static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 	var n := COLS * ROWS
+	# Les cadeaux d'abord : des choses comme les autres, que `moves` nomme.
+	var gifts := gift_count(edits)
+	if gifts < 0 or gifts > GIFT_KINDS.size():
+		return "bad_edits"
+	base = with_gifts(base, gifts)
 	var out := BurrowLayout.new()
 	out.map = base.map
 	out.seed_text = base.seed_text

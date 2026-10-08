@@ -27,6 +27,7 @@ export type ThingKind =
   | 'bush'
   | 'prop'
   | 'landmark'
+  | 'gift'
   | 'sheep'
   | 'soldier';
 
@@ -68,6 +69,9 @@ export const THING_RULES: Record<ThingKind, ThingRule> = {
   bush:     { blocks: false, wanders: false },
   prop:     { blocks: false, wanders: false },
   landmark: { blocks: true,  wanders: false },
+  // A Snack Time decoration in a burrow (SNACK.GIFTS): ornament, not wall —
+  // a raider walks past it, so a gift can never move anybody's crossing.
+  gift:     { blocks: false, wanders: false },
   sheep:    { blocks: true,  wanders: true  },
   soldier:  { blocks: true,  wanders: false },
 };

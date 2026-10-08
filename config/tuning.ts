@@ -1836,38 +1836,73 @@ export const QUESTS = {
 } as const;
 
 /**
- * SNACK TIME — the daily gift (2026-10-02).
+ * SNACK TIME — the daily gift. A SURPRISE BOX since 2026-10-08.
  *
- * Seven snacks, one per day on the PHONE'S calendar (Paul chose midnight over
- * a rolling 20 h: "à minuit, heure du téléphone"). Days one to six are
- * carrots, climbing; the seventh is a pack, and the player picks which —
- * Magic Hat to attack, Lucky Foot to defend. Then the week starts over.
+ * One box a day on the PHONE'S calendar (Paul chose midnight over a rolling
+ * 20 h: "à minuit, heure du téléphone"). The first version (2026-10-02) gave
+ * 50 → 200 carrots and a pack on the seventh day, and a whole week of it was
+ * worth ONE run: the user found it did not make anyone want to come back
+ * (« plutôt que des +50 every day »). What replaced it, from the draft the
+ * user validated (godot/scripts/ui/snack_box_dialog.gd):
  *
- * MOSTLY CARROTS on purpose (Paul: "donner des carottes pour diluer les
- * consommables"): carrots go back into the shop, so a week of snacks is a
- * week of shopping rather than a free bag that empties the shelf. A whole
- * week is 700 carrots and ~600 carrots of items — under two runs. Halved
- * on 2026-10-02 (100 → 400 was 42 % of a casual player's day; the sim's
- * check in tools/economy-day.sim.ts wants a quarter at most).
+ *  - A BOX WITH SHOWN ODDS (`BOX`). The surprise is the hook, and the odds
+ *    on screen are what keep a random box honest. Commons pay carrots by
+ *    LEVEL (`CARROTS_PER_LEVEL`) so the box grows with the player.
+ *  - EVERY SEVENTH DAY THE BOX IS GOLDEN (`GOLDEN_ODDS`): no common, the rare
+ *    end climbs. The old seventh-day pack is now one of the epic draws.
+ *  - THE BONUS OF THE DAY (`BUFF`): opening the box doubles the carrots of
+ *    the first run that pays anything before the phone's midnight. It is
+ *    played, not handed over, and it scales with the player by itself.
+ *  - GIFTS ON DAYS 7 / 14 / 21 / 28 (`GIFTS`): burrow decorations that cannot
+ *    be bought, placed by the house and movable like a tree.
  *
- * A MISSED DAY DOES NOT RESET. The streak only moves forward when a snack is
- * taken; skipping a day just means the seventh comes a day later. A reset
- * would be the stronger hook and the meaner one, and the player who misses
- * the J6 and loses the hat does not come back the next day — they leave.
+ * A "day" is a day the player CAME, counted as `weeks * 7 + step`: a missed
+ * day never resets anything, it only makes the next gift a day later. A
+ * reset would be the stronger hook and the meaner one.
  *
- * The carrots feed the three counters like a quest does (a snack is a carrot
- * event, not a coupon), and the items arrive as a gift: they stop at the
- * bag's ceiling (`grantItem` without a receipt).
+ * Carrots feed the three counters like a quest does (a carrot event, not a
+ * coupon); items arrive as a gift and stop at the bag's ceiling (`grantItem`
+ * without a receipt).
  */
 export const SNACK = {
-  /** Carrots for days one to six. */
-  CARROTS: [50, 75, 100, 125, 150, 200],
-  /** The seventh day: the player picks ONE. Both are worth ~600 carrots on
-   *  the shelf, smaller than the shop's packs so those keep their point. */
+  /** Days in a round: the last one is the golden box, and closes a week. */
+  WEEK: 7,
+  BOX: {
+    /** Out of 100, shown to the player as they are. The draft had 72/22/5/1
+     *  and 0/60/32/8: 57 % of a casual's day with the bonus, cut to these to
+     *  sit under the sim's budget (tools/economy-day.sim.ts). */
+    ODDS: { common: 80, rare: 15, epic: 4, jackpot: 1 },
+    GOLDEN_ODDS: { common: 0, rare: 65, epic: 30, jackpot: 5 },
+    /** One of these per tier, evenly. `carrots` is CARROTS_PER_LEVEL × level. */
+    COMMON: [{ kind: 'carrots', qty: 0 }, { kind: 'water', qty: 2 }, { kind: 'fertiliser', qty: 1 }],
+    RARE: [{ kind: 'lightning', qty: 1 }, { kind: 'shield', qty: 1 }, { kind: 'energy', qty: 1 }],
+    /** The packs below, the player gets the one drawn. */
+    EPIC: [{ kind: 'magic_hat', qty: 1 }, { kind: 'lucky_foot', qty: 1 }],
+    /** A skin from the shop the player does not own yet (`skins.ts`); one who
+     *  owns them all gets JACKPOT_CARROTS instead. */
+    JACKPOT_SKINS: ['skin_solana', 'skin_carrot'],
+    JACKPOT_CARROTS: 1500,
+    CARROTS_PER_LEVEL: 40,
+  },
+  /** The epic draws. Both are worth ~600 carrots on the shelf, smaller than
+   *  the shop's packs so those keep their point. */
   PACKS: {
     magic_hat: [{ kind: 'lightning', qty: 1 }, { kind: 'bloop', qty: 1 }],
     lucky_foot: [{ kind: 'trap', qty: 2 }, { kind: 'fence', qty: 1 }],
   },
+  /**
+   * THE BONUS OF THE DAY: the first paying run after the box, before the
+   * phone's next midnight, banks MULT times its carrots — the bonus capped at
+   * MAX_BONUS_PER_LEVEL × level, or a casual's first run alone would be the
+   * whole snack budget (tools/economy-day.sim.ts).
+   */
+  BUFF: { MULT: 2, MAX_BONUS_PER_LEVEL: 75 },
+  /**
+   * The decorations, in the order they are given: the n-th on day 7 × n.
+   * Placed in the burrow by the house (`giftHome`, generate.ts) and moved by
+   * the owner like any other thing. They do not block: a raider walks past.
+   */
+  GIFTS: ['mushroom', 'pumpkin', 'carrot', 'scarecrow'],
   /**
    * The least time between two snacks, whatever the calendar says.
    *

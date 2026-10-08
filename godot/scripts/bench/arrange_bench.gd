@@ -9,6 +9,7 @@ extends Node2D
 ##   ... -- --drop           # et pose sur la premiere case allumee
 ##   ... -- --seed=paul --size=890x400
 ##   ... -- --ground=burrow-g42    # un sol candidat (tools/burrow-ground-pick.ts)
+##   ... -- --gifts=4        # les cadeaux de Snack Time poses (`--grab=gift` en prend un)
 ##
 ## Rien ne part au serveur : « valider » repondrait hors ligne.
 
@@ -27,6 +28,8 @@ func _ready() -> void:
 			grab = arg.trim_prefix("--grab=")
 		elif arg.begins_with("--ground="):
 			BurrowLayout.ground_override = arg.trim_prefix("--ground=")
+		elif arg.begins_with("--gifts="):
+			Home.edits = {"gifts": int(arg.trim_prefix("--gifts="))}
 		elif arg == "--drop":
 			drop = true
 		elif arg == "--hold":
@@ -61,7 +64,7 @@ func _ready() -> void:
 	if grab.is_empty():
 		return
 	await get_tree().create_timer(0.3).timeout
-	var layout: BurrowLayout = BurrowLayout.of(seed_text)
+	var layout: BurrowLayout = BurrowLayout.of(seed_text, Home.edits)
 	var cell := Vector2i(-1, -1)
 	match grab:
 		"field":
@@ -70,7 +73,7 @@ func _ready() -> void:
 			cell = layout.building
 		_:
 			for p in layout.placements:
-				if p.kind == "tree":
+				if p.kind == ("gift" if grab == "gift" else "tree"):
 					cell = Vector2i(int(p.x), int(p.y))
 					break
 	_burrow.call("_decor_tap", cell)

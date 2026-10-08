@@ -296,7 +296,11 @@
    "bone": "Xương",
    "skullSign": "Biển đầu lâu",
    "signpost": "Cột chỉ đường",
-   "scarecrow": "Bù nhìn"
+   "scarecrow": "Bù nhìn",
+   "gift_mushroom": "Nấm khổng lồ",
+   "gift_pumpkin": "Bí ngô may mắn",
+   "gift_carrot": "Cà rốt khổng lồ",
+   "gift_scarecrow": "Bù nhìn vàng"
   },
   "planksBack": {
    "$t": "{0} hàng rào đã về lại túi"
@@ -498,15 +502,15 @@
   "keepWeek": "Bỏ lỡ một ngày không đặt lại tuần của bạn.",
   "title": "Snack Time",
   "dayOf": {
-   "$t": "Ngày {0}/7"
+   "$t": "Ngày {0}"
   },
   "day": {
    "$t": "Ngày {0}"
   },
-  "ready": "Món ăn vặt đã sẵn sàng!",
+  "ready": "Hộp bất ngờ đã sẵn sàng!",
   "take": "Nhận",
   "nextIn": {
-   "$t": "Món tiếp theo sau {0}"
+   "$t": "Hộp tiếp theo sau {0}"
   },
   "tomorrow": {
    "$t": "Ngày mai: {0} cà rốt"
@@ -530,7 +534,78 @@
   "taken": "Đã nhận",
   "ruleShort": "Mỗi ngày một món. Ngày 7, chọn một gói!",
   "or": "hoặc",
-  "pickOne": "Chọn 1 trong 2"
+  "pickOne": "Chọn 1 trong 2",
+  "box": {
+   "ready": "Hộp bất ngờ đã sẵn sàng!",
+   "golden": "HỘP VÀNG - tỉ lệ tốt hơn!",
+   "tomorrow": "Hộp của ngày mai",
+   "open": "Mở",
+   "next": {
+    "$t": "Hộp tiếp theo sau {0}"
+   },
+   "day": "NGÀY",
+   "today": "hôm nay",
+   "taken": "đã nhận",
+   "giftOn": {
+    "$t": "QUÀ NGÀY {0}: {1}"
+   },
+   "decoration": "đồ trang trí hang",
+   "dayN": {
+    "$t": "NGÀY {0}"
+   },
+   "allGifts": "Bạn đã có mọi món quà!",
+   "unlocked": {
+    "$t": "ĐÃ MỞ KHÓA: {0} - đã có trong hang của bạn!"
+   },
+   "goldenToday": "Hộp hôm nay là HỘP VÀNG",
+   "goldenIn": {
+    "$t": "Hộp vàng mỗi 7 ngày - còn {0} ngày"
+   },
+   "neverResets": "lỡ một ngày không làm mất tiến độ",
+   "inside": "BÊN TRONG CÓ GÌ",
+   "goldenTag": "HỘP VÀNG",
+   "tier": {
+    "common": "Thường",
+    "rare": "Hiếm",
+    "epic": "Sử thi",
+    "jackpot": "Jackpot"
+   },
+   "detail": {
+    "carrots": {
+     "$t": "+{0} cà rốt"
+    },
+    "rare": "vật phẩm",
+    "epic": "gói",
+    "jackpot": "skin"
+   },
+   "buffTitle": "THƯỞNG TRONG NGÀY · NO BỤNG",
+   "buffBody": {
+    "$t": "Lượt đầu hôm nay nhân đôi cà rốt (tối đa +{0})."
+   },
+   "buffIdle": "Bắt đầu khi bạn mở hộp",
+   "buffActive": "ĐANG BẬT đến nửa đêm - đi đào thôi!",
+   "buffUsed": {
+    "$t": "Đã dùng hôm nay: +{0} cà rốt"
+   },
+   "gift": {
+    "mushroom": "Nấm khổng lồ",
+    "pumpkin": "Bí ngô may mắn",
+    "carrot": "Cà rốt khổng lồ",
+    "scarecrow": "Bù nhìn vàng"
+   },
+   "prize": {
+    "carrots": "Cà rốt",
+    "water": "Bình tưới",
+    "fertiliser": "Phân bón",
+    "lightning": "Tia sét",
+    "shield": "Khiên",
+    "energy": "Đầy năng lượng",
+    "magic_hat": "Magic Hat",
+    "lucky_foot": "Lucky Foot",
+    "skin_solana": "Skin Solana",
+    "skin_carrot": "Skin Cà rốt"
+   }
+  }
  },
  "pass": {
   "title": "Crown Race Ticket",

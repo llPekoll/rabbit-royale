@@ -56,6 +56,8 @@ const LIVESTOCK := [
 const BLOCKS := {
 	"tree": true, "stump": true, "rock": true, "bush": false, "prop": false,
 	"landmark": true, "sheep": true, "soldier": true,
+	# Un cadeau de Snack Time au terrier (blocking.ts `gift`) : on passe a cote.
+	"gift": false,
 }
 const WANDERS := {"sheep": true}
 
