@@ -25,8 +25,12 @@ extends Control
 ## la rangee du kit est parti (rien n'y etait branche), et la carte du jardin
 ## qui devait les reprendre n'est plus dans la colonne (`quest_only`). Pas
 ## sur le potager, deja charge de HARVEST : sous AMELIORER, ce qui fait
-## grandir le terrier. Seulement celles qu'on tient ; eteintes tant que la
-## precedente agit. Replie, leurs icones suivent BURROW N : on comprend tout
+## grandir le terrier. Seulement celles qu'on tient, et allumees meme
+## pendant que la precedente agit : le serveur ALLONGE la fenetre
+## (inventory.ts `extendGardenBoost`). Eteintes seulement quand une bouteille
+## de plus passerait le plafond de 24 h (`boost_capped`) — un gris pendant
+## que ca agit se lisait « tu n'en as pas » (le user, 2026-10-08). Replie,
+## leurs icones suivent BURROW N : on comprend tout
 ## de suite qu'il y a de quoi arroser, la ou un point rouge ne disait pas
 ## quoi (le user, 2026-10-08).
 
@@ -159,8 +163,10 @@ func _data() -> Dictionary:
 	}
 
 
-## Les bouteilles TENUES : `[kind, combien, en train d'agir]`, dans l'ordre
-## du jardin (`boosts` de /api/burrow, garden_card.gd).
+## Les bouteilles TENUES : `[kind, combien, plafonnee]`, dans l'ordre du
+## jardin (`boosts` de /api/burrow). Plafonnee : la fenetre en cours plus une
+## bouteille passe GARDEN_BOOST.MAX_BANKED_MS, et le serveur refuserait
+## (inventory.ts `gardenBoostBlocker`).
 static func _bottles(b: Dictionary) -> Array:
 	var out := []
 	var boosts: Variant = b.get("boosts", {})
@@ -169,7 +175,9 @@ static func _bottles(b: Dictionary) -> Array:
 		if not boost is Dictionary or int(boost.get("held", 0)) <= 0:
 			continue
 		var active: Variant = boost.get("activeMs", null)
-		out.append([kind, int(boost.get("held", 0)), (active is float or active is int) and float(active) > 0.0])
+		var left := float(active) if active is float or active is int else 0.0
+		var one := float(boost.get("durationMs", Tuning.n("GARDEN_BOOST.%s.DURATION_MS" % kind.to_upper())))
+		out.append([kind, int(boost.get("held", 0)), left + one > Tuning.n("GARDEN_BOOST.MAX_BANKED_MS")])
 	return out
 
 
@@ -340,7 +348,7 @@ func _build_panel(d: Dictionary) -> PanelContainer:
 
 ## UNE BOUTEILLE : son icone et ce qu'on en tient. Le serveur verse
 ## (`/api/burrow` water / fertilise) ; Home.changed refait le volet.
-func _bottle(kind: String, held: int, running: bool) -> HubSlab:
+func _bottle(kind: String, held: int, capped: bool) -> HubSlab:
 	var b := HubSlab.new("green", _s(26))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var row := Kit.hbox(_s(3))
@@ -353,9 +361,9 @@ func _bottle(kind: String, held: int, running: bool) -> HubSlab:
 	b.content.add_child(row)
 	b.tooltip_text = "%s · %s" % [I18N.t("kit.tools." + ("water" if kind == "water" else "fertilise")),
 		I18N.t("kit.tools.%sEffect" % kind)]
-	b.set_lit(not running and not Home.pending)
+	b.set_lit(not capped and not Home.pending)
 	b.pressed.connect(func() -> void:
-		if running or Home.pending:
+		if capped or Home.pending:
 			return
 		Home.act("water" if kind == "water" else "fertilise"))
 	return b
@@ -444,7 +452,7 @@ func _build_button(d: Dictionary) -> Button:
 	# Le Button ne range pas ses enfants : le mot prend sa place apres la
 	# maison, centre sur la hauteur, et le bouton prend la mesure du tout.
 	# LES BOUTEILLES TENUES, apres le mot : leur icone et leur nombre. Celle
-	# qui agit deja palit, comme son bouton dans le panneau.
+	# qui ne se verse plus (24 h en reserve) palit, comme son bouton.
 	var pour := Kit.hbox(_s(5))
 	pour.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for bottle: Array in d.bottles:
