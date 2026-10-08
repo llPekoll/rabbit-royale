@@ -2,6 +2,10 @@ class_name SkinWardrobe
 extends HBoxContainer
 ## Purchase detail opened from the locked rabbit in the profile.
 signal connect_wallet
+var camp := false
+var _ink := Palette.INK
+var _muted := Palette.BARK
+var _bad := Palette.BAD_ON_PARCHMENT
 var state: SkinState
 var skin_key := "solana"
 var _right: VBoxContainer
@@ -13,6 +17,10 @@ var _animation := "idle"
 
 
 func _ready() -> void:
+	if camp:
+		_ink = CampStyle.TEXT
+		_muted = CampStyle.MUTED
+		_bad = CampStyle.BAD
 	if state == null:
 		state = SkinState.shared()
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -49,7 +57,7 @@ func _ready() -> void:
 			_animation = anim
 			_rabbit.play(anim))
 		poses.add_child(button)
-	var scale_note := Kit.note(I18N.t("skins.preview"), Palette.BARK, 10)
+	var scale_note := Kit.note(I18N.t("skins.preview"), _muted, 10)
 	scale_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	left.add_child(scale_note)
 	_right = Kit.vbox(8)
@@ -90,12 +98,12 @@ func _render() -> void:
 		return
 	var item := state.item(skin_key)
 	var display_name := String(SkinState.SALE_NAMES.get(skin_key, skin_key))
-	_right.add_child(Kit.wrapped(Kit.title(display_name, 20 if display_name.length() > 20 else 28, Palette.INK)))
+	_right.add_child(Kit.wrapped(Kit.title(display_name, 20 if display_name.length() > 20 else 28, _ink)))
 	var description := {"solana": "description", "carrot": "carrotDescription"}
-	_right.add_child(Kit.note(I18N.t("skins." + String(description.get(skin_key, "description"))), Palette.BARK, 12))
-	_right.add_child(Kit.note(I18N.t("skins.permanent"), Palette.BARK, 11))
+	_right.add_child(Kit.note(I18N.t("skins." + String(description.get(skin_key, "description"))), _muted, 12))
+	_right.add_child(Kit.note(I18N.t("skins.permanent"), _muted, 11))
 	if item.is_empty():
-		_right.add_child(Kit.note(I18N.t("skins.loadFailed") if state.failed else I18N.t("shop.loading"), Palette.BARK))
+		_right.add_child(Kit.note(I18N.t("skins.loadFailed") if state.failed else I18N.t("profile.loading"), _muted))
 		if state.failed:
 			var retry := Kit.button(I18N.t("skins.retry"), "gold", 0, 44)
 			retry.pressed.connect(state.refresh)
@@ -110,8 +118,8 @@ func _render() -> void:
 	var price := Shop.money_label(float(item.get("usdCents", 0)) / 100.0, _rail, state.catalog.get("rates", null))
 	var price_row := Kit.hbox(10)
 	_right.add_child(price_row)
-	price_row.add_child(Kit.title(I18N.t("skins.owned") if owned else price, 22, Palette.INK))
-	var small := Kit.note(I18N.t("skins.cosmetic"), Palette.BARK, 10)
+	price_row.add_child(Kit.title(I18N.t("skins.owned") if owned else price, 22, _ink))
+	var small := Kit.note(I18N.t("skins.cosmetic"), _muted, 10)
 	small.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	price_row.add_child(small)
 	if not owned and not pending and not tokens.is_empty():
@@ -168,7 +176,7 @@ func _render() -> void:
 	elif message.is_empty() and not owned and not Wallet.available() and not state._fake:
 		message = I18N.t("pay.noWallet")
 	if not message.is_empty():
-		_right.add_child(Kit.note(message, Palette.BAD_ON_PARCHMENT if state.failed else Palette.BARK, 10))
+		_right.add_child(Kit.note(message, _bad if state.failed else _muted, 10))
 	var collection := Kit.hbox(6)
 	_right.add_child(collection)
 	var restore := Kit.button(I18N.t("skins.check"), "wood", 0, 36)
@@ -183,14 +191,14 @@ func _render() -> void:
 ## LE LAPIN DORE : il ne s'achete pas, il vient avec le ticket. Pas de prix
 ## ni de rails ; possede, il s'equipe comme les autres.
 func _render_ticket_skin() -> void:
-	_right.add_child(Kit.wrapped(Kit.title(I18N.t("pass.skin"), 28, Palette.INK)))
+	_right.add_child(Kit.wrapped(Kit.title(I18N.t("pass.skin"), 28, _ink)))
 	var owned := state.owns(skin_key)
 	if not owned:
-		var only := Kit.note(I18N.t("skins.ticketOnly"), Palette.BARK, 12)
+		var only := Kit.note(I18N.t("skins.ticketOnly"), _muted, 12)
 		only.name = "TicketOnly"
 		_right.add_child(only)
 		return
-	_right.add_child(Kit.note(I18N.t("pass.skinWhat"), Palette.BARK, 11))
+	_right.add_child(Kit.note(I18N.t("pass.skinWhat"), _muted, 11))
 	var equipped: bool = state.catalog.get("equipped") == skin_key
 	var action := Kit.button(I18N.t("skins.equipped") if equipped else I18N.t("skins.equip"), "green", 0, 44)
 	action.name = "SkinAction"
@@ -199,4 +207,4 @@ func _render_ticket_skin() -> void:
 	action.pressed.connect(state.equip.bind(skin_key))
 	_right.add_child(action)
 	if not state.note.is_empty():
-		_right.add_child(Kit.note(state.note, Palette.BAD_ON_PARCHMENT if state.failed else Palette.BARK, 10))
+		_right.add_child(Kit.note(state.note, _bad if state.failed else _muted, 10))

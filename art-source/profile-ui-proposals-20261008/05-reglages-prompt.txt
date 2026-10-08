@@ -1,0 +1,32 @@
+Mode: built-in image_gen tool.
+Reference: 02-camp-de-raid.png (original approved concept, not implementation screenshots).
+Output: 05-reglages-camp-de-raid.png
+
+Use case: ui-mockup.
+Create ONE exceptionally polished SETTINGS screen for Rabbit Royale, extending the attached ORIGINAL APPROVED "Camp de raid" visual proposal. The input image is a STYLE AND CHROME REFERENCE ONLY, not a layout to duplicate. Output a single complete landscape screen, 2048x1152, straight-on, no device mockup, no two-screen board, no proposal number outside the interface.
+
+CRITICAL ART FIDELITY:
+Match the reference's actual production artwork quality: rich carefully drawn pixel-art lanterns, stone and foliage details, warm copper bevels with tiny highlights, deep petrol-blue panels with tactile subtle pixel edges, moonlit islands behind the modal, warm ivory typography and carrot-orange selected controls. Preserve the beautiful atmospheric game UI, not an approximation with plain flat rectangles. It must look made by the SAME ART DIRECTOR as that approved reference. Night ocean #123C46, slate navy #172B36, copper-orange #F28C45, ivory #F5E4BF. All art crisp, lovingly clustered 16-bit pixels. Surfaces behind text quiet and dark. UI text must be highly legible, generous sizes, coherent hierarchy.
+
+SHARED FRAME (faithfully follow reference):
+One thin copper-trimmed dark game menu frame occupies about 94% of the canvas width and 89% height, with a few tiny leaves at corners. Slim left sidebar, about 17% of modal width. At top its player plate shows brown pixel rabbit portrait, "BitterEars99" and "Invité". Below three large icon-and-label navigation tabs: "Profil", "Historique", "Réglages". ONLY "Réglages" is selected, with the reference's rich orange beveled tab and brass gear icon. Profile and Historique unselected dark teal. Sidebar lower portion is an integrated little pixel-art camp vignette: warm lantern, supply crate, carrots, grass, rocks merging into dark blue. No duplicate large scenery photograph pasted in sidebar. Main content at right has large heading "RÉGLAGES", small brass gear beside it, and a square brown/copper X close button upper right.
+
+COMPLETELY NEW SETTINGS COMPOSITION:
+Do NOT recreate two tall equal columns "Son" and "Jeu" with five plain rows. Build a thoughtfully packed asymmetrical layout with a WIDE AUDIO CONSOLE at the top and TWO DIFFERENT LOWER SECTIONS: illustrated visual quality selection (about 60% of lower row) and solo mode (about 40%). All three regions fit their content and use the available space, no blank lower half. Actual tap targets must feel large enough to use on a landscape phone.
+
+1. TOP AUDIO CONSOLE, about 35% of content height:
+Heading "Ambiance sonore", small pixel music icon. At left a beautifully drawn compact pixel-art camp music box / little wooden speaker with brass horn on a tiny grassy rock, subtly lit by a lantern, integrated into its own visual area without a huge illustration.
+At center/right two clear generously sized toggle controls side by side, labeled "Musique" and "Effets sonores", both "ON". Copper/teal handcrafted game switches, ivory knobs, clear enabled state, not stock green mobile app switches.
+Below the toggle pair one prominent long horizontal volume slider, label "Volume", value "85 %" right aligned. Slider is a recessed dark blue channel, fine brass trim, copper filled segment at 85%, a chunky ivory/brass thumb. Volume icon at left. Everything neatly aligned within one cohesive console, not three identical row cards.
+
+2. LOWER LEFT, heading "Qualité visuelle":
+Two equal SELECTABLE ILLUSTRATED OPTIONS side by side, clearly one choice group. Each has a beautiful small preview of the SAME tiny island with a single tiny brown rabbit, same camera and composition so the choice is meaningful. First "Fluide", calmer restrained light, short subtitle "Priorité aux performances". Second "Beau", same island with warm atmospheric light beams, richer moonlit water and shadows, short subtitle "Lumière et ombres". "Beau" selected with a copper outline and small check medallion upper right. "Fluide" unselected. The illustrations are functional previews, not huge hero art. Keep labels outside imagery on dark clear caption areas. No invented third quality mode or FPS number.
+
+3. LOWER RIGHT, heading "Mode solo":
+One thoughtfully composed mode card, using a small pixel vignette of one brown rabbit resting beside a lantern under a small carrot pennant on an island, enough character to anchor the section but limited to its upper half. Beneath, aligned label "Jouer en solo" and a clear toggle "OFF". Short helpful two-line description "Pas de raids entrants ou sortants." Treat this as an actual setting with clear affordance, not an advertisement or a large CTA. No battle-pass purchase offer in this normal unlocked state.
+
+BOTTOM:
+A very discreet small check icon and text "Modifications enregistrées automatiquement." aligned at bottom of content. No Save button: these settings save when changed.
+
+Preserve ONLY actual features: music toggle, effects toggle, one master volume slider, two visual quality options, solo toggle. No notifications, language, extra currency, invented settings, social buttons, privacy settings, account deletion, profile editor, or wardrobe on this page. French text spelled correctly. No implementation annotations, no watermark. The result must feel like an authentic finished handcrafted pixel-art game menu, materially more designed than the previous basic settings rows, while belonging perfectly alongside the reference's profile and history.
+

@@ -39,6 +39,35 @@
   },
   "alreadyLinked": "Hang này đã có ví rồi.",
   "linkFailed": "Không kết nối được ví này",
+  "google": "Google",
+  "email": "Email",
+  "googleWaiting": "Hoàn tất trong trình duyệt...",
+  "cancel": "Hủy",
+  "emailTitle": "Đăng nhập bằng email",
+  "emailAsk": "Chúng tôi sẽ gửi mã 6 chữ số.",
+  "emailHint": "ban@vidu.com",
+  "sendCode": "Gửi mã",
+  "codeSent": {
+   "$t": "Đã gửi mã đến {0}"
+  },
+  "codeHint": "Mã 6 chữ số",
+  "verifyCode": "Đăng nhập",
+  "otherEmail": "Dùng địa chỉ khác",
+  "invalidEmail": "Đây không phải địa chỉ email.",
+  "tooSoon": "Đợi một phút rồi hãy yêu cầu lại.",
+  "mailFailed": "Không gửi được thư. Thử lại.",
+  "wrongCode": "Sai mã.",
+  "codeExpired": "Mã đã hết hạn. Yêu cầu mã mới.",
+  "tooManyTries": "Thử quá nhiều lần. Yêu cầu mã mới.",
+  "identityTaken": "Tài khoản này đã có hang.",
+  "identityDigsFor": {
+   "$t": "Tài khoản này đã đào cho \"{0}\"."
+  },
+  "alreadyLinkedProvider": "Hang này đã có rồi.",
+  "unavailable": "Chưa có.",
+  "signInCancelled": "Đã hủy đăng nhập.",
+  "saveBurrow": "Giữ hang này: kết nối Google, email hoặc ví.",
+  "signedInWith": "Đăng nhập bằng",
   "region": {
    "label": "Máy chủ",
    "finding": "Đang tìm máy chủ gần nhất...",
@@ -116,6 +145,15 @@
   "solo": "Chơi đơn",
   "soloTicket": "Không dùng với Crown Race Ticket",
   "soloRaids": "Chơi đơn: không đột kích, cả hai chiều",
+  "ambience": "Âm thanh",
+  "effectsLong": "Hiệu ứng âm thanh",
+  "visualQuality": "Chất lượng hình ảnh",
+  "smoothHint": "Ưu tiên hiệu năng",
+  "prettyHint": "Ánh sáng và bóng đổ",
+  "soloMode": "Chế độ chơi đơn",
+  "soloPlay": "Chơi đơn",
+  "soloHint": "Không đột kích, cả đến lẫn đi.",
+  "autosaved": "Thay đổi được lưu tự động.",
   "soloNext": "Chơi đơn từ hòn đảo tiếp theo",
   "soloBusy": "Hãy xong cuộc đột kích trước",
   "soloCooldown": {
@@ -600,6 +638,9 @@
    "$t": "Nạp năng lượng tới {0}."
   },
   "noRefills": " Hôm nay hết lượt nạp.",
+  "noRefillsUntil": {
+   "$t": " Lượt nạp mới sau {0}."
+  },
   "refillsLeft": {
    "$t": " Hôm nay còn {0} lượt nạp.",
    "$v": [
@@ -636,6 +677,9 @@
   },
   "heldToday": {
    "$t": "{0} hôm nay"
+  },
+  "heldBackIn": {
+   "$t": "sau {0}"
   },
   "heldDaysLeft": {
    "$t": "còn {0} ngày"
@@ -1203,9 +1247,23 @@
   "disconnect": "Ngắt kết nối",
   "abandon": "Bỏ hang này",
   "abandonConfirm": "Thật sự bỏ? Không thể hoàn tác",
+  "deleteAccount": "Xóa tài khoản",
+  "deleteConfirm": "Nhấn lần nữa: xóa tất cả",
   "loading": "Đang tải...",
   "now": "vừa xong",
   "historyFailed": "Không tải được lịch sử của bạn.",
+  "subtitle": "Tùy chỉnh thỏ và bảo vệ hang của bạn.",
+  "historySubtitle": "Thu hoạch, đột kích và giao dịch gần đây.",
+  "playerName": "Tên người chơi",
+  "saveBurrowHint": "Giữ hang an toàn: kết nối ví của bạn.",
+  "chooseRabbit": "Chọn thỏ của tôi",
+  "saveBurrowTitle": "Lưu hang của tôi",
+  "guestLabel": "Khách",
+  "accountLabel": "Tài khoản",
+  "walletShort": "Ví",
+  "harvests": "Cà rốt đã thu hoạch",
+  "raidsHeading": "Đột kích",
+  "purchasesHeading": "Đã mua",
   "noRuns": "Chưa có chuyến nào hoàn thành.",
   "noRaids": "Chưa ai đụng tới bạn.",
   "noPurchases": "Chưa mua gì từ cửa hàng.",
