@@ -105,8 +105,6 @@ const Z_BUILDING := 8
 const Z_ABOVE_CLOUDS := SkyLight.Z_SHADOWS + 1
 ## La ligne d'etat compte a rebours : une relecture toutes les 15 s.
 const TICK_SECONDS := 15.0
-## « brought home » reste 4 s sur DIG (page.tsx `BROUGHT_HOME_MS`).
-const HAUL_SECONDS := 4.0
 
 var _main: BurrowMap
 ## Les cases des ilots, dans le treillis du terrier (col, row) -> porte.
@@ -665,27 +663,6 @@ func door_at(point: Vector2) -> String:
 		var lattice := cell + _lo
 		return String(_islet_cells.get(lattice, ""))
 	return ""
-
-
-## LA RECOLTE RAMENEE DE L'ILE, posee sur DIG le temps de la lire.
-func show_haul(amount: int) -> void:
-	var sign: Control = _signs.get("dig")
-	if sign == null or amount <= 0:
-		return
-	var note := Kit.plank_note("+%s %s" % [I18N.group_digits(amount), I18N.t("loop.broughtHome")], LINE_PX + 2)
-	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# UNE LIGNE, TAILLEE A LA MAIN : le panneau est un Button, pas un
-	# conteneur, et personne ne donnerait de largeur a la note. Repliee, elle
-	# se mesurait sur 1 px — une lettre par ligne, en colonne sur l'ilot.
-	(note.get_child(0) as Label).autowrap_mode = TextServer.AUTOWRAP_OFF
-	sign.add_child(note)
-	note.size = note.get_combined_minimum_size()
-	note.position = Vector2((sign.size.x - note.size.x) * 0.5, -note.size.y - 4.0)
-	Sound.play("coin")
-	var tween := note.create_tween()
-	tween.tween_interval(HAUL_SECONDS)
-	tween.tween_property(note, "modulate:a", 0.0, 0.35)
-	tween.tween_callback(note.queue_free)
 
 
 ## LA RECOLTE, « +N » qui sort de DERRIERE la planche HARVEST (2026-10-01,

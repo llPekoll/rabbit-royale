@@ -81,10 +81,6 @@ const CLEAN_H := 44.0
 var _raid_shown := false
 ## Pour la pastille, qui montre la jauge du raid tant que le plateau est la.
 signal _raid_changed
-## LA RECOLTE ENCAISSEE LOIN DU TERRIER (`banked` sur l'ile). La barre du sol
-## n'existe pas la-bas : c'est le chrome qui la garde, et la lui rend quand le
-## rideau s'est rouvert sur le terrier.
-var _pending_haul := 0
 
 
 func _ready() -> void:
@@ -93,7 +89,6 @@ func _ready() -> void:
 	Screens.world_shown.connect(_on_world_shown)
 	Screens.moved.connect(_on_moved)
 	Home.noted.connect(toast)
-	Screens.changed.connect(_hand_haul)
 	GameSocket.event.connect(_on_socket_event)
 	get_viewport().size_changed.connect(_measure)
 	_measure()
@@ -829,8 +824,7 @@ func _end_mode() -> void:
 		burrow.call("set_defend_kit", false)
 
 
-## `banked` : la run vient d'encaisser, sur l'ile. On garde, et on pose sur
-## DIG quand le rideau s'est rouvert sur le terrier.
+## Les evenements du serveur qui parlent au chrome lui-meme.
 func _on_socket_event(name: String, data: Variant) -> void:
 	# LE BANC DE SCENARIOS (tools/scenarios, serveur local RR_STAGE=1) dit qui
 	# regarder : la meme traversee que « regarder » au tableau de saison.
@@ -843,11 +837,6 @@ func _on_socket_event(name: String, data: Variant) -> void:
 		return
 	if name == "raid_incoming" and data is Dictionary:
 		_raid_away(data)
-		return
-	if name != "banked" or not (data is Dictionary):
-		return
-	_pending_haul = int((data as Dictionary).get("carrots", 0))
-	_hand_haul()
 
 
 ## Le bandeau du banc de scenarios : le cas en cours, fixe en haut de l'ecran
@@ -883,16 +872,6 @@ func _stage_caption(text: String) -> void:
 		add_child(_stage_label)
 	_stage_label.text = text
 	_stage_label.visible = not text.is_empty()
-
-
-func _hand_haul() -> void:
-	if _pending_haul <= 0 or Screens.crossing or Screens.place != Screens.Place.BURROW:
-		return
-	var burrow := Screens.at(Screens.Place.BURROW)
-	if burrow == null or not burrow.has_method("show_haul"):
-		return
-	burrow.call("show_haul", _pending_haul)
-	_pending_haul = 0
 
 
 func _on_world_shown(shown: bool) -> void:

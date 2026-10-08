@@ -276,11 +276,6 @@ func _on_landmark(door: String) -> void:
 		Chrome.current.go(door)
 
 
-## La recolte ramenee de l'ile, posee sur DIG (chrome.gd `_hand_haul`).
-func show_haul(amount: int) -> void:
-	_landmarks.show_haul(amount)
-
-
 ## L'ID DU JOUEUR : la graine de son terrier, chez le serveur comme ici.
 static func _own_seed() -> String:
 	return String(Session.player.get("id", "burrow"))

@@ -97,10 +97,18 @@ var _chest_figure: Label
 var _energy_tag: PanelContainer
 var _energy_line: HBoxContainer
 var _energy_figure: Label
-var _carry: PanelContainer
-var _carry_figure: Label
 ## Le butin porte sur l'ile, -1 hors manche (le terrier, un raid).
 var _carrying := -1
+## LE BUTIN DEJA ENCAISSE MAIS PAS ENCORE LU : la manche est au terrier
+## (`banked`, ou on a quitte l'ile), mais /api/burrow n'a pas encore rendu le
+## nouveau stock. Le chiffre le garde par-dessus `_riding_on`, le stock d'avant,
+## jusqu'a ce que le stock bouge — sinon il redescendrait d'autant, puis
+## remonterait.
+var _riding := 0
+var _riding_on := -1
+## La manche en cours est encaissee : son butin est dans le stock, plus en sus.
+var _run_banked := false
+var _ride_seq := 0
 var _add: Button
 
 var _stock := -1
@@ -203,22 +211,6 @@ func _init() -> void:
 	_energy_tag.visible = false
 	_plate.add_child(_energy_tag)
 
-	# LE STOCK DU TERRIER, en manche : une puce de verre sous le chiffre, la
-	# pile de carottes puis le nombre — ce qui est deja a l'abri.
-	_carry = Kit.panel(Kit.style_glass())
-	_carry.mouse_filter = Control.MOUSE_FILTER_PASS
-	var carry_row := Kit.hbox(3.0)
-	carry_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_carry_figure = Kit.label("0", Kit.pixel_size(1.5), Palette.PILL_INK)
-	_carry_figure.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var mark := Kit.icon(Kit.ICONS["carrot-pile"], MARK * 1.4)
-	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	carry_row.add_child(mark)
-	carry_row.add_child(_carry_figure)
-	_carry.add_child(carry_row)
-	_carry.visible = false
-	_plate.add_child(_carry)
-
 	# LE TAP SUR LE CHIFFRE : la boutique.
 	_add = Button.new()
 	_add.flat = true
@@ -238,6 +230,7 @@ func _ready() -> void:
 	refresh()
 	Home.changed.connect(refresh)
 	Home.burst.connect(_on_burst)
+	RunState.current.banked.connect(_on_run_banked)
 	I18N.locale_changed.connect(func(_c: String) -> void: refresh())
 
 
@@ -258,17 +251,10 @@ func _place() -> void:
 	_add.size = _stack.size
 	_fit_figure()
 	_hang_energy()
-	_carry.reset_size()
-	var cw := _carry.get_combined_minimum_size()
-	_carry.size = cw
-	var hang := roundf(size.y - ENERGY_TUCK * dial.scale_factor())
-	_carry.position = Vector2(round(x + w * 0.5 - cw.x * 0.5), hang)
-	# Les coffres sous les deux puces qui pendent deja, centres sur le bois.
-	var below := hang
+	# Les coffres sous la puce qui pend deja, centres sur le bois.
+	var below := roundf(size.y - ENERGY_TUCK * dial.scale_factor())
 	if _energy_tag.visible:
 		below = maxf(below, _energy_tag.position.y + _energy_tag.size.y)
-	if _carry.visible:
-		below = maxf(below, _carry.position.y + cw.y)
 	_chests.reset_size()
 	var chw := _chests.get_combined_minimum_size()
 	_chests.size = chw
@@ -292,21 +278,25 @@ func _fit_figure() -> void:
 
 
 ## Relit le terrier : le stock, et si ce lieu a un reservoir.
+##
+## UN SEUL COMPTEUR, MEME EN MANCHE : le stock plus ce que la manche a creuse.
+## Le serveur encaisse la manche a chaque sortie (server/index.ts `bankRun`),
+## le butin porte ne peut pas se perdre — un « sac » a part, au-dessus du
+## stock, faisait faire l'addition au joueur pour un risque qui n'existe pas
+## (Paul, 2026-10-08).
 func refresh() -> void:
-	var stock := int(Home.burrow.get("stock", 0)) - _in_flight
+	var home := int(Home.burrow.get("stock", 0))
+	if _riding > 0 and home != _riding_on:
+		_riding = 0
+	var stock := home - _in_flight + _riding
+	if _carrying > 0 and not _run_banked:
+		stock += _carrying
 	_stock = stock
-	var carried := _carrying >= 0
-	var text := I18N.group_digits(_carrying if carried else stock)
+	var text := I18N.group_digits(stock)
 	if text != _figure.text:
 		_figure.text = text
 		_fit_figure()
-	_figure.add_theme_color_override("font_color", Palette.CARROT if carried else Palette.PILL_INK)
-	tooltip_text = I18N.f("pill.carrying", [_carrying]) if carried else I18N.f("pill.banked", [stock])
-	_carry.visible = carried
-	if carried:
-		_carry_figure.text = I18N.group_digits(stock)
-		_carry.tooltip_text = I18N.f("pill.banked", [stock])
-		_place()
+	tooltip_text = I18N.f("pill.banked", [stock])
 	# LE RESERVOIR N'EXISTE QUE SUR LE TERRIER : ailleurs `bank` est null,
 	# et un cadran a zero avec une alarme serait le chrome inventant une
 	# urgence sur un ecran qui n'a pas d'energie a depenser.
@@ -324,7 +314,7 @@ func refresh() -> void:
 ## Le bas de la pastille a l'ecran, reservoir compris quand il se montre.
 func hang_bottom() -> float:
 	var bottom := _plate.get_global_rect().end.y if _plate != null else get_global_rect().end.y
-	for chip in [_energy_tag, _carry, _chests]:
+	for chip in [_energy_tag, _chests]:
 		if chip != null and (chip as Control).visible:
 			bottom = maxf(bottom, (chip as Control).get_global_rect().end.y)
 	return bottom
@@ -446,6 +436,14 @@ func set_run_energy(energy: int) -> void:
 func set_run(carrying: int, chests: Dictionary = {}) -> void:
 	var was := _carrying
 	_carrying = carrying if not chests.is_empty() else -1
+	# On quitte l'ile avant que `banked` ne revienne : le butin reste au
+	# chiffre jusqu'a ce que le stock le contienne.
+	if _carrying < 0 and was > 0 and not _run_banked:
+		_ride(was)
+	# Hors de l'ile, ou un nouveau lapin (le butin repart de zero) : la manche
+	# suivante n'est pas encore encaissee.
+	if _carrying < 0 or _carrying < was:
+		_run_banked = false
 	refresh()
 	# Chaque gain fait sauter le chiffre (re-keyed per gain).
 	if _carrying > 0 and was >= 0 and _carrying > was:
@@ -463,6 +461,31 @@ func set_run(carrying: int, chests: Dictionary = {}) -> void:
 		var warn := int(chests.get("warnStage", 0)) > 0
 		_chest_figure.add_theme_color_override("font_color", Palette.DANGER if warn else Palette.PILL_INK)
 	_place()
+
+
+## LA MANCHE EST ENCAISSEE : le stock va la contenir, le chiffre ne doit ni
+## la compter deux fois ni la perdre en attendant la relecture.
+func _on_run_banked(_carrots: int) -> void:
+	if _carrying <= 0 or _run_banked:
+		return
+	_run_banked = true
+	_ride(_carrying)
+	refresh()
+
+
+func _ride(amount: int) -> void:
+	_riding = amount
+	_riding_on = int(Home.burrow.get("stock", 0))
+	_ride_seq += 1
+	var seq := _ride_seq
+	if not is_inside_tree():
+		return
+	# Si la relecture ne vient pas, on ne garde pas le butin au chiffre
+	# indefiniment.
+	get_tree().create_timer(HOLD_LIMIT * 2.0).timeout.connect(func() -> void:
+		if seq == _ride_seq and _riding > 0:
+			_riding = 0
+			refresh())
 
 
 ## DES CAROTTES ARRIVENT : la rafale derriere le chiffre, et le chiffre
