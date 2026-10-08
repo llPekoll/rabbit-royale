@@ -59,7 +59,6 @@ const ENERGY_RIM := Color("#1d1608")
 ## Les couleurs du web hors Palette (globals.css) — `--crown`, `--danger`,
 ## `.rr-watchers`, `.rr-watchers.hit`, `.rr-shove-toast`.
 const CROWN := Color("#ffd45c")
-const DANGER_INK := Color("#ff6b6b")
 const WATCH_DIM := Color("#9aa6b2")
 const WATCH_HIT := Color("#ff5a4a")
 const SHOVE_INK := Color("#ff6b5e")
@@ -95,7 +94,6 @@ var _bloop: Button
 var _buy: Button
 var _aim: Label
 var _info_plate: PanelContainer
-var _warn: Label
 var _watch: Label
 var _captions: VBoxContainer
 ## Les quatre lignes : tutoriel, cout, coach, poussee — dans cet ordre.
@@ -199,8 +197,6 @@ func _build() -> void:
 	_info_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var info_row := Kit.hbox(Kit.PAD)
 	_info_plate.add_child(info_row)
-	_warn = Kit.label("", 14, DANGER_INK)
-	info_row.add_child(_warn)
 	_watch = Kit.label("", 12, CROWN)
 	info_row.add_child(_watch)
 	_plates.add_child(_info_plate)
@@ -419,9 +415,9 @@ func _refresh_plates() -> void:
 		_aim.visible = not state.aiming.is_empty()
 		_aim.text = I18N.t("run.aiming" if state.aiming == "strike" else "run.aimingBloop")
 		_place_arms.call_deferred()
-	_info_plate.visible = state.warn_stage > 0 or watching
-	_warn.visible = state.warn_stage > 0
-	_warn.text = "🌊 " + "!".repeat(state.warn_stage)
+	# Plus de « 🌊 !! » au fil des coffres : il s'allumait sans rien dire
+	# (les coffres de TOUT le monde comptent), personne ne le lisait.
+	_info_plate.visible = watching
 	_watch.visible = watching
 	if watching:
 		# La cible n'est peut-etre pas encore sur le plateau, ou vient de
