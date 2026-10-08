@@ -380,9 +380,14 @@ func _note_read() -> void:
 class ChapterTab extends PanelContainer:
 	signal picked(index: int)
 
+	## Au-dela, le doigt a glisse : c'est l'etagere qui defile, pas un choix
+	## (island.gd `DRAG_SLOP`).
+	const TAP_SLOP := 8.0
+
 	var index := 0
 	var _active := false
 	var _locked := false
+	var _down_at := Vector2.INF
 	var _rest: StyleBox
 	var _hover: StyleBox
 	var _on: StyleBox
@@ -392,7 +397,11 @@ class ChapterTab extends PanelContainer:
 		index = i
 		_active = active
 		_locked = locked
-		mouse_filter = Control.MOUSE_FILTER_STOP
+		# LE DOIGT PASSE JUSQU'A L'ETAGERE (MOUSE_FILTER_PASS) : une ligne
+		# qui l'arretait des l'appui, toute l'etagere etait faite de lignes,
+		# et au Seeker on ne pouvait plus la faire defiler jusqu'aux derniers
+		# chapitres. Le choix se fait donc au relache, s'il n'a pas glisse.
+		mouse_filter = Control.MOUSE_FILTER_PASS
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		var pad_x := 4.0 if stacked else ROW_PAD_X
 		var pad_y := 4.0 if stacked else ROW_PAD_Y
@@ -459,9 +468,16 @@ class ChapterTab extends PanelContainer:
 		text.add_child(s)
 
 	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			accept_event()
-			picked.emit(index)
+		var mb := event as InputEventMouseButton
+		if mb == null or mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_down_at = mb.global_position
+		elif _down_at.is_finite():
+			var tapped := mb.global_position.distance_to(_down_at) <= TAP_SLOP
+			_down_at = Vector2.INF
+			if tapped:
+				picked.emit(index)
 
 	## Le fond d'une ligne ; le chapitre ouvert porte un filet de 3px sur sa
 	## tranche (`inset 3px 0 0 #975528`).
