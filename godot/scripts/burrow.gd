@@ -938,11 +938,23 @@ func _wanted_cam() -> BurrowCamera.Shot:
 		if _walling:
 			return BurrowCamera.wall(map, _props.field, view.x, view.y)
 		return BurrowCamera.place(map, view.x, view.y)
-	# LA MAISON CADRE LES ILOTS AVEC L'ILE : ce sont ses boutons.
-	# Et les ombres des ilots a venir (`frame_map`) : l'indice reste a l'image.
+	if _cam_moved_by_player:
+		return BurrowCamera.clamp_home(_current_shot(), _home_map(), view.x, view.y)
+	return BurrowCamera.home(_home_map(), view.x, view.y)
+
+
+## LA MAISON CADRE LES ILOTS AVEC L'ILE : ce sont ses boutons.
+## Et les ombres des ilots a venir (`frame_map`) : l'indice reste a l'image.
+func _home_map() -> BurrowMap:
 	if _landmarks != null and _landmarks.frame_map != null:
-		map = _landmarks.frame_map
-	return BurrowCamera.home(map, view.x, view.y)
+		return _landmarks.frame_map
+	return _terrain.map
+
+
+## La camera est-elle sur la prise maison (hors raid, pose, cloture, DEFEND) ?
+## Meme ordre que `_wanted_cam`.
+func _home_cam() -> bool:
+	return not (_raiding or _placing or _walling or _defend_kit)
 
 
 ## Ou la camera se tient en ce moment, dans le vocabulaire des prises.
@@ -1068,9 +1080,11 @@ func set_raiding(on: bool) -> void:
 ##      plus changer d'avis. L'appui teint donc la case en or, comme le
 ##      survol le fait a la souris.
 ##
-##   3. LE PLATEAU SE LAISSE GLISSER, mais seulement quand il y a quelque
-##      chose a viser (`can_move_cam`). A la maison, la ferme est un decor de
-##      fond : la promener n'aurait aucun sens.
+##   3. LE PLATEAU SE LAISSE GLISSER ET PINCER PARTOUT, maison comprise
+##      (2026-10-09) : on y amenage sa ferme, et sur le Seeker ses cases sont
+##      petites. A la maison il ne recule jamais au-dela de la prise maison
+##      (`BurrowCamera.clamp_home`). UNE CHOSE EN MAIN garde le doigt seul
+##      pour chercher sa case ; la vue passe alors a deux doigts.
 ##
 ## Godot n'a pas d'equivalent des aires de hit de Pixi, donc la case est
 ## resolue par la geometrie (voir burrow_pick.gd) et non par l'ordre de dessin.
@@ -1080,6 +1094,8 @@ func set_raiding(on: bool) -> void:
 ## tape, en pixels d'ecran. Un doigt ne se pose jamais parfaitement immobile :
 ## a zero, chaque tape serait un micro-glissement et ne poserait jamais rien.
 const DRAG_SLOP := 8.0
+## Un cran de molette, comme sur l'ile.
+const WHEEL_ZOOM := 1.12
 
 var _pressing := false
 var _did_drag := false
@@ -1102,19 +1118,28 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		var step := _pinch.feed(event)
 		if _pinch.active():
-			if _dragging_decor:
-				_cancel_decor_drag()
+			# LE DECOR QU'ON GLISSAIT RESTE EN MAIN : le second doigt veut
+			# regarder ou le poser, pas le lacher. Une tape le posera.
+			_dragging_decor = false
 			_hold_armed = false
 			if _pressing and not _did_drag:
 				_did_drag = true
 				if _hints_live():
 					_press_over(Vector2i(-1, -1))
 			if not step.is_empty():
-				set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, get_viewport_rect().size))
+				_pinch_cam(step)
 			return
 		if event.index != 0:
 			return
 	elif event is InputEventMouseMotion and _pinch.active():
+		return
+	# LA MOLETTE ZOOME AUTOUR DU CURSEUR — au bureau.
+	# Son relachement n'est pas celui d'un appui : il est avale aussi.
+	if event is InputEventMouseButton and \
+			(event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		if event.pressed:
+			_zoom_cam(WHEEL_ZOOM if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / WHEEL_ZOOM,
+				event.position)
 		return
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		var pressed: bool = event.pressed
@@ -1211,12 +1236,12 @@ func _on_move(at: Vector2) -> void:
 		if _dragging_decor:
 			_follow_decor(at)
 			return
-	# CE QU'ON TIENT SUIT LE DOIGT QUI GLISSE, ou qu'il ait ete pose : au
-	# terrier le plateau ne se promene pas (`can_move_cam`), donc un doigt qui
-	# glisse ne peut vouloir qu'une chose — chercher sa case. Il la montre en
-	# passant (vert, rouge, la raison) et lever le doigt pose, comme une tape.
-	# Sans ca, au doigt, on ne voyait ou tombait la chose qu'en la posant.
-	if _arrange != null and not can_move_cam():
+	# CE QU'ON TIENT SUIT LE DOIGT QUI GLISSE, ou qu'il ait ete pose : une
+	# chose en main, un doigt qui glisse ne veut qu'une chose — chercher sa
+	# case ; la vue passe a deux doigts. Il la montre en passant (vert,
+	# rouge, la raison) et lever le doigt pose, comme une tape. Sans ca, au
+	# doigt, on ne voyait ou tombait la chose qu'en la posant.
+	if _arrange != null:
 		if at.distance_to(_press_at) > DRAG_SLOP:
 			_hold_armed = false
 		_arrange_hover(_cell_at(at), true)
@@ -1242,8 +1267,6 @@ func _on_move(at: Vector2) -> void:
 			_press_over(_cell_at(at))
 		elif _fences_live():
 			_fences.set_hovered(_fences.pick(_board_at(at)))
-		return
-	if not can_move_cam():
 		return
 	# LE PLATEAU SUIT LE DOIGT. Applique directement, sans tween — une
 	# demi-seconde d'ease sur chaque mouvement trainerait derriere lui.
@@ -1319,10 +1342,9 @@ func _hints_live() -> bool:
 ## APPLIQUE DIRECTEMENT, sans tween : un glissement est continu, et une
 ## demi-seconde d'ease sur chaque mouvement du doigt trainerait derriere lui.
 func set_place_cam(shot: BurrowCamera.Shot) -> void:
-	if not can_move_cam():
-		return
 	var view := get_viewport_rect().size
-	var held := BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
+	var held := BurrowCamera.clamp_home(shot, _home_map(), view.x, view.y) if _home_cam() \
+		else BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
 	_cam_moved_by_player = true
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
@@ -1330,10 +1352,24 @@ func set_place_cam(shot: BurrowCamera.Shot) -> void:
 	position = held.at
 
 
-## LE PLATEAU SE LAISSE-T-IL BOUGER ? Seulement quand il y a quelque chose a
-## viser : a la maison, la ferme est un decor de fond et n'a pas a se promener.
-func can_move_cam() -> bool:
-	return _raiding or _placing or _walling
+## UN PAS DE PINCEMENT : zoom autour du milieu des doigts, puis le milieu suit.
+func _pinch_cam(step: Dictionary) -> void:
+	var view := get_viewport_rect().size
+	if not _home_cam():
+		set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, view))
+		return
+	var zoomed := BurrowCamera.home_zoom_at(_current_shot(), step["factor"], step["mid"],
+		_home_map(), view.x, view.y)
+	set_place_cam(BurrowCamera.Shot.new(zoomed.scale, zoomed.at + step["delta"]))
+
+
+## Zoomer de `factor` en gardant le point `at` de l'ecran sous lui.
+func _zoom_cam(factor: float, at: Vector2) -> void:
+	var view := get_viewport_rect().size
+	if _home_cam():
+		set_place_cam(BurrowCamera.home_zoom_at(_current_shot(), factor, at, _home_map(), view.x, view.y))
+	else:
+		set_place_cam(BurrowCamera.zoom_at(_current_shot(), factor, at, _terrain.map, view.x, view.y))
 
 
 # ---------------------------------------------------------------- amenager
@@ -1925,11 +1961,6 @@ func _holds(cell: Vector2i) -> bool:
 	if hit.is_empty() or hit[0] != _arrange.held:
 		return false
 	return _arrange.held != BurrowArrange.Held.THING or hit[1] == _arrange.held_index
-
-
-func _cancel_decor_drag() -> void:
-	_dragging_decor = false
-	_release_hold()
 
 
 # ---------------------------------------------------------------- le dire

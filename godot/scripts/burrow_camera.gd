@@ -68,6 +68,20 @@ const HOME_BOTTOM := 0.0
 ## la mer autour n'a rien a montrer.
 const HOME_MARGIN := 1.02
 
+## LE PLAFOND DU ZOOM A LA MAISON, en multiple de la prise « maison ».
+##
+## Le plancher EST la prise maison : on se penche sur sa ferme, on ne recule
+## jamais au-dela de ce qu'elle montre (2026-10-09). Pincer jusqu'au bout
+## ramene donc a l'echelle de repos.
+const HOME_ZOOM_MAX := 3.0
+
+## LE JEU DU GLISSEMENT A LA MAISON, en part de l'ecran de repos, de chaque
+## cote de la prise maison (voir `clamp_home`).
+const HOME_PAN_SLACK := Vector2(0.3, 0.25)
+## Ou le milieu de l'ecran peut aller, au plus pres : la boite de la terre
+## rentree de cette part de chaque cote (voir `clamp_home`).
+const HOME_LAND_INSET := 0.2
+
 ## LE PLAFOND DU ZOOM DE PLACEMENT, en multiple du fit.
 ##
 ## UN MULTIPLE DU FIT et non une taille de tuile : le fit absorbe deja la forme
@@ -184,6 +198,54 @@ static func home(map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
 	# c'est DEFEND, au sud, qui touche le bord de l'ecran.
 	at.y = maxf(at.y, win.position.y - scale * b.position.y)
 	return Shot.new(scale, at)
+
+
+## RAMENE UN CADRAGE DE LA MAISON dans sa plage : entre la prise maison et
+## HOME_ZOOM_MAX, dans le cadre de la prise maison ELARGI de HOME_PAN_SLACK.
+##
+## LE CADRE DE LA MAISON EST LA BORNE : `home` a deja range l'ile et ses
+## ilots sous le chrome. Mais pas a la lettre : la colonne des quetes couvre
+## la cote ouest, et au lancement on doit pouvoir pousser l'ile de dessous
+## (2026-10-09 : « l'ile est un peu cachee par les quests »). D'ou le
+## jeu, en part de l'ecran de repos, qui vaut aussi sans zoomer.
+##
+## ET LE MILIEU DE L'ECRAN RESTE SUR LA TERRE : le cadre elargi a de la mer
+## dans ses coins, et a 3x, colle dans l'un d'eux, l'ecran n'etait plus que
+## de l'eau. Au repos c'est le cadre qui tient ; de pres, c'est la terre.
+## RENTREE jusqu'a HOME_LAND_INSET a 3x : le coin de la boite d'un losange
+## est de la mer. Rien au repos, pour ne pas manger le jeu du cadre.
+static func clamp_home(shot: Shot, map: BurrowMap, w: float = GAME_W, h: float = GAME_H) -> Shot:
+	var rest := home(map, w, h)
+	var scale := clampf(shot.scale, rest.scale, rest.scale * HOME_ZOOM_MAX)
+	var view := Vector2(w, h)
+	# Ce que la prise maison montre, elargi, en coordonnees de la scene.
+	var slack := view * HOME_PAN_SLACK / rest.scale
+	var lo := -rest.at / rest.scale - slack
+	var hi := (view - rest.at) / rest.scale + slack
+	var land := board_bounds(map)
+	var inset := HOME_LAND_INSET * inverse_lerp(1.0, HOME_ZOOM_MAX, scale / rest.scale)
+	land = land.grow_individual(
+		-land.size.x * inset, -land.size.y * inset, -land.size.x * inset, -land.size.y * inset)
+	var at := Vector2.ZERO
+	for axis in 2:
+		# Le cadre : l'ecran ne sort pas de [lo, hi].
+		var a := view[axis] - scale * hi[axis]
+		var b := -scale * lo[axis]
+		# La terre : le milieu de l'ecran ne la quitte pas.
+		if land.size.x > 0.0 and land.size.y > 0.0:
+			a = maxf(a, view[axis] * 0.5 - scale * land.end[axis])
+			b = minf(b, view[axis] * 0.5 - scale * land.position[axis])
+		at[axis] = clampf(shot.at[axis], a, maxf(a, b))
+	return Shot.new(scale, at)
+
+
+## `zoom_at` pour la maison : le point sous le doigt reste en place.
+static func home_zoom_at(shot: Shot, factor: float, at: Vector2, map: BurrowMap,
+		w: float = GAME_W, h: float = GAME_H) -> Shot:
+	var rest := home(map, w, h)
+	var scale := clampf(shot.scale * factor, rest.scale, rest.scale * HOME_ZOOM_MAX)
+	var scene := (at - shot.at) / shot.scale
+	return clamp_home(Shot.new(scale, at - scene * scale), map, w, h)
 
 
 ## LA PRISE DE DECISION : toute la ferme, centree.
