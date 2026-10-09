@@ -25,7 +25,7 @@ import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
 import {
-  distanceToField, raiderView, settleRaid, trapClues,
+  distanceToField, nothingToTake, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
 import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
@@ -267,9 +267,14 @@ export async function GET(req: Request) {
       .limit(RAID_LIST.RICH),
   ]);
   const listed = new Set(live.map((t) => t.id));
-  const targets = [...live, ...rich.filter((t) => !listed.has(t.id))];
-
   const now = Date.now();
+  // NOTHING TO TAKE, NOT LISTED (2026-10-09, RAID.NOTHING_TO_TAKE_BELOW): a
+  // burrow a raid could not bring back 20 carrots from is left off the list
+  // altogether — not shown shut, just not there. The user: "ceux qui ont rien
+  // à perdre, tu les mets pas dans la liste". The door refuses them too (POST).
+  const targets = [...live, ...rich.filter((t) => !listed.has(t.id))]
+    .filter((t) => !nothingToTake(t.stock, gardenYield(t, now)));
+
   /**
    * WHERE EACH OWNER IS STANDING — the one thing this list never said.
    *
@@ -367,6 +372,11 @@ export async function POST(req: Request) {
   const now = Date.now();
   if (defender.shieldedUntil && defender.shieldedUntil.getTime() > now) {
     return Response.json({ error: 'target_shielded' }, { status: 400 });
+  }
+  // Nothing worth taking is a shield too (RAID.NOTHING_TO_TAKE_BELOW) — the
+  // same refusal, so a client that knows one knows both.
+  if (nothingToTake(defender.stock, gardenYield(defender, now))) {
+    return Response.json({ error: 'target_shielded', bare: true }, { status: 400 });
   }
 
   // One raid at a time. Two crossings of two burrows at once is a UI nobody

@@ -1070,6 +1070,17 @@ export const RAID = {
    */
   SAFE_FLOOR: 300,
   /**
+   * NOTHING TO TAKE, NOTHING TO RAID (2026-10-09). A burrow whose best-case
+   * haul — the stock above SAFE_FLOOR and the garden's share, both at full
+   * depth, the crown counted — is under this many carrots is left OFF the raid
+   * list for as long as it stays that poor, and refused at the door
+   * (`nothingToTake` in lib/game/raid). The user: "qd ils ont plus de carrots
+   * à se faire raid on peut plus les attaquer, ils ont un shield de base".
+   * Without it the empty accounts — played once, never uninstalled — were
+   * walked over for crumbs.
+   */
+  NOTHING_TO_TAKE_BELOW: 20,
+  /**
    * Share of the victim's UNHARVESTED garden a raid may take.
    *
    * Wired on 15 September 2026, and the Clash of Clans lesson in one number:

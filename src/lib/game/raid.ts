@@ -194,6 +194,27 @@ export function maxRaidLoss(stock: number): number {
 }
 
 /**
+ * The most a single raid can take, garden AND stock — the best case for the
+ * raider, every term maximised as in `maxRaidLoss` (field reached, top share,
+ * crown counted), under the one cap on the whole haul.
+ */
+export function maxRaidHaul(stock: number, garden: number): number {
+  const fromGarden = Math.min(
+    RAID.LOOT_CAP,
+    Math.floor(Math.max(0, garden || 0) * RAID.GARDEN_LOOT_SHARE * CROWN.LOOT_MULT),
+  );
+  return Math.min(RAID.LOOT_CAP, fromGarden + maxRaidLoss(stock));
+}
+
+/**
+ * Is there nothing worth taking? Then the burrow is shielded for as long as
+ * that lasts — RAID.NOTHING_TO_TAKE_BELOW. `garden` is `gardenYield` now.
+ */
+export function nothingToTake(stock: number, garden: number): boolean {
+  return maxRaidHaul(stock, garden) < RAID.NOTHING_TO_TAKE_BELOW;
+}
+
+/**
  * What a single raid cannot take, whatever happens — the "safe" figure.
  *
  * Two guarantees add up here: the floor (RAID.SAFE_FLOOR, untouchable

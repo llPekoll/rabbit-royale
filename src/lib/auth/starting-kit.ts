@@ -18,10 +18,15 @@
  * account starting, which is the only reading under which the number stays 3.
  * The three bolts and the three bloops (2026-10-02) follow the same reading,
  * and so do the three energy refills (2026-10-08).
+ *
+ * And the burrow is born DEFENDED (2026-10-09): five bombs and five planks
+ * already standing, drawn per player — see `lib/game/default-defence`. Free,
+ * beside the bag; a player who never opens DEFEND is still not a free walk.
  */
 import { db } from '../db';
 import { inventory } from '../db/schema';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
+import { placeDefaultDefence } from '../game/default-defence';
 
 /**
  * Put the starting kit in a new player's bag.
@@ -46,4 +51,7 @@ export async function grantStartingKit(
     // bolts or bloops has played, and re-running this must not top them back up to the
     // starting three — nor overwrite a bag they have spent down.
     .onConflictDoNothing();
+  // Skips a burrow that already has a bomb or a plank standing, so a retried
+  // sign-in places it once.
+  await placeDefaultDefence(playerId, tx);
 }
