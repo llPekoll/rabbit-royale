@@ -97,7 +97,7 @@ static func hang_bottom() -> float:
 ## 616 de haut) et passaient sur la carte de quete (2026-10-08).
 static func rail_bottom(view: Vector2) -> float:
 	var square := Kit.ICON_MIN if view.x < NARROW_W else Kit.icon_square(view.y)
-	return maxf(Kit.TOPBAR_H, Kit.EDGE + square)
+	return maxf(Kit.TOPBAR_H, Kit.screen_inset().y + square)
 
 
 ## LE COIN DROIT A L'ECRAN — le lapin —, pour le volet du terrier qui se
@@ -204,12 +204,14 @@ func _measure() -> void:
 	me_button.set_square(square, view.y)
 	# A la gouttiere de l'ecran : les pastilles
 	# posees a cheval sur les boutons gardent ainsi 5 px d'air au-dessus.
-	_rail.offset_left = Kit.EDGE
-	_rail.offset_top = Kit.EDGE
-	_rail.offset_bottom = Kit.EDGE + square
-	_corner.offset_right = -Kit.EDGE
-	_corner.offset_top = Kit.EDGE
-	_corner.offset_bottom = Kit.EDGE + square
+	# Plus bas et plus au centre sur un telephone (Kit.screen_inset).
+	var inset := Kit.screen_inset()
+	_rail.offset_left = inset.x
+	_rail.offset_top = inset.y
+	_rail.offset_bottom = inset.y + square
+	_corner.offset_right = -inset.x
+	_corner.offset_top = inset.y
+	_corner.offset_bottom = inset.y + square
 
 	# La pastille : centree sur l'ecran, collee au haut, mise a l'echelle
 	# depuis son centre haut pour rester accrochee au meme point.
@@ -219,8 +221,8 @@ func _measure() -> void:
 	# sous la boutique (2026-09-23). Elle cede juste ce qu'il faut pour
 	# garder un ecart, toujours centree — des deux cotes : le rail a gauche,
 	# le lapin a droite.
-	var rail_right := Kit.EDGE + _rail.get_combined_minimum_size().x
-	var corner_left := view.x - Kit.EDGE - _corner.get_combined_minimum_size().x
+	var rail_right := inset.x + _rail.get_combined_minimum_size().x
+	var corner_left := view.x - inset.x - _corner.get_combined_minimum_size().x
 	var half_room := minf(view.x * 0.5 - rail_right, corner_left - view.x * 0.5) - Kit.PAD
 	if half_room > 0.0:
 		s = minf(s, half_room / (EnergyDial.ART.x * 0.5))

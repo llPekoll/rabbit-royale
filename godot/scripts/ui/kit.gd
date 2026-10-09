@@ -137,6 +137,10 @@ const AVATARS := {
 # ── Les mesures partagees (globals.css :root) ───────────────────────────────
 ## L'ecart entre un chrome fixe et le bord de l'ecran.
 const EDGE := 10.0
+## Le meme ecart sur un telephone : les coins arrondis mangeaient le lapin
+## du coin et son « LVL 10 » (2026-10-09).
+const EDGE_PHONE_TOP := 20.0
+const EDGE_PHONE_SIDE := 26.0
 ## L'air dans un panneau : en-tete, corps, pied.
 const PAD := 10.0
 ## Les pastilles et les bandes d'une ligne.
@@ -471,6 +475,28 @@ static func icon(tex: Texture2D, height: float) -> TextureRect:
 ## Le carre d'une icone du rail, calcule sur la hauteur de l'ecran.
 static func icon_square(view_height: float) -> float:
 	return clampf(view_height * ICON_VH, ICON_MIN, ICON_MAX)
+
+
+## LE BORD UTILE de l'ecran, en unites du canevas : x = gauche et droite,
+## y = haut. EDGE au bureau ; sur un telephone (natif ou navigateur), assez
+## pour passer les coins arrondis, et l'aire sure de l'OS (encoche, trou de
+## camera) si elle rogne davantage — du meme ecart des deux cotes, pour que
+## le rail et le lapin restent symetriques.
+static func screen_inset() -> Vector2:
+	if not (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")):
+		return Vector2(EDGE, EDGE)
+	var inset := Vector2(EDGE_PHONE_SIDE, EDGE_PHONE_TOP)
+	var win := Vector2(DisplayServer.window_get_size())
+	var root := (Engine.get_main_loop() as SceneTree).root
+	if win.x <= 0.0 or root == null:
+		return inset
+	var k := root.get_visible_rect().size.x / win.x
+	var safe := Rect2(DisplayServer.get_display_safe_area())
+	# Le navigateur peut rendre un rectangle vide ou celui de tout l'ecran.
+	if safe.size.x <= 0.0 or safe.end.x > win.x + 1.0:
+		return inset
+	var side := maxf(safe.position.x, win.x - safe.end.x) * k
+	return Vector2(maxf(inset.x, side + EDGE), maxf(inset.y, safe.position.y * k + EDGE))
 
 
 # ── La mise en page ──────────────────────────────────────────────────────────
