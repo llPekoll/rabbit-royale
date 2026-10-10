@@ -5,6 +5,7 @@
   "MAX_SIDE": 76,
   "MIN_FILL": 0.9,
   "MAX_TRIES": 5,
+  "CHEST_MIN_STEPS": 10,
   "RAGGED": [
    0.3,
    0.55

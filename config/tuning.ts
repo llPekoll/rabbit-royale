@@ -641,6 +641,18 @@ export const BIG_ISLANDS = {
   MIN_FILL: 0.9,
   /** Re-cuts allowed before the cutter settles for what it has. */
   MAX_TRIES: 5,
+  /**
+   * How far out a chest must sit on a big island, in STEPS from the spawn —
+   * in place of ISLAND.CHEST_MIN_DEPTH's share of the longest walk.
+   *
+   * A big island is lobes and arms, and the spawn is the cell nearest the
+   * middle of the BOX, which on a crescent or a snake is one arm's end. The
+   * share then kept only the farthest lobe in the running: five chests of
+   * seven bunched there, and nothing to fetch on the side the rabbit starts
+   * (seen 2026-10-10 on the crescent). A fixed floor keeps them off the spawn
+   * and lets the spacing rule spread them over every lobe. See `rimTiles`.
+   */
+  CHEST_MIN_STEPS: 10,
   /** The free coast's dials, drawn from the seed: how ragged, how much of the
    *  box, and how wide against how tall. */
   RAGGED: [0.3, 0.55],

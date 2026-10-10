@@ -761,6 +761,10 @@ func _rim_tiles(candidates: Array[Vector2i], dist: Dictionary, furthest: int,
 	if count <= 0:
 		return picked
 	var floor_d := furthest * float(_tuning().ISLAND.CHEST_MIN_DEPTH)
+	# Une grande ile prend un plancher fixe : une part de sa plus longue marche
+	# ne gardait que le lobe le plus lointain (BIG_ISLANDS.CHEST_MIN_STEPS).
+	if map is IslandMap and (map as IslandMap).is_big:
+		floor_d = minf(float(_tuning().BIG_ISLANDS.CHEST_MIN_STEPS), floor_d)
 	var pool: Array[Vector2i] = []
 	for c in candidates:
 		if dist.has(c) and dist[c] >= floor_d:

@@ -24,7 +24,7 @@
  * where a bomb sits — and what a chest rolls when it is dug (`chestRng`).
  * Publishing `seed` is then harmless by construction.
  */
-import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor, type LevelRow } from '@config/tuning';
+import { BIG_ISLANDS, CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor, type LevelRow } from '@config/tuning';
 import { makeShape, type IslandShape } from '@/config/gridConfig';
 import { cellOf, farmableTiles, inGrid, indexOf, spawnTile, terrainNeighbors } from './terrainBoard';
 import { FIRST_ISLAND_GROUND, groundSeed, isFirstIsland } from './first-island';
@@ -401,7 +401,11 @@ function rimTiles(
   // Only the outer band is in the running — see `ISLAND.CHEST_MIN_DEPTH`.
   // Without this floor the spacing rule alone would happily put a chest in the
   // middle of the island, because the middle is a long way from the coast.
-  const floor = furthest * ISLAND.CHEST_MIN_DEPTH;
+  // A big island (its own ground) takes a fixed floor instead: a share of its
+  // longest walk kept only the farthest lobe — see BIG_ISLANDS.CHEST_MIN_STEPS.
+  const big = groundSeed(seed) === seed && !isFirstIsland(seed);
+  const floor = big ? Math.min(BIG_ISLANDS.CHEST_MIN_STEPS, furthest * ISLAND.CHEST_MIN_DEPTH)
+    : furthest * ISLAND.CHEST_MIN_DEPTH;
   const pool: Array<{ tile: number; d: number; col: number; row: number }> = [];
   for (const i of eligible) {
     const d = dist.get(i);
