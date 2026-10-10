@@ -111,6 +111,8 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'RAID_RUN.MIN_LOOT_FRACTION', kind: 'ratio', min: 0, max: 1, note: 'Part payée à un raid mort sur le seuil' },
   { path: 'RAID_RUN.SHIELD_AFTER_RAID_MS', kind: 'int', min: 0, max: 604_800_000, note: 'Bouclier après avoir été raidé (ms)' },
   { path: 'RAID_RUN.COOLDOWN_MS', kind: 'int', min: 0, max: 604_800_000, note: 'Délai entre deux raids sur la même victime (ms)' },
+  { path: 'RAID.ASLEEP_AFTER_MS', kind: 'int', min: 3_600_000, max: 2_592_000_000, note: 'Absent depuis plus longtemps = terrier endormi (ms)' },
+  { path: 'RAID.ASLEEP_LOOT_SHARE', kind: 'ratio', min: 0, max: 1, note: 'Part du butin que paie un terrier endormi (un raid par absence)' },
   { path: 'RAID.LOOT_CAP', kind: 'int', min: 1, max: 10_000_000, note: 'Plafond de butin d\'un seul raid' },
   { path: 'RAID.BROKEN_SHIELD_MS', kind: 'int', min: 0, max: 604_800_000, note: 'Bouclier après un terrier vidé (ms)' },
   { path: 'RAID.ONBOARDING_SHIELD_MS', kind: 'int', min: 0, max: 604_800_000, note: 'Bouclier offert à un nouveau joueur (ms)' },

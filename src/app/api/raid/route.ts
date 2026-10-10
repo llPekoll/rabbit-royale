@@ -16,7 +16,7 @@
  * attacker can be disconnected from mid-crossing, and losing a haul to a
  * dropped connection is the kind of thing players do not forgive.
  */
-import { and, desc, eq, gte, inArray, isNull, ne, sql as raw } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, isNull, ne, or, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
@@ -25,7 +25,7 @@ import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
 import {
-  distanceToField, nothingToTake, raiderView, settleRaid, trapClues,
+  asleep, awakeSince, distanceToField, nothingToTake, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
 import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
@@ -48,6 +48,9 @@ import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
 /** How long the raid list runs: everyone connected (up to LIVE), then the
  *  richest burrows (RICH), deduplicated. Was 20 by stock alone. */
 const RAID_LIST = { LIVE: 50, RICH: 50 } as const;
+
+/** No raid has taken anything from this burrow since its owner was last seen. */
+const notRaidedSinceSeen = raw`not exists (select 1 from raid_runs r where r.defender_id = ${players.id} and r.started_at > ${players.lastSeenAt} and r.carrots_looted > 0)`;
 
 const TOLL: EnergyCharge = {
   // Getters: both are live (`tuning` table), read at each charge.
@@ -247,6 +250,7 @@ export async function GET(req: Request) {
     burrowLevel: players.burrowLevel,
     wateredUntil: players.wateredUntil,
     fertilisedUntil: players.fertilisedUntil,
+    lastSeenAt: players.lastSeenAt,
   };
   const raidable = and(
     ne(players.id, session.sub),
@@ -261,8 +265,12 @@ export async function GET(req: Request) {
         .where(and(raidable, inArray(players.id, liveIds)))
         .orderBy(desc(players.stock))
       : Promise.resolve([]),
+    // ASLEEP, RAIDED ONCE, NOT LISTED (RAID.ASLEEP_AFTER_MS): an owner away
+    // for days pays one small raid per absence, then drops off the list until
+    // they come back. The live list above needs no such rule — a connected
+    // player is awake by definition.
     db.select(columns).from(players)
-      .where(raidable)
+      .where(and(raidable, or(gte(players.lastSeenAt, awakeSince()), notRaidedSinceSeen)))
       .orderBy(desc(players.stock))
       .limit(RAID_LIST.RICH),
   ]);
@@ -272,8 +280,9 @@ export async function GET(req: Request) {
   // burrow a raid could not bring back 20 carrots from is left off the list
   // altogether — not shown shut, just not there. The user: "ceux qui ont rien
   // à perdre, tu les mets pas dans la liste". The door refuses them too (POST).
+  const sleeping = (t: { id: string; lastSeenAt: Date }) => !listed.has(t.id) && asleep(t.lastSeenAt, now);
   const targets = [...live, ...rich.filter((t) => !listed.has(t.id))]
-    .filter((t) => !nothingToTake(t.stock, gardenYield(t, now)));
+    .filter((t) => !nothingToTake(t.stock, gardenYield(t, now), sleeping(t)));
 
   /**
    * WHERE EACH OWNER IS STANDING — the one thing this list never said.
@@ -308,6 +317,9 @@ export async function GET(req: Request) {
       stock: t.stock,
       /** Carrots standing in their garden right now — the purse a raid is for. */
       garden: gardenYield(t, now),
+      /** The owner is away (RAID.ASLEEP_AFTER_MS): the haul is a tenth, and
+       *  only one raid will take it before they come back. */
+      asleep: sleeping(t),
       /** Shielded targets are LISTED but not attackable — hiding them would
        *  make the board look empty for no visible reason. */
       shielded: !!t.shieldedUntil && t.shieldedUntil.getTime() > now,
@@ -375,8 +387,20 @@ export async function POST(req: Request) {
   }
   // Nothing worth taking is a shield too (RAID.NOTHING_TO_TAKE_BELOW) — the
   // same refusal, so a client that knows one knows both.
-  if (nothingToTake(defender.stock, gardenYield(defender, now))) {
+  // ASLEEP (RAID.ASLEEP_AFTER_MS), unless connected this very moment: a tenth
+  // of the haul, and once per absence — a raid that already took something
+  // since they were last seen is a shield until they come back.
+  const sleeping = asleep(defender.lastSeenAt, now) && !(await connectedAmong([defender.id])).has(defender.id);
+  if (nothingToTake(defender.stock, gardenYield(defender, now), sleeping)) {
     return Response.json({ error: 'target_shielded', bare: true }, { status: 400 });
+  }
+  if (sleeping) {
+    const [taken] = await db.select({ id: raidRuns.id }).from(raidRuns).where(and(
+      eq(raidRuns.defenderId, defender.id),
+      gt(raidRuns.startedAt, defender.lastSeenAt),
+      gt(raidRuns.carrotsLooted, 0),
+    )).limit(1);
+    if (taken) return Response.json({ error: 'target_shielded', asleep: true }, { status: 400 });
   }
 
   // One raid at a time. Two crossings of two burrows at once is a UI nobody
@@ -660,6 +684,9 @@ export async function PATCH(req: Request) {
       defenderLevel: defender.burrowLevel,
       shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
       crowned,
+      // Asleep when the raid STARTED: an owner who comes back mid-crossing
+      // does not turn a tenth into a full haul under the raider's feet.
+      asleep: asleep(defender.lastSeenAt, run.startedAt.getTime()),
     }, Math.random, distanceToField(run.defenderId));
 
     await tx.update(players).set({

@@ -1216,6 +1216,28 @@ export const RAID = {
    */
   NOTHING_TO_TAKE_BELOW: 20,
   /**
+   * ASLEEP, NOT RAIDABLE (2026-10-10): a burrow whose owner has not been seen
+   * for this long is off the raid list and refused at the door, until they
+   * come back — `lastSeenAt` moves on the next launch (`/api/auth/me`), a
+   * login or a run, and the burrow is back on the list with it.
+   *
+   * Measured in production the week before: 129 raids in Europe took 121 922
+   * carrots, twenty-seven times what every run of the week dug (4 545), and
+   * the top raider was walking twice through each of dozens of accounts left
+   * for 15 to 25 days. Nobody defends a burrow nobody opens, so its bank was
+   * a free faucet.
+   *
+   * NOT OFF THE LIST, THOUGH (the user's pick, 2026-10-10): asleep burrows were
+   * 117 of 124 raidable in Europe, 130 of 134 in Singapore, every one in the
+   * US — dropping them emptied the raid list. So an asleep burrow stays
+   * listed, pays ASLEEP_LOOT_SHARE of a normal haul, and only ONCE per
+   * absence: after a raid takes something, it is off the list and shut until
+   * its owner comes back (a raid newer than `lastSeenAt`).
+   */
+  ASLEEP_AFTER_MS: 3 * 24 * 60 * 60 * 1000,
+  /** What an asleep burrow pays, as a share of the haul an awake one would. */
+  ASLEEP_LOOT_SHARE: 0.1,
+  /**
    * Share of the victim's UNHARVESTED garden a raid may take.
    *
    * Wired on 15 September 2026, and the Clash of Clans lesson in one number:

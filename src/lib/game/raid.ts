@@ -104,6 +104,8 @@ export function settleRaid(
     defenderLevel: number;
     shielded: boolean;
     crowned?: boolean;
+    /** The owner is away (RAID.ASLEEP_AFTER_MS): the haul is ASLEEP_LOOT_SHARE of it. */
+    asleep?: boolean;
   },
   rng: () => number = Math.random,
   dist = distanceToField(opts.seed),
@@ -134,7 +136,8 @@ export function settleRaid(
   const share = fullShare * depth;
 
   // The crown is worth stealing: the season leader carries a bigger purse.
-  const mult = opts.crowned ? CROWN.LOOT_MULT : 1;
+  // An asleep burrow pays a tenth (RAID.ASLEEP_LOOT_SHARE): nobody defends it.
+  const mult = (opts.crowned ? CROWN.LOOT_MULT : 1) * (opts.asleep ? RAID.ASLEEP_LOOT_SHARE : 1);
 
   // Two purses, Clash of Clans' collector and storage. The GARDEN is outside
   // and pillaged at its own, higher share; the STOCK is inside, above a floor
@@ -210,8 +213,22 @@ export function maxRaidHaul(stock: number, garden: number): number {
  * Is there nothing worth taking? Then the burrow is shielded for as long as
  * that lasts — RAID.NOTHING_TO_TAKE_BELOW. `garden` is `gardenYield` now.
  */
-export function nothingToTake(stock: number, garden: number): boolean {
-  return maxRaidHaul(stock, garden) < RAID.NOTHING_TO_TAKE_BELOW;
+export function nothingToTake(stock: number, garden: number, sleeping = false): boolean {
+  return maxRaidHaul(stock, garden) * (sleeping ? RAID.ASLEEP_LOOT_SHARE : 1) < RAID.NOTHING_TO_TAKE_BELOW;
+}
+
+/**
+ * Has the owner been away long enough that the burrow is asleep
+ * (RAID.ASLEEP_AFTER_MS)? It then pays ASLEEP_LOOT_SHARE, once per absence.
+ * Wakes by itself: coming back moves `lastSeenAt`.
+ */
+export function asleep(lastSeenAt: Date, now = Date.now()): boolean {
+  return now - lastSeenAt.getTime() > RAID.ASLEEP_AFTER_MS;
+}
+
+/** The `lastSeenAt` a burrow must be newer than to be raidable at `now`. */
+export function awakeSince(now = Date.now()): Date {
+  return new Date(now - RAID.ASLEEP_AFTER_MS);
 }
 
 /**
