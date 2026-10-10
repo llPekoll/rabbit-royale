@@ -97,6 +97,11 @@ func _init(p_map: BurrowMap, p_seed: String, scenery: bool = true,
 	if scenery:
 		_scatter_scenery()
 		_scatter_livestock()
+	_main = _playable_cells()
+	# RIEN DE DEBOUT NE COUPE UNE GRANDE ILE EN DEUX (big-island.ts `openPockets`).
+	if map is IslandMap and (map as IslandMap).is_big:
+		_open_pockets()
+		_by_cell.clear()
 	for p in placements:
 		var at := Vector2i(p.x, p.y)
 		if p.kind == "sheep":
@@ -182,6 +187,87 @@ func steps_from(c: Vector2i) -> Array[Vector2i]:
 		if can_step(c, c + s):
 			out.append(c + s)
 	return out
+
+
+## RIEN DE DEBOUT NE COUPE L'ILE EN DEUX — `openPockets` de big-island.ts, a la
+## lettre et dans le meme ordre : les cases praticables sont rangees en groupes
+## qu'un lapin relie a pied ; tant qu'il y en a deux ou plus, tout obstacle FIXE
+## qui en touche deux s'en va, et si aucun ne le fait, tout obstacle fixe qui
+## touche un autre groupe que le plus grand — une haie epaisse tombe couche par
+## couche. Un arbre sur l'isthme d'une silhouette laissait la moitie de l'ile
+## hors d'atteinte.
+func _open_pockets() -> void:
+	for pass_count in range(64):
+		_by_cell.clear()
+		for p in placements:
+			if p.kind != "sheep":
+				_by_cell[Vector2i(p.x, p.y)] = p
+		var group := {}
+		var sizes: Array[int] = []
+		for y0 in range(map.height):
+			for x0 in range(map.width):
+				var start := Vector2i(x0, y0)
+				if not is_walkable(start) or group.has(start):
+					continue
+				var id := sizes.size()
+				var count := 0
+				var stack: Array[Vector2i] = [start]
+				group[start] = id
+				while not stack.is_empty():
+					var c: Vector2i = stack.pop_back()
+					count += 1
+					for n in steps_from(c):
+						if group.has(n):
+							continue
+						group[n] = id
+						stack.append(n)
+				sizes.append(count)
+		if sizes.size() <= 1:
+			return
+		var main := 0
+		for i in range(1, sizes.size()):
+			if sizes[i] > sizes[main]:
+				main = i
+		var drop := {}
+		for k in range(placements.size()):
+			var p: Dictionary = placements[k]
+			if _fixed_on_board(p) and _touching(p, group).size() >= 2:
+				drop[k] = true
+		if drop.is_empty():
+			for k in range(placements.size()):
+				var p: Dictionary = placements[k]
+				if not _fixed_on_board(p):
+					continue
+				for id in _touching(p, group):
+					if id != main:
+						drop[k] = true
+						break
+		if drop.is_empty():
+			return
+		var kept: Array[Dictionary] = []
+		for k in range(placements.size()):
+			if not drop.has(k):
+				kept.append(placements[k])
+		placements = kept
+
+
+func _fixed_on_board(p: Dictionary) -> bool:
+	return bool(BLOCKS.get(p.kind, false)) and not WANDERS.has(p.kind) \
+		and is_on_board(Vector2i(p.x, p.y))
+
+
+## Les groupes voisins d'un obstacle, a au plus un palier de sa case.
+func _touching(p: Dictionary, group: Dictionary) -> Dictionary:
+	var ids := {}
+	var here := map.level_at(p.x, p.y)
+	for s in STEPS:
+		var n := Vector2i(p.x, p.y) + s
+		if not group.has(n):
+			continue
+		if absi(map.level_at(n.x, n.y) - here) > 1:
+			continue
+		ids[group[n]] = true
+	return ids
 
 
 ## L'APPARITION : la case praticable et INOCCUPEE la plus proche du milieu de

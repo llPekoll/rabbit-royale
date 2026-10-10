@@ -110,7 +110,11 @@ func move(to: Vector2i, now: int) -> Dictionary:
 			dig.knockback = {"tile": at, "stunned_until": stunned_until}
 		IslandBoard.Content.CARROT, IslandBoard.Content.GOLDEN:
 			var golden := kind == IslandBoard.Content.GOLDEN
-			var gain := int(_tune.ENERGY.GOLDEN_GAIN if golden else _tune.ENERGY.CARROT_GAIN)
+			# Un niveau peut payer ses carottes en energie (`carrotGain`, les
+			# grandes iles) — run.ts, a la lettre.
+			var row: Dictionary = board.tier
+			var gain := int(row.get("goldenGain", _tune.ENERGY.GOLDEN_GAIN) if golden \
+				else row.get("carrotGain", _tune.ENERGY.CARROT_GAIN))
 			var value := int(_tune.RUN.GOLDEN_VALUE if golden else _tune.RUN.CARROT_VALUE)
 			energy = _cap(energy + gain)
 			carrots += value

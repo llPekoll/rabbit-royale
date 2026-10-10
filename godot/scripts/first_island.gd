@@ -80,4 +80,9 @@ static func is_first(seed_value: String) -> bool:
 static func ground_seed(seed_value: String) -> String:
 	if is_first(seed_value):
 		return FIRST_SEED_PREFIX + FIRST_ISLAND_GROUND
+	# UNE GRANDE ILE (une ligne de l'echelle avec `big`, BIG_ISLANDS) est son
+	# propre sol : la graine meme taille la cote, les arbres et la mer autour.
+	var level := seed_level(seed_value)
+	if level > 0 and level_row(level).has("big"):
+		return seed_value
 	return ISLAND_GROUND

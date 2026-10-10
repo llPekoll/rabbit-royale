@@ -47,6 +47,10 @@ func _check(c: Dictionary) -> bool:
 	var ms := Time.get_ticks_msec() - t0
 
 	var problems: Array[String] = []
+	# LA GRILLE DE L'ILE : 32x32 pour les petites, taillee a la graine pour une
+	# grande (big_island.gd). Un ecart ici decale chaque indice de case.
+	if c.has("cols") and (map.width != int(c.cols) or map.height != int(c.rows)):
+		problems.append("grille %dx%d, attendu %dx%d" % [map.width, map.height, c.cols, c.rows])
 	if ground.placements.size() != int(c.placements):
 		problems.append("decor %d, attendu %d" % [ground.placements.size(), c.placements])
 	if board.index_of(board.spawn) != int(c.spawn):
@@ -108,8 +112,8 @@ func _check(c: Dictionary) -> bool:
 			problems.append("vue publique : %d cases different" % bad)
 
 	var p := board.chest_progress()
-	var line := "%-12s %d cases, %d coffres (%d lots), %d ms" % [seed_text, got.size(), p.total,
-		loot.size(), ms]
+	var line := "%-12s %dx%d %-11s %d cases, %d coffres (%d lots), %d ms" % [seed_text,
+		map.width, map.height, map.shape_name if map.is_big else "", got.size(), p.total, loot.size(), ms]
 	if problems.is_empty():
 		print("OK   " + line)
 		return true

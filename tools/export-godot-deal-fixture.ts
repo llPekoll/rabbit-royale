@@ -23,7 +23,7 @@ import { CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, levelRow } from '../con
 import { seedLevel } from '../src/lib/game/first-island';
 import { chestRng, generateIsland, publicView } from '../src/lib/game/island';
 import { pickWeighted, randInt } from '../src/lib/game/rng';
-import { spawnTile, terrainFor } from '../src/lib/game/terrainBoard';
+import { gridOf, spawnTile, terrainFor } from '../src/lib/game/terrainBoard';
 
 const CASES: ReadonlyArray<readonly [string, string, number]> = [
   ['default', 'abc', 0],
@@ -35,6 +35,18 @@ const CASES: ReadonlyArray<readonly [string, string, number]> = [
   // counts its chests (RABBIT_LEVELS).
   ['lv1:abc', 'q', 0],
   ['lv6:zz', 'w', 0],
+  // BIG islands (level 7 on, BIG_ISLANDS): their own coast, in a box sized
+  // from the seed. One per silhouette, the free coast, and lv8:fx365, where
+  // `openPockets` takes a blocker off a neck.
+  ['lv7:fx0', 'a', 0],
+  ['lv9:fx2', 'b', 0],
+  ['lv9:fx6', 'c', 0],
+  ['lv7:fx8', 'd', 0],
+  ['lv8:fx29', 'e', 0],
+  ['lv10:fx31', 'f', 0],
+  ['lv7:fx32', 'g', 0],
+  ['lv9:fx46', 'h', 0],
+  ['lv8:fx365', 'i', 0],
 ];
 
 const LETTER = { empty: 'E', carrot: 'C', golden: 'G', bomb: 'B', chest: 'K' } as const;
@@ -57,7 +69,8 @@ const out = CASES.map(([seed, contentSeed, life]) => {
     tiles[i] = LETTER[t.content] + (t.chestTier ? t.chestTier[0] : '')
       + (t.revealed ? 'd' : t.hinted ? 'h' : '') + t.adjacent;
   }
-  return { seed, contentSeed, lifetime: life, spawn: spawnTile(seed),
+  const grid = gridOf(seed);
+  return { seed, contentSeed, lifetime: life, cols: grid.cols, rows: grid.rows, spawn: spawnTile(seed),
            placements: terrainFor(seed).placements.length, tiles, loot,
            view: publicView(island) };
 });

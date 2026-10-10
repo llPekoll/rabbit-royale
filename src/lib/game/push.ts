@@ -22,8 +22,7 @@
  * commits it — which is what lets the server apply a chain atomically instead
  * of discovering halfway down the line that the far end is a cliff.
  */
-import { levelTierAt, terrainNeighbors } from './terrainBoard';
-import { toColRow, toIndex, COLS, ROWS } from '@/config/gridConfig';
+import { cellOf, inGrid, indexOf, levelTierAt, terrainNeighbors } from './terrainBoard';
 import type { Rabbit } from './types';
 
 /**
@@ -82,13 +81,13 @@ export function occupancyOf(rabbits: Iterable<Rabbit>): Map<number, Rabbit> {
  * Returns null when that would leave the grid. Whether it is legal GROUND is a
  * separate question, asked against the terrain below.
  */
-function beyond(from: number, through: number): number | null {
-  const a = toColRow(from);
-  const b = toColRow(through);
+function beyond(seed: string, from: number, through: number): number | null {
+  const a = cellOf(seed, from);
+  const b = cellOf(seed, through);
   const col = b.col + (b.col - a.col);
   const row = b.row + (b.row - a.row);
-  if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return null;
-  return toIndex(col, row);
+  if (!inGrid(seed, col, row)) return null;
+  return indexOf(seed, col, row);
 }
 
 /**
@@ -115,7 +114,7 @@ export function planPush(
   // wins every contested tile, which is invisible and so reads as the game
   // cheating; with it, a genuine mutual rush bounces and nobody loses ground.
   const fresh = target.lastMoveAt > 0 && now - target.lastMoveAt <= HEAD_ON_WINDOW_MS;
-  if (fresh && movedToward(target, mover)) return { ok: false, refusal: 'head-on' };
+  if (fresh && movedToward(seed, target, mover)) return { ok: false, refusal: 'head-on' };
 
   // Rule 3. A stunned rabbit is terrain: it cannot be shoved, so the push
   // simply fails rather than displacing someone who cannot react.
@@ -131,7 +130,7 @@ export function planPush(
     if (!occupant) break;                       // the line ends on empty ground
     if (now < occupant.stunnedUntil) return { ok: false, refusal: 'chain-blocked' };
 
-    const landing = beyond(pushedFrom, pushedTile);
+    const landing = beyond(seed, pushedFrom, pushedTile);
     if (landing === null) return { ok: false, refusal: 'chain-blocked' };
     // The terrain has the final say: cliff, tree and off-board refuse. The
     // SEA does not — it takes the rabbit (rule 2 case 2, `DROWN`), and since
@@ -158,7 +157,7 @@ export function planPush(
  * other wall — only a cell the terrain left under the sea drowns.
  */
 function isSea(seed: string, index: number): boolean {
-  const { col, row } = toColRow(index);
+  const { col, row } = cellOf(seed, index);
   return levelTierAt(seed, col, row) === 0;
 }
 
@@ -173,11 +172,11 @@ function isSea(seed: string, index: number): boolean {
  * `cameFrom` is the tile the target left, which the caller keeps on the rabbit
  * precisely so this question can be asked.
  */
-function movedToward(target: Rabbit, mover: Rabbit): boolean {
+function movedToward(seed: string, target: Rabbit, mover: Rabbit): boolean {
   if (target.cameFrom === undefined) return false;
-  const was = toColRow(target.cameFrom);
-  const now = toColRow(target.tile);
-  const them = toColRow(mover.tile);
+  const was = cellOf(seed, target.cameFrom);
+  const now = cellOf(seed, target.tile);
+  const them = cellOf(seed, mover.tile);
   // Chebyshev distance: on an 8-way grid it is the number of steps between two
   // tiles, so "did this step close the gap" is one comparison.
   const before = Math.max(Math.abs(was.col - them.col), Math.abs(was.row - them.row));

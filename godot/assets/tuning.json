@@ -1,4 +1,287 @@
 {
+ "BIG_ISLANDS": {
+  "SHAPE_CHANCE": 0.35,
+  "MIN_SIDE": 32,
+  "MAX_SIDE": 76,
+  "MIN_FILL": 0.9,
+  "MAX_TRIES": 5,
+  "RAGGED": [
+   0.3,
+   0.55
+  ],
+  "LAND": [
+   0.45,
+   0.58
+  ],
+  "ASPECT": [
+   0.75,
+   1.33
+  ],
+  "SHAPE_RAGGED": 0.26,
+  "SHAPE_INSIDE": 0.3,
+  "SILHOUETTES": [
+   {
+    "name": "atoll",
+    "parts": [
+     {
+      "k": "ring",
+      "x": 0,
+      "y": 0,
+      "r": 0.66,
+      "w": 0.26
+     },
+     {
+      "k": "disc",
+      "x": 0,
+      "y": 0,
+      "r": 0.24
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0.1,
+      "x2": 0,
+      "y2": 0.66,
+      "r": 0.12
+     }
+    ]
+   },
+   {
+    "name": "twins",
+    "parts": [
+     {
+      "k": "disc",
+      "x": -0.46,
+      "y": -0.4,
+      "r": 0.56
+     },
+     {
+      "k": "disc",
+      "x": 0.46,
+      "y": 0.4,
+      "r": 0.56
+     },
+     {
+      "k": "line",
+      "x": -0.46,
+      "y": -0.4,
+      "x2": 0.46,
+      "y2": 0.4,
+      "r": 0.13
+     }
+    ]
+   },
+   {
+    "name": "crescent",
+    "parts": [
+     {
+      "k": "disc",
+      "x": 0,
+      "y": 0,
+      "r": 0.88,
+      "e": 0.25
+     },
+     {
+      "k": "bite",
+      "x": 0.36,
+      "y": -0.3,
+      "r": 0.64,
+      "e": 0.25
+     }
+    ]
+   },
+   {
+    "name": "archipelago",
+    "parts": [
+     {
+      "k": "disc",
+      "x": -0.75,
+      "y": 0.55,
+      "r": 0.36
+     },
+     {
+      "k": "disc",
+      "x": -0.55,
+      "y": -0.25,
+      "r": 0.36
+     },
+     {
+      "k": "disc",
+      "x": 0,
+      "y": -0.65,
+      "r": 0.36
+     },
+     {
+      "k": "disc",
+      "x": 0.55,
+      "y": -0.25,
+      "r": 0.36
+     },
+     {
+      "k": "disc",
+      "x": 0.72,
+      "y": 0.55,
+      "r": 0.36
+     },
+     {
+      "k": "line",
+      "x": -0.75,
+      "y": 0.55,
+      "x2": -0.55,
+      "y2": -0.25,
+      "r": 0.11
+     },
+     {
+      "k": "line",
+      "x": -0.55,
+      "y": -0.25,
+      "x2": 0,
+      "y2": -0.65,
+      "r": 0.11
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": -0.65,
+      "x2": 0.55,
+      "y2": -0.25,
+      "r": 0.11
+     },
+     {
+      "k": "line",
+      "x": 0.55,
+      "y": -0.25,
+      "x2": 0.72,
+      "y2": 0.55,
+      "r": 0.11
+     }
+    ]
+   },
+   {
+    "name": "star",
+    "parts": [
+     {
+      "k": "disc",
+      "x": 0,
+      "y": 0,
+      "r": 0.42
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0,
+      "x2": 0,
+      "y2": -0.92,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0,
+      "x2": 0.875,
+      "y2": -0.284,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0,
+      "x2": 0.541,
+      "y2": 0.744,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0,
+      "x2": -0.541,
+      "y2": 0.744,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0,
+      "y": 0,
+      "x2": -0.875,
+      "y2": -0.284,
+      "r": 0.22
+     }
+    ]
+   },
+   {
+    "name": "horseshoe",
+    "parts": [
+     {
+      "k": "ring",
+      "x": 0,
+      "y": 0.1,
+      "r": 0.6,
+      "w": 0.3
+     },
+     {
+      "k": "bite",
+      "x": 0,
+      "y": 0.8,
+      "r": 0.42,
+      "e": 0.1
+     }
+    ]
+   },
+   {
+    "name": "snake",
+    "parts": [
+     {
+      "k": "line",
+      "x": -0.85,
+      "y": -0.7,
+      "x2": 0.6,
+      "y2": -0.7,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0.6,
+      "y": -0.7,
+      "x2": 0.75,
+      "y2": -0.35,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0.75,
+      "y": -0.35,
+      "x2": -0.6,
+      "y2": 0,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": -0.6,
+      "y": 0,
+      "x2": -0.75,
+      "y2": 0.35,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": -0.75,
+      "y": 0.35,
+      "x2": 0.6,
+      "y2": 0.4,
+      "r": 0.22
+     },
+     {
+      "k": "line",
+      "x": 0.6,
+      "y": 0.4,
+      "x2": 0.85,
+      "y2": 0.75,
+      "r": 0.22
+     }
+    ]
+   }
+  ]
+ },
  "BLOOP": {
   "INK_MS": 6000,
   "FADE_MS": 1500,
@@ -339,6 +622,7 @@
  "RABBIT_LEVELS": {
   "MAX": 10,
   "RAID_MIN": 3,
+  "POOL_FROM": 7,
   "LADDER": [
    {
     "level": 1,
@@ -398,7 +682,7 @@
    {
     "level": 6,
     "tier": "Ashland",
-    "seats": 4,
+    "seats": 2,
     "bombDensity": 0.18,
     "carrotDensity": 0.36,
     "goldenShare": 0.11,
@@ -410,45 +694,69 @@
     "level": 7,
     "tier": "Ashland",
     "seats": 4,
-    "bombDensity": 0.2,
+    "bombDensity": 0.16,
     "carrotDensity": 0.38,
     "goldenShare": 0.13,
     "xGain": 2,
     "land": 0.42,
-    "chests": 6
+    "chests": 6,
+    "big": [
+     650,
+     850
+    ],
+    "carrotGain": 1,
+    "goldenGain": 3
    },
    {
     "level": 8,
     "tier": "Caldera",
     "seats": 4,
-    "bombDensity": 0.21,
+    "bombDensity": 0.17,
     "carrotDensity": 0.4,
     "goldenShare": 0.15,
     "xGain": 2,
     "land": 0.5,
-    "chests": 7
+    "chests": 7,
+    "big": [
+     800,
+     1000
+    ],
+    "carrotGain": 1,
+    "goldenGain": 3
    },
    {
     "level": 9,
     "tier": "Caldera",
     "seats": 4,
-    "bombDensity": 0.22,
+    "bombDensity": 0.18,
     "carrotDensity": 0.41,
     "goldenShare": 0.16,
     "xGain": 2,
     "land": 0.56,
-    "chests": 8
+    "chests": 8,
+    "big": [
+     950,
+     1200
+    ],
+    "carrotGain": 1,
+    "goldenGain": 3
    },
    {
     "level": 10,
     "tier": "Caldera",
     "seats": 4,
-    "bombDensity": 0.24,
+    "bombDensity": 0.19,
     "carrotDensity": 0.43,
     "goldenShare": 0.18,
     "xGain": 2,
     "land": 0.62,
-    "chests": 10
+    "chests": 9,
+    "big": [
+     1100,
+     1450
+    ],
+    "carrotGain": 1,
+    "goldenGain": 3
    }
   ]
  },
@@ -458,6 +766,7 @@
   "LOOT_SHARE": 0.08,
   "LOOT_CAP": 1200,
   "SAFE_FLOOR": 300,
+  "NOTHING_TO_TAKE_BELOW": 20,
   "GARDEN_LOOT_SHARE": 0.35,
   "BROKEN_SHIELD_MS": 57600000,
   "ONBOARDING_SHIELD_MS": 172800000,

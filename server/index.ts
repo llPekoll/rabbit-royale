@@ -31,9 +31,9 @@ import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first
 import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike, struckRabbits } from '../src/lib/game/lightning';
-import { makeShape, toColRow, toIndex } from '../src/config/gridConfig';
+import { makeShape } from '../src/config/gridConfig';
 import { GRAZE_CHANCE, isSpooked, planFlock, type Ground } from '../src/lib/game/flee';
-import { boardFor, terrainFor } from '../src/lib/game/terrainBoard';
+import { boardFor, cellOf, gridOf, indexOf, terrainFor } from '../src/lib/game/terrainBoard';
 import type { Rabbit } from '../src/lib/game/types';
 import { payCrossing } from '../src/lib/game/pay-crossing';
 import { registerSeatLookup } from '../src/lib/game/live-seats';
@@ -1468,7 +1468,7 @@ io.on('connection', (socket: Socket) => {
     // Where the flock stands right now. The seed says where it started, and a
     // sheep blocks its cell — without this the server would wave a rabbit onto
     // a tile it has just told everyone a sheep is standing on.
-    const sheepTiles = new Set([...live.sheep.values()].map((at) => toIndex(at.x, at.y)));
+    const sheepTiles = new Set([...live.sheep.values()].map((at) => indexOf(live.island.seed, at.x, at.y)));
     const out = resolveMove(live.island, rabbit, to, live.shape, rng, Date.now(), others, sheepTiles);
     if (!out.ok) return socket.emit('move_rejected', { reason: out.rejection });
 
@@ -1817,7 +1817,7 @@ function groundFor(live: LiveIsland): { ground: Ground; occupied: Set<string> } 
   const occupied = new Set<string>();
   for (const at of live.sheep.values()) occupied.add(`${at.x},${at.y}`);
   for (const rabbit of live.rabbits.values()) {
-    const { col, row } = toColRow(rabbit.tile);
+    const { col, row } = cellOf(seed, rabbit.tile);
     occupied.add(`${col},${row}`);
   }
   return {
@@ -1853,7 +1853,7 @@ function anySheepSpooked(live: LiveIsland): boolean {
   const rabbitTiles = [...live.rabbits.values()].filter((r) => r.alive).map((r) => r.tile);
   if (rabbitTiles.length === 0) return false;
   for (const [id, at] of live.sheep) {
-    if (isSpooked({ id, x: at.x, y: at.y }, rabbitTiles)) return true;
+    if (isSpooked({ id, x: at.x, y: at.y }, rabbitTiles, gridOf(live.island.seed).cols)) return true;
   }
   return false;
 }
@@ -1900,6 +1900,7 @@ setInterval(guard('flock', () => {
         occupied.delete(`${from.x},${from.y}`);
         occupied.add(`${to.x},${to.y}`);
       },
+      gridOf(live.island.seed).cols,
     );
     if (!flights.length) continue;
 
@@ -1907,11 +1908,11 @@ setInterval(guard('flock', () => {
     io.to(roomFor(live.island.id)).emit('sheep_moved', {
       sheep: flights.map((f) => ({
         id: f.id,
-        tile: toIndex(f.to.x, f.to.y),
+        tile: indexOf(live.island.seed, f.to.x, f.to.y),
         // Every cell it crossed, not just where it ended up. A sprint bends
         // around whatever it ran past, so the endpoints alone leave the client
         // no honest way to animate it — see `Flight.path`.
-        path: f.path.map((c) => toIndex(c.x, c.y)),
+        path: f.path.map((c) => indexOf(live.island.seed, c.x, c.y)),
         sprinting: f.sprinting,
       })),
     });

@@ -37,6 +37,10 @@ var _frames: Array = []
 var _frames_of: Array = []
 var _phases: PackedFloat32Array = PackedFloat32Array()
 var _elapsed := 0.0
+## L'image posee sur chaque rocher : on ne la reassigne que quand elle change.
+## Une grande ile a beaucoup de mer, donc des centaines de rochers, et l'image
+## ne tourne que toutes les `frame_ms`.
+var _shown: PackedInt32Array = PackedInt32Array()
 
 
 func _ready() -> void:
@@ -100,6 +104,7 @@ func build() -> void:
 			add_child(s)
 			_sprites.append(s)
 			_phases.append(rng.next() * float(look["frames"]))
+			_shown.append(0)
 			_frames_of.append(sheet)
 
 
@@ -135,8 +140,11 @@ func _process(delta: float) -> void:
 	var base := _elapsed / float(look["frame_ms"])
 	for i in range(_sprites.size()):
 		var sheet: Array = _frames_of[i]
-		var n: int = sheet.size()
-		_sprites[i].texture = sheet[int(base + _phases[i]) % n]
+		var at := int(base + _phases[i]) % sheet.size()
+		if at == _shown[i]:
+			continue
+		_shown[i] = at
+		_sprites[i].texture = sheet[at]
 
 
 func clear() -> void:
@@ -145,6 +153,7 @@ func clear() -> void:
 	_sprites.clear()
 	_frames_of.clear()
 	_phases = PackedFloat32Array()
+	_shown = PackedInt32Array()
 	_cells.clear()
 
 

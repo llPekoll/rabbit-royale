@@ -28,8 +28,7 @@ import { db } from '../../src/lib/db';
 const sql = postgres(process.env.DATABASE_URL!, { max: 4 });
 import { players, inventory, traps as trapsTable, fences as fencesTable } from '../../src/lib/db/schema';
 import { grantItem } from '../../src/lib/game/grant';
-import { farmableTiles, terrainNeighbors } from '../../src/lib/game/terrainBoard';
-import { toColRow, toIndex, COLS, ROWS } from '../../src/config/gridConfig';
+import { cellOf, farmableTiles, inGrid, indexOf, terrainNeighbors } from '../../src/lib/game/terrainBoard';
 import { fieldTiles, isTrappable, isDoorstep, walkableTiles, setBurrowEdits } from '../../src/game/burrow/board';
 import { fenceSpans } from '../../src/game/burrow/fence';
 import { distanceToField } from '../../src/lib/game/raid';
@@ -260,14 +259,14 @@ async function ensureEnergy(b: Bot, firstOfSession: boolean, need: number = ENER
 // ── The island brain ─────────────────────────────────────────────────────────
 interface Cell { dug?: string; adj?: number; hint?: number; flagged?: boolean }
 
-function neighbours8(tiles: Set<number>, t: number): number[] {
-  const { col, row } = toColRow(t);
+function neighbours8(seed: string, tiles: Set<number>, t: number): number[] {
+  const { col, row } = cellOf(seed, t);
   const out: number[] = [];
   for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
     if (!dc && !dr) continue;
     const c = col + dc, r = row + dr;
-    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) continue;
-    const n = toIndex(c, r);
+    if (!inGrid(seed, c, r)) continue;
+    const n = indexOf(seed, c, r);
     if (tiles.has(n)) out.push(n);
   }
   return out;
@@ -305,7 +304,7 @@ class IslandRun {
     for (const f of snap.flagged ?? []) this.cell(f).flagged = true;
     for (const c of snap.chests ?? []) this.chests.add(c.tile);
     for (const r of snap.rabbits ?? []) this.rabbits.set(r.playerId, { tile: r.tile, alive: r.alive, name: r.name });
-    for (const s of snap.sheep ?? []) this.sheep.set(s.id, toIndex(s.x, s.y));
+    for (const s of snap.sheep ?? []) this.sheep.set(s.id, indexOf(this.seed, s.x, s.y));
     const mine = this.rabbits.get(this.b.id);
     if (mine) { this.me = mine.tile; }
     const self = (snap.rabbits ?? []).find((r: any) => r.playerId === this.b.id);
@@ -377,7 +376,7 @@ class IslandRun {
       for (const [t, c] of this.cells) {
         const n = c.dug && c.dug !== 'bomb' ? c.adj : c.hint;
         if (n === undefined || Math.random() > skill) continue;
-        const nb = neighbours8(this.tiles, t);
+        const nb = neighbours8(this.seed, this.tiles, t);
         const unknown = nb.filter((x) => !this.isBomb(x) && !this.isSafe(x));
         if (!unknown.length) continue;
         const rem = n - nb.filter((x) => this.isBomb(x)).length;
@@ -389,11 +388,11 @@ class IslandRun {
 
   riskOf(t: number): number {
     let p = levelRow(Math.max(1, this.level)).bombDensity;
-    for (const n of neighbours8(this.tiles, t)) {
+    for (const n of neighbours8(this.seed, this.tiles, t)) {
       const c = this.cells.get(n);
       const v = c?.dug && c.dug !== 'bomb' ? c.adj : c?.hint;
       if (v === undefined) continue;
-      const nb = neighbours8(this.tiles, n);
+      const nb = neighbours8(this.seed, this.tiles, n);
       const unknown = nb.filter((x) => !this.isBomb(x) && !this.isSafe(x)).length;
       if (unknown) p = Math.max(p, (v - nb.filter((x) => this.isBomb(x)).length) / unknown);
     }
@@ -425,8 +424,8 @@ class IslandRun {
     }
     if (!found.length) return null;
     const chestDist = (t: number) => {
-      let m = 99; const a = toColRow(t);
-      for (const c of this.chests) { const b = toColRow(c); m = Math.min(m, Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))); }
+      let m = 99; const a = cellOf(this.seed, t);
+      for (const c of this.chests) { const b = cellOf(this.seed, c); m = Math.min(m, Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row))); }
       return m;
     };
     found.sort((x, y) => (x.kind === 'chest' ? -100 : 0) + x.d + 0.7 * chestDist(x.t) - ((y.kind === 'chest' ? -100 : 0) + y.d + 0.7 * chestDist(y.t)));
@@ -520,7 +519,7 @@ async function playRun(b: Bot, s: Socket): Promise<string> {
     if (run.taught !== null && !run.cell(run.taught).flagged) run.deducedBomb.add(run.taught);
 
     // X a proven bomb next to us.
-    const adjBomb = neighbours8(run.tiles, run.me).find((t) => run.deducedBomb.has(t) && !run.cell(t).flagged && !run.isDug(t));
+    const adjBomb = neighbours8(run.seed, run.tiles, run.me).find((t) => run.deducedBomb.has(t) && !run.cell(t).flagged && !run.isDug(t));
     if (adjBomb !== undefined && (Math.random() < b.arch.flag || adjBomb === run.taught)) {
       const r = await run.ask('flag', { tile: adjBomb });
       if (r.ok) { flags++; st(b, r.f.correct ? 'x_right' : 'x_wrong'); if (!r.f.correct) anomaly('x_wrong_on_proven_bomb', { bot: b.name, tile: adjBomb, level: run.level, note: 'deduction said bomb — solver bug or mirage/plant' }); }

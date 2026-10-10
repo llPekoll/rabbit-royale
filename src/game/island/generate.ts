@@ -46,7 +46,32 @@ export interface IslandOptions {
    * coastline with bays.
    */
   raggedness?: number;
+  /**
+   * A drawn outline in place of the ellipse — an atoll, two islands and an
+   * isthmus, a snake (`BIG_ISLANDS.SILHOUETTES`). The noise still cuts the
+   * coast; only what it is pulled toward changes.
+   */
+  silhouette?: readonly SilhouettePart[];
 }
+
+/**
+ * One stroke of a silhouette, in the box's own frame: -1..1 on both axes.
+ *
+ * A part ADDS land (the field is the max over them), except `bite`, which is
+ * applied after and takes land away. Every value is a plain number so the same
+ * table drives the Godot port (`island_map.gd`) through tuning.json.
+ *
+ * - `disc`: 1 at the centre, 0 at radius `r`, reaching full height `e` inside
+ *   the rim when `e` is given (a flat-topped disc).
+ * - `ring`: 1 on the circle of radius `r`, 0 at `w` either side of it.
+ * - `line`: a capsule from (x, y) to (x2, y2), 1 on the segment, 0 at `r`.
+ * - `bite`: below zero inside radius `r`, back at full height `e` outside it.
+ */
+export type SilhouettePart =
+  | { readonly k: 'disc'; readonly x: number; readonly y: number; readonly r: number; readonly e?: number }
+  | { readonly k: 'ring'; readonly x: number; readonly y: number; readonly r: number; readonly w: number }
+  | { readonly k: 'line'; readonly x: number; readonly y: number; readonly x2: number; readonly y2: number; readonly r: number }
+  | { readonly k: 'bite'; readonly x: number; readonly y: number; readonly r: number; readonly e: number };
 
 const DEFAULTS = { width: 34, height: 24, tiers: 3, land: 0.46, rise: 0.55, raggedness: 0.4 } as const;
 
@@ -118,6 +143,53 @@ function falloffField(width: number, height: number, reach: number): Float32Arra
       const dx = (x - cx) / rx;
       const dy = (y - cy) / ry;
       out[y * width + x] = Math.max(0, 1 - Math.sqrt(dx * dx + dy * dy));
+    }
+  }
+  return out;
+}
+
+/**
+ * A drawn outline as a falloff, clamped to [0, 1].
+ *
+ * MIRRORED BIT FOR BIT in godot/scripts/island_map.gd (`_silhouette_field`):
+ * plain doubles, `Math.sqrt` of a sum of squares (never `hypot`, which rounds
+ * differently from the Godot side), and the same order of operations, so both
+ * sides threshold the same values and cut the same coast.
+ */
+export function silhouetteField(width: number, height: number, parts: readonly SilhouettePart[]): Float32Array {
+  const out = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const u = ((x / (width - 1)) * 2 - 1) / FALLOFF_REACH;
+      const v = ((y / (height - 1)) * 2 - 1) / FALLOFF_REACH;
+      let f = 0;
+      for (const p of parts) {
+        if (p.k === 'bite') continue;
+        let g: number;
+        if (p.k === 'disc') {
+          const d = Math.sqrt((u - p.x) * (u - p.x) + (v - p.y) * (v - p.y));
+          g = (p.r - d) / (p.e ?? p.r);
+        } else if (p.k === 'ring') {
+          const d = Math.sqrt((u - p.x) * (u - p.x) + (v - p.y) * (v - p.y));
+          g = 1 - Math.abs(d - p.r) / p.w;
+        } else {
+          const ax = p.x2 - p.x;
+          const ay = p.y2 - p.y;
+          let t = ((u - p.x) * ax + (v - p.y) * ay) / (ax * ax + ay * ay);
+          t = Math.min(1, Math.max(0, t));
+          const qx = u - (p.x + ax * t);
+          const qy = v - (p.y + ay * t);
+          g = 1 - Math.sqrt(qx * qx + qy * qy) / p.r;
+        }
+        if (g > f) f = g;
+      }
+      for (const p of parts) {
+        if (p.k !== 'bite') continue;
+        const d = Math.sqrt((u - p.x) * (u - p.x) + (v - p.y) * (v - p.y));
+        const g = (d - p.r) / p.e;
+        if (g < f) f = g;
+      }
+      out[y * width + x] = Math.min(1, Math.max(0, f));
     }
   }
   return out;
@@ -273,7 +345,9 @@ export function generateIsland(options: IslandOptions): IslandMap {
   const ragged = options.raggedness ?? DEFAULTS.raggedness;
 
   const rng = mulberry32(seedFrom(options.seed));
-  const falloff = falloffField(width, height, FALLOFF_REACH);
+  const falloff = options.silhouette
+    ? silhouetteField(width, height, options.silhouette)
+    : falloffField(width, height, FALLOFF_REACH);
 
   // The coastline: noise coarse enough to read as bays rather than as static,
   // pulled toward the middle of the box by the falloff.

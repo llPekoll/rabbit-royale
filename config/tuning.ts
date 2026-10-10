@@ -547,6 +547,16 @@ export interface LevelRow {
   readonly land: number;
   /** Chests dealt on the rim: the island ends on the last one. */
   readonly chests: number;
+  /**
+   * A BIG ISLAND of its own (2026-10-09): the tile count the island is cut to,
+   * drawn between the two bounds from its seed. Absent = the shared ground
+   * (`ISLAND_GROUND`) cut to `land`. See BIG_ISLANDS.
+   */
+  readonly big?: readonly [number, number];
+  /** Energy a dug carrot / golden pays on this level. Absent = ENERGY's
+   *  CARROT_GAIN / GOLDEN_GAIN (0 since September). */
+  readonly carrotGain?: number;
+  readonly goldenGain?: number;
 }
 
 export const RABBIT_LEVELS = {
@@ -567,11 +577,127 @@ export const RABBIT_LEVELS = {
     { level: 4,  tier: 'Thicket', seats: 2, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3 },
     { level: 5,  tier: 'Thicket', seats: 2, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4 },
     { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5 },
-    { level: 7,  tier: 'Ashland', seats: 4, bombDensity: 0.20, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6 },
-    { level: 8,  tier: 'Caldera', seats: 4, bombDensity: 0.21, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7 },
-    { level: 9,  tier: 'Caldera', seats: 4, bombDensity: 0.22, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8 },
-    { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.24, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2, land: 0.62, chests: 10 },
+    { level: 7,  tier: 'Ashland', seats: 4, bombDensity: 0.16, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6, big: [650, 850], carrotGain: 1, goldenGain: 3 },
+    { level: 8,  tier: 'Caldera', seats: 4, bombDensity: 0.17, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7, big: [800, 1000], carrotGain: 1, goldenGain: 3 },
+    { level: 9,  tier: 'Caldera', seats: 4, bombDensity: 0.18, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8, big: [950, 1200], carrotGain: 1, goldenGain: 3 },
+    { level: 10, tier: 'Caldera', seats: 4, bombDensity: 0.19, carrotDensity: 0.43, goldenShare: 0.18, xGain: 2, land: 0.62, chests: 9, big: [1100, 1450], carrotGain: 1, goldenGain: 3 },
   ] as readonly LevelRow[],
+} as const;
+
+/**
+ * THE BIG ISLANDS — from level 7 on, every island is its own (2026-10-09).
+ *
+ * A player said the game was monotonous, and the pictures agreed: levels 1 to
+ * 7 were one coastline growing, and level 10 was the same 530 tiles forever.
+ * So from the row that carries `big`, an island stops sharing ISLAND_GROUND:
+ * its own seed cuts its own coast, twice the size of the old level 7 and up,
+ * and one in three is a drawn SILHOUETTE (an atoll, two islands on an
+ * isthmus, a snake...) instead of the generator's free coast. Levels 1 to 6
+ * and the tutorial are untouched, tile for tile.
+ *
+ * The box is sized to the TILE COUNT, not the other way round: the cutter
+ * grows the box until the island holds at least MIN_FILL of the count it drew
+ * (`cutBigGround`), so a skinny snake gets a bigger box than a round one and
+ * no level ever deals a disappointing islet.
+ *
+ * THE DENSITIES CAME DOWN WITH IT. A bomb is dealt per tile, so twice the
+ * island was twice the bombs on a lap twice as long, and at the old 0.20-0.24
+ * four readers on a level-8 island died three times in four. Measured with
+ * the ladder robots (tools/sim-dig-core `playLevel`, four seats, a full tank,
+ * 16 islands a level), reader / walker cleared:
+ *
+ *            before (530 tiles max)    after (bombs 0.16-0.19, chests 6-9)
+ *   L7        100% / 58%               94% / 13%
+ *   L8        100% / 42%               94% /  0%
+ *   L9         75% /  8%               75% /  0%
+ *   L10        83% /  8%               63% /  0%
+ *
+ * A climb, as asked: the guesser stops at the big islands, the reader feels
+ * each level, and the solver (`prober`) clears them all. A course pays about
+ * twice the carrots it did, on a lap about twice as long. (Measured with the
+ * chests already on bomb-free roads — see `rimTiles`.)
+ *
+ * THE CARROTS FUEL THE LAP (`carrotGain` 1, `goldenGain` 3). Those figures are
+ * four robots sharing the island. Alone — the common case while the seats
+ * are rarely full — a lap twice as long ran the tank dry: with carrots paying
+ * no energy (ENERGY.CARROT_GAIN 0), a lone reader cleared 13% of level 7 and
+ * none of 8 to 10, the solver at most 19% (bomb at 60, as in production).
+ * One point a carrot, three a golden, and the lone reader / solver clear:
+ *
+ *            L7     L8     L9     L10
+ *   alone    75%    63%    63%    50%   (solver 100% everywhere)
+ *   four    100%   100%   100%    94%   (guesser 56% -> 0%)
+ *
+ * A lone lap that reaches its last chest digs most of the island, so it pays
+ * 1 500 - 2 900 carrots; four seats share that, 400 - 900 each.
+ */
+export const BIG_ISLANDS = {
+  /** Share of big islands cut to a silhouette rather than the free coast. */
+  SHAPE_CHANCE: 0.35,
+  /** Box side bounds, in cells. The grid travels with the seed, never the wire. */
+  MIN_SIDE: 32,
+  MAX_SIDE: 76,
+  /** The cutter re-cuts a bigger box until the island holds this share of its count. */
+  MIN_FILL: 0.9,
+  /** Re-cuts allowed before the cutter settles for what it has. */
+  MAX_TRIES: 5,
+  /** The free coast's dials, drawn from the seed: how ragged, how much of the
+   *  box, and how wide against how tall. */
+  RAGGED: [0.3, 0.55],
+  LAND: [0.45, 0.58],
+  ASPECT: [0.75, 1.33],
+  /** A silhouette's coast is calmer, or the noise eats its isthmuses. */
+  SHAPE_RAGGED: 0.26,
+  /** A silhouette's land share: the cells its field covers above this. */
+  SHAPE_INSIDE: 0.3,
+  /** The outlines, in the box's -1..1 frame (generate.ts `SilhouettePart`). */
+  SILHOUETTES: [
+    { name: 'atoll', parts: [
+      { k: 'ring', x: 0, y: 0, r: 0.66, w: 0.26 },
+      { k: 'disc', x: 0, y: 0, r: 0.24 },
+      { k: 'line', x: 0, y: 0.1, x2: 0, y2: 0.66, r: 0.12 },
+    ] },
+    { name: 'twins', parts: [
+      { k: 'disc', x: -0.46, y: -0.4, r: 0.56 },
+      { k: 'disc', x: 0.46, y: 0.4, r: 0.56 },
+      { k: 'line', x: -0.46, y: -0.4, x2: 0.46, y2: 0.4, r: 0.13 },
+    ] },
+    { name: 'crescent', parts: [
+      { k: 'disc', x: 0, y: 0, r: 0.88, e: 0.25 },
+      { k: 'bite', x: 0.36, y: -0.3, r: 0.64, e: 0.25 },
+    ] },
+    { name: 'archipelago', parts: [
+      { k: 'disc', x: -0.75, y: 0.55, r: 0.36 },
+      { k: 'disc', x: -0.55, y: -0.25, r: 0.36 },
+      { k: 'disc', x: 0, y: -0.65, r: 0.36 },
+      { k: 'disc', x: 0.55, y: -0.25, r: 0.36 },
+      { k: 'disc', x: 0.72, y: 0.55, r: 0.36 },
+      { k: 'line', x: -0.75, y: 0.55, x2: -0.55, y2: -0.25, r: 0.11 },
+      { k: 'line', x: -0.55, y: -0.25, x2: 0, y2: -0.65, r: 0.11 },
+      { k: 'line', x: 0, y: -0.65, x2: 0.55, y2: -0.25, r: 0.11 },
+      { k: 'line', x: 0.55, y: -0.25, x2: 0.72, y2: 0.55, r: 0.11 },
+    ] },
+    { name: 'star', parts: [
+      { k: 'disc', x: 0, y: 0, r: 0.42 },
+      { k: 'line', x: 0, y: 0, x2: 0, y2: -0.92, r: 0.22 },
+      { k: 'line', x: 0, y: 0, x2: 0.875, y2: -0.284, r: 0.22 },
+      { k: 'line', x: 0, y: 0, x2: 0.541, y2: 0.744, r: 0.22 },
+      { k: 'line', x: 0, y: 0, x2: -0.541, y2: 0.744, r: 0.22 },
+      { k: 'line', x: 0, y: 0, x2: -0.875, y2: -0.284, r: 0.22 },
+    ] },
+    { name: 'horseshoe', parts: [
+      { k: 'ring', x: 0, y: 0.1, r: 0.6, w: 0.3 },
+      { k: 'bite', x: 0, y: 0.8, r: 0.42, e: 0.1 },
+    ] },
+    { name: 'snake', parts: [
+      { k: 'line', x: -0.85, y: -0.7, x2: 0.6, y2: -0.7, r: 0.22 },
+      { k: 'line', x: 0.6, y: -0.7, x2: 0.75, y2: -0.35, r: 0.22 },
+      { k: 'line', x: 0.75, y: -0.35, x2: -0.6, y2: 0, r: 0.22 },
+      { k: 'line', x: -0.6, y: 0, x2: -0.75, y2: 0.35, r: 0.22 },
+      { k: 'line', x: -0.75, y: 0.35, x2: 0.6, y2: 0.4, r: 0.22 },
+      { k: 'line', x: 0.6, y: 0.4, x2: 0.85, y2: 0.75, r: 0.22 },
+    ] },
+  ],
 } as const;
 
 /** A level's row, clamped to the ladder: anything below 1 reads as 1, above MAX as MAX. */

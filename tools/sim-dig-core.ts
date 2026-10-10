@@ -5,7 +5,8 @@
 import * as T from '../config/tuning';
 import { boardNeighbors, chestProgress, generateIsland, islandProgress } from '../src/lib/game/island';
 import { flagTile, resolveMove, spawnRabbit } from '../src/lib/game/run';
-import { makeShape, manhattanDist } from '../src/config/gridConfig';
+import { makeShape } from '../src/config/gridConfig';
+import { cellOf } from '../src/lib/game/terrainBoard';
 import { terrainNeighbors } from '../src/lib/game/terrainBoard';
 import { mulberry32 } from '../src/lib/game/rng';
 import { levelSeed } from '../src/lib/game/first-island';
@@ -138,7 +139,11 @@ function runner(island: Island, shape: ReturnType<typeof makeShape>, seed: strin
     }
     // Nearest unopened chest, for a robot that heads for them (stocks.chase).
     const chests = stocks.chase ? [...tiles].filter(([, t]) => t.content === 'chest' && !t.revealed).map(([i]) => i) : [];
-    const toChest = (i: number) => chests.reduce((m, c) => Math.min(m, manhattanDist(i, c)), Infinity);
+    const manhattan = (a: number, b: number) => {
+      const p = cellOf(seed, a), q = cellOf(seed, b);
+      return Math.abs(p.col - q.col) + Math.abs(p.row - q.row);
+    };
+    const toChest = (i: number) => chests.reduce((m, c) => Math.min(m, manhattan(i, c)), Infinity);
     if (chests.length) diggable.sort((a, b) => toChest(a) - toChest(b));
     const sure = diggable.find((i) => safe.has(i));
     if (sure !== undefined) { if (!dig(sure)) return 'stop'; return 'go'; }

@@ -115,6 +115,18 @@ var level: PackedByteArray
 var bounds := Rect2()
 var bounds_key: Array = []
 
+## LE PLAFOND DU ZOOM NE DESCEND PAS SOUS CETTE ECHELLE. Le plafond est un
+## multiple du fit (`BurrowCamera.PLACE_ZOOM_MAX`) : sur une grande ile (niveau
+## 7 et plus) le fit est si petit que trois fois lui restait sous le zoom de
+## jeu, et l'ile ne s'approchait plus jusqu'aux 60 pixels par case. L'ile pose
+## ici l'echelle de jeu ; le terrier laisse zero.
+var zoom_cap_floor := 0.0
+
+## Les hauteurs par palier que le doigt essaie (`BurrowPick._lifts_of`), gardees
+## avec la cle de ce dont elles dependent. Ne pas lire directement.
+var lifts_by_tier := {}
+var lifts_key: Array = []
+
 
 func _init(p_width: int = Iso.BURROW_COLS, p_height: int = Iso.BURROW_ROWS,
 		p_origin: Vector2 = Iso.BURROW_ORIGIN) -> void:

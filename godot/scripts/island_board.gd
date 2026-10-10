@@ -676,7 +676,13 @@ func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String
 	# la couronne ne doit pas se deduire de la graine publique.
 	var chest_count := level_chests if level_chests >= 0 \
 		else int(round(total * float(tune.ISLAND.CHEST_DENSITY)))
-	for c in _rim_tiles(free.call(), dist, furthest, chest_count):
+	# MESUREE EN CONTOURNANT LES BOMBES : un coffre garde un chemin qu'aucun X
+	# ne ferme (island.ts `rimTiles`).
+	var rim_dist := _steps_from(spawn, true)
+	var rim_furthest := 1
+	for d in rim_dist.values():
+		rim_furthest = maxi(rim_furthest, d)
+	for c in _rim_tiles(free.call(), rim_dist, rim_furthest, chest_count):
 		content[c] = Content.CHEST
 		chest_tier[c] = String(pick_weighted(rng, tune.CHEST_TIER_WEIGHTS).kind)
 
@@ -696,7 +702,11 @@ func deal_generated(p_ground: IslandGround, p_seed: String, content_seed: String
 
 ## island.ts `stepsFrom` : la distance en PAS, pas en cases — une case de
 ## l'autre cote d'une falaise est loin, si proche que son index paraisse.
-func _steps_from(from: Vector2i) -> Dictionary:
+##
+## `around_bombs` : sans jamais passer par une bombe — la marche dont les
+## coffres sont choisis (island.ts `rimTiles`) : un X est un mur, et un coffre
+## doit garder un chemin qu'aucun X ne ferme.
+func _steps_from(from: Vector2i, around_bombs: bool = false) -> Dictionary:
 	var dist := {from: 0}
 	var queue: Array[Vector2i] = [from]
 	var head := 0
@@ -705,6 +715,8 @@ func _steps_from(from: Vector2i) -> Dictionary:
 		head += 1
 		for n in ground.steps_from(here):
 			if not content.has(n) or dist.has(n):
+				continue
+			if around_bombs and content[n] == Content.BOMB:
 				continue
 			dist[n] = dist[here] + 1
 			queue.append(n)

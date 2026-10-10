@@ -76,6 +76,17 @@ const MIN_PLATEAU_CELLS := 10
 ## La graine texte dont cette ile est sortie — ce qui voyage sur le fil.
 var seed_text := ""
 
+## UNE SILHOUETTE DESSINEE a la place de l'ellipse (BIG_ISLANDS.SILHOUETTES,
+## generate.ts `silhouette`). Vide = l'ellipse du jeu.
+var silhouette: Array = []
+
+## UNE GRANDE ILE (niveau 7 et plus) : sa propre cote, dans une boite taillee a
+## son nombre de cases (big_island.gd). Le decor y ouvre les culs-de-sac.
+var is_big := false
+
+## Le nom de la silhouette d'une grande ile, vide pour la cote libre.
+var shape_name := ""
+
 
 func _init(p_width: int = COLS, p_height: int = ROWS,
 		p_origin: Vector2 = Vector2.ZERO) -> void:
@@ -110,8 +121,20 @@ func grow(seed_value: String) -> void:
 	# Une ile de l'echelle prend la taille de son niveau (RABBIT_LEVELS
 	# `land`) : meme bruit, plus de terre hors de l'eau a mesure que le lapin
 	# monte.
-	var land_share := FIRST_RUN_LAND if first else ISLAND_LAND
 	var level := FirstIsland.seed_level(seed_value)
+	# UNE GRANDE ILE se taille dans sa propre graine (`key` est la graine meme,
+	# `ground_seed`), dans une boite a la taille de son niveau.
+	var big := {} if first else BigIsland.plan(key, level)
+	if not big.is_empty():
+		var cut := BigIsland.size(key, big, ISLAND_RISE)
+		width = int(cut.width)
+		height = int(cut.height)
+		silhouette = cut.silhouette
+		is_big = true
+		shape_name = String(big.shape)
+		shape(key, float(cut.land), ISLAND_RISE, float(cut.ragged), TIERS_WANTED)
+		return
+	var land_share := FIRST_RUN_LAND if first else ISLAND_LAND
 	if not first and level > 0:
 		land_share = float(FirstIsland.level_row(level).land)
 	shape(key, land_share, ISLAND_RISE, ISLAND_RAGGEDNESS, TIERS_WANTED)
@@ -269,8 +292,10 @@ static func _smooth(t: float) -> float:
 	return t * t * (3.0 - 2.0 * t)
 
 
-## 1 au centre de la boite, 0 au bord de l'ellipse inscrite.
+## 1 au centre de la boite, 0 au bord de l'ellipse inscrite — ou la silhouette.
 func _falloff_field() -> PackedFloat32Array:
+	if not silhouette.is_empty():
+		return _silhouette_field()
 	var cx := float(width - 1) * 0.5
 	var cy := float(height - 1) * 0.5
 	var rx := float(width) * 0.5 * FALLOFF_REACH
@@ -282,6 +307,54 @@ func _falloff_field() -> PackedFloat32Array:
 			var dx := (float(x) - cx) / rx
 			var dy := (float(y) - cy) / ry
 			out[y * width + x] = maxf(0.0, 1.0 - sqrt(dx * dx + dy * dy))
+	return out
+
+
+## UNE SILHOUETTE EN CHAMP, bornee a [0, 1] — `silhouetteField` de generate.ts,
+## A LA LETTRE : des flottants GDScript (64 bits, comme le JS), jamais de
+## Vector2 (32 bits), la racine d'une somme de carres, et le meme ordre des
+## operations. Sinon un seuil tombe d'un cote ici et de l'autre au serveur.
+func _silhouette_field() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(width * height)
+	for y in range(height):
+		for x in range(width):
+			var u := ((float(x) / float(width - 1)) * 2.0 - 1.0) / FALLOFF_REACH
+			var v := ((float(y) / float(height - 1)) * 2.0 - 1.0) / FALLOFF_REACH
+			var f := 0.0
+			for p in silhouette:
+				var k := String(p.k)
+				if k == "bite":
+					continue
+				var px := float(p.x)
+				var py := float(p.y)
+				var g: float
+				if k == "disc":
+					var d := sqrt((u - px) * (u - px) + (v - py) * (v - py))
+					g = (float(p.r) - d) / float(p.get("e", p.r))
+				elif k == "ring":
+					var d := sqrt((u - px) * (u - px) + (v - py) * (v - py))
+					g = 1.0 - absf(d - float(p.r)) / float(p.w)
+				else:
+					var ax := float(p.x2) - px
+					var ay := float(p.y2) - py
+					var t := ((u - px) * ax + (v - py) * ay) / (ax * ax + ay * ay)
+					t = minf(1.0, maxf(0.0, t))
+					var qx := u - (px + ax * t)
+					var qy := v - (py + ay * t)
+					g = 1.0 - sqrt(qx * qx + qy * qy) / float(p.r)
+				if g > f:
+					f = g
+			for p in silhouette:
+				if String(p.k) != "bite":
+					continue
+				var px := float(p.x)
+				var py := float(p.y)
+				var d := sqrt((u - px) * (u - px) + (v - py) * (v - py))
+				var g := (d - float(p.r)) / float(p.e)
+				if g < f:
+					f = g
+			out[y * width + x] = minf(1.0, maxf(0.0, f))
 	return out
 
 

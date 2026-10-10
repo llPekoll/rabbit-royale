@@ -32,6 +32,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# HORS DE L'ECRAN, RIEN : au zoom de jeu on ne voit qu'un morceau de la
+	# cote, et une grande ile en porte des centaines de cases. Les gouttes en
+	# vol s'eteignent une fois, puis le noeud ne coute plus qu'un test.
+	if not _on_screen():
+		if not _drops.is_empty():
+			_drops.clear()
+			queue_redraw()
+		return
 	var alive: Array[Dictionary] = []
 	for d in _drops:
 		d.age += delta
@@ -49,6 +57,12 @@ func _process(delta: float) -> void:
 				"hop": _rng.randf_range(1.0, 3.0),
 			})
 	queue_redraw()
+
+
+func _on_screen() -> bool:
+	var at := get_global_transform_with_canvas().origin
+	var room := get_viewport_rect().grow(64.0)
+	return room.has_point(at)
 
 
 func _draw() -> void:

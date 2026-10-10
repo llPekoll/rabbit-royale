@@ -32,6 +32,10 @@ var _sprites: Array[Sprite2D] = []
 ## L'image de depart de chaque sprite, pour que la cote ne pulse jamais.
 var _offsets: PackedInt32Array = PackedInt32Array()
 var _elapsed := 0.0
+## L'image de la boucle posee au dernier tour. Elles avancent toutes ensemble
+## (le decalage de chacune est fixe) : tant que `base` ne change pas, rien n'a
+## bouge, et on ne retouche pas des centaines de sprites pour rien.
+var _shown_base := -1
 
 
 ## SOUS TOUT LE TERRAIN, D'UN SEUL BLOC — pas trie case par case.
@@ -133,6 +137,9 @@ func _process(delta: float) -> void:
 		return
 	_elapsed += delta * 1000.0
 	var base := int(_elapsed / float(WaterLook.FOAM["frame_ms"]))
+	if base == _shown_base:
+		return
+	_shown_base = base
 	for i in range(_sprites.size()):
 		_sprites[i].texture = _frames[(base + _offsets[i]) % FOAM_FRAMES]
 
@@ -142,6 +149,7 @@ func clear() -> void:
 		s.queue_free()
 	_sprites.clear()
 	_offsets = PackedInt32Array()
+	_shown_base = -1
 
 
 ## Combien de cases portent la houle — pour les sondes.

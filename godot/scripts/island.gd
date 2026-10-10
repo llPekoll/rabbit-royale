@@ -155,6 +155,10 @@ const TUTORIAL_PATH := "user://tutorial.cfg"
 
 
 func _ready() -> void:
+	# `--open=dig` (chrome `_dev_open`) traverse sans main : la capture se
+	# reprend ici, la scene qui l'avait armee vient d'etre remplacee.
+	if OS.get_cmdline_user_args().has("--open=dig"):
+		DevShot.arm(self)
 	# L'ILE NAIT A CHAQUE TRAVERSEE (screens.gd) : l'instantane du `join` est
 	# souvent arrive AVANT elle. On le reprend la ou RunState l'a garde — tant
 	# que j'ai un lapin dessus, sinon c'est la manche d'avant.
@@ -516,6 +520,9 @@ func show_ground(seed_value: String) -> void:
 	# absente. On centre donc le plateau sur lui-meme, et c'est la camera qui
 	# decide ensuite de ce qu'on regarde.
 	map.origin = _centred_origin(map)
+	# Le zoom de jeu doit rester atteignable, meme sur une grande ile dont le
+	# fit est minuscule : le plafond ne descend pas sous 1,5 fois lui.
+	map.zoom_cap_floor = PLAY_TILE_PX / (Iso.half_w() * 2.0) * 1.5
 	_terrain.map = map
 	_terrain.build()
 

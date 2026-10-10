@@ -25,7 +25,7 @@
  * server move a whole flock atomically instead of discovering halfway through
  * that two of them chose the same cell.
  */
-import { toColRow } from '@/config/gridConfig';
+import { COLS } from '@/config/gridConfig';
 
 /** How near a rabbit has to be before a sheep stops grazing and bolts. */
 export const PANIC_RADIUS = 2;
@@ -99,9 +99,10 @@ export function cellDistance(ax: number, ay: number, bx: number, by: number): nu
  * Takes tile indices for the rabbits because that is what the server holds;
  * the sheep is already in cell terms.
  */
-export function isSpooked(sheep: Grazer, rabbitTiles: readonly number[]): boolean {
+export function isSpooked(sheep: Grazer, rabbitTiles: readonly number[], cols: number = COLS): boolean {
   for (const tile of rabbitTiles) {
-    const { col, row } = toColRow(tile);
+    const col = tile % cols;
+    const row = Math.floor(tile / cols);
     if (cellDistance(sheep.x, sheep.y, col, row) <= PANIC_RADIUS) return true;
   }
   return false;
@@ -275,10 +276,11 @@ export function planFlock(
   rabbitTiles: readonly number[],
   random: () => number,
   claim: (from: { x: number; y: number }, to: { x: number; y: number }) => void,
+  cols: number = COLS,
 ): Flight[] {
   const flights: Flight[] = [];
   for (const one of sheep) {
-    const flight = planFlight(one, ground, isSpooked(one, rabbitTiles), random);
+    const flight = planFlight(one, ground, isSpooked(one, rabbitTiles, cols), random);
     if (!flight) continue;
     claim(flight.from, flight.to);
     flights.push(flight);

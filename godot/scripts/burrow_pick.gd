@@ -102,7 +102,17 @@ static func _at_tier(map: BurrowMap, point: Vector2, tier: int) -> Vector2i:
 
 ## LES HAUTEURS DISTINCTES qu'un palier porte, de la plus haute a la plus
 ## basse — l'ordre du regard, la encore.
+##
+## GARDEES SUR LA CARTE : le balayage parcourt toute la grille, et il tombe a
+## chaque appui, a chaque glissement et a chaque relache. Sur une grande ile
+## (jusqu'a 76x76) c'etait des dizaines de milliers de `lift_at` par geste.
 static func _lifts_of(map: BurrowMap, tier: int) -> Array[float]:
+	var key := [map.lift_px, map.width, map.height, hash(map.level)]
+	if key != map.lifts_key:
+		map.lifts_by_tier = {}
+		map.lifts_key = key
+	if map.lifts_by_tier.has(tier):
+		return map.lifts_by_tier[tier]
 	var seen := {}
 	for row in range(map.height):
 		for col in range(map.width):
@@ -114,6 +124,7 @@ static func _lifts_of(map: BurrowMap, tier: int) -> Array[float]:
 		out.append(lift)
 	out.sort()
 	out.reverse()
+	map.lifts_by_tier[tier] = out
 	return out
 
 

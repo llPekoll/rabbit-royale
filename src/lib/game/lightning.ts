@@ -20,9 +20,8 @@
  * socket or a clock.
  */
 import { LIGHTNING } from '@config/tuning';
-import { COLS, ROWS, toColRow, toIndex } from '@/config/gridConfig';
 import { revealTile } from './island';
-import { isPlayable } from './terrainBoard';
+import { cellOf, inGrid, indexOf, isPlayable } from './terrainBoard';
 import type { Island, Rabbit, TileContent } from './types';
 
 /** One tile the strike opened, and what was under it. */
@@ -54,29 +53,29 @@ export interface StrikeResult {
  * than a rule anyone has to learn.
  */
 export function strikeArea(seed: string, target: number): number[] {
-  const { col, row } = toColRow(target);
+  const { col, row } = cellOf(seed, target);
   const r = LIGHTNING.RADIUS;
   const out: number[] = [];
   for (let dr = -r; dr <= r; dr++) {
     for (let dc = -r; dc <= r; dc++) {
       const c = col + dc;
       const rr = row + dr;
-      if (c < 0 || rr < 0 || c >= COLS || rr >= ROWS) continue;
-      const index = toIndex(c, rr);
+      if (!inGrid(seed, c, rr)) continue;
+      const index = indexOf(seed, c, rr);
       if (!isPlayable(seed, index)) continue;
       out.push(index);
     }
   }
   // Centre first, so the flashes read as spreading outward from the hit.
   return out.sort(
-    (a, b) => ringDistance(target, a) - ringDistance(target, b) || a - b,
+    (a, b) => ringDistance(seed, target, a) - ringDistance(seed, target, b) || a - b,
   );
 }
 
 /** Chebyshev distance in tiles — the number of steps between two cells. */
-function ringDistance(a: number, b: number): number {
-  const p = toColRow(a);
-  const q = toColRow(b);
+function ringDistance(seed: string, a: number, b: number): number {
+  const p = cellOf(seed, a);
+  const q = cellOf(seed, b);
   return Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row));
 }
 

@@ -26,8 +26,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../src/lib/db';
 import { players } from '../../src/lib/db/schema';
 import { grantItem } from '../../src/lib/game/grant';
-import { levelTierAt, terrainNeighbors } from '../../src/lib/game/terrainBoard';
-import { toColRow, toIndex, COLS, ROWS } from '../../src/config/gridConfig';
+import { cellOf, inGrid, indexOf, levelTierAt, terrainNeighbors } from '../../src/lib/game/terrainBoard';
 import { BLOOP, BOMB, DROWN, ENERGY, LIGHTNING } from '../../config/tuning';
 import en from '../../godot/assets/i18n/en.json';
 
@@ -182,8 +181,8 @@ const linger = (ms = 2500) => (watcher ? sleep(ms) : Promise.resolve());
 // ── Geometry ─────────────────────────────────────────────────────────────────
 interface Where { seed: string; level: number; spawn: number; tiles: number[]; revealed: number[]; hinted: number[]; bombs: number[]; chests: number[]; rabbits: any[] }
 
-const isSea = (seed: string, i: number) => { const { col, row } = toColRow(i); return levelTierAt(seed, col, row) === 0; };
-const cheb = (a: number, b: number) => { const p = toColRow(a), q = toColRow(b); return Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row)); };
+const isSea = (seed: string, i: number) => { const { col, row } = cellOf(seed, i); return levelTierAt(seed, col, row) === 0; };
+const cheb = (seed: string, a: number, b: number) => { const p = cellOf(seed, a), q = cellOf(seed, b); return Math.max(Math.abs(p.col - q.col), Math.abs(p.row - q.row)); };
 
 /**
  * A line pusher → victim → landing, one step apart, where the landing is
@@ -196,12 +195,12 @@ function line(w: Where, landing: 'ground' | 'sea') {
   const taken = new Set(w.rabbits.map((r) => r.tile));
   const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
   for (const v of w.tiles) {
-    if (busy.has(v) || taken.has(v) || cheb(v, w.spawn) < 4) continue;
-    const { col, row } = toColRow(v);
+    if (busy.has(v) || taken.has(v) || cheb(w.seed, v, w.spawn) < 4) continue;
+    const { col, row } = cellOf(w.seed, v);
     for (const [dc, dr] of dirs) {
       const pc = col - dc, pr = row - dr, tc = col + dc, tr = row + dr;
-      if ([pc, tc].some((c) => c < 0 || c >= COLS) || [pr, tr].some((r) => r < 0 || r >= ROWS)) continue;
-      const p = toIndex(pc, pr), t = toIndex(tc, tr);
+      if (!inGrid(w.seed, pc, pr) || !inGrid(w.seed, tc, tr)) continue;
+      const p = indexOf(w.seed, pc, pr), t = indexOf(w.seed, tc, tr);
       if (!tiles.has(p) || busy.has(p) || taken.has(p)) continue;
       if (!terrainNeighbors(w.seed, p).includes(v)) continue;
       if (landing === 'ground') {
@@ -351,7 +350,7 @@ for (const [id, eb] of [['A5', 200], ['A6', 35]] as const) {
         check(`B perd ${WANTED_DROWN_LOSS} (bombe + 10)`, wantE, shove?.energy,
           `DROWN.LOSS vaut ${DROWN.LOSS} aujourd'hui (= BOMB_LOSS)`),
         check('run de B terminée', wantE === 0, !!shove?.runOver),
-        check('B revient au milieu (≤ 2 cases du spawn)', true, shove ? cheb(shove.to, w.spawn) <= 2 : null,
+        check('B revient au milieu (≤ 2 cases du spawn)', true, shove ? cheb(w.seed, shove.to, w.spawn) <= 2 : null,
           shove ? `spawn ${w.spawn}, remonté en ${shove.to}` : undefined),
         check('B sait qui l\'a poussé', a.id, shove?.pushedBy),
       ];

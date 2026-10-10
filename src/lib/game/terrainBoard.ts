@@ -24,6 +24,7 @@ import { generateTerrain, type Terrain } from '@/game/island/terrain';
 import { surfaceLift } from '@/game/island/relief';
 import { FIRST_RUN, levelRow } from '@config/tuning';
 import { groundSeed, isFirstIsland, seedLevel } from './first-island';
+import { bigPlan, openPockets, sizeBigGround } from './big-island';
 import { TUTORIAL_LAND, TUTORIAL_SPAWN } from './tutorial-map';
 
 /**
@@ -84,6 +85,14 @@ export { TIER_LIFT };
 const cache = new Map<string, { terrain: Terrain; board: IslandBoard }>();
 
 /**
+ * The last seed read and its entry. `cellOf`/`indexOf` run tens of thousands
+ * of times per deal (every hint counts eight neighbours), and almost always
+ * for the island just read; this skips the key's regex and string per call.
+ */
+let lastSeed = '';
+let lastEntry: { terrain: Terrain; board: IslandBoard } | null = null;
+
+/**
  * The board for a seed, built once per process.
  *
  * Occupants are rebuilt with the terrain, so a sheep is where the seed says it
@@ -102,6 +111,7 @@ export function terrainFor(seed: string): Terrain {
 }
 
 function cached(seed: string) {
+  if (seed === lastSeed && lastEntry) return lastEntry;
   /**
    * EVERY first island is cut from the SAME ground (`groundSeed`).
    *
@@ -120,13 +130,24 @@ function cached(seed: string) {
   // above water as the rabbit climbs. Read off the seed rather than passed
   // in, because the client rebuilds this from the seed alone and has to cut
   // the same coastline (see first-island.ts).
-  const level = seedLevel(seed);
-  const land = isFirstIsland(key) ? FIRST_RUN.LAND
-    : level !== undefined ? levelRow(level).land : TERRAIN_OPTIONS.land;
-  const entryKey = `${key}@${land}`;
+  const entryKey = terrainKey(seed);
   let entry = cache.get(entryKey);
   if (!entry) {
-    const terrain = generateTerrain({ seed: key, ...TERRAIN_OPTIONS, land });
+    const level = seedLevel(seed);
+    // A BIG island (level 7 on) is cut from its own seed, in a box sized to
+    // its tile count, and nothing standing on it may wall part of it off —
+    // see big-island.ts. `key` is the seed itself there (`groundSeed`).
+    const plan = isFirstIsland(key) ? null : bigPlan(key, level);
+    let terrain: Terrain;
+    if (plan) {
+      const cut = sizeBigGround(key, plan, TERRAIN_OPTIONS.rise);
+      terrain = generateTerrain({ seed: key, ...TERRAIN_OPTIONS, ...cut });
+      terrain.placements = openPockets(terrain.map, terrain.placements);
+    } else {
+      const land = isFirstIsland(key) ? FIRST_RUN.LAND
+        : level !== undefined ? levelRow(level).land : TERRAIN_OPTIONS.land;
+      terrain = generateTerrain({ seed: key, ...TERRAIN_OPTIONS, land });
+    }
     /**
      * THE TUTORIAL IS A CORRIDOR, cut by hand over the generated ground.
      *
@@ -145,6 +166,8 @@ function cached(seed: string) {
     entry = { terrain, board: new IslandBoard(terrain.map, terrain.placements) };
     cache.set(entryKey, entry);
   }
+  lastSeed = seed;
+  lastEntry = entry;
   return entry;
 }
 
@@ -162,7 +185,60 @@ function cached(seed: string) {
  * would regenerate the board under the renderer.
  */
 export function forgetTerrain(seed: string): void {
-  cache.delete(seed);
+  // Only a big island's ground is its own. The shared ground (levels 1-6,
+  // the tutorial) is a dozen entries for the life of the process, and every
+  // other island standing on it still needs it.
+  const key = groundSeed(seed);
+  if (key === seed && !isFirstIsland(seed)) cache.delete(terrainKey(seed));
+  if (seed === lastSeed) { lastSeed = ''; lastEntry = null; }
+}
+
+/**
+ * The cache entry a seed reads. A big island's ground is its own seed; the
+ * shared ground is keyed by the land share its level cuts it to.
+ */
+function terrainKey(seed: string): string {
+  const key = groundSeed(seed);
+  if (key === seed && !isFirstIsland(seed)) return key;
+  const level = seedLevel(seed);
+  const land = isFirstIsland(key) ? FIRST_RUN.LAND
+    : level !== undefined ? levelRow(level).land : TERRAIN_OPTIONS.land;
+  return `${key}@${land}`;
+}
+
+// ── The island's own grid ────────────────────────────────────────────────────
+//
+// A tile index is `row * cols + col` in THE ISLAND'S grid. That was always
+// 32x32 (gridConfig `COLS`), and the small islands still are; a big island's
+// box is sized from its seed (big-island.ts), so its index is in its own
+// width. Every reader that turns an index into a cell goes through these.
+
+export interface Grid {
+  readonly cols: number;
+  readonly rows: number;
+}
+
+/** The grid a seed's island is cut in. */
+export function gridOf(seed: string): Grid {
+  const { map } = cached(seed).terrain;
+  return { cols: map.width, rows: map.height };
+}
+
+/** A tile index's cell, in its island's grid. */
+export function cellOf(seed: string, index: number): { col: number; row: number } {
+  const cols = cached(seed).terrain.map.width;
+  return { col: index % cols, row: Math.floor(index / cols) };
+}
+
+/** A cell's tile index, in its island's grid. */
+export function indexOf(seed: string, col: number, row: number): number {
+  return row * cached(seed).terrain.map.width + col;
+}
+
+/** True when `(col, row)` lies inside the island's grid. */
+export function inGrid(seed: string, col: number, row: number): boolean {
+  const { map } = cached(seed).terrain;
+  return col >= 0 && row >= 0 && col < map.width && row < map.height;
 }
 
 /**
@@ -172,7 +248,7 @@ export function forgetTerrain(seed: string): void {
  * so a cell on the second shelf is drawn on the shelf rather than under it.
  */
 export function tierLift(seed: string, index: number): number {
-  const { col, row } = toColRow(index);
+  const { col, row } = cellOf(seed, index);
   const { map } = cached(seed).terrain;
   // Plus the ramp: tiers join by slopes (`IsoIslandView`'s `slopes`), so a
   // cell beside a plateau rises part-way toward it, and whatever stands in
@@ -250,23 +326,23 @@ export function terrainTileAt(seed: string, sx: number, sy: number): number | nu
 
 /** True when a rabbit may stand on this tile: ground, unblocked, on the board. */
 export function isPlayable(seed: string, index: number): boolean {
-  const { col, row } = toColRow(index);
+  const { col, row } = cellOf(seed, index);
   return boardFor(seed).isWalkable(col, row);
 }
 
 /** Every tile a rabbit standing on `index` may step onto. */
 export function terrainNeighbors(seed: string, index: number): number[] {
-  const { col, row } = toColRow(index);
+  const { col, row } = cellOf(seed, index);
   return boardFor(seed)
     .stepsFrom(col, row)
-    .map((c) => toIndex(c.x, c.y));
+    .map((c) => indexOf(seed, c.x, c.y));
 }
 
 /** Every tile that can hold something to dig up. */
 export function farmableTiles(seed: string): number[] {
   return boardFor(seed)
     .farmableCells()
-    .map((c) => toIndex(c.x, c.y));
+    .map((c) => indexOf(seed, c.x, c.y));
 }
 
 /**
@@ -283,16 +359,17 @@ export function spawnTile(seed: string): number {
   // of it instead. See `tutorial-map.ts`.
   if (isFirstIsland(seed)) return TUTORIAL_SPAWN;
   const board = boardFor(seed);
-  const mid = { col: (COLS - 1) / 2, row: (ROWS - 1) / 2 };
+  const { cols, rows } = gridOf(seed);
+  const mid = { col: (cols - 1) / 2, row: (rows - 1) / 2 };
   let best = -1;
   let bestDist = Infinity;
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
       // Not under a sheep either: the board lets the flock's cells through
       // (they are farmable), but a run cannot open with a rabbit on a sheep.
       if (!board.isWalkable(col, row) || board.occupantAt(col, row)) continue;
       const d = Math.abs(col - mid.col) + Math.abs(row - mid.row);
-      if (d < bestDist) { bestDist = d; best = toIndex(col, row); }
+      if (d < bestDist) { bestDist = d; best = indexOf(seed, col, row); }
     }
   }
   return best;

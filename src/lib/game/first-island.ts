@@ -11,6 +11,8 @@
  * Kept out of island.ts because that module holds the buried contents and is
  * server-only by convention; this one is safe anywhere.
  */
+import { levelRow } from '@config/tuning';
+
 const FIRST_SEED_PREFIX = 'first:';
 
 /**
@@ -78,12 +80,17 @@ export function isFirstIsland(seed: string): boolean {
 /**
  * The seed the GROUND is cut from, for any island seed.
  *
- * The first island's ground is the tutorial's; every other island shares
- * `ISLAND_GROUND`.
+ * The first island's ground is the tutorial's; a big island (level 7 on) is
+ * its own; every other island shares `ISLAND_GROUND`.
  * Terrain, shape and layout all go through here, so the two sides cannot
  * disagree: the client rebuilds the coastline from the seed it was handed and
  * lands on the same rule.
  */
 export function groundSeed(seed: string): string {
-  return isFirstIsland(seed) ? `${FIRST_SEED_PREFIX}${FIRST_ISLAND_GROUND}` : ISLAND_GROUND;
+  if (isFirstIsland(seed)) return `${FIRST_SEED_PREFIX}${FIRST_ISLAND_GROUND}`;
+  // A BIG island (a ladder row with `big`, BIG_ISLANDS) is its own ground:
+  // the seed itself cuts the coast, the trees and the sea around them.
+  const level = seedLevel(seed);
+  if (level !== undefined && levelRow(level).big) return seed;
+  return ISLAND_GROUND;
 }

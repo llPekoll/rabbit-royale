@@ -286,6 +286,9 @@ func _dev_open() -> void:
 	await get_tree().create_timer(1.0).timeout
 	match what:
 		"shop": Shop.open()
+		# Traverser vers l'ile, comme la planche DIG (`_dig`) — pour capturer
+		# une ile servie par le serveur sans main.
+		"dig": _dig()
 		"profile": Profile.open()
 		"season": _open_season()
 		"pass": PassDialog.open()

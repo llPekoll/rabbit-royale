@@ -285,7 +285,7 @@ static func board(map: BurrowMap, w: float = GAME_W, h: float = GAME_H, top: flo
 static func zoom_limits(map: BurrowMap, w: float = GAME_W, h: float = GAME_H,
 		fit: float = 1.0) -> Vector2:
 	var lo := board(map, w, h).scale * fit
-	return Vector2(lo, maxf(lo * PLACE_ZOOM_MAX, lo))
+	return Vector2(lo, maxf(maxf(lo * PLACE_ZOOM_MAX, map.zoom_cap_floor), lo))
 
 
 ## TIENT UN AXE DANS LE CADRE : centre tant que le plateau est plus petit que

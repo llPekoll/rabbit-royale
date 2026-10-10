@@ -25,11 +25,8 @@
  * Publishing `seed` is then harmless by construction.
  */
 import { CHEST_TIER_WEIGHTS, FIRST_RUN, ISLAND, RISK_GRADIENT, tierFor, type LevelRow } from '@config/tuning';
-import {
-  COLS, ROWS, SPAWN_INDEX, makeShape, isForbidden, neighbors, toColRow, toIndex,
-  type IslandShape,
-} from '@/config/gridConfig';
-import { farmableTiles, spawnTile, terrainNeighbors } from './terrainBoard';
+import { makeShape, type IslandShape } from '@/config/gridConfig';
+import { cellOf, farmableTiles, inGrid, indexOf, spawnTile, terrainNeighbors } from './terrainBoard';
 import { FIRST_ISLAND_GROUND, groundSeed, isFirstIsland } from './first-island';
 import { TUTORIAL_BOMB, TUTORIAL_CHEST, TUTORIAL_CLUE } from './tutorial-map';
 import { mulberry32, pickWeighted, seedFrom, shuffle, type Rng } from './rng';
@@ -129,7 +126,7 @@ export function generateIsland(opts: GenerateOptions): Island {
     // Same count, more of the board worth reading. The passed-over are only
     // deferred: at Caldera's density the cap cannot always hold, and the
     // island must never be dealt short.
-    const board = { tiles };
+    const board = { tiles, seed: opts.seed };
     const bombTiles: number[] = [];
     const deferred: number[] = [];
     for (const i of weighted(eligible, RISK_GRADIENT.BOMB)) {
@@ -257,10 +254,10 @@ export function cascadeHints(island: Island, from: Iterable<number>, around?: nu
   // stands. Nothing past it is written or walked; the region is not lost, it
   // is resumed from its open zeros the next time someone moves (`cascadeAround`).
   // Without `around` the walk is unbounded, which is what the pure tests pin.
-  const centre = around === undefined ? null : toColRow(around);
+  const centre = around === undefined ? null : cellOf(island.seed, around);
   const inReach = (i: number) => {
     if (!centre) return true;
-    const { col, row } = toColRow(i);
+    const { col, row } = cellOf(island.seed, i);
     return Math.max(Math.abs(col - centre.col), Math.abs(row - centre.row)) <= ISLAND.CASCADE_RADIUS;
   };
   // The walk runs over EVERY open zero it meets, dug or hinted, seen before or
@@ -320,7 +317,9 @@ export function cascadeAround(island: Island, tile: number): HintReveal[] {
  * moves a rabbit can actually make — a tile across a cliff is far however
  * close its index looks.
  */
-function stepsFrom(seed: string, from: number, tiles: ReadonlyMap<number, Tile>): Map<number, number> {
+function stepsFrom(
+  seed: string, from: number, tiles: ReadonlyMap<number, Tile>, aroundBombs = false,
+): Map<number, number> {
   const dist = new Map<number, number>([[from, 0]]);
   const queue = [from];
   for (let head = 0; head < queue.length; head++) {
@@ -328,6 +327,7 @@ function stepsFrom(seed: string, from: number, tiles: ReadonlyMap<number, Tile>)
     const d = dist.get(here)!;
     for (const nb of terrainNeighbors(seed, here)) {
       if (!tiles.has(nb) || dist.has(nb)) continue;
+      if (aroundBombs && tiles.get(nb)!.content === 'bomb') continue;
       dist.set(nb, d + 1);
       queue.push(nb);
     }
@@ -385,7 +385,16 @@ function rimTiles(
   count: number,
 ): number[] {
   if (count <= 0) return [];
-  const dist = stepsFrom(seed, spawn, tiles);
+  /**
+   * WALKED AROUND THE BOMBS (2026-10-09). A red X is a wall (`resolveMove`
+   * refuses it), so a chest whose every way in crosses a bomb is a chest
+   * two marks can lock away for good — and the island only sinks on its
+   * last chest. The free coast of a big island grows long thin headlands, and
+   * with every bomb marked a chest was out of reach on one island in five
+   * there (one in 300 on the small ground). Measured on bomb-free steps, a
+   * chest always has a road no X can close.
+   */
+  const dist = stepsFrom(seed, spawn, tiles, true);
   let furthest = 1;
   for (const d of dist.values()) if (d > furthest) furthest = d;
 
@@ -397,7 +406,7 @@ function rimTiles(
   for (const i of eligible) {
     const d = dist.get(i);
     if (d === undefined || d < floor) continue;
-    const { col, row } = toColRow(i);
+    const { col, row } = cellOf(seed, i);
     pool.push({ tile: i, d, col, row });
   }
   if (!pool.length) return [];
@@ -619,14 +628,14 @@ function proveOne(island: Island, taught: number, open: (i: number) => boolean):
  * tree's cell are still excluded, because the island has no tile there and
  * nothing can be buried in them.
  */
-export function boardNeighbors(island: Pick<Island, 'tiles'>, index: number): number[] {
-  const { col, row } = toColRow(index);
+export function boardNeighbors(island: Pick<Island, 'tiles' | 'seed'>, index: number): number[] {
+  const { col, row } = cellOf(island.seed, index);
   const out: number[] = [];
   for (const [dc, dr] of BOARD_STEPS) {
     const nc = col + dc;
     const nr = row + dr;
-    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
-    const nb = toIndex(nc, nr);
+    if (!inGrid(island.seed, nc, nr)) continue;
+    const nb = indexOf(island.seed, nc, nr);
     if (island.tiles.has(nb)) out.push(nb);
   }
   return out;

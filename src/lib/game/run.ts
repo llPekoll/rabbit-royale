@@ -14,11 +14,11 @@ import { BOMB, CHEST_LOOT, CHEST_LOOT_BY_TIER, CHEST_NFT_ODDS, FLAG, MULTIPLAYER
 // LIVE view: the tank's ceiling (ENERGY.MAX, an alias of OUT_OF_RUN_ENERGY.MAX)
 // follows the `tuning` table; the run's rules (DIG_COST, BOMB_LOSS…) read the file.
 import { DROWN, ENERGY } from '@/lib/tuning/tables';
-import { SPAWN_INDEX, neighbors, toColRow, type IslandShape } from '@/config/gridConfig';
+import { COLS, SPAWN_INDEX, type IslandShape } from '@/config/gridConfig';
 import { pickWeighted, randInt, type Rng } from './rng';
 import { boardNeighbors, cascadeAround, revealTile } from './island';
 import { isFirstIsland } from './first-island';
-import { spawnTile, terrainNeighbors } from './terrainBoard';
+import { gridOf, spawnTile, terrainNeighbors } from './terrainBoard';
 import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
 import type { DigResult, FlagResult, HintReveal, Island, Rabbit } from './types';
@@ -568,7 +568,12 @@ export function resolveMove(
       // Only the FIRST digger is paid: on a shared island two rabbits may reach
       // the same tile in one tick, and the server's ordering settles it.
       if (firstDigger) {
-        const gain = tile.content === 'golden' ? ENERGY.GOLDEN_GAIN : ENERGY.CARROT_GAIN;
+        // A level may pay energy for its carrots (`carrotGain`, the big
+        // islands): a lap twice as long needs fuel on the way, not only at X.
+        const row = island.level ? levelRow(island.level) : undefined;
+        const gain = tile.content === 'golden'
+          ? row?.goldenGain ?? ENERGY.GOLDEN_GAIN
+          : row?.carrotGain ?? ENERGY.CARROT_GAIN;
         // Worth CARROTS, not one: a dug carrot pays RUN.CARROT_VALUE. See there
         // for why `+= 1` made playing the worst way to earn.
         const value = tile.content === 'golden' ? RUN.GOLDEN_VALUE : RUN.CARROT_VALUE;
@@ -684,12 +689,12 @@ export function resolveMove(
   };
 }
 
-/** One of the 8 steps? Cheap enough to inline, but named so it reads. */
-export function isAdjacent(a: number, b: number): boolean {
+/** One of the 8 steps? `cols` is the island's grid width (`gridOf`). */
+export function isAdjacent(a: number, b: number, cols: number = COLS): boolean {
   if (a === b) return false;
-  const p = toColRow(a);
-  const q = toColRow(b);
-  return Math.abs(p.col - q.col) <= 1 && Math.abs(p.row - q.row) <= 1;
+  const pc = a % cols, pr = Math.floor(a / cols);
+  const qc = b % cols, qr = Math.floor(b / cols);
+  return Math.abs(pc - qc) <= 1 && Math.abs(pr - qr) <= 1;
 }
 
 /**
@@ -704,7 +709,7 @@ export function isAdjacent(a: number, b: number): boolean {
  * same answer the client's ring is drawn from.
  */
 export function canWalk(seed: string, from: number, to: number, blocked?: ReadonlySet<number>): boolean {
-  if (!isAdjacent(from, to)) return false;
+  if (!isAdjacent(from, to, gridOf(seed).cols)) return false;
   if (!terrainNeighbors(seed, from).includes(to)) return false;
   /**
    * Cells a sheep has walked onto since the island was cut.
