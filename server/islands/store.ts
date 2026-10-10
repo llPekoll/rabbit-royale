@@ -14,7 +14,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { ERUPTION, MULTIPLAYER, levelRow } from '../../config/tuning';
+import { ERUPTION, MULTIPLAYER, RABBIT_LEVELS, levelRow } from '../../config/tuning';
 import { chestProgress, chestsLeft, generateIsland, safeTilesLeft } from '../../src/lib/game/island';
 import { makeShape, type IslandShape } from '../../src/config/gridConfig';
 import { forgetTerrain, terrainFor } from '../../src/lib/game/terrainBoard';
@@ -87,7 +87,7 @@ export interface LiveIsland {
   /**
    * The rabbit level it was dealt for (RABBIT_LEVELS), and how many it seats.
    * Since 2026-09-23 a player is seated by LEVEL, never across it: alone at
-   * levels 1-2, two from 3 to 5, four from 6 (2026-10-02). `level` is undefined on an island
+   * levels 1-2, two from 3 to 6, four from 7 (2026-10-09). `level` is undefined on an island
    * dealt by lifetime (the tutorial, the tests), which only a level-less
    * `findJoinable()` will hand out.
    */
@@ -122,6 +122,13 @@ export interface IslandStore {
   seatOf(playerId: string): LiveIsland | undefined;
   /** Islands with nobody on them past their TTL — swept on a timer. */
   reapable(now: number): LiveIsland[];
+}
+
+/** May a rabbit of `level` be seated on an island dealt for `island`? */
+function sameLadderRung(island: number | undefined, level: number): boolean {
+  if (island === undefined) return false;
+  if (island === level) return true;
+  return island >= RABBIT_LEVELS.POOL_FROM && level >= RABBIT_LEVELS.POOL_FROM;
 }
 
 /** How long an empty solo island waits for the player it was dealt to. */
@@ -229,13 +236,15 @@ export class MemoryIslandStore implements IslandStore {
    * A tier is the island's own (`island.tier`); undefined joins any.
    *
    * Since 2026-09-23 the ladder is the rabbit's LEVEL, and the match is on
-   * it: two level-7 rabbits share an island, a level 6 and a level 7 do not.
+   * it: two level-5 rabbits share an island, a level 5 and a level 6 do not.
+   * From RABBIT_LEVELS.POOL_FROM up it is one pool (2026-10-09): a level 10
+   * may land on a level-7 island, and plays it as the level 7 it was dealt.
    */
   findJoinable(level?: number): LiveIsland | undefined {
     let best: LiveIsland | undefined;
     for (const live of this.islands.values()) {
       if (!this.joinable(live)) continue;
-      if (level !== undefined && live.level !== level) continue;
+      if (level !== undefined && !sameLadderRung(live.level, level)) continue;
       if (!best || live.rabbits.size > best.rabbits.size) best = live;
     }
     return best;

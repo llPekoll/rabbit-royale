@@ -922,8 +922,9 @@ io.on('connection', (socket: Socket) => {
      * WHICH ISLAND. A held seat first, the tutorial for a first-timer, then
      * the rabbit's LEVEL (2026-09-23): the list on DIG is gone, and the level
      * deals the island — its difficulty and how many share it (RABBIT_LEVELS:
-     * since 2026-10-02 alone at 1-2, two from 3 to 5, four from 6). A shared level packs players
-     * onto the fullest island of that level with room; a solo one, or no
+     * alone at 1-2, two from 3 to 6, four from 7 — 2026-10-09). A shared level packs players
+     * onto the fullest island of that level with room (from POOL_FROM up, of
+     * any level in the pool); a solo one, or no
      * room, deals a new one. Of `choice`, only `solo` is read now.
      */
     // SOLO, the player's option: their level's island, seated alone. The row
