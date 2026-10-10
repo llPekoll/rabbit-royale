@@ -45,7 +45,7 @@ const HEAD_SHADOW := Color("#7a3a10")
 ## UN SKIN se revele autrement : d'abord sa SILHOUETTE, noire, qui tremble
 ## sous les projecteurs ; puis un eclair blanc, et le lapin en couleurs, qui
 ## saute de joie. La teinte des rayons est celle du skin.
-const SKIN_TINT := {"solana": Color("#9945ff"), "carrot": Color("#f28a1e"), "kuro-violet": Palette.GOLD}
+const SKIN_TINT := {"solana": Color("#9945ff"), "carrot": Color("#f28a1e"), "solflare": Color("#ffef46"), "kuro-violet": Palette.GOLD}
 ## La silhouette tient ce temps avant l'eclair, et la fete reste plus longtemps.
 const TEASE_S := 0.75
 const SKIN_STAY_S := 3.4

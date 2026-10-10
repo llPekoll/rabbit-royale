@@ -606,7 +606,8 @@
     "magic_hat": "Magic Hat",
     "lucky_foot": "Lucky Foot",
     "skin_solana": "Skin Solana",
-    "skin_carrot": "Skin Cà rốt"
+    "skin_carrot": "Skin Cà rốt",
+    "skin_solflare": "Skin Flary"
    }
   }
  },
@@ -1306,6 +1307,7 @@
  },
  "skins": {
   "carrotDescription": "Bộ lông cam. Đôi tai xanh. Tươi mới từ vườn.",
+  "solflareDescription": "Bộ lông đen tuyền. Đôi tai vàng nắng. Chú thỏ Solflare của bạn.",
   "ticketOnly": "Không thể mua con này: chỉ có khi sở hữu Crown Race Ticket.",
   "title": "Trang phục",
   "description": "Tím rực rỡ. Tai xanh bạc hà. Thỏ Solana của bạn.",

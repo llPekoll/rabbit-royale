@@ -99,7 +99,7 @@ func _render() -> void:
 	var item := state.item(skin_key)
 	var display_name := String(SkinState.SALE_NAMES.get(skin_key, skin_key))
 	_right.add_child(Kit.wrapped(Kit.title(display_name, 20 if display_name.length() > 20 else 28, _ink)))
-	var description := {"solana": "description", "carrot": "carrotDescription"}
+	var description := {"solana": "description", "carrot": "carrotDescription", "solflare": "solflareDescription"}
 	_right.add_child(Kit.note(I18N.t("skins." + String(description.get(skin_key, "description"))), _muted, 12))
 	_right.add_child(Kit.note(I18N.t("skins.permanent"), _muted, 11))
 	if item.is_empty():

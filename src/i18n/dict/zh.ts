@@ -440,7 +440,7 @@ export const zh: Dict = {
       prize: {
         carrots: '胡萝卜', water: '水壶', fertiliser: '肥料', lightning: '闪电',
         shield: '护盾', energy: '满能量', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Solana 皮肤', skin_carrot: '胡萝卜皮肤',
+        skin_solana: 'Solana 皮肤', skin_carrot: '胡萝卜皮肤', skin_solflare: 'Flary 皮肤',
       },
     },
   },
@@ -817,6 +817,7 @@ export const zh: Dict = {
 
   skins: {
     carrotDescription: "橙色皮毛，绿色耳朵，来自菜园。",
+    solflareDescription: "夜黑皮毛，阳光黄耳朵。你的 Solflare 兔子。",
     ticketOnly: "这个不能购买：只有 Crown Race Ticket 才能获得。",
     title: "皮肤",
     description: "电光紫，薄荷绿耳朵。你的 Solana 兔子。",

@@ -434,7 +434,7 @@ export const fr: Dict = {
       prize: {
         carrots: 'Carottes', water: 'Arrosoir', fertiliser: 'Engrais', lightning: 'Éclair',
         shield: 'Bouclier', energy: 'Plein d\'énergie', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carotte',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carotte', skin_solflare: 'Skin Flary',
       },
     },
   },
@@ -831,6 +831,7 @@ export const fr: Dict = {
 
   skins: {
     carrotDescription: "Pelage orange. Oreilles vertes. Tout droit du potager.",
+    solflareDescription: "Pelage noir nuit. Oreilles jaune soleil. Ton lapin Solflare.",
     ticketOnly: "Celui-là ne s’achète pas : il vient seulement avec le Crown Race Ticket.",
     title: "Skins",
     description: "Violet électrique. Oreilles menthe. Ton lapin Solana.",

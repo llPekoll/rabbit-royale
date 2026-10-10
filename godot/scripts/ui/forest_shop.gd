@@ -34,7 +34,7 @@ const DRAWN := Rect2(0, -18, 1280, 640)
 const LANTERN := Vector2(75, 187)
 const LANTERN_GLOW := Color("#ffc36b")
 const ARM_SECONDS := 3.0
-const SKINS := ["solana", "carrot"]
+const SKINS := ["solana", "carrot", "solflare"]
 const MONEY := ["usdc", "sol", "skr"]
 
 ## Lu par le chrome (`_center_dialog`) : la boutique prend la vue.
@@ -372,17 +372,20 @@ func _packs() -> void:
 	# L'appel vers les skins, sous les packs.
 	_put(ForestShopStyle.panel("tab-off", 22), Rect2(112, 479, 1060, 76))
 	_label(I18N.shout(I18N.t("shop.tabSkins")), Rect2(136, 490, 156, 52), 22)
+	# Le pas tient tous les skins entre le titre et le bouton (a 895).
+	var step := minf(256.0, 540.0 / SKINS.size())
 	for i in SKINS.size():
 		var key: String = SKINS[i]
-		var bunny := _animated(key, Vector2(346 + i * 256, 530), 2.2)
-		# De temps en temps l'un d'eux fait la fete, jamais les deux ensemble.
+		var bunny := _animated(key, Vector2(346 + i * step, 530), 2.2)
+		# De temps en temps l'un d'eux fait la fete, jamais deux ensemble :
+		# chacun a son tour, 3 s apres le precedent.
 		var cheer := bunny.create_tween().set_loops()
 		cheer.tween_interval(2.0 + i * 3.0)
 		cheer.tween_callback(bunny.play.bind("happy"))
 		cheer.tween_interval(1.2)
 		cheer.tween_callback(bunny.play.bind("idle"))
-		cheer.tween_interval(5.8 - i * 3.0)
-		_label(String(SkinState.SALE_NAMES.get(key, key)).to_upper(), Rect2(386 + i * 256, 491, 158, 48), 17)
+		cheer.tween_interval(3.0 * SKINS.size() - 0.2 - i * 3.0)
+		_label(String(SkinState.SALE_NAMES.get(key, key)).to_upper(), Rect2(374 + i * step, 491, step - 64, 48), 17)
 	var open := _button(I18N.shout(I18N.t("shop.viewSkins")), Rect2(895, 490, 246, 53), "tab-on", 17)
 	open.name = "ViewSkins"
 	_pulse(open, 1.0, 1.05)
@@ -575,18 +578,28 @@ func _guest() -> bool:
 
 
 func _skins() -> void:
+	# La colonne (417 de haut, comme la scene) se partage entre les skins :
+	# a deux, le lapin trone au-dessus de son nom ; au-dela, il passe a cote.
+	var tall := SKINS.size() <= 2
+	var h := (417.0 - 9.0 * (SKINS.size() - 1)) / SKINS.size()
 	for i in SKINS.size():
 		var key: String = SKINS[i]
 		var b := Button.new()
 		b.name = "Skin_" + key
 		b.flat = true
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		_put(b, Rect2(112, 136 + i * 213, 282, 204))
-		_panel(Rect2(0, 0, 282, 204), key == _skin, b)
-		_animated(key, Vector2(140, 141), 7.2, b)
-		_nameplate(String(SkinState.SALE_NAMES.get(key, key)), Rect2(37, 155, 208, 36), b)
+		_put(b, Rect2(112, 136 + i * (h + 9.0), 282, h))
+		_panel(Rect2(0, 0, 282, h), key == _skin, b)
+		var plate := String(SkinState.SALE_NAMES.get(key, key))
+		if tall:
+			_animated(key, Vector2(140, 141), 7.2, b)
+			_nameplate(plate, Rect2(37, 155, 208, 36), b)
+		else:
+			_animated(key, Vector2(80, h - 14), 5.4, b)
+			_nameplate(plate, Rect2(142, h * 0.5 - 24, 124, 36), b)
 		if _skin_state.owns(key):
-			_label(I18N.shout(I18N.t("skins.owned")), Rect2(150, 14, 120, 26), 12, ForestShopStyle.GOLD, b)
+			var tag := Rect2(150, 14, 120, 26) if tall else Rect2(146, h * 0.5 + 14, 116, 26)
+			_label(I18N.shout(I18N.t("skins.owned")), tag, 12, ForestShopStyle.GOLD, b)
 		b.pressed.connect(func() -> void:
 			_skin = key
 			_armed = ""

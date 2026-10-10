@@ -11,6 +11,7 @@ export const SKINS = [
   // paints it, nothing quotes it, but a payment already open still delivers.
   { key: 'noir-violet', kind: 'skin_noir_violet', name: 'Indie Games on Solana', usdCents: 99, onSale: false },
   { key: 'carrot', kind: 'skin_carrot', name: 'Carrot', usdCents: 99, onSale: true },
+  { key: 'solflare', kind: 'skin_solflare', name: 'Flary', usdCents: 99, onSale: true },
 ] as const;
 export type SkinKind = typeof SKINS[number]['kind'];
 

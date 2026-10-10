@@ -12,6 +12,10 @@ describe('permanent skins', () => {
     expect(skinForKind('skin_carrot').usdCents).toBe(99);
     expect(lookOf('white', 'carrot')).toBe('carrot');
   });
+  it('sells Flary (key solflare) at 99 cents and accepts its saved appearance', () => {
+    expect(skinForKind('skin_solflare')).toMatchObject({ key: 'solflare', name: 'Flary', usdCents: 99, onSale: true });
+    expect(lookOf('white', 'solflare')).toBe('solflare');
+  });
   it('only sells one copy and refuses owned skins', () => {
     expect(skinSaleBlocker(1, false)).toBeNull();
     for (const qty of [0, -1, 2, 1.5, NaN, Infinity]) expect(skinSaleBlocker(qty, false)).toBe('bad_quantity');

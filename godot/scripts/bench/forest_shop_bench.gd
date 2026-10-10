@@ -68,6 +68,7 @@ func _fixtures() -> void:
 		"skins": [
 			{"key": "solana", "kind": "skin_solana", "usdCents": 99},
 			{"key": "carrot", "kind": "skin_carrot", "usdCents": 99},
+			{"key": "solflare", "kind": "skin_solflare", "usdCents": 99},
 		],
 		"owned": [], "tokens": ["usdc", "sol", "skr"], "rates": RATES, "paymentsEnabled": true,
 	})
@@ -155,6 +156,10 @@ func _verify() -> void:
 	_check(is_instance_valid(_shop._rabbit) and _shop._rabbit.animation == "happy", "pose selector plays actual animation")
 	_check_bounds()
 	await _shot("skins-carrot")
+	await _tap("Skin_solflare")
+	_check(_shop._skin == "solflare" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("solflare"), "Flary preview uses its own sprite sheet")
+	_check_bounds()
+	await _shot("skins-flary")
 	await _tap("Tab_packs")
 	await _tap("ViewSkins")
 	_check(_shop._page == "skins", "pack showcase links to skins")

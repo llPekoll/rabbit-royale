@@ -3,7 +3,7 @@ extends Node
 ## Permanent wardrobe; all ownership and prices come from /api/skins.
 signal changed
 static var current: SkinState
-const SALE_NAMES := {"solana": "Solana", "carrot": "Carrot"}
+const SALE_NAMES := {"solana": "Solana", "carrot": "Carrot", "solflare": "Flary"}
 
 var catalog: Dictionary = {}
 var busy := false
@@ -42,7 +42,7 @@ func _session_changed() -> void:
 
 
 func _bought(kind: String, _qty: int) -> void:
-	if kind in ["skin_solana", "skin_carrot", "season_pass"] and not _fake and not busy:
+	if kind in ["skin_solana", "skin_carrot", "skin_solflare", "season_pass"] and not _fake and not busy:
 		refresh()
 
 

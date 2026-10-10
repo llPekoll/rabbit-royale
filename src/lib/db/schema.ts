@@ -27,7 +27,7 @@ import { sql } from 'drizzle-orm';
  * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
  * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
