@@ -358,6 +358,28 @@ func watch(player_id: String) -> void:
 		Screens.cross(Screens.Place.ISLAND)
 
 
+## SE VENGER depuis l'historique du profil : entrer dans le terrier de celui
+## qui nous a pilles, comme la ligne RAID de la liste (target_list.gd). Le
+## raid se joue au terrier : depuis l'ile, on n'y traverse qu'une fois le
+## serveur d'accord — un refus (bouclier, cooldown) laisse le joueur ou il
+## est, la pastille dit pourquoi.
+func revenge(player_id: String) -> void:
+	Net.trace("revenge %s (depuis %s)" % [player_id, str(Screens.place)])
+	close_dialog()
+	if player_id.is_empty():
+		return
+	if not Chrome.raids_open():
+		toast(I18N.f("rabbitLevel.raidLocked", [Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)]), true)
+		return
+	if PlaySettings.solo_on():
+		toast(I18N.t("sound.soloRaids"), true)
+		return
+	var state := RaidState.current
+	await state.enter(player_id)
+	if state.has_raid() and Screens.place != Screens.Place.BURROW:
+		Screens.cross(Screens.Place.BURROW)
+
+
 ## LES RAIDS SONT-ILS OUVERTS A CE LAPIN ? Niveau lu sur /api/burrow ; un
 ## terrier pas encore charge laisse passer (le serveur tranche).
 static func raids_open() -> bool:

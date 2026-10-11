@@ -1309,5 +1309,6 @@ func _on_locale_changed(_code: String) -> void:
 static func open(tab: Tab = Tab.PROFILE) -> Profile:
 	var dialog := Profile.new()
 	dialog._tab = tab
+	dialog.revenge.connect(Chrome.current.revenge)
 	Chrome.current.open(dialog)
 	return dialog
