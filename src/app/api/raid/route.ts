@@ -47,7 +47,10 @@ import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
  */
 /** How long the raid list runs: everyone connected (up to LIVE), then the
  *  richest burrows (RICH), deduplicated. Was 20 by stock alone. */
-const RAID_LIST = { LIVE: 50, RICH: 50 } as const;
+const RAID_LIST = { LIVE: 50, RICH: 50, OWED: 20 } as const;
+
+/** How far back a raid against me still owes a revenge on the list. */
+const OWED_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 /** No raid has taken anything from this burrow since its owner was last seen. */
 const notRaidedSinceSeen = raw`not exists (select 1 from raid_runs r where r.defender_id = ${players.id} and r.started_at > ${players.lastSeenAt} and r.carrots_looted > 0)`;
@@ -259,7 +262,30 @@ export async function GET(req: Request) {
     eq(players.solo, false),
   );
   const liveIds = (await connectedIds()).filter((id) => id !== session.sub).slice(0, RAID_LIST.LIVE);
-  const [live, rich] = await Promise.all([
+  // WHO OWES ME (2026-10-11): whoever took something from me this week and
+  // has not been paid back since — the profile's REVENGE rows, same rule
+  // (profile.gd `_avenged_at`: a debt is settled by taking their carrots or
+  // their run). Offline and poor, they were on neither list below, and the
+  // user looked for their raider here and did not find them. First on the
+  // list: a feud beats a stranger's purse.
+  const owedIds = (await db.selectDistinctOn([raids.attackerId], { id: raids.attackerId, at: raids.createdAt })
+    .from(raids)
+    .where(and(
+      eq(raids.defenderId, session.sub),
+      ne(raids.attackerId, session.sub),
+      gt(raids.createdAt, new Date(Date.now() - OWED_WINDOW_MS)),
+      or(ne(raids.kind, 'burrow'), gt(raids.carrotsLooted, 0)),
+      raw`not exists (select 1 from raids back where back.attacker_id = ${session.sub} and back.defender_id = ${raids.attackerId} and back.created_at > ${raids.createdAt} and (back.kind <> 'burrow' or back.carrots_looted > 0))`,
+    ))
+    .orderBy(raids.attackerId, desc(raids.createdAt)))
+    .sort((a, b) => b.at.getTime() - a.at.getTime())
+    .slice(0, RAID_LIST.OWED)
+    .map((r) => r.id);
+  const [owed, live, rich] = await Promise.all([
+    owedIds.length
+      ? db.select(columns).from(players)
+        .where(and(raidable, inArray(players.id, owedIds), or(gte(players.lastSeenAt, awakeSince()), notRaidedSinceSeen)))
+      : Promise.resolve([]),
     liveIds.length
       ? db.select(columns).from(players)
         .where(and(raidable, inArray(players.id, liveIds)))
@@ -274,6 +300,7 @@ export async function GET(req: Request) {
       .orderBy(desc(players.stock))
       .limit(RAID_LIST.RICH),
   ]);
+  owed.sort((a, b) => owedIds.indexOf(a.id) - owedIds.indexOf(b.id));
   const listed = new Set(live.map((t) => t.id));
   const now = Date.now();
   // NOTHING TO TAKE, NOT LISTED (2026-10-09, RAID.NOTHING_TO_TAKE_BELOW): a
@@ -281,7 +308,8 @@ export async function GET(req: Request) {
   // altogether — not shown shut, just not there. The user: "ceux qui ont rien
   // à perdre, tu les mets pas dans la liste". The door refuses them too (POST).
   const sleeping = (t: { id: string; lastSeenAt: Date }) => !listed.has(t.id) && asleep(t.lastSeenAt, now);
-  const targets = [...live, ...rich.filter((t) => !listed.has(t.id))]
+  const owing = new Set(owed.map((t) => t.id));
+  const targets = [...owed, ...live.filter((t) => !owing.has(t.id)), ...rich.filter((t) => !listed.has(t.id) && !owing.has(t.id))]
     .filter((t) => !nothingToTake(t.stock, gardenYield(t, now), sleeping(t)));
 
   /**
