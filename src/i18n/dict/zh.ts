@@ -29,6 +29,12 @@ export const zh: Dict = {
     description: '竞技扫雷。挖掘，囤积，掠夺，戴上王冠。',
   },
   lang: { label: '语言' },
+  update: {
+    title: '新版本',
+    body: 'Rabbit Royale 刚刚更新。重启游戏继续挖吧。',
+    reopen: '应用将关闭：请重新打开。',
+    restart: '重启',
+  },
   consent: {
     title: '开挖之前',
     body: '能不能让我们记录你怎么玩？界面、点击，还有你是从哪里来的。这能告诉我们该修什么。什么都不会卖。',

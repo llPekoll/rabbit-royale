@@ -40,15 +40,26 @@ extends Node
 ## une demi-heure de plus.
 const RETRY_FIRST_SECONDS := 1.0
 const RETRY_MAX_SECONDS := 30.0
+## Le temps qu'a une tentative pour aboutir au CONNECT. Au-dela elle est
+## fermee et reprise : une poignee de main sans reponse (serveur qui demarre,
+## proxy qui tient la requete) ne previent personne, et sans cette echeance la
+## socket ne se rouvrait plus jamais (2026-10-11).
+const CONNECT_TIMEOUT_SECONDS := 10.0
 
 signal connected
 signal dropped
 ## Un événement du serveur, nom et charge utile déjà déballés.
 signal event(name: String, data: Variant)
+## LE SERVEUR A REDEMARRE SOUS NOUS — un deploiement, en pratique. Les iles
+## vivent dans sa memoire : celle qu'on dessine est morte avec l'ancien
+## processus, et creuser dessus ne revele plus rien (cases sombres, pas de
+## chiffres, 2026-10-11). Le chrome demande alors de relancer le jeu.
+signal server_updated
 
 var _io: SocketIO
 var _retry_seconds := RETRY_FIRST_SECONDS
 var _retry_timer: Timer
+var _connect_timer: Timer
 var _live := false
 ## Le CONNECT Socket.IO a-t-il été accepté ? Voir `is_live()`.
 var _namespace_ready := false
@@ -58,6 +69,11 @@ var _want_seat := false
 var _seat_choice: Variant = null
 var _spectating := ""
 var _followed: Array = []
+## Le nom du processus serveur entendu au premier `server_hello` de la
+## session. Un autre nom ensuite = un autre processus = un redemarrage.
+var _boot := ""
+## Deja vu : le chrome monte apres coup (doorstep, puis le monde) le relit.
+var server_moved_on := false
 
 
 func _ready() -> void:
@@ -79,12 +95,20 @@ func _ready() -> void:
 	_retry_timer.timeout.connect(_attempt)
 	add_child(_retry_timer)
 
+	_connect_timer = Timer.new()
+	_connect_timer.one_shot = true
+	_connect_timer.timeout.connect(_on_connect_timeout)
+	add_child(_connect_timer)
+
 	# Une session qui change — connexion, déconnexion, invité qui lie son
 	# wallet — est une socket à refaire : le jeton du handshake n'est plus
 	# celui que le serveur nous connaît.
 	Session.changed.connect(_on_session_changed)
 	# UNE AUTRE REGION, UN AUTRE SERVEUR : la socket ouverte parle a l'ancien.
-	Net.region_changed.connect(func(_code: String) -> void: stop())
+	# Et un autre nom de processus, qui n'est pas un redemarrage.
+	Net.region_changed.connect(func(_code: String) -> void:
+		_boot = ""
+		stop())
 
 
 ## Ouvre la socket avec le jeton de la session. Sans jeton il n'y a rien à
@@ -103,6 +127,7 @@ func stop() -> void:
 	_live = false
 	_namespace_ready = false
 	_retry_timer.stop()
+	_connect_timer.stop()
 	if _io.state == EngineIO.State.CONNECTED:
 		_io.disconnect_socket()
 
@@ -132,11 +157,13 @@ func _attempt() -> void:
 	# coupure et cette reprise, un invité a pu lier son wallet, et le serveur a
 	# alors réémis un jeton. Rejouer l'ancien ferait refuser le CONNECT.
 	_io.connect_socket({"token": Session.token})
+	_connect_timer.start(CONNECT_TIMEOUT_SECONDS)
 
 
 ## Reconnecté. Tout ce que le serveur a oublié est renvoyé ici.
 func _on_connected(_ns: String) -> void:
 	_namespace_ready = true
+	_connect_timer.stop()
 	_retry_seconds = RETRY_FIRST_SECONDS
 	connected.emit()
 
@@ -154,6 +181,7 @@ func _on_connected(_ns: String) -> void:
 
 func _on_disconnected() -> void:
 	_namespace_ready = false
+	_connect_timer.stop()
 	dropped.emit()
 	_schedule_retry()
 
@@ -174,6 +202,15 @@ func _on_refused(_ns: String, data: Variant) -> void:
 		_live = false
 
 
+## La tentative n'a pas abouti a temps : on ferme le transport, ce qui annonce
+## la coupure (`_on_disconnected`) et programme la suivante.
+func _on_connect_timeout() -> void:
+	if not _live or _namespace_ready:
+		return
+	push_warning("[socket] pas de CONNECT en %d s, nouvelle tentative" % int(CONNECT_TIMEOUT_SECONDS))
+	_io.engine_close()
+
+
 func _schedule_retry() -> void:
 	if not _live:
 		return
@@ -190,7 +227,20 @@ func _on_event(name: String, data: Variant, _ns: String) -> void:
 		payload = (data as Array)[0]
 	if name not in _QUIET:
 		Net.trace("socket < %s %s" % [name, JSON.stringify(payload).left(160)])
+	if name == "server_hello" and payload is Dictionary:
+		_on_hello(str((payload as Dictionary).get("boot", "")))
 	event.emit(name, payload)
+
+
+func _on_hello(boot: String) -> void:
+	if boot.is_empty():
+		return
+	if _boot.is_empty():
+		_boot = boot
+		return
+	if boot != _boot and not server_moved_on:
+		server_moved_on = true
+		server_updated.emit()
 
 
 ## Ce que la trace du banc tait : le flot de chaque pas des autres.

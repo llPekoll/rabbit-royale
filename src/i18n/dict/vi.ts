@@ -31,6 +31,12 @@ export const vi: Dict = {
     description: 'Dò mìn đối kháng. Đào, tích trữ, đi cướp, đội vương miện.',
   },
   lang: { label: 'Ngôn ngữ' },
+  update: {
+    title: 'Phiên bản mới',
+    body: 'Rabbit Royale vừa được cập nhật. Khởi động lại trò chơi để tiếp tục đào.',
+    reopen: 'Ứng dụng sẽ đóng: hãy mở lại.',
+    restart: 'Khởi động lại',
+  },
   consent: {
     title: 'Trước khi đào',
     body: 'Cho phép đo cách bạn chơi? Màn hình, lượt chạm và quảng cáo đưa bạn đến đây. Nhờ vậy biết cần sửa gì. Không bán dữ liệu.',

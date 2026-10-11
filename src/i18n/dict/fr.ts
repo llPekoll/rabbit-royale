@@ -23,6 +23,12 @@ export const fr: Dict = {
     description: 'Démineur compétitif. Creuse, entasse, pille, porte la couronne.',
   },
   lang: { label: 'Langue' },
+  update: {
+    title: 'Nouvelle version',
+    body: 'Rabbit Royale vient d’être mis à jour. Relance le jeu pour continuer à creuser.',
+    reopen: 'L’appli va se fermer : rouvre-la.',
+    restart: 'Relancer',
+  },
   consent: {
     title: 'Avant de creuser',
     body: 'On peut mesurer ta façon de jouer ? Les écrans, les tapes, et la pub qui t’a amené ici. Ça nous montre quoi réparer. Rien n’est vendu.',

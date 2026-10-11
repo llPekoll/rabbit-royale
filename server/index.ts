@@ -65,6 +65,15 @@ import { runPushSweep } from '../src/lib/notify/sweep';
 import { PUSH } from '../src/lib/notify/schedule';
 
 const PORT = Number(process.env.WS_PORT ?? 3010);
+/**
+ * THIS PROCESS, NAMED. Drawn at boot and told to every socket on connect
+ * (`server_hello`): a client that hears a second name in one session knows
+ * the server restarted under it — a deploy, in practice — and that the island
+ * it is drawing died with the old process (islands live in memory). It asks
+ * the player to restart rather than dig on a board the server no longer has
+ * (2026-10-11: black tiles, no numbers, after three deploys in a morning).
+ */
+const BOOT_ID = randomUUID();
 const store = new MemoryIslandStore();
 
 // A rabbit out with a run still unbanked holds the tank — the raid route asks
@@ -170,6 +179,7 @@ const httpServer = http.createServer((req, res) => {
       rabbits: islands.reduce((n, i) => n + i.rabbits.size, 0),
       sockets: io.engine?.clientsCount ?? 0,
       uptimeSec: Math.round(process.uptime()),
+      boot: BOOT_ID,
     }));
     return;
   }
@@ -812,6 +822,7 @@ io.on('connection', (socket: Socket) => {
   const data = socket.data as SocketData;
   // Scenario setup, local only (RR_STAGE=1) — see server/stage.ts.
   installStage(socket, store, socketOf);
+  socket.emit('server_hello', { boot: BOOT_ID });
 
   // AT THE KEYBOARD, wherever they are standing — the handshake has already
   // named them by here, and this lasts until the socket closes. It is what

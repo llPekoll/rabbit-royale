@@ -91,6 +91,11 @@ func _ready() -> void:
 	Screens.moved.connect(_on_moved)
 	Home.noted.connect(toast)
 	GameSocket.event.connect(_on_socket_event)
+	# Le serveur a redemarre sous le jeu : relancer, voir UpdateDialog. Relu
+	# ici aussi, pour un chrome remonte apres coup (changement de scene).
+	GameSocket.server_updated.connect(_on_server_updated)
+	if GameSocket.server_moved_on:
+		_on_server_updated.call_deferred()
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 	_mount()
@@ -1036,6 +1041,11 @@ static func _drawn_bottom(node: Control) -> float:
 ## l'ecran a la place (`min-width: 860px`, `.rr-scrim { display: none }`) :
 ## rien n'est couvert, et un voile avalerait les taps destines au terrier.
 func open(dialog: Control, dismiss: bool = true, placement: String = "center") -> void:
+	# RELANCER passe avant tout : rien ne se pose sur le dialogue de mise a
+	# jour, et rien ne le retire (voir `close_dialog`).
+	if _dialog is UpdateDialog:
+		dialog.queue_free()
+		return
 	close_dialog()
 	_placement = placement
 	_scrim = ColorRect.new()
@@ -1123,7 +1133,14 @@ func _center_dialog() -> void:
 	_dialog.position = at
 
 
+func _on_server_updated() -> void:
+	if not _dialog is UpdateDialog:
+		open(UpdateDialog.new(), false)
+
+
 func close_dialog() -> void:
+	if _dialog is UpdateDialog and is_instance_valid(_dialog):
+		return
 	if _dialog != null:
 		Analytics.dialog_closed()
 		_dialog.queue_free()

@@ -122,6 +122,7 @@ func engine_make_connection():
 		_polling_http_request = Request.new()
 		add_child(_polling_http_request)
 		_polling_http_request.on_response_received.connect(_parse_packet)
+		_polling_http_request.on_response_error.connect(_on_polling_error)
 	
 	_handshake()
 
@@ -333,6 +334,19 @@ func _clear_requests():
 	for request in [_polling_http_request, _send_data_http_request]:
 		if not request == null:
 			request.clear()
+	# RABBIT ROYALE : `clear` les libere ; les garder en reference faisait
+	# reutiliser une requete morte a la reconnexion suivante.
+	_polling_http_request = null
+	_send_data_http_request = null
+
+
+## RABBIT ROYALE : le polling a echoue — la poignee de main d'une reconnexion
+## tombee pendant que le serveur redemarre, le plus souvent. L'amont n'ecoutait
+## pas cette erreur : aucune fermeture n'etait annoncee, donc aucune nouvelle
+## tentative, et le jeu restait sur une socket morte jusqu'a son redemarrage
+## (2026-10-11, apres chaque deploiement). Fermer, c'est annoncer la coupure.
+func _on_polling_error(_body: String):
+	engine_close()
 
 
 func _websocket_send(type: EnginePacketType, payload: String = ""):

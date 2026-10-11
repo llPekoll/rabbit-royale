@@ -27,6 +27,12 @@ export const ptBR: Dict = {
     description: 'Campo minado competitivo. Cave, acumule, saqueie, use a coroa.',
   },
   lang: { label: 'Idioma' },
+  update: {
+    title: 'Nova versão',
+    body: 'Rabbit Royale acabou de ser atualizado. Reinicie o jogo para continuar cavando.',
+    reopen: 'O app vai fechar: abra de novo.',
+    restart: 'Reiniciar',
+  },
   consent: {
     title: 'Antes de cavar',
     body: 'Podemos medir como você joga? Telas, toques e o anúncio que te trouxe aqui. Isso mostra o que consertar. Nada é vendido.',

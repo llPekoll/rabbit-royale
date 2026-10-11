@@ -12,6 +12,12 @@
  "lang": {
   "label": "Language"
  },
+ "update": {
+  "title": "New version",
+  "body": "Rabbit Royale was just updated. Restart the game to keep digging.",
+  "reopen": "The app will close: open it again.",
+  "restart": "Restart"
+ },
  "consent": {
   "title": "Before you dig",
   "body": "Can we measure how you play? Screens, taps, and which ad brought you here. It shows us what to fix. Nothing is sold.",

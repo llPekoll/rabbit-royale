@@ -35,7 +35,10 @@ func clear():
 
 func _completed(result: HTTPRequest.Result, response_code: int, headers: PackedStringArray, body: PackedByteArray):
     is_request_in_process = false
-    if result == HTTPRequest.Result.RESULT_SUCCESS:
+    # RABBIT ROYALE : un 502/503 du proxy pendant un deploiement arrive en
+    # RESULT_SUCCESS ; lu comme un paquet Engine.IO, il etait ignore et la
+    # connexion restait suspendue. Un code d'erreur HTTP est une erreur.
+    if result == HTTPRequest.Result.RESULT_SUCCESS and response_code < 400:
         on_response_received.emit(body.get_string_from_utf8())
     else:
         on_response_error.emit(body.get_string_from_utf8())

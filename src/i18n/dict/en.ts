@@ -41,6 +41,13 @@ export const en = {
     label: 'Language',
   },
   /* ── Consent: the measuring question, asked in Europe before the doors ── */
+  update: {
+    /** The server restarted under a running game (godot/scripts/ui/update_dialog.gd). */
+    title: 'New version',
+    body: 'Rabbit Royale was just updated. Restart the game to keep digging.',
+    reopen: 'The app will close: open it again.',
+    restart: 'Restart',
+  },
   consent: {
     title: 'Before you dig',
     /** Analytics and ads go together, one switch (godot/scripts/consent.gd). */
