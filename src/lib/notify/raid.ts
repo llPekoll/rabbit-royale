@@ -25,7 +25,7 @@
  * and it is the one push worth being woken for; the gap and the per-raid
  * claims are what keep a busy night to a few buzzes.
  */
-import { and, eq, isNull, sql as raw } from 'drizzle-orm';
+import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { db } from '../db';
 import { pushState, raidRuns } from '../db/schema';
 import type { DefenderRaidView } from '../game/defence';
@@ -44,7 +44,10 @@ async function claimRaidGap(playerId: string, now: Date): Promise<boolean> {
     .onConflictDoUpdate({
       target: pushState.playerId,
       set: { raidPushAt: now },
-      setWhere: raw`${pushState.raidPushAt} is null or ${pushState.raidPushAt} < ${cut}`,
+      // Operators, not a raw template: inside `sql` a Date goes to the driver
+      // as Date.toString(), which Postgres cannot read as a timestamptz, and
+      // every raid push failed on it until 2026-10-11.
+      setWhere: or(isNull(pushState.raidPushAt), lt(pushState.raidPushAt, cut)),
     })
     .returning({ playerId: pushState.playerId });
   return rows.length > 0;
