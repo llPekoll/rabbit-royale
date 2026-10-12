@@ -51,11 +51,21 @@ const PILL_SHRINK_UNDER := 420.0
 const PILL_SMALL := 0.75
 ## Un telephone etroit en paysage : le rail prend son plancher (34).
 const NARROW_W := 720.0
+## Les coins du plein ecran : sortir (vers le bord), rentrer (vers le centre).
+const FULLSCREEN_ON := preload("res://assets/ui/icons/fullscreen.png")
+const FULLSCREEN_OFF := preload("res://assets/ui/icons/fullscreen-exit.png")
 ## Les delais de la cascade d'arrivee.
 
 var pill: CarrotPill
 ## Le lapin du joueur : il ouvre le profil (et ses reglages).
 var me_button: HubIconButton
+## LE PLEIN ECRAN, a gauche du lapin, sur le web seulement (2026-10-12) :
+## la barre d'adresse mangeait le haut du jeu. La bascule est dans la page
+## (`window.rrFullscreen`, web/shell.html) ; absent la ou elle ne peut rien
+## (iPhone, app installee). null ailleurs.
+var fullscreen_button: HubIconButton
+var _fullscreen_web: JavaScriptObject
+var _fullscreen_changed: JavaScriptObject
 var shop_button: HubIconButton
 var story_button: HubIconButton
 var season_button: HubIconButton
@@ -142,6 +152,8 @@ func _ready() -> void:
 	season_button.pressed.connect(func() -> void: season_pressed.emit())
 	_rail.add_child(season_button)
 
+	_make_fullscreen()
+
 	me_button = HubIconButton.make("Profile")
 	me_button.pressed.connect(func() -> void: profile_pressed.emit())
 	_corner.add_child(me_button)
@@ -180,6 +192,22 @@ func _relabel() -> void:
 	me_button.tooltip_text = I18N.t("profile.title")
 
 
+func _make_fullscreen() -> void:
+	if not OS.has_feature("web"):
+		return
+	_fullscreen_web = JavaScriptBridge.get_interface("rrFullscreen")
+	if _fullscreen_web == null or not bool(_fullscreen_web.supported()):
+		return
+	fullscreen_button = HubIconButton.make("Fullscreen", FULLSCREEN_ON)
+	fullscreen_button.pressed.connect(func() -> void: _fullscreen_web.toggle())
+	_corner.add_child(fullscreen_button)
+	# Echap sort aussi : l'icone suit la page, pas le bouton.
+	_fullscreen_changed = JavaScriptBridge.create_callback(func(args: Array) -> void:
+		var on := args.size() > 0 and bool(args[0])
+		fullscreen_button.set_glyph(FULLSCREEN_OFF if on else FULLSCREEN_ON))
+	_fullscreen_web.onChange(_fullscreen_changed)
+
+
 ## LE LAPIN DU JOUEUR : sa tete en jeu (Look.mine, skin compris) dans
 ## l'anneau, et son niveau en pastille comme le rang sur le trophee. Pas de
 ## nom : c'etait la planche « LVL 6 CursedRoot », qui prenait la moitie de
@@ -202,6 +230,8 @@ func _measure() -> void:
 	for b in [shop_button, story_button, season_button]:
 		(b as HubIconButton).set_square(square, view.y)
 	me_button.set_square(square, view.y)
+	if fullscreen_button != null:
+		fullscreen_button.set_square(square, view.y)
 	# A la gouttiere de l'ecran : les pastilles
 	# posees a cheval sur les boutons gardent ainsi 5 px d'air au-dessus.
 	# Plus bas et plus au centre sur un telephone (Kit.screen_inset).
@@ -288,12 +318,17 @@ func _arrive() -> void:
 			rank += 1
 	pill.drop_in(rank)
 	rank += 1
+	if fullscreen_button != null:
+		UiEntrance.play(fullscreen_button, UiEntrance.FROM_TOP, rank)
+		rank += 1
 	UiEntrance.play(me_button, UiEntrance.FROM_TOP, rank)
 
 
 ## La premiere image de l'arrivee : tout eteint.
 func _arrive_pose() -> void:
 	UiEntrance.pose([shop_button, story_button, season_button, me_button])
+	if fullscreen_button != null:
+		UiEntrance.pose([fullscreen_button])
 	pill.drop_pose()
 
 

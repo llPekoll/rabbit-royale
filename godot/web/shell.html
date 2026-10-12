@@ -227,6 +227,55 @@ body {
 		</script>
 
 		<script>
+/* PLEIN ECRAN, pour top_bar.gd (branche web) (2026-10-12). Dans le
+   navigateur, la barre d'adresse et les onglets mangent le haut du jeu. Le
+   bouton est un anneau du chrome, a gauche du lapin : un bouton HTML passait
+   par-dessus les fenetres de Godot. La page ne fait que la bascule :
+     supported()  -> faux sur iPhone (pas de plein ecran pour une page) et en
+                     app installee (deja sans barre)
+     active()     -> en plein ecran ou non
+     toggle()     -> la bascule ; Godot l'appelle dans la frame de la tape,
+                     encore dans l'activation du geste
+     onChange(cb) -> cb(actif) a chaque entree ou sortie, Echap compris */
+window.rrFullscreen = (function () {
+	const root = document.documentElement;
+	const request = root.requestFullscreen || root.webkitRequestFullscreen;
+	const exit = document.exitFullscreen || document.webkitExitFullscreen;
+	let changed = null;
+	function active() {
+		return !!(document.fullscreenElement || document.webkitFullscreenElement);
+	}
+	function standalone() {
+		return window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+	}
+	function emit() {
+		if (changed) changed(active());
+	}
+	document.addEventListener('fullscreenchange', emit);
+	document.addEventListener('webkitfullscreenchange', emit);
+	return {
+		supported: function () { return !!request && !standalone(); },
+		active: active,
+		toggle: function () {
+			if (active()) {
+				Promise.resolve(exit.call(document)).catch(function () {});
+				return;
+			}
+			Promise.resolve(request.call(root, { navigationUI: 'hide' }))
+				.then(function () {
+					// Android : en plein ecran seulement, on peut tenir le paysage.
+					if (screen.orientation && screen.orientation.lock) {
+						screen.orientation.lock('landscape').catch(function () {});
+					}
+				})
+				.catch(function () {});
+		},
+		onChange: function (cb) { changed = cb; },
+	};
+})();
+		</script>
+
+		<script>
 /* LE WALLET DU NAVIGATEUR, pour wallet.gd (branche web).
    Android a son plugin MWA ; ici c'est le wallet injecte (Phantom, Solflare,
    Backpack...). Godot ne sait pas attendre une Promise : chaque appel prend

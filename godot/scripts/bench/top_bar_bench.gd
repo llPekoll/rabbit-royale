@@ -5,6 +5,7 @@ extends Control
 ##   godot --path godot scenes/bench/top_bar_bench.tscn -- --shot=bar.png --after=2
 ##   ... -- --run      # en pleine manche : coffres, butin, energie de la manche
 ##   ... -- --refill   # retour de manche : le cadran vide remonte au reservoir
+##   ... -- --fullscreen  # l'anneau du plein ecran (web seulement en jeu)
 ##
 ## Les reglages (ex `--sound`) sont un onglet du profil : dialogs_bench
 ## `--only=settings`.
@@ -50,6 +51,13 @@ func _ready() -> void:
 		for i in 12:
 			get_tree().create_timer(0.3 + i * 0.15).timeout.connect(func() -> void:
 				print("[bench] dial ", bar.pill.dial.value))
+
+	# `-- --fullscreen` : l'anneau du plein ecran, qui n'existe que sur le web
+	# (la bascule est dans la page) — pose a la main, a gauche du lapin.
+	if "--fullscreen" in OS.get_cmdline_user_args():
+		bar.fullscreen_button = HubIconButton.make("Fullscreen", TopBar.FULLSCREEN_ON)
+		bar._corner.add_child(bar.fullscreen_button)
+		bar._corner.move_child(bar.fullscreen_button, 0)
 
 	# Ce que la barre dit, imprime pour le banc.
 	for s in ["energy_tapped", "add_pressed", "profile_pressed", "shop_pressed", "story_pressed", "season_pressed"]:
