@@ -229,10 +229,10 @@ body {
 		<script>
 /* PLEIN ECRAN, pour top_bar.gd (branche web) (2026-10-12). Dans le
    navigateur, la barre d'adresse et les onglets mangent le haut du jeu. Le
-   bouton est un anneau du chrome, a gauche du lapin : un bouton HTML passait
-   par-dessus les fenetres de Godot. La page ne fait que la bascule :
-     supported()  -> faux sur iPhone (pas de plein ecran pour une page) et en
-                     app installee (deja sans barre)
+   bouton est un anneau du chrome, a gauche du lapin, et sur ordinateur
+   seulement (top_bar.gd) : un bouton HTML passait par-dessus les fenetres de
+   Godot. La page ne fait que la bascule :
+     supported()  -> faux sans l'API et en app installee (deja sans barre)
      active()     -> en plein ecran ou non
      toggle()     -> la bascule ; Godot l'appelle dans la frame de la tape,
                      encore dans l'activation du geste
@@ -261,14 +261,7 @@ window.rrFullscreen = (function () {
 				Promise.resolve(exit.call(document)).catch(function () {});
 				return;
 			}
-			Promise.resolve(request.call(root, { navigationUI: 'hide' }))
-				.then(function () {
-					// Android : en plein ecran seulement, on peut tenir le paysage.
-					if (screen.orientation && screen.orientation.lock) {
-						screen.orientation.lock('landscape').catch(function () {});
-					}
-				})
-				.catch(function () {});
+			Promise.resolve(request.call(root, { navigationUI: 'hide' })).catch(function () {});
 		},
 		onChange: function (cb) { changed = cb; },
 	};

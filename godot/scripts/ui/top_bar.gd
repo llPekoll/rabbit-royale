@@ -59,10 +59,10 @@ const FULLSCREEN_OFF := preload("res://assets/ui/icons/fullscreen-exit.png")
 var pill: CarrotPill
 ## Le lapin du joueur : il ouvre le profil (et ses reglages).
 var me_button: HubIconButton
-## LE PLEIN ECRAN, a gauche du lapin, sur le web seulement (2026-10-12) :
-## la barre d'adresse mangeait le haut du jeu. La bascule est dans la page
-## (`window.rrFullscreen`, web/shell.html) ; absent la ou elle ne peut rien
-## (iPhone, app installee). null ailleurs.
+## LE PLEIN ECRAN, a gauche du lapin, dans le navigateur d'un ORDINATEUR
+## seulement (2026-10-12) : la barre d'adresse mangeait le haut du jeu. Ni
+## l'app (Seeker, iPhone), ni le navigateur d'un telephone. La bascule est
+## dans la page (`window.rrFullscreen`, web/shell.html). null ailleurs.
 var fullscreen_button: HubIconButton
 var _fullscreen_web: JavaScriptObject
 var _fullscreen_changed: JavaScriptObject
@@ -193,7 +193,7 @@ func _relabel() -> void:
 
 
 func _make_fullscreen() -> void:
-	if not OS.has_feature("web"):
+	if not OS.has_feature("web") or OS.has_feature("web_android") or OS.has_feature("web_ios"):
 		return
 	_fullscreen_web = JavaScriptBridge.get_interface("rrFullscreen")
 	if _fullscreen_web == null or not bool(_fullscreen_web.supported()):
