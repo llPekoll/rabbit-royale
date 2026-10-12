@@ -14,6 +14,9 @@ const TIP := Vector2(5, 0)
 const SIZE := 1.0
 const GLIDE_S := 0.24
 const PRESS_S := 0.09
+## La courbe du trajet : le creux, en part de la distance, et son plafond.
+const SAG := 0.25
+const SAG_MAX := 90.0
 
 var _hand: Sprite2D
 
@@ -31,10 +34,24 @@ func _ready() -> void:
 
 
 ## La main va a `at` (coordonnees de l'ecran), appuie, et `then` part.
-func tap(at: Vector2, then: Callable) -> void:
+## `glide_s` et `hover_s` : plus lent, et un temps pose avant d'appuyer, pour
+## un geste qu'on doit suivre des yeux.
+##
+## LE TRAJET S'INCURVE VERS LE BAS (le user, 2026-10-12 : « une legere courbe
+## vers le bas pour un mouvement plus naturel ») : une courbe de Bezier dont
+## le milieu pend d'un quart de la distance — un poignet, pas une regle.
+func tap(at: Vector2, then: Callable, glide_s := GLIDE_S, hover_s := 0.0) -> void:
+	var from := _hand.position
+	var sag := clampf(from.distance_to(at) * SAG, 0.0, SAG_MAX)
+	var bend := (from + at) * 0.5 + Vector2(0, sag)
 	var glide := create_tween()
-	glide.tween_property(_hand, "position", at, GLIDE_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	glide.tween_method(func(t: float) -> void:
+		var u := 1.0 - t
+		_hand.position = u * u * from + 2.0 * u * t * bend + t * t * at,
+		0.0, 1.0, glide_s).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	await glide.finished
+	if hover_s > 0.0:
+		await get_tree().create_timer(hover_s).timeout
 	var press := create_tween()
 	press.tween_property(_hand, "scale", Vector2.ONE * SIZE * 0.84, PRESS_S)
 	await press.finished

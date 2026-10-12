@@ -163,8 +163,16 @@ func _ready() -> void:
 
 
 func _toast(text: String, refused: bool) -> void:
-	if Chrome.current != null:
-		Chrome.current.toast(text, refused)
+	if Chrome.current == null:
+		return
+	# EN RAID, LA PLAQUE LE DIT DEJA (raid_hud.gd `_note`) : la legende en
+	# double se lisait deux fois l'une sous l'autre (2026-10-12). Hors de la
+	# plaque — le butin annonce au retour, un refus a l'entree — la legende.
+	if RaidHud.bottom() > 0.0 and has_raid() and text == note:
+		if refused:
+			Sound.deny()
+		return
+	Chrome.current.toast(text, refused)
 
 
 # ── L'attaquant ──────────────────────────────────────────────────────────────
@@ -211,7 +219,7 @@ func refresh() -> void:
 
 
 ## ENTRER dans un terrier (`POST /api/raid {defenderId}`).
-func enter(defender_id: String) -> void:
+func enter(defender_id: String, leaving_island := false) -> void:
 	if _faked or busy or not Session.signed_in():
 		return
 	busy = true
@@ -220,6 +228,15 @@ func enter(defender_id: String) -> void:
 	changed.emit()
 	var answer: Answer = await Net.post_json("/api/raid", {"defenderId": defender_id}, Session.token)
 	Net.trace("POST /api/raid %s -> %d %s" % [defender_id, answer.status, str(answer.body.get("error", "ok"))])
+	# ON VIENT DE QUITTER L'ILE (la vengeance depuis le profil, chrome.gd
+	# `revenge`) : le serveur rend la place a son rythme, et `on_island` dit
+	# seulement qu'il n'y est pas encore. On redemande, sans rien dire.
+	var tries := 0
+	while leaving_island and answer.error() == "on_island" and tries < ON_ISLAND_RETRIES:
+		tries += 1
+		await (Engine.get_main_loop() as SceneTree).create_timer(ON_ISLAND_WAIT_S).timeout
+		answer = await Net.post_json("/api/raid", {"defenderId": defender_id}, Session.token)
+		Net.trace("POST /api/raid %s (relance %d) -> %d %s" % [defender_id, tries, answer.status, str(answer.body.get("error", "ok"))])
 	busy = false
 	var res := answer.body
 	if res.has("error") or not answer.ok:
@@ -234,6 +251,12 @@ func enter(defender_id: String) -> void:
 	_adopt_raid(res.get("raid", {}) if res.get("raid") is Dictionary else {})
 	if has_raid():
 		Analytics.track("raid_start", {"energy": int(raid.get("energy", 0)), "defender_level": int(_defender_of(raid).get("level", 0))})
+
+
+## Combien de fois, et tous les combien, redemander un raid refuse `on_island`
+## juste apres avoir quitte l'ile (`enter(..., true)`).
+const ON_ISLAND_RETRIES := 10
+const ON_ISLAND_WAIT_S := 0.3
 
 
 ## Le defenseur d'un raid, ou vide — le serveur l'omet parfois.
@@ -597,7 +620,11 @@ var _ended_heard := ""
 
 func _accept_incoming(next: Dictionary) -> void:
 	_ended_timer.stop()
-	var arrived := incoming.is_empty() and not next.is_empty()
+	# UNE ARRIVEE, c'est un raid EN COURS qu'on n'avait pas : relu fini a
+	# l'entree du terrier (les ENDED_SHOWN_MS ou on le montre encore), il
+	# criait « X pille ton terrier ! » et faisait sauter l'explosion apres
+	# coup — meme en pleine vengeance chez X (2026-10-12).
+	var arrived := incoming.is_empty() and not next.is_empty() and not bool(next.get("finished", false))
 	if not _same_incoming(incoming, next):
 		incoming = next
 		incoming_changed.emit()

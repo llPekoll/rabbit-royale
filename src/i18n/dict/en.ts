@@ -998,6 +998,7 @@ export const en = {
     none_held: 'No lightning to call. The shop sells it.',
     no_raid: 'That raid is over.',
     no_axe: 'No axe in your bag. The shop sells them.',
+    on_island: 'Finish your dig first.',
     axe_used: 'One axe per raid.',
     not_cuttable: 'Nothing to chop there.',
     unknown_player: 'They are gone.',

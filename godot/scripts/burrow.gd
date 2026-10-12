@@ -95,6 +95,13 @@ var _stump_tags := {}
 ## Une relecture demandee pour une souche arrivee a zero (`_sync_stumps`).
 var _regrow_asked := {}
 const WOOD_CHIPS := [Color("#8a5a32"), Color("#d9c8a0")]
+## La hache qui frappe (`_chop`) : combien de coups, sa taille, ou elle se
+## tient par rapport au pied de l'arbre, levee et abattue.
+const CHOP_HITS := 3
+const CHOP_SCALE := 1.15
+const CHOP_AT := Vector2(24, 2)
+const CHOP_RAISED := 0.95
+const CHOP_STRUCK := -0.55
 const LEAVES := [Color("#5f9e3a"), Color("#a8d65a"), Color("#3f7a2c")]
 ## Relus toutes les 20 s : la minute s'y voit sans un _process.
 const STUMP_TICK_S := 20.0
@@ -565,6 +572,8 @@ func _spring_under_raider(tile: int) -> void:
 	# parti avant, le souffle eclatait sur une case encore vide.
 	while _raider != null and _raider.hopping():
 		await get_tree().process_frame
+	# La meme explosion que l'ile et que le pillard voit chez nous.
+	Blast.play(self, _terrain, BurrowLayout.cell_of(tile), true)
 	_traps.spring(tile)
 	Sound.play("explosion")
 	if _raider != null:
@@ -828,6 +837,7 @@ func _fall(target: Dictionary, ours: bool) -> void:
 			_dust(mid)
 		return
 	var c := BurrowLayout.cell_of(int(target.get("tile", -1)))
+	var foot := _terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
 	for n in _scenery.nodes_at(c):
 		if not (n is Sprite2D) or not is_instance_valid(n):
 			continue
@@ -838,6 +848,12 @@ func _fall(target: Dictionary, ours: bool) -> void:
 		ghost.global_transform = src.global_transform
 		ghost.z_as_relative = false
 		ghost.z_index = 3000
+		# LA HACHE SE VOIT : elle frappe le tronc CHOP_HITS fois, l'arbre debout
+		# (le fantome cache deja la souche), puis il tombe (2026-10-12 : « pas
+		# assez clair le truc avec la axe »).
+		await _chop(foot)
+		if not is_instance_valid(ghost):
+			return
 		var side := -1.0 if ours and hash(c) % 2 == 0 else 1.0
 		var tw := ghost.create_tween()
 		tw.tween_property(ghost, "rotation", side * 0.08, 0.06)
@@ -846,7 +862,7 @@ func _fall(target: Dictionary, ours: bool) -> void:
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.tween_property(ghost, "modulate:a", 0.0, 0.3)
 		tw.tween_callback(ghost.queue_free)
-		_dust(_terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h()))
+		_dust(foot)
 		break
 
 
@@ -958,6 +974,40 @@ func _ghost_stumps(tiles: Array) -> Array[Sprite2D]:
 	return out
 
 
+## LA HACHE AU TRONC : posee a droite du pied, le fer tourne vers l'arbre,
+## elle se leve et s'abat CHOP_HITS fois — un copeau et un coup sourd a
+## chaque fois — puis s'efface. Rend la main quand le dernier coup est porte.
+func _chop(foot: Vector2) -> void:
+	var axe := Sprite2D.new()
+	axe.texture = Kit.ICONS["axe"]
+	axe.flip_h = true
+	axe.centered = false
+	# Pivot au bout du manche (en bas a droite une fois retournee).
+	axe.offset = -Vector2(axe.texture.get_width() - 3, axe.texture.get_height() - 3)
+	axe.scale = Vector2.ONE * CHOP_SCALE
+	axe.position = foot + CHOP_AT
+	axe.z_as_relative = false
+	axe.z_index = 3002
+	axe.rotation = CHOP_RAISED
+	axe.modulate.a = 0.0
+	add_child(axe)
+	var show := axe.create_tween()
+	show.tween_property(axe, "modulate:a", 1.0, 0.08)
+	await show.finished
+	for i in CHOP_HITS:
+		var swing := axe.create_tween()
+		swing.tween_property(axe, "rotation", CHOP_STRUCK, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		await swing.finished
+		Sound.play("step", 0.7 + 0.1 * i)
+		_dust(foot + Vector2(4, -14))
+		var back := axe.create_tween()
+		back.tween_property(axe, "rotation", CHOP_RAISED, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		await back.finished
+	var hide := axe.create_tween()
+	hide.tween_property(axe, "modulate:a", 0.0, 0.12)
+	hide.tween_callback(axe.queue_free)
+
+
 ## Un nuage de copeaux au pied de ce qui tombe — ou de feuilles, `colors`.
 func _dust(at: Vector2, colors: Array = WOOD_CHIPS) -> void:
 	for i in 7:
@@ -1005,13 +1055,18 @@ func _fade(n: CanvasItem, alpha: float) -> void:
 
 ## UN PIEGE A SAUTE SOUS NOUS. Le signal part AVANT que la reponse soit
 ## dessinee : on laisse le pas commencer (une image), puis atterrir, et la
-## bombe saute sur la case ou il est arrive. Le bruit est au chrome.
+## bombe saute sur la case ou il est arrive — son bruit avec elle.
 func _on_raid_sprung(tile: int) -> void:
 	await get_tree().process_frame
 	while _walker != null and _walker.hopping():
 		await get_tree().process_frame
 	if _walker == null or not _in_raid:
 		return
+	# LA VRAIE EXPLOSION, celle de l'ile (blast.ts) : en raid, une bombe ne
+	# faisait qu'un anneau pale et le pillard se demandait ce qui l'avait
+	# touche (2026-10-12). Pas de cratere : le terrier n'en garde pas.
+	Blast.play(self, _terrain, BurrowLayout.cell_of(tile), true)
+	Sound.play("explosion")
 	_traps.spring(tile)
 	_walker.take_hit(_walker.position + Vector2(0, 12))
 

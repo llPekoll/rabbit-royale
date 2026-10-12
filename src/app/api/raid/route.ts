@@ -124,7 +124,7 @@ async function raidView(runId: string) {
      * raider who reads every clue number reads every trap, and the flag was
      * live on the game's own routes.
      */
-    view: raiderView(seed, run.visited, clues, smoked),
+    view: raiderView(seed, run.visited, clues, smoked, mined.map((t) => t.tile)),
     /**
      * The tiles actually STOOD on, as opposed to merely seen from.
      *

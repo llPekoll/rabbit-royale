@@ -14,11 +14,12 @@
  *  - the burrow's HP, worn down by the raid and regenerating on its own;
  *  - the loot, a share of the victim's stock scaled by how far the raider got.
  */
-import { CROWN } from '@config/tuning';
+import { CROWN, ISLAND } from '@config/tuning';
 import { RAID, RAID_RUN } from '@/lib/tuning/tables';
 import {
   entranceTile, fieldTiles, burrowNeighbors, burrowAround, walkableTiles, burrowTier,
 } from '@/game/burrow/board';
+import { burrowColRow } from '@/game/burrow/generate';
 
 /**
  * Steps from a tile to the nearest field tile — the raid's own distance metric.
@@ -274,6 +275,21 @@ export function trapClues(seed: string, traps: Iterable<number>): Map<number, nu
  * over every clue at once would turn the crossing into a solved puzzle before
  * the first step.
  *
+ * A NUMBER ONLY WHERE THE RAIDER STOOD, as in a minesweeper (2026-10-12). The
+ * neighbours used to carry their numbers too, so a raider read a "2" ringed by
+ * numbers and stepped onto a "3" that blew up — a board no minesweeper shows,
+ * which players read as fake. Now a neighbour comes with `clue: null` (its
+ * ground, not its number) unless a "0" opened it: a stood-on 0 opens its
+ * neighbours, and their own 0s open further, the island's cascade. A tile
+ * holding a trap (`trapped`, armed or rearming) never opens that way and,
+ * stood on, reads blank — no number on a bomb.
+ *
+ * THE DOOR OPENS SMALL, like an island's birth (`ISLAND.CASCADE_RADIUS`):
+ * a burrow's empty half is one wide zero, and a cascade from the door handed
+ * it over before the first step (« la moitié de la map est déjà clear, en
+ * vrai quand tu arrives la moitié n'est pas dévoilée »). A zero the raider
+ * steps on later opens its whole zone, as on the island.
+ *
  * `smoked` blanks the numbers entirely: the defender bought a screen, so the
  * raider crosses blind and learns only what they spring. The TILES are still
  * listed — a raider must know where the walls are, or they are not playing a
@@ -290,10 +306,36 @@ export function raiderView(
   visited: Iterable<number>,
   clues: Map<number, number>,
   smoked: boolean,
+  trapped: Iterable<number> = [],
 ): { tile: number; clue: number | null; tier: number }[] {
-  const seen = new Set<number>();
-  for (const tile of visited) {
-    seen.add(tile);
+  const bombs = new Set(trapped);
+  const walked = [...visited];
+  const open = new Set<number>(walked);
+  const door = entranceTile(seed);
+  const near = (from: number) => {
+    const c = burrowColRow(from);
+    return (t: number) => {
+      const { col, row } = burrowColRow(t);
+      return Math.max(Math.abs(col - c.col), Math.abs(row - c.row)) <= ISLAND.CASCADE_RADIUS;
+    };
+  };
+  const cascade = (from: number, inReach: (t: number) => boolean) => {
+    const seen = new Set([from]);
+    const queue = [from];
+    while (queue.length) {
+      const tile = queue.shift()!;
+      if (bombs.has(tile) || (clues.get(tile) ?? 0) !== 0) continue;
+      for (const n of burrowNeighbors(seed, tile)) {
+        if (seen.has(n) || bombs.has(n) || !inReach(n)) continue;
+        seen.add(n);
+        open.add(n);
+        queue.push(n);
+      }
+    }
+  };
+  if (!smoked) for (const tile of new Set(walked)) cascade(tile, tile === door ? near(door) : () => true);
+  const seen = new Set<number>(open);
+  for (const tile of walked) {
     // SIGHT, not movement. `burrowNeighbors` drops anything more than one
     // shelf up or down, so on terraced ground a raider standing below a cliff
     // uncovered nothing in that direction and the burrow read as an empty
@@ -303,7 +345,7 @@ export function raiderView(
   }
   return [...seen].map((tile) => ({
     tile,
-    clue: smoked ? null : (clues.get(tile) ?? 0),
+    clue: smoked || !open.has(tile) ? null : bombs.has(tile) ? 0 : (clues.get(tile) ?? 0),
     tier: burrowTier(seed, tile),
   }));
 }

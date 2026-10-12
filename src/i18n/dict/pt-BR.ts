@@ -834,6 +834,7 @@ export const ptBR: Dict = {
     none_held: 'Sem raio para chamar. A loja vende.',
     no_raid: 'Esse saque acabou.',
     no_axe: 'Nenhum machado na sua bolsa. A loja vende.',
+    on_island: 'Termine sua partida na ilha primeiro.',
     axe_used: 'Um machado por ataque.',
     not_cuttable: 'Nada para derrubar aí.',
     unknown_player: 'Sumiram.',

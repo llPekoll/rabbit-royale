@@ -827,6 +827,7 @@ export const vi: Dict = {
     none_held: 'Không có sét để gọi. Cửa hàng có bán.',
     no_raid: 'Lần cướp này đã xong.',
     no_axe: 'Túi bạn không có rìu. Cửa hàng có bán.',
+    on_island: 'Hãy chơi xong ván trên đảo trước đã.',
     axe_used: 'Mỗi lần đột kích chỉ một rìu.',
     not_cuttable: 'Không có gì để chặt ở đó.',
     unknown_player: 'Họ biến mất rồi.',

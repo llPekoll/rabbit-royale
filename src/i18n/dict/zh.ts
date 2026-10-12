@@ -818,6 +818,7 @@ export const zh: Dict = {
     none_held: '没有闪电可用。商店有售。',
     no_raid: '这次掠夺已经结束。',
     no_axe: '你的背包里没有斧头。商店有售。',
+    on_island: '先结束岛上的这一局。',
     axe_used: '每次突袭只能用一把斧头。',
     not_cuttable: '那里没有可砍的东西。',
     unknown_player: '他们已经不在了。',

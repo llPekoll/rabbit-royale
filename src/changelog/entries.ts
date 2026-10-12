@@ -111,6 +111,41 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-12',
     items: [
       {
+        kind: 'tune',
+        text: {
+          en: 'Raids read like minesweeper: numbers only where you stepped, a 0 opens the ground around it, and never a number on a bomb.',
+          fr: 'Les raids se lisent comme un démineur : un chiffre seulement là où tu as marché, un 0 ouvre le terrain autour, et jamais de chiffre sur une bombe.',
+          zh: '突袭像扫雷一样：只有走过的格子显示数字，0 会翻开周围的地面，炸弹上永远没有数字。',
+          'pt-BR': 'Os ataques funcionam como campo minado: números só onde você pisou, um 0 abre o terreno em volta, e nunca um número sobre uma bomba.',
+          vi: 'Đột kích giờ giống dò mìn: chỉ hiện số ở ô bạn đã bước, ô 0 mở vùng đất xung quanh, và không bao giờ có số trên bom.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'You see the axe strike the trunk before the tree falls, and a raid bomb now goes off with a real explosion.',
+          fr: 'Tu vois la hache frapper le tronc avant que l’arbre tombe, et une bombe de raid saute maintenant avec une vraie explosion.',
+          zh: '树倒下前能看到斧头砍向树干，突袭中的炸弹现在会真正爆炸。',
+          'pt-BR': 'Você vê o machado golpear o tronco antes da árvore cair, e uma bomba de ataque agora explode de verdade.',
+          vi: 'Bạn thấy rìu bổ vào thân cây trước khi cây đổ, và bom trong đột kích giờ nổ thật sự.',
+        },
+      },
+      {
+        kind: 'fix',
+        text: {
+          en: 'REVENGE works from the island, no more false raid alert, messages no longer double up or cover the burrow name, and BACK TO THE BURROW is centered.',
+          fr: 'REVENGE marche depuis l’île, plus de fausse alerte de raid, les messages ne se doublent plus et ne cachent plus le nom du terrier, et RETOUR AU TERRIER est centré.',
+          zh: '在岛上也能使用“复仇”，不再有误报的突袭警报，提示不再重复也不再遮住洞穴名称，“返回洞穴”按钮已居中。',
+          'pt-BR': 'VINGANÇA funciona da ilha, sem alerta falso de ataque, as mensagens não se repetem nem cobrem o nome da toca, e VOLTAR À TOCA está centralizado.',
+          vi: 'TRẢ THÙ hoạt động từ đảo, hết báo động đột kích giả, thông báo không còn lặp hay che tên hang, và nút VỀ HANG đã căn giữa.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    items: [
+      {
         kind: 'fix',
         text: {
           en: 'A Discord button in What’s New and in Settings: come say hi, report bugs, find rivals.',

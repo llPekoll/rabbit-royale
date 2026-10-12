@@ -171,22 +171,31 @@ func clear() -> void:
 ## fumee. Le brouillard se leve sur chaque case vue, en fondu — sauf a la
 ## premiere image : un plateau qui fond toute sa zone de depart se lit comme
 ## un chargement, pas comme un regard.
+##
+## UN CHIFFRE SEULEMENT LA OU IL A MARCHE, comme au demineur (raid.ts
+## `raiderView`, 2026-10-12) : une voisine arrive avec `clue` nul tant
+## qu'un 0 ne l'a pas ouverte, et garde sa motte levee — le front de l'ile.
+## Sous la fumee, `_raid_sight` n'envoie deja que les cases foulees.
 func show_view(view: Array, fresh: bool, smoked := false) -> void:
 	_smoked = smoked
 	var seen := {}
+	var opened := {}
 	for v in view:
 		if v is Dictionary:
-			seen[int(v.get("tile", -1))] = v.get("clue")
-	_seen = seen
+			var t := int(v.get("tile", -1))
+			seen[t] = v.get("clue")
+			if smoked or v.get("clue") != null:
+				opened[t] = true
+	_seen = opened
 	for tile in _cells:
 		var cell: Dictionary = _cells[tile]
 		var c := BurrowLayout.cell_of(tile)
 		# LA MOTTE : enfoncee la ou il a lu, levee ailleurs — et voilee sauf
 		# au front, qui dit ou aller (la regle de l'ile, `TileView`).
-		if seen.has(tile):
+		if opened.has(tile):
 			terrain.set_sod_look(c, TileView.Look.HINTED, false)
 		else:
-			terrain.set_sod_look(c, TileView.Look.COVERED, smoked or not _touches_seen(c, seen))
+			terrain.set_sod_look(c, TileView.Look.COVERED, smoked or not _touches_seen(c, opened))
 		var fog: Sprite2D = cell["fog"]
 		if fog != null:
 			fog.modulate.a = _alpha(String(cell["veil"]), seen.has(tile))

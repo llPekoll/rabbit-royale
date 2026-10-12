@@ -152,9 +152,9 @@ func _mount() -> void:
 	hud.refill.connect(_refill_after_run)
 	_wire_run(bar)
 
-	# Ce que la boutique et le raid repondent passe en pastille, comme Home.
-	ShopState.shared().noted.connect(toast)
-	RaidState.current.noted.connect(toast)
+	# Ce que la boutique et le raid repondent passe en pastille : ils s'y
+	# posent eux-memes (ShopState/RaidState `_toast`). Les rebrancher ici
+	# doublait chaque legende et chaque son de refus (2026-10-12).
 	_wire_sounds()
 	# Les tampons qui s'annoncent seuls : le niveau gagne, le raid subi.
 	LevelUpStamp.arm()
@@ -393,8 +393,15 @@ func revenge(player_id: String) -> void:
 		toast(I18N.t("sound.soloRaids"), true)
 		return
 	var state := RaidState.current
-	await state.enter(player_id)
-	if state.has_raid() and Screens.place != Screens.Place.BURROW:
+	# DEPUIS L'ILE, EN PLEINE PARTIE : le serveur refuse un raid a qui tient
+	# une place (`on_island`) — la vengeance restait sans effet, avec « ca n'a
+	# pas marche » (2026-10-12). On rend la place d'abord, comme BACK : le sac
+	# est encaisse, puis le raid part, et on rentre au terrier quoi qu'il dise.
+	var left_island := Screens.place == Screens.Place.ISLAND and not RunState.current.seed.is_empty()
+	if left_island:
+		RunState.current.go_home()
+	await state.enter(player_id, left_island)
+	if (state.has_raid() or left_island) and Screens.place != Screens.Place.BURROW:
 		Screens.cross(Screens.Place.BURROW)
 
 
@@ -1025,6 +1032,11 @@ func _clear_pill() -> void:
 	for pill in top_bar.find_children("*", "CarrotPill", true, false):
 		if pill is Control and (pill as Control).is_visible_in_tree():
 			bottom = maxf(bottom, _drawn_bottom(pill) - global_position.y)
+	# EN RAID, SOUS LA PLAQUE DU NOM aussi : « Pas de hache » se posait sur
+	# « Terrier de X » et les deux se lisaient l'un dans l'autre (2026-10-12).
+	var plaque := RaidHud.bottom()
+	if plaque > 0.0:
+		bottom = maxf(bottom, plaque - global_position.y)
 	toasts.offset_top = bottom + Kit.PAD_TIGHT
 
 
@@ -1229,7 +1241,9 @@ func _wire_sounds() -> void:
 	# payee en carottes, le petit carillon.
 	ShopState.shared().bought.connect(func(kind: String, _qty: int) -> void:
 		Sound.play("step" if kind == "trap" else "chime_quick"))
-	RaidState.current.sprung.connect(func(_tile: int) -> void: Sound.play("explosion"))
+	# La bombe d'un raid sonne avec son explosion (burrow.gd `_on_raid_sprung`),
+	# pas a la reponse du serveur : le son partait 1 a 2 s avant le feu, le
+	# temps que le saut du lapin se pose (2026-10-12).
 	# Un raid perdu tombe ; un raid gagne a sa ceremonie, qui sonne elle-meme.
 	RaidState.current.finished.connect(func(raid: Dictionary, _outcome: Dictionary) -> void:
 		if not bool(raid.get("succeeded", false)):

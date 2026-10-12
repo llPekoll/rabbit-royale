@@ -209,6 +209,13 @@ func _build() -> void:
 	_button_slot.add_child(_button)
 	_button_slot.visible = false
 	column.add_child(_button_slot)
+	# AU MILIEU : la colonne etire l'emplacement sur toute sa largeur, et le
+	# bouton restait colle a son bord gauche — decale sous le reste (le user,
+	# 2026-10-12 : « centre moi le back to burrow, ca fait vraiment tache »).
+	var center := func() -> void:
+		_button.position = Vector2(roundf((_button_slot.size.x - _button.size.x) * 0.5), 0.0)
+	_button_slot.resized.connect(center)
+	_button.resized.connect(center)
 
 	# Le papier, par-dessus tout, qui n'intercepte jamais un tap.
 	_confetti = Confetti.new()
