@@ -75,6 +75,9 @@ const OFFER_TINT := Color("#8fd6ff")
 const OFFER_ALPHA := 0.42
 const HOVER_TINT := Color("#ffd45c")
 const HOVER_ALPHA := 0.85
+## La planche que la hache atteint : un or SURBRILLANT (au-dela de 1) — l'or
+## du survol, sur du bois brun, ne se voyait pas sur un telephone.
+const AXE_TINT := Color(1.6, 1.35, 0.55)
 
 var map: BurrowMap
 ## Une entree par arete exposee : {seg, key, plank, mark, mid, at}. `mid` est
@@ -86,6 +89,9 @@ var _built := {}
 var _offered := {}
 var _hovered := ""
 var _placing := false
+## LES PLANCHES QUE LA HACHE ATTEINT (raid, 2026-10-12) : dorees, et seules
+## a repondre a `pick` tant qu'elle est armee.
+var _targets := {}
 ## Les aretes tapees dont le serveur n'a pas encore repondu : la planche s'y
 ## montre a demi — pale pour une pose, pale aussi pour un retrait. Ce n'est
 ## pas de l'optimisme (la regle du portail reste au serveur), c'est la tape
@@ -177,6 +183,39 @@ func set_state(built: Array, offered: Array) -> void:
 	_restyle()
 
 
+## La hache armee : ces planches-la s'allument en or. `[]` eteint.
+func set_targets(segs: Array) -> void:
+	_targets.clear()
+	for seg in segs:
+		if seg is Dictionary:
+			_targets[key_of(seg)] = true
+	_restyle()
+
+
+## LA PLANCHE QUE LA HACHE VISE sous un point, ou {} — parmi les cibles
+## seulement, a la distance du milieu de l'arete.
+func pick_target(at: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d := Iso.half_w() * 0.9
+	for d in _drawn:
+		if not _targets.has(String(d["key"])):
+			continue
+		var dist := at.distance_to(d["mid"])
+		if dist < best_d:
+			best_d = dist
+			best = d["seg"]
+	return best.duplicate()
+
+
+## Ou se tient le milieu d'une planche, dans le repere du plateau.
+func mid_of(seg: Dictionary) -> Vector2:
+	var key := key_of(seg)
+	for d in _drawn:
+		if String(d["key"]) == key:
+			return d["mid"]
+	return Vector2.INF
+
+
 func set_placing(on: bool) -> void:
 	if _placing == on:
 		return
@@ -243,6 +282,8 @@ func _restyle() -> void:
 		plank.visible = built or pending
 		# LA PLANCHE EN OR au survol : c'est « tape pour la retirer ».
 		plank.modulate = HOVER_TINT if built and hovered else Color.WHITE
+		if built and _targets.has(key):
+			plank.modulate = AXE_TINT
 		if pending:
 			plank.modulate.a = PENDING_ALPHA
 		var alpha := 0.0

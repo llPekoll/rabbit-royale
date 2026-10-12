@@ -245,6 +245,10 @@ func _hold(what: Held, index: int, cell: Vector2i) -> void:
 func _thing_at(cell: Vector2i) -> int:
 	for p in layout.placements:
 		if int(p.x) == cell.x and int(p.y) == cell.y:
+			# UNE SOUCHE NE SE PREND PAS : elle reste ou la hache l'a laissee
+			# jusqu'a la repousse (le serveur refuse `thing_cut`).
+			if String(p.get("kind", "")) == "felled":
+				return -1
 			return int(_rank_of.get(String(p.get("id", "")), -1))
 	return -1
 

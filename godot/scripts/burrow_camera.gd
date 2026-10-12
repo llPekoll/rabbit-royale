@@ -386,8 +386,8 @@ static func wall(map: BurrowMap, field: Array[Vector2i],
 ## sous le doigt AVANT le changement, puis on remet ce meme point sous lui
 ## APRES.
 static func zoom_at(shot: Shot, factor: float, at: Vector2, map: BurrowMap,
-		w: float = GAME_W, h: float = GAME_H) -> Shot:
+		w: float = GAME_W, h: float = GAME_H, top: float = 0.0) -> Shot:
 	var limits := zoom_limits(map, w, h)
 	var scale := clampf(shot.scale * factor, limits.x, limits.y)
 	var scene := (at - shot.at) / shot.scale
-	return clamp_place(Shot.new(scale, at - scene * scale), map, w, h)
+	return clamp_place(Shot.new(scale, at - scene * scale), map, w, h, 1.0, top)

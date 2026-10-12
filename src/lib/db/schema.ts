@@ -27,7 +27,7 @@ import { sql } from 'drizzle-orm';
  * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
  * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare', 'axe']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
 export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
@@ -388,6 +388,26 @@ export const fences = pgTable('fences', {
 ]);
 
 /**
+ * A TREE A RAIDER'S AXE BROUGHT DOWN (2026-10-12) — a stump anyone walks
+ * through until `cutAt + AXE.REGROW_MS`, then the tree stands again.
+ *
+ * `tile` is the cell the tree stood on when it fell, in the burrow as its
+ * owner arranged it. The owner cannot move a stump (layout PUT refuses), so
+ * the cell keeps naming it until it regrows. No bomb goes on a stump: the
+ * breach stays a breach. A PLANK that is cut has no row here — it falls and
+ * goes back to its owner's bag, like a plank the owner lifted.
+ */
+export const burrowCuts = pgTable('burrow_cuts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: text('owner_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  tile: integer('tile').notNull(),
+  cutBy: text('cut_by').references(() => players.id, { onDelete: 'set null' }),
+  cutAt: timestamp('cut_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('burrow_cuts_owner_idx').on(t.ownerId, t.cutAt),
+]);
+
+/**
  * A raid in progress or finished — the attacker's crossing of a burrow.
  *
  * Stored rather than held in memory because a raid is a MINI-RUN the attacker
@@ -440,6 +460,15 @@ export const raidRuns = pgTable('raid_runs', {
    */
   pushedIncomingAt: timestamp('pushed_incoming_at', { withTimezone: true }),
   pushedResultAt: timestamp('pushed_result_at', { withTimezone: true }),
+  /**
+   * THE AXE OF THIS RAID (2026-10-12) — one per raid, claimed with a
+   * conditional write (`IS NULL`) like the push stamps, so a double tap spends
+   * one axe. `cutTile` is the tree's cell, or the FIELD cell of a plank with
+   * `cutSide` its face; the defender's board reads them to show what fell.
+   */
+  cutAt: timestamp('cut_at', { withTimezone: true }),
+  cutTile: integer('cut_tile'),
+  cutSide: text('cut_side'),
 }, (t) => [
   index('raid_runs_defender_idx').on(t.defenderId, t.startedAt),
   index('raid_runs_attacker_idx').on(t.attackerId, t.startedAt),

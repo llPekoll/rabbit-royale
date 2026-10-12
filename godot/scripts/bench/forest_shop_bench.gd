@@ -5,8 +5,8 @@ extends Control
 ## Godot --path godot scenes/bench/forest_shop_bench.tscn --
 ##   --size=1280x720 --ui-scale=1 --verify --out=/private/tmp/forest-shop
 ##   [--page=packs|items|skins] [--lang=fr]
-const ITEMS := ["energy", "trap", "lightning", "shield", "bloop", "fence", "smoke"]
-const COUNTS := {"energy": 2, "trap": 3, "lightning": 0, "shield": 4, "bloop": 0, "fence": 4, "smoke": 0}
+const ITEMS := ["energy", "trap", "lightning", "shield", "bloop", "fence", "smoke", "axe"]
+const COUNTS := {"energy": 2, "trap": 3, "lightning": 0, "shield": 4, "bloop": 0, "fence": 4, "smoke": 0, "axe": 1}
 const RATES := {"usdc": 1.0, "sol": 152.4, "skr": 0.031}
 const STOCK := 1240
 
@@ -139,7 +139,7 @@ func _verify() -> void:
 	await _shot("packs")
 	await _tap("Tab_items")
 	_check(_shop._page == "items", "items tab responds to pointer")
-	_check(find_children("Item_*", "Control", true, false).size() == 7, "seven individual items")
+	_check(find_children("Item_*", "Control", true, false).size() == 8, "eight individual items")
 	_check_bounds()
 	await _shot("items")
 	await _tap("Rail_sol")

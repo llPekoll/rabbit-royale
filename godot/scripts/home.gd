@@ -59,6 +59,10 @@ var quest: Dictionary = {}
 ## /api/burrow/layout. Le sol est pousse de l'id PUIS de ceci
 ## (BurrowLayout.of).
 var edits: Dictionary = {}
+## LES SOUCHES de nos arbres abattus en raid, et quand chacun repousse
+## (`stumps: [{tile, regrowsAt}]` de GET /api/burrow) : le sol, lui, les a
+## deja dans `edits.cuts` ; ceci est pour le compte a rebours.
+var stumps: Array = []
 ## Vrai pendant un geste — les boutons qui depensent se grisent dessus.
 var pending := false
 ## La quete dont la recompense est deja fetee mais pas encore confirmee
@@ -416,6 +420,8 @@ func _adopt(body: Dictionary) -> void:
 		if quest.get("active") is Dictionary:
 			quest["active"] = Content.quest_view(quest["active"])
 		touched = true
+	if body.get("stumps") is Array:
+		stumps = body["stumps"]
 	if body.get("edits") is Dictionary:
 		adopt_edits(body["edits"])
 	# Les surcharges de la table `tuning` (voir tuning.gd) : posees AVANT

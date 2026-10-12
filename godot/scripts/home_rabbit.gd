@@ -449,6 +449,16 @@ func _step() -> void:
 	_hop.tween_callback(_settle)
 
 
+## LE SOL A CHANGE SOUS LUI (une souche, 2026-10-12) : `only` relu, et la liste
+## des cases ou il peut aller avec. Changer `only` seul ne suffit pas —
+## `_walkable` est calcule une fois, au `build`, et `send_to` refusait en
+## silence la case neuve : le pas etait compte, le lapin ne bougeait pas.
+func set_ground(p_map: BurrowMap, cells: Dictionary) -> void:
+	map = p_map
+	only = cells
+	_walkable = _walkable_cells()
+
+
 ## LES CASES OU UN LAPIN PEUT SE TENIR : la terre, restreinte a `only` quand
 ## l'appelant la connait — au terrier, `walkableTiles` du serveur
 ## (burrow_layout.gd) : ni dans un arbre, ni hors du domaine.

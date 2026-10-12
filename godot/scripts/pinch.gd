@@ -71,6 +71,6 @@ func _measure() -> void:
 ## Le cadrage apres ce pas de pincement : zoom autour du milieu, puis le
 ## milieu suit les doigts.
 static func apply(step: Dictionary, shot: BurrowCamera.Shot, map: BurrowMap,
-		view: Vector2) -> BurrowCamera.Shot:
-	var zoomed := BurrowCamera.zoom_at(shot, step["factor"], step["mid"], map, view.x, view.y)
+		view: Vector2, top: float = 0.0) -> BurrowCamera.Shot:
+	var zoomed := BurrowCamera.zoom_at(shot, step["factor"], step["mid"], map, view.x, view.y, top)
 	return BurrowCamera.Shot.new(zoomed.scale, zoomed.at + step["delta"])

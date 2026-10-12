@@ -236,6 +236,7 @@ export const vi: Dict = {
     gardenAtRisk: (perHour) => `bị cướp được tới khi thu · ${perHour}/giờ`,
     gardenGrowing: (perHour, holds) => `lớn trong lúc bạn đào · ${perHour}/giờ · chứa ${holds}`,
     yieldRate: (perHour) => `${perHour} cà rốt/giờ`,
+    stumpRegrows: (when: string) => `Mọc lại sau ${when}`,
     regenRate: (perHour) => `${perHour} năng lượng/giờ`,
   },
 
@@ -268,6 +269,7 @@ export const vi: Dict = {
       crossing_too_long: (n) => `Quá xa: vườn phải cách tối đa ${n} bước.`,
       house_off_ground: 'Nhà cần một khoảng đất trống.',
       under_raid: 'Hang đang bị cướp. Xong rồi hẵng sắp xếp lại.',
+      thing_cut: 'Gốc cây nằm yên cho đến khi cây mọc lại.',
       bad_edits: 'Cách sắp xếp này bị từ chối.',
     },
   },
@@ -565,6 +567,7 @@ export const vi: Dict = {
     boughtMirage: (n, paid) => `${n > 1 ? `${n} ảo ảnh` : 'Ảo ảnh'} sẵn sàng để ném. ${paid}`,
     /* Une clôture se DRESSE : le reçu nomme la clôture qu'on va dresser. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} hàng rào` : 'Hàng rào'} sẵn sàng để dựng. ${paid}`,
+    boughtAxe: (n: number, paid: string) => `Đã mài ${n > 1 ? `${n} cái rìu` : 'rìu'}. ${paid}`,
     boughtPack: (name, paid) => `${name} đã vào túi. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
@@ -780,6 +783,12 @@ export const vi: Dict = {
     bounced: (n) => `${n} LẦN CƯỚP BỊ ĐẨY LÙI`,
     struck: 'Bị giật sét',
     struckBy: (name) => `${name} giật sét bạn`,
+    axe: {
+      button: 'RÌU',
+      hint: 'Chạm vào cây hoặc hàng rào cạnh bạn.',
+      used: 'ĐÃ DÙNG RÌU',
+      none: 'Không có rìu. Cửa hàng có bán.',
+    },
     smoked: 'Màn khói: không có số ở đây. Đi mò mà tiến.',
   },
 
@@ -799,6 +808,8 @@ export const vi: Dict = {
     looted: (n) => `HỌ ĐÃ LẤY ${n} 🥕`,
     lost: 'Hang của bạn đã bị cướp',
     held_: 'Hang đã giữ được',
+    cutTree: (name: string) => `${name} đã chặt một cây của bạn`,
+    cutPlank: (name: string) => `${name} đã chặt một hàng rào của bạn`,
     incoming: (name) => `${name} đang cướp hang bạn!`,
   },
 
@@ -815,6 +826,9 @@ export const vi: Dict = {
     raid_over: 'Lần cướp này đã kết thúc.',
     none_held: 'Không có sét để gọi. Cửa hàng có bán.',
     no_raid: 'Lần cướp này đã xong.',
+    no_axe: 'Túi bạn không có rìu. Cửa hàng có bán.',
+    axe_used: 'Mỗi lần đột kích chỉ một rìu.',
+    not_cuttable: 'Không có gì để chặt ở đó.',
     unknown_player: 'Họ biến mất rồi.',
   },
 
@@ -826,6 +840,7 @@ export const vi: Dict = {
     shield: 'KHIÊN',
     lightning: 'SÉT',
     genesis: 'RR GENESIS',
+    axe: 'RÌU',
     piece: (amount, label) => `MỘT PHẦN LÀ CỦA BẠN - THÊM ${amount}x ${label}`,
   },
 
@@ -1007,6 +1022,10 @@ export const vi: Dict = {
     fence: {
       name: 'Hàng rào',
       blurb: 'Rào một mép vườn. Kẻ cướp không vượt qua được.',
+    },
+    axe: {
+      name: 'Rìu',
+      blurb: 'Chặt một cái cây hoặc một hàng rào khi đột kích. Mỗi lần đột kích một cái.',
     },
     shiro_stash: {
       name: 'Kho của Shiro',

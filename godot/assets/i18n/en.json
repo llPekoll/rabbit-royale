@@ -301,6 +301,9 @@
   "yieldRate": {
    "$t": "{0} carrots/hour"
   },
+  "stumpRegrows": {
+   "$t": "Regrows in {0}"
+  },
   "regenRate": {
    "$t": "{0} energy/hour"
   }
@@ -372,6 +375,7 @@
    },
    "house_off_ground": "Your house needs open ground.",
    "under_raid": "A raid is on your burrow. Rearrange once it is over.",
+   "thing_cut": "A stump stays put until the tree regrows.",
    "bad_edits": "That layout was refused."
   }
  },
@@ -967,6 +971,23 @@
     }
    ]
   },
+  "boughtAxe": {
+   "$t": "{0} axes sharpened. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "axe sharpened. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "axe sharpened. {1}"
+    }
+   ]
+  },
   "boughtPack": {
    "$t": "{0} unpacked into your bag. {1}"
   },
@@ -1364,6 +1385,12 @@
   "struckBy": {
    "$t": "{0} zapped you"
   },
+  "axe": {
+   "button": "AXE",
+   "hint": "Tap a tree or a fence next to you.",
+   "used": "AXE USED",
+   "none": "No axe. The shop sells them."
+  },
   "smoked": "Smoke screen: no numbers here. Walk it blind."
  },
  "defend": {
@@ -1410,6 +1437,12 @@
   },
   "lost": "Your burrow was sacked",
   "held_": "Burrow held",
+  "cutTree": {
+   "$t": "{0} chopped down one of your trees"
+  },
+  "cutPlank": {
+   "$t": "{0} chopped one of your fences"
+  },
   "incoming": {
    "$t": "{0} is raiding your burrow!"
   }
@@ -1427,6 +1460,9 @@
   "raid_over": "That raid is already over.",
   "none_held": "No lightning to call. The shop sells it.",
   "no_raid": "That raid is over.",
+  "no_axe": "No axe in your bag. The shop sells them.",
+  "axe_used": "One axe per raid.",
+  "not_cuttable": "Nothing to chop there.",
   "unknown_player": "They are gone."
  },
  "chest": {
@@ -1437,6 +1473,7 @@
   "shield": "SHIELD",
   "lightning": "LIGHTNING",
   "genesis": "RR GENESIS",
+  "axe": "AXE",
   "piece": {
    "$t": "A PIECE IS YOURS - PLUS {0}x {1}"
   }
@@ -1638,6 +1675,10 @@
   "fence": {
    "name": "Fence",
    "blurb": "Closes one edge of your garden. Raiders cannot cross it."
+  },
+  "axe": {
+   "name": "Axe",
+   "blurb": "Chops one tree or one fence in a raid. One per raid."
   },
   "shiro_stash": {
    "name": "Shiro's Stash",

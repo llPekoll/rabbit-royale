@@ -42,6 +42,10 @@ const SMOKE_ART := 22.0
 ## le rouge d'un refus ni la craie d'un fait.
 const SMOKE_INK := Color("#9fb4c7")
 
+## La barre a l'ecran, pour la camera du raid qui cadre et borne le pan SOUS
+## sa plaque (voir `bottom`).
+static var live: RaidHud
+
 var _panel: PanelContainer
 var _name: Label
 var _sprung: HBoxContainer
@@ -53,9 +57,17 @@ var _over: VBoxContainer
 var _over_strong: Label
 var _over_haul: Label
 var _retreat: BackButton
+## LA HACHE (2026-10-12), en bas a droite — a l'oppose du BACK, sous le pouce.
+var _axe_plate: PanelContainer
+var _axe: Button
+var _axe_hint: Label
+
+## L'or des armes armees de l'ile (run_hud.gd `CROWN`).
+const AXE_ARMED := Color("#ffd45c")
 
 
 func _ready() -> void:
+	live = self
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# L'ECRAN ENTIER, pas l'etage. Le chrome la pose dans %Floor, une bande
 	# de hauteur nulle epinglee en bas : « remplir son etage » lui donnait
@@ -163,8 +175,76 @@ func _build() -> void:
 	_retreat = preload("res://scenes/ui/back_button.tscn").instantiate()
 	_retreat.pressed.connect(func() -> void: RaidState.current.leave())
 	add_child(_retreat)
+
+	# LA HACHE : une par raid. Armee, les arbres et les planches a portee
+	# s'allument (raid_board) et la tape suivante coupe.
+	_axe_plate = Kit.panel(Kit.style_glass())
+	_axe_plate.mouse_filter = Control.MOUSE_FILTER_STOP
+	var axe_col := Kit.vbox(2)
+	_axe_plate.add_child(axe_col)
+	_axe = Button.new()
+	_axe.icon = Kit.ICONS["axe"]
+	_axe.add_theme_constant_override("icon_max_width", 22)
+	_axe.focus_mode = Control.FOCUS_NONE
+	_axe.pressed.connect(func() -> void:
+		var state := RaidState.current
+		state.arm_axe(not state.axe_armed))
+	axe_col.add_child(_axe)
+	_axe_hint = Kit.label("", 10, AXE_ARMED)
+	_axe_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	axe_col.add_child(_axe_hint)
+	add_child(_axe_plate)
+	_axe_plate.minimum_size_changed.connect(func() -> void: _measure.call_deferred())
 	for child in header.get_children():
 		(child as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+
+## Le bouton de la hache : le compte en sac, grise une fois celle du raid
+## levee, en or quand elle est armee — comme les armes de l'ile.
+func _style_axe(state: RaidState, done: bool) -> void:
+	var axe := state.axe()
+	var held := int(axe.get("held", 0))
+	var used := bool(axe.get("used", false))
+	_axe_plate.visible = not done and not axe.is_empty()
+	var armed := state.axe_armed
+	_axe.text = "%s %d" % [I18N.t("raid.axe.button"), held]
+	_axe.tooltip_text = I18N.t("raid.axe.button") + " [1]"
+	_axe.disabled = used or state.busy
+	_axe_hint.visible = armed or used
+	_axe_hint.text = I18N.t("raid.axe.used") if used else I18N.t("raid.axe.hint")
+	_axe_hint.add_theme_color_override("font_color", Palette.MUTED_ON_NIGHT if used else AXE_ARMED)
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(AXE_ARMED, 0.18) if armed else Color(0, 0, 0, 0)
+	s.set_border_width_all(1)
+	s.border_color = AXE_ARMED if armed else Color(1, 1, 1, 0.25)
+	s.set_corner_radius_all(4)
+	s.content_margin_left = 8
+	s.content_margin_right = 8
+	s.content_margin_top = 4
+	s.content_margin_bottom = 4
+	for key in ["normal", "hover", "pressed", "focus", "disabled"]:
+		_axe.add_theme_stylebox_override(key, s)
+	var ink := AXE_ARMED if armed else (Palette.CAPTION_INK if held > 0 and not used else Palette.MUTED_ON_NIGHT)
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
+		_axe.add_theme_color_override(key, ink)
+	_axe.modulate.a = 0.5 if used else 1.0
+
+
+func _exit_tree() -> void:
+	if live == self:
+		live = null
+
+
+## LE BAS DE LA PLAQUE DU NOM, en y d'ecran ; 0 sans plaque visible.
+##
+## Elle pend sous la pastille et couvre le haut du terrier — la ou le potager
+## est. La camera du raid ne la comptait pas : le pan s'arretait avec le haut du
+## champ dessous, sans moyen de le descendre (2026-10-11, capture du user).
+static func bottom() -> float:
+	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree() \
+			or live._panel == null:
+		return 0.0
+	return live._panel.get_global_rect().end.y
 
 
 func _reach_top() -> void:
@@ -184,6 +264,10 @@ func _measure() -> void:
 		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)
 	_panel.position = Vector2(floor((size.x - w) * 0.5), top)
 	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)
+	if _axe_plate != null:
+		var aw := _axe_plate.get_combined_minimum_size()
+		_axe_plate.size = aw
+		_axe_plate.position = Vector2(size.x - Kit.EDGE - aw.x, size.y - Kit.EDGE - aw.y)
 	var sw := _smoke.get_combined_minimum_size()
 	_smoke.size = sw
 	_smoke.position = Vector2(floorf((size.x - sw.x) * 0.5), size.y - Kit.EDGE - sw.y)
@@ -218,6 +302,8 @@ func _refresh() -> void:
 		_over_strong.text = I18N.t("raid.struck") if bool(raid.get("struck", false)) else I18N.t("raid.outOfEnergy")
 		var looted := int(raid.get("carrotsLooted", 0))
 		_over_haul.text = I18N.f("raid.looted", [I18N.group_digits(looted)]) if looted > 0 else I18N.t("raid.nothingTaken")
+
+	_style_axe(state, done)
 
 	if done:
 		_retreat.dismiss()

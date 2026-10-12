@@ -1025,6 +1025,31 @@ export const FENCES = {
 } as const;
 
 /**
+ * THE RAID AXE (2026-10-12): the answer to a walled burrow.
+ *
+ * A burrow can be arranged so the potager keeps a single way in, and a bomb on
+ * that cell reads to a raider as a wall (NorminaskyTV, 2026-10-11). Rather
+ * than refuse the owner's arranging, the raider gets a tool: one axe fells ONE
+ * tree or ONE plank next to them. The tree leaves a stump anyone walks through
+ * until it regrows; the plank falls and goes back to its owner's bag.
+ *
+ * Nothing is handed out: without an axe, a wall stays a wall. Bought (the
+ * bomb's price) or found in silver and gold chests.
+ */
+export const AXE = {
+  /**
+   * How long a felled tree stays a stump — two days (Paul, 2026-10-12). Longer
+   * than any raid shield (RAID.BROKEN_SHIELD_MS, 16 h): the breach outlives the
+   * shield the cut raid raised, so it opens the burrow to the next raider too.
+   */
+  REGROW_MS: 48 * 60 * 60 * 1000,
+  /** Axes one raid may spend. */
+  PER_RAID: 1,
+  /** Carrot price of one axe — the bomb's (TRAPS.CARROT_COST), Paul's call. */
+  CARROT_COST: 150,
+} as const;
+
+/**
  * The raid run itself: an attacker's budget for crossing someone's burrow.
  *
  * Deliberately tight against TRAPS.DRAIN — four untouched traps end a raid, so
@@ -1533,6 +1558,8 @@ export const SHOP = {
      * number.
      */
     fence: FENCES.CARROT_COST,
+    /** One tree or one plank, felled in a raid — see AXE. */
+    axe: AXE.CARROT_COST,
   },
   /**
    * USDC price per kind, in whole USDC (converted to base units at the edge —
@@ -1550,6 +1577,7 @@ export const SHOP = {
     // What the thrown bomb cost before it left the shelf (2026-09-28), for
     // the reason the fence's carrot price gives.
     fence: 0.40,
+    axe: 0.25,
   },
   /**
    * Ceiling per kind, so a whale cannot stockpile a season of offence in one
@@ -1792,14 +1820,18 @@ export const CHEST_LOOT_BY_TIER: Record<'bronze' | 'silver' | 'gold' | 'crown', 
   bronze: [
     { kind: 'carrots', weight: 100, min: 20, max: 90 },
   ],
+  // The axe sits in silver AND gold (2026-10-12): "pas mal dans les
+  // coffres", since it is spent once and nothing hands it out for free.
   silver: [
-    { kind: 'water', weight: 55, min: 1, max: 3 },
-    { kind: 'fertiliser', weight: 45, min: 1, max: 2 },
+    { kind: 'water', weight: 40, min: 1, max: 3 },
+    { kind: 'fertiliser', weight: 30, min: 1, max: 2 },
+    { kind: 'axe', weight: 30, min: 1, max: 2 },
   ],
   gold: [
-    { kind: 'trap', weight: 50, min: 1, max: 2 },
-    { kind: 'shield', weight: 28, min: 1, max: 1 },
-    { kind: 'lightning', weight: 22, min: 1, max: 1 },
+    { kind: 'trap', weight: 40, min: 1, max: 2 },
+    { kind: 'axe', weight: 25, min: 1, max: 2 },
+    { kind: 'shield', weight: 20, min: 1, max: 1 },
+    { kind: 'lightning', weight: 15, min: 1, max: 1 },
   ],
   /**
    * The crown's raid item is GUARANTEED and the NFT rides on top, which is why
@@ -1827,6 +1859,7 @@ export const CHEST_LOOT = [
   { kind: 'fertiliser', weight: 12, min: 1, max: 2  },
   { kind: 'shield',    weight: 9,  min: 1,  max: 1  },
   { kind: 'lightning', weight: 7,  min: 1,  max: 1  },
+  { kind: 'axe',       weight: 10, min: 1,  max: 2  },
   { kind: 'nft',       weight: 1,  min: 1,  max: 1  },
 ] as const;
 

@@ -274,6 +274,8 @@ export const en = {
     gardenAtRisk: (perHour: number) => `stealable until harvested \u00b7 ${perHour}/hour`,
     gardenGrowing: (perHour: number, holds: number) => `grows while you dig \u00b7 ${perHour}/hour \u00b7 holds ${holds}`,
     yieldRate: (perHour: number) => `${perHour} carrots/hour`,
+    /* A felled tree's stump, on the owner's board: how long until it stands again. */
+    stumpRegrows: (when: string) => `Regrows in ${when}`,
     regenRate: (perHour: number) => `${perHour} energy/hour`,
   },
 
@@ -308,6 +310,7 @@ export const en = {
       crossing_too_long: (n: number) => `Too far: the garden must stay within ${n} steps.`,
       house_off_ground: 'Your house needs open ground.',
       under_raid: 'A raid is on your burrow. Rearrange once it is over.',
+      thing_cut: 'A stump stays put until the tree regrows.',
       bad_edits: 'That layout was refused.',
     },
   },
@@ -672,6 +675,8 @@ export const en = {
        one stretch of the garden's edge, so the receipt says the thing it becomes. */
     boughtFence: (n: number, paid: string) =>
       `${n > 1 ? `${n} fences` : 'fence'} ready to put up. ${paid}`,
+    /* An axe is spent in a raid, on one tree or one fence. */
+    boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} axes` : 'axe'} sharpened. ${paid}`,
     boughtPack: (name: string, paid: string) => `${name} unpacked into your bag. ${paid}`,
     /* Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and
        it renders as a blank box on the device. See test/pixel-font-glyphs. */
@@ -943,6 +948,13 @@ export const en = {
     bounced: (n: number) => `${n} RAID${n === 1 ? '' : 'S'} BOUNCED OFF`,
     struck: 'Zapped',
     struckBy: (name: string) => `${name} zapped you`,
+    /** The raid axe (raid_hud.gd): one per raid, spent on a tree or a fence next to the rabbit. */
+    axe: {
+      button: 'AXE',
+      hint: 'Tap a tree or a fence next to you.',
+      used: 'AXE USED',
+      none: 'No axe. The shop sells them.',
+    },
     /** Under the defender's smoke screen: why the board shows no numbers. */
     smoked: 'Smoke screen: no numbers here. Walk it blind.',
   },
@@ -966,6 +978,8 @@ export const en = {
     looted: (n: string) => `THEY TOOK ${n} 🥕`,
     lost: 'Your burrow was sacked',
     held_: 'Burrow held',
+    cutTree: (name: string) => `${name} chopped down one of your trees`,
+    cutPlank: (name: string) => `${name} chopped one of your fences`,
     incoming: (name: string) => `${name} is raiding your burrow!`,
   },
 
@@ -982,6 +996,9 @@ export const en = {
     raid_over: 'That raid is already over.',
     none_held: 'No lightning to call. The shop sells it.',
     no_raid: 'That raid is over.',
+    no_axe: 'No axe in your bag. The shop sells them.',
+    axe_used: 'One axe per raid.',
+    not_cuttable: 'Nothing to chop there.',
     unknown_player: 'They are gone.',
   },
 
@@ -994,6 +1011,7 @@ export const en = {
     shield: 'SHIELD',
     lightning: 'LIGHTNING',
     genesis: 'RR GENESIS',
+    axe: 'AXE',
     piece: (amount: number, label: string) => `A PIECE IS YOURS - PLUS ${amount}x ${label}`,
   },
 
@@ -1218,6 +1236,12 @@ export const en = {
     fence: {
       name: 'Fence',
       blurb: 'Closes one edge of your garden. Raiders cannot cross it.',
+    },
+    /* The raider's answer to a walled burrow (2026-10-12): one tree or one
+       plank, felled next to the rabbit. The tree regrows in two days. */
+    axe: {
+      name: 'Axe',
+      blurb: 'Chops one tree or one fence in a raid. One per raid.',
     },
     shiro_stash: {
       name: "Shiro's Stash",

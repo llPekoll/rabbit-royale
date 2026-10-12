@@ -66,6 +66,9 @@ export const CELL_RULES: Record<BurrowCell, CellRule> = {
   entrance: { walkable: true,  minable: false },
   doorstep: { walkable: true,  minable: false },
   field:    { walkable: true,  minable: false },
+  // A felled tree (the raid AXE): walked through, never mined — the breach
+  // stays a breach until the tree regrows.
+  stump:    { walkable: true,  minable: false },
   // Not a cell at all: a wall, a cliff face, or sea. Nothing stands on it and
   // nothing is buried under it.
   blocked:  { walkable: false, minable: false },

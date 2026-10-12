@@ -234,6 +234,7 @@ export const zh: Dict = {
     gardenAtRisk: (perHour) => `收获前可被掠夺 \u00b7 每小时 ${perHour}`,
     gardenGrowing: (perHour, holds) => `挖掘时生长 \u00b7 每小时 ${perHour} \u00b7 可存 ${holds}`,
     yieldRate: (perHour) => `每小时 ${perHour} 根胡萝卜`,
+    stumpRegrows: (when: string) => `${when}后重新长出`,
     regenRate: (perHour) => `每小时 ${perHour} 点能量`,
   },
 
@@ -266,6 +267,7 @@ export const zh: Dict = {
       crossing_too_long: (n) => `太远了：菜园最多 ${n} 步。`,
       house_off_ground: '房子需要一块空地。',
       under_raid: '你的兔窝正在被掠夺，结束后再布置。',
+      thing_cut: '树桩在树重新长出前不能移动。',
       bad_edits: '这个布置被拒绝了。',
     },
   },
@@ -558,6 +560,7 @@ export const zh: Dict = {
     boughtBloop: (n, paid) => `${n} 只墨鱼装进罐子。${paid}`,
     boughtMirage: (n, paid) => `${n} 个幻影可以丢出去了。${paid}`,
     boughtFence: (n, paid) => `${n} 道栅栏可以立起来了。${paid}`,
+    boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} 把斧头` : '斧头'}已磨好。${paid}`,
     boughtPack: (name, paid) => `${name}已放进背包。${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
@@ -771,6 +774,12 @@ export const zh: Dict = {
     bounced: (n) => `弹开了 ${n} 次掠夺`,
     struck: '被电击',
     struckBy: (name) => `${name} 电击了你`,
+    axe: {
+      button: '斧头',
+      hint: '点击你身边的树或围栏。',
+      used: '斧头已用',
+      none: '没有斧头。商店有售。',
+    },
     smoked: '烟幕：这里没有数字，只能摸黑前进。',
   },
 
@@ -790,6 +799,8 @@ export const zh: Dict = {
     looted: (n) => `对方拿走了 ${n} 🥕`,
     lost: '你的兔窝被洗劫了',
     held_: '兔窝守住了',
+    cutTree: (name: string) => `${name} 砍倒了你的一棵树`,
+    cutPlank: (name: string) => `${name} 砍倒了你的一段围栏`,
     incoming: (name) => `${name} 正在掠夺你的兔窝！`,
   },
 
@@ -806,6 +817,9 @@ export const zh: Dict = {
     raid_over: '这次掠夺已经结束了。',
     none_held: '没有闪电可用。商店有售。',
     no_raid: '这次掠夺已经结束。',
+    no_axe: '你的背包里没有斧头。商店有售。',
+    axe_used: '每次突袭只能用一把斧头。',
+    not_cuttable: '那里没有可砍的东西。',
     unknown_player: '他们已经不在了。',
   },
 
@@ -817,6 +831,7 @@ export const zh: Dict = {
     shield: '护盾',
     lightning: '闪电',
     genesis: 'RR 创世',
+    axe: '斧头',
     piece: (amount, label) => `你得到一份 - 另加 ${amount}x ${label}`,
   },
 
@@ -1001,6 +1016,10 @@ export const zh: Dict = {
     fence: {
       name: '栅栏',
       blurb: '围住你菜园的一条边。掠夺者过不去。',
+    },
+    axe: {
+      name: '斧头',
+      blurb: '突袭时砍倒一棵树或一段围栏。每次突袭限一把。',
     },
     shiro_stash: {
       name: 'Shiro 的补给包',

@@ -6,6 +6,7 @@
  * of them.
  */
 import { and, eq, sql as raw } from 'drizzle-orm';
+import { activeCuts } from '@/lib/game/burrowEdits';
 import { db } from '@/lib/db';
 import { inventory, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
 
   const owner = await ownerView(session.sub);
   if (!owner) return Response.json({ error: 'unknown player' }, { status: 404 });
+  const cuts = await activeCuts(session.sub);
 
   // The quest board rides on the same read as the burrow: every moment the
   // client re-reads its carrots is also a moment a quest may have moved, and
@@ -57,7 +59,10 @@ export async function GET(req: Request) {
     quest: questBoardOf(owner.player),
     /** The owner's rearrangement (`BurrowEdits`), laid on the generated
      *  burrow by the client — see /api/burrow/layout. */
-    edits: owner.player.burrowEdits ?? {},
+    edits: cuts.length ? { ...(owner.player.burrowEdits ?? {}), cuts: cuts.map((c) => c.tile) } : (owner.player.burrowEdits ?? {}),
+    /** The trees a raider's axe felled here, and when each regrows — the
+     *  stumps are already in `edits.cuts`; this is for the countdown. */
+    stumps: cuts.map((c) => ({ tile: c.tile, regrowsAt: c.regrowsAt.toISOString() })),
     /** The live `tuning` overrides (as /api/config serves them). Rides on
      *  this read because the client already re-reads the burrow every minute
      *  and on every return home: its costs and thresholds follow the server

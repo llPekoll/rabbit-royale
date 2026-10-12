@@ -232,6 +232,7 @@ export const ptBR: Dict = {
     gardenAtRisk: (perHour) => `saqueável até a colheita \u00b7 ${perHour}/h`,
     gardenGrowing: (perHour, holds) => `cresce enquanto você cava \u00b7 ${perHour}/h \u00b7 cabe ${holds}`,
     yieldRate: (perHour) => `${perHour} cenouras/h`,
+    stumpRegrows: (when: string) => `Cresce de novo em ${when}`,
     regenRate: (perHour) => `${perHour} de energia/h`,
   },
 
@@ -264,6 +265,7 @@ export const ptBR: Dict = {
       crossing_too_long: (n) => `Longe demais: a horta deve ficar a no máximo ${n} passos.`,
       house_off_ground: 'Sua casa precisa de chão livre.',
       under_raid: 'Tem um ataque na sua toca. Reorganize quando acabar.',
+      thing_cut: 'O toco fica no lugar até a árvore crescer de novo.',
       bad_edits: 'Essa organização foi recusada.',
     },
   },
@@ -562,6 +564,7 @@ export const ptBR: Dict = {
     /* Uma cerca é LEVANTADA: o que se compra é uma tábua que fecha um trecho da
        borda da horta, então o recibo nomeia aquilo em que ela se transforma. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} cercas prontas` : 'Cerca pronta'} para levantar. ${paid}`,
+    boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} machados afiados` : 'Machado afiado'}. ${paid}`,
     boughtPack: (name, paid) => `${name}: tudo na bolsa. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
@@ -787,6 +790,12 @@ export const ptBR: Dict = {
     bounced: (n) => `${n} SAQUE${n === 1 ? '' : 'S'} RICOCHETEARAM`,
     struck: 'Eletrocutado',
     struckBy: (name) => `${name} te eletrocutou`,
+    axe: {
+      button: 'MACHADO',
+      hint: 'Toque numa árvore ou cerca ao seu lado.',
+      used: 'MACHADO USADO',
+      none: 'Sem machado. A loja vende.',
+    },
     smoked: 'Cortina de fumaça: sem números aqui. Ande às cegas.',
   },
 
@@ -806,6 +815,8 @@ export const ptBR: Dict = {
     looted: (n) => `LEVARAM ${n} 🥕`,
     lost: 'Sua toca foi saqueada',
     held_: 'Toca defendida',
+    cutTree: (name: string) => `${name} derrubou uma das suas árvores`,
+    cutPlank: (name: string) => `${name} derrubou uma das suas cercas`,
     incoming: (name) => `${name} está saqueando sua toca!`,
   },
 
@@ -822,6 +833,9 @@ export const ptBR: Dict = {
     raid_over: 'Esse saque já acabou.',
     none_held: 'Sem raio para chamar. A loja vende.',
     no_raid: 'Esse saque acabou.',
+    no_axe: 'Nenhum machado na sua bolsa. A loja vende.',
+    axe_used: 'Um machado por ataque.',
+    not_cuttable: 'Nada para derrubar aí.',
     unknown_player: 'Sumiram.',
   },
 
@@ -833,6 +847,7 @@ export const ptBR: Dict = {
     shield: 'ESCUDO',
     lightning: 'RAIO',
     genesis: 'RR GENESIS',
+    axe: 'MACHADO',
     piece: (amount, label) => `UMA PARTE É SUA - MAIS ${amount}x ${label}`,
   },
 
@@ -1017,6 +1032,10 @@ export const ptBR: Dict = {
     fence: {
       name: 'Cerca',
       blurb: 'Fecha uma borda da sua horta. Saqueadores não atravessam.',
+    },
+    axe: {
+      name: 'Machado',
+      blurb: 'Derruba uma árvore ou uma cerca durante um ataque. Um por ataque.',
     },
     shiro_stash: {
       name: 'Estoque do Shiro',

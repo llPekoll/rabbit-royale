@@ -48,7 +48,7 @@ signal bought(kind: String, qty: int)
 static var current: ShopState
 
 ## Les sortes que l'etal vend (`ItemKind`), dans l'ordre du serveur.
-const KINDS := ["trap", "lightning", "shield", "energy", "smoke", "bloop", "fence"]
+const KINDS := ["trap", "lightning", "shield", "energy", "smoke", "bloop", "fence", "axe"]
 
 ## LES PACKS (SHOP_PACKS, 2026-10-02) : plusieurs objets pour un achat, un
 ## par camp — Shiro defend, Kuro attaque — et les recharges en gros
@@ -75,6 +75,9 @@ const ART := {
 	"energy": preload("res://assets/gauge/dial-icon.webp"),
 	"fence": preload("res://assets/deco/fence.png"),
 	"bloop": preload("res://assets/ui/icons/bloop.png"),
+	# La hache du raid (2026-10-12), l'outil de Tiny Swords : un coffre la
+	# lache aussi.
+	"axe": preload("res://assets/ui/icons/axe.png"),
 }
 
 ## LA TEINTE D'UNE SORTE (item-meta.ts `tint`) : chacune dit ce que la chose
@@ -91,6 +94,8 @@ const TINT := {
 	"smoke": Color("#6b7a8f"),
 	"bloop": Color("#3b2a5c"),
 	"fence": Color("#b98a3c"),
+	# La hache : l'acier de sa lame sur le bois du manche, le gris des souches.
+	"axe": Color("#7d8a96"),
 	# Shiro, le lapin blanc qui garde le terrier : le bleu froid de la
 	# defense. Kuro, le noir : le violet de son skin.
 	"shiro_stash": Color("#5a8fb8"),
@@ -112,6 +117,7 @@ const COUNTS := {
 	"smoke": "time",
 	"bloop": "carried",
 	"fence": "carried",
+	"axe": "carried",
 }
 
 ## ShopState du web : stock, items[], traps{held, placed, armed, rearming,
@@ -395,6 +401,8 @@ func receipt(kind: String, qty: int, spent: int) -> String:
 			return I18N.f("shop.boughtBloop", [qty, paid])
 		"fence":
 			return I18N.f("shop.boughtFence", [qty, paid])
+		"axe":
+			return I18N.f("shop.boughtAxe", [qty, paid])
 	if PACKS.has(kind):
 		return I18N.f("shop.boughtPack", [I18N.t("items.%s.name" % kind), paid])
 	return paid

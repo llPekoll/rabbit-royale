@@ -65,6 +65,9 @@ const DROP := {
 	"trap": {"icon": "bomb", "label": "bomb", "rarity": "epic"},
 	"shield": {"icon": "shield", "label": "shield", "rarity": "epic"},
 	"lightning": {"icon": "bolt", "label": "lightning", "rarity": "epic"},
+	# La hache du raid (2026-10-12), dans l'argent et l'or : rare, pas epique —
+	# elle sert une fois.
+	"axe": {"icon": "axe", "label": "axe", "rarity": "rare"},
 }
 
 ## L'accent d'une rarete — le tampon, et ce dont on teinte le lot

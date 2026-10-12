@@ -13,7 +13,7 @@ extends SceneTree
 ## d'ecart et la grille allume ce qu'il refuse.
 
 const FIXTURE := "res://tools/burrow_fixture.json"
-const LETTER := {0: ".", 1: "g", 2: "E", 3: "F", 4: "d"}
+const LETTER := {0: ".", 1: "g", 2: "E", 3: "F", 4: "d", 5: "s"}
 
 
 func _init() -> void:
@@ -83,7 +83,7 @@ func _check(c: Dictionary) -> bool:
 			if e.has("placements"):
 				var have: Array = []
 				for q in got_e.placements:
-					have.append("%s:%d,%d" % [q.id, int(q.x), int(q.y)])
+					have.append("%s:%s:%d,%d" % [q.id, q.kind, int(q.x), int(q.y)])
 				if JSON.stringify(have) != JSON.stringify(e.placements):
 					problems.append("amenagement %s : decors differents (%d ici, %d attendus)" % [
 						JSON.stringify(e.edits), have.size(), (e.placements as Array).size()])

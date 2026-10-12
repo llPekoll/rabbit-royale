@@ -301,6 +301,9 @@
   "yieldRate": {
    "$t": "{0} cenouras/h"
   },
+  "stumpRegrows": {
+   "$t": "Cresce de novo em {0}"
+  },
   "regenRate": {
    "$t": "{0} de energia/h"
   }
@@ -384,6 +387,7 @@
    },
    "house_off_ground": "Sua casa precisa de chão livre.",
    "under_raid": "Tem um ataque na sua toca. Reorganize quando acabar.",
+   "thing_cut": "O toco fica no lugar até a árvore crescer de novo.",
    "bad_edits": "Essa organização foi recusada."
   }
  },
@@ -979,6 +983,23 @@
     }
    ]
   },
+  "boughtAxe": {
+   "$t": "{0} machados afiados. {1}",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "Machado afiado. {1}"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "Machado afiado. {1}"
+    }
+   ]
+  },
   "boughtPack": {
    "$t": "{0}: tudo na bolsa. {1}"
   },
@@ -1389,6 +1410,12 @@
   "struckBy": {
    "$t": "{0} te eletrocutou"
   },
+  "axe": {
+   "button": "MACHADO",
+   "hint": "Toque numa árvore ou cerca ao seu lado.",
+   "used": "MACHADO USADO",
+   "none": "Sem machado. A loja vende."
+  },
   "smoked": "Cortina de fumaça: sem números aqui. Ande às cegas."
  },
  "defend": {
@@ -1468,6 +1495,12 @@
   },
   "lost": "Sua toca foi saqueada",
   "held_": "Toca defendida",
+  "cutTree": {
+   "$t": "{0} derrubou uma das suas árvores"
+  },
+  "cutPlank": {
+   "$t": "{0} derrubou uma das suas cercas"
+  },
   "incoming": {
    "$t": "{0} está saqueando sua toca!"
   }
@@ -1485,6 +1518,9 @@
   "raid_over": "Esse saque já acabou.",
   "none_held": "Sem raio para chamar. A loja vende.",
   "no_raid": "Esse saque acabou.",
+  "no_axe": "Nenhum machado na sua bolsa. A loja vende.",
+  "axe_used": "Um machado por ataque.",
+  "not_cuttable": "Nada para derrubar aí.",
   "unknown_player": "Sumiram."
  },
  "chest": {
@@ -1495,6 +1531,7 @@
   "shield": "ESCUDO",
   "lightning": "RAIO",
   "genesis": "RR GENESIS",
+  "axe": "MACHADO",
   "piece": {
    "$t": "UMA PARTE É SUA - MAIS {0}x {1}"
   }
@@ -1696,6 +1733,10 @@
   "fence": {
    "name": "Cerca",
    "blurb": "Fecha uma borda da sua horta. Saqueadores não atravessam."
+  },
+  "axe": {
+   "name": "Machado",
+   "blurb": "Derruba uma árvore ou uma cerca durante um ataque. Um por ataque."
   },
   "shiro_stash": {
    "name": "Estoque do Shiro",

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc de la hache — voir scripts/bench/raid_axe_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/raid_axe_bench.gd" id="1_bench"]
+
+[node name="RaidAxeBench" type="Node2D"]
+script = ExtResource("1_bench")

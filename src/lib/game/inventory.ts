@@ -36,13 +36,13 @@ import { availableTraps, type TrapRow } from './traps';
  */
 export const ITEM_KINDS = [
   'trap', 'bomb', 'lightning', 'shield', 'energy', 'smoke', 'mirage', 'water', 'fertiliser',
-  'fence', 'bloop',
+  'fence', 'bloop', 'axe',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The kinds the shop sells — the keys of SHOP.PRICES. */
 export const SHOP_KINDS = [
-  'trap', 'lightning', 'shield', 'energy', 'smoke', 'bloop', 'fence',
+  'trap', 'lightning', 'shield', 'energy', 'smoke', 'bloop', 'fence', 'axe',
 ] as const;
 export type ShopKind = (typeof SHOP_KINDS)[number];
 
@@ -72,7 +72,7 @@ export function isGardenKind(v: unknown): v is GardenKind {
 }
 
 /** The kinds that are actually CARRIED — refills too, since 2026-10-08. */
-export const CARRIED_KINDS = ['trap', 'lightning', 'shield', 'energy', 'mirage', 'fence', 'bloop'] as const;
+export const CARRIED_KINDS = ['trap', 'lightning', 'shield', 'energy', 'mirage', 'fence', 'bloop', 'axe'] as const;
 export type CarriedKind = (typeof CARRIED_KINDS)[number];
 
 export function isItemKind(v: unknown): v is ItemKind {
@@ -258,7 +258,7 @@ export function holdings(
 ): Holdings {
   const bag = {
     trap: 0, bomb: 0, lightning: 0, shield: 0, energy: 0, smoke: 0, mirage: 0,
-    water: 0, fertiliser: 0, fence: 0, bloop: 0,
+    water: 0, fertiliser: 0, fence: 0, bloop: 0, axe: 0,
   } as Holdings;
   for (const r of rows) if (isItemKind(r.kind)) bag[r.kind] = r.qty;
   // Traps and smoke override whatever the table said: neither is stored

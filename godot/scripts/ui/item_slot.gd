@@ -58,6 +58,7 @@ const ART_OF := {
 	"water": [preload("res://assets/ui/icons/water.webp"), 32.0 / 33.0],
 	"fertiliser": [preload("res://assets/ui/icons/fertiliser.webp"), 32.0 / 29.0],
 	"bloop": [preload("res://assets/ui/icons/bloop.png"), 1.0],
+	"axe": [preload("res://assets/ui/icons/axe.png"), 27.0 / 23.0],
 }
 
 var kind := ""

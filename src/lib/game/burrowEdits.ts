@@ -9,18 +9,48 @@
  */
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { players, raidRuns } from '@/lib/db/schema';
+import { burrowCuts, players, raidRuns } from '@/lib/db/schema';
 import { setBurrowEdits, burrowEditsOf } from '@/game/burrow/board';
 import type { BurrowEdits } from '@/game/burrow/generate';
+import { AXE } from '@config/tuning';
 
-/** Read a player's edits and hand them to the rules. Returns them too. */
+/**
+ * Read a player's edits and hand them to the rules. Returns them too.
+ *
+ * WITH THE TREES AN AXE FELLED (`cuts`, 2026-10-12) laid on top: the raid,
+ * the traps and the owner's own screen all judge the ground with its stumps.
+ * `cuts` is never stored in `burrow_edits` — it is `burrow_cuts`, read here.
+ */
 export async function loadBurrowEdits(playerId: string): Promise<BurrowEdits | null> {
   const row = await db.query.players.findFirst({
     where: eq(players.id, playerId),
     columns: { burrowEdits: true },
   });
-  setBurrowEdits(playerId, row?.burrowEdits ?? null);
+  const cuts = (await activeCuts(playerId)).map((c) => c.tile);
+  const edits = row?.burrowEdits ?? null;
+  setBurrowEdits(playerId, cuts.length ? { ...(edits ?? {}), cuts } : edits);
   return burrowEditsOf(playerId);
+}
+
+/**
+ * The trees down on a burrow right now, and when each stands again
+ * (AXE.REGROW_MS after the cut). A tree felled twice before it regrows is
+ * one stump, named by its LATEST cut. Expired rows are left in place — they are the
+ * record of what happened — and simply stop counting.
+ */
+export async function activeCuts(playerId: string): Promise<Array<{ tile: number; regrowsAt: Date }>> {
+  const since = new Date(Date.now() - AXE.REGROW_MS);
+  const rows = await db.query.burrowCuts.findMany({
+    where: and(eq(burrowCuts.ownerId, playerId), gt(burrowCuts.cutAt, since)),
+    columns: { tile: true, cutAt: true },
+  });
+  const latest = new Map<number, Date>();
+  for (const r of rows) {
+    const was = latest.get(r.tile);
+    if (!was || r.cutAt > was) latest.set(r.tile, r.cutAt);
+  }
+  return [...latest].sort((a, b) => a[0] - b[0])
+    .map(([tile, at]) => ({ tile, regrowsAt: new Date(at.getTime() + AXE.REGROW_MS) }));
 }
 
 /**

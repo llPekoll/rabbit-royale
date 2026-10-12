@@ -27,7 +27,7 @@ import { houseTiles } from '@/game/burrow/buildings';
 import { editBurrow, hasEdits, withGifts } from '@/game/burrow/generate';
 import { fieldReachable, isSpan } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
-import { burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
+import { activeCuts, burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
 import { giftsOwned } from '@/lib/game/snack';
 import { snackRowOf } from '@/lib/game/snackState';
 
@@ -71,6 +71,21 @@ export async function PUT(req: Request) {
       edits = placed;
     }
   }
+  // THE STUMPS STAY PUT (2026-10-12): what an axe felled is judged with the
+  // edits, and every stump must stand where it fell, the same thing on it,
+  // until it regrows. `cuts` is the server's (`burrow_cuts`): whatever the
+  // client sent was dropped by `parseBurrowEdits`, and it is never stored.
+  const cuts = (await activeCuts(id)).map((c) => c.tile);
+  const stored = edits;
+  if (cuts.length) {
+    const felled = (t: ReturnType<typeof editBurrow>) => typeof t === 'string' ? '' : t.placements
+      .filter((p) => p.kind === 'felled').map((p) => `${p.id}@${p.x},${p.y}`).sort().join();
+    const before = felled(editBurrow(base, { ...(player.burrowEdits ?? {}), cuts }));
+    edits = { ...edits, cuts };
+    if (felled(editBurrow(base, edits)) !== before) {
+      return Response.json({ error: 'thing_cut' }, { status: 400 });
+    }
+  }
   if (hasEdits(edits)) {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return Response.json({ error: out }, { status: 400 });
@@ -101,7 +116,7 @@ export async function PUT(req: Request) {
   try {
     await db.transaction(async (tx) => {
       await tx.update(players)
-        .set({ burrowEdits: hasEdits(edits) ? edits : null })
+        .set({ burrowEdits: hasEdits(stored) ? stored : null })
         .where(eq(players.id, id));
 
       const moved = now[0] !== was[0] || now[1] !== was[1];

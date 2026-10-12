@@ -234,6 +234,8 @@ func build(ground: IslandGround, skip: Dictionary = {}, bushes: bool = false) ->
 				phase = _wind_phase(cell)
 			"gift":
 				node = _gift(variant)
+			"felled":
+				node = _stump(variant)
 			"sheep", "soldier":
 				var kinds: Array = SHEEP_KINDS if kind == "sheep" else SOLDIER_KINDS
 				unit = kinds[variant % kinds.size()]
@@ -333,6 +335,12 @@ func clear_cell(cell: Vector2i, keep_wanderers: bool = false) -> void:
 ## Ce qui est pose sur une case — pour les verifications.
 func nodes_at(cell: Vector2i) -> Array:
 	return _at.get(cell, [])
+
+
+## Ce qui se dresse assez haut pour cacher une case derriere soi : un arbre,
+## un repere. Une souche, une touffe, un cadeau, non.
+func is_tall(node: Node) -> bool:
+	return String(_kind_of.get(node, "")) in ["tree", "landmark"]
 
 
 ## UN BUISSON, comme TileView le pose sur l'ile : le pied au centre de la
@@ -571,6 +579,22 @@ func _tree(variant: int) -> Sprite2D:
 	s.texture = TREES
 	s.region_enabled = true
 	s.region_rect = _tree_rect(v * TREE_VARIANT_STRIDE)
+	s.centered = false
+	s.offset = Vector2(-TREE_FRAME.x * 0.5, -float(TREE_FOOT_PX[v]))
+	s.scale = Vector2(DECO_SCALE, DECO_SCALE)
+	return s
+
+
+## LA SOUCHE d'un arbre abattu par la hache d'un pillard (`felled`,
+## 2026-10-12) : la planche des arbres la porte deja, en derniere image de
+## chaque arbre (apres ses TREE_SWAY_FRAMES) — meme cadre, meme pied, donc
+## posee exactement ou le tronc se tenait, pin ou bouleau.
+func _stump(variant: int) -> Sprite2D:
+	var v := variant % TREE_FOOT_PX.size()
+	var s := Sprite2D.new()
+	s.texture = TREES
+	s.region_enabled = true
+	s.region_rect = _tree_rect(v * TREE_VARIANT_STRIDE + TREE_SWAY_FRAMES)
 	s.centered = false
 	s.offset = Vector2(-TREE_FRAME.x * 0.5, -float(TREE_FOOT_PX[v]))
 	s.scale = Vector2(DECO_SCALE, DECO_SCALE)

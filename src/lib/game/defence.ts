@@ -26,6 +26,9 @@ export interface DefenderRaidView {
   struck: boolean;
   carrotsLooted: number;
   startedAt: string;
+  /** What the raider's AXE brought down, if they used it: a tree's cell, or
+   *  a plank (`tile` the field cell, `side` its face). */
+  cut: { tile: number; side: string | null } | null;
 }
 
 export interface RaidRunRow {
@@ -39,6 +42,8 @@ export interface RaidRunRow {
   startedAt: Date;
   endedAt: Date | null;
   struckAt: Date | null;
+  cutTile?: number | null;
+  cutSide?: string | null;
 }
 
 export function defenderRaidView(
@@ -58,5 +63,6 @@ export function defenderRaidView(
     struck: run.struckAt !== null,
     carrotsLooted: run.carrotsLooted,
     startedAt: run.startedAt.toISOString(),
+    cut: run.cutTile == null ? null : { tile: run.cutTile, side: run.cutSide ?? null },
   };
 }

@@ -23,6 +23,7 @@
 export type ThingKind =
   | 'tree'
   | 'stump'
+  | 'felled'
   | 'rock'
   | 'bush'
   | 'prop'
@@ -56,6 +57,10 @@ export interface ThingRule {
 export const THING_RULES: Record<ThingKind, ThingRule> = {
   tree:     { blocks: true,  wanders: false },
   stump:    { blocks: true,  wanders: false },
+  // A burrow tree a raider's AXE brought down (2026-10-12): a stump you walk
+  // over until it regrows (AXE.REGROW_MS). Not `stump`, which is scenery and
+  // blocks — the same picture would otherwise mean two things.
+  felled:   { blocks: false, wanders: false },
   rock:     { blocks: true,  wanders: false },
   // Waist-high, and a rabbit pushes through it. Blocking looked right on
   // paper and was wrong in play: bushes are the most-scattered thing on the

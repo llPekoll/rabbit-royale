@@ -29,7 +29,7 @@
  * the feature, paid once, in signatures rather than in bugs.
  */
 import {
-  burrowTerrain, editBurrow, hasEdits, type BurrowEdits, BURROW_COLS, BURROW_ROWS, BURROW_STEPS, MAX_STEP,
+  burrowTerrain, editBurrow, fellTrees, hasEdits, type BurrowEdits, BURROW_COLS, BURROW_ROWS, BURROW_STEPS, MAX_STEP,
   burrowIndex, burrowColRow, type BurrowCell, type BurrowTerrain,
 } from './generate';
 import { levelAt } from '@/game/island/generate';
@@ -105,7 +105,9 @@ export function burrowFor(seed: string): BurrowTerrain {
   const hit = edited.get(seed);
   if (hit && hit.key === key) return hit.terrain;
   const out = editBurrow(base, edits);
-  const terrain = typeof out === 'string' ? base : out;
+  // A refused arrangement falls back to the generated burrow — but what an
+  // axe felled is down whatever the owner's edits say.
+  const terrain = typeof out === 'string' ? fellTrees(base, edits.cuts ?? []) : out;
   edited.set(seed, { key, terrain });
   return terrain;
 }

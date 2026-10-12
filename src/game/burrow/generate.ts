@@ -137,7 +137,7 @@ const MAX_ATTEMPTS = 24;
  * the open ground just inside the entrance, which is walked like ground and
  * refused to a bomb (see `TRAPS.DOORSTEP`, and the rule itself in `cells.ts`).
  */
-export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field' | 'doorstep';
+export type BurrowCell = 'ground' | 'blocked' | 'entrance' | 'field' | 'doorstep' | 'stump';
 
 export interface BurrowTerrain {
   /** The terrain tiers, exactly as the island's renderer wants them. */
@@ -867,6 +867,13 @@ export interface BurrowEdits {
    * at its home cell (`giftHomes`) that `moves` relocates like a tree.
    */
   gifts?: number;
+  /**
+   * The cells whose tree a raider's AXE felled and that have not regrown
+   * (`burrow_cuts`, AXE.REGROW_MS). Server-written like `gifts`: loaded with
+   * the edits (`loadBurrowEdits`), never accepted from a client. Applied
+   * LAST and without the crossing limits — see `fellTrees`.
+   */
+  cuts?: number[];
 }
 
 /** Why an edit is refused — the client names the same reasons. */
@@ -903,7 +910,8 @@ export function hasEdits(e: BurrowEdits | null | undefined): e is BurrowEdits {
   return (!!e.field && (e.field[0] !== 0 || e.field[1] !== 0))
     || e.house !== undefined
     || (e.moves?.length ?? 0) > 0
-    || (e.gifts ?? 0) > 0;
+    || (e.gifts ?? 0) > 0
+    || (e.cuts?.length ?? 0) > 0;
 }
 
 /**
@@ -1051,7 +1059,45 @@ export function editBurrow(
   if (typeof settled === 'string') return settled;
   const { cells, doorstep, crossing } = settled;
 
-  return { map, placements, cells, entrance, field, doorstep, crossing, seed: base.seed, house };
+  const out = { map, placements, cells, entrance, field, doorstep, crossing, seed: base.seed, house };
+  if (edits.cuts !== undefined && (!Array.isArray(edits.cuts) || !edits.cuts.every(onBoard))) return 'bad_edits';
+  return fellTrees(out, edits.cuts ?? []);
+}
+
+/**
+ * THE AXE'S MARK: each tree standing on a `cuts` cell is down — a `felled`
+ * thing a raider walks over — and the ground is measured again round it.
+ *
+ * AFTER `editBurrow`'s checks and WITHOUT the crossing limits, on purpose. A
+ * felled tree is meant to shorten the way in; asked as an edit, a crossing
+ * under MIN_CROSSING would be refused, and `burrowFor` answers a refused edit
+ * with the generated burrow — the owner's whole arrangement gone for a day.
+ * The doorstep is KEPT, not re-picked: a bomb's cell never turns into
+ * doorstep under it (`standingTraps` would silently drop it). A cell with no
+ * tree on it (moved away since, or never one) is ignored.
+ *
+ * Mirrored in burrow_layout.gd `fell_trees`.
+ */
+export function fellTrees(t: BurrowTerrain, cuts: readonly number[]): BurrowTerrain {
+  if (cuts.length === 0) return t;
+  const at = new Set(cuts);
+  let any = false;
+  const placements = t.placements.map((p) => {
+    if (p.kind !== 'tree' || !at.has(index(p.x, p.y))) return p;
+    any = true;
+    return { ...p, kind: 'felled' as const };
+  });
+  if (!any) return t;
+  const square = t.house === undefined ? [] : houseFootprint(t.house) ?? [];
+  const main = mainBody(t.map, walkableWith(t.map, placements, new Set(square)));
+  const steps = stepDistances(t.map, main, t.entrance);
+  const crossing = Math.min(...t.field.map((f) => steps.get(f) ?? Infinity));
+  const cells = paint(main, t.entrance, t.field, t.doorstep);
+  for (const p of placements) {
+    const i = index(p.x, p.y);
+    if (p.kind === 'felled' && cells[i] === 'ground') cells[i] = 'stump';
+  }
+  return { ...t, placements, cells, crossing: Number.isFinite(crossing) ? crossing : t.crossing };
 }
 
 /**

@@ -19,7 +19,7 @@ import type { Dict } from '@/i18n/dictionaries';
 import type { PayTokenId } from '@/lib/pay/tokens';
 
 export type ItemKind =
-  | 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage' | 'fence' | 'bloop';
+  | 'trap' | 'bomb' | 'lightning' | 'shield' | 'energy' | 'smoke' | 'mirage' | 'fence' | 'bloop' | 'axe';
 
 export interface ShopItem {
   kind: ItemKind;
@@ -326,5 +326,6 @@ function purchaseNote(t: Dict, kind: ItemKind, qty: number, spent: number): stri
     case 'mirage': return t.shop.boughtMirage(qty, paid);
     case 'bloop': return t.shop.boughtBloop(qty, paid);
     case 'fence': return t.shop.boughtFence(qty, paid);
+    case 'axe': return t.shop.boughtAxe(qty, paid);
   }
 }

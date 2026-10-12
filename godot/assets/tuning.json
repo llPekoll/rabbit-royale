@@ -1,4 +1,9 @@
 {
+ "AXE": {
+  "REGROW_MS": 172800000,
+  "PER_RAID": 1,
+  "CARROT_COST": 150
+ },
  "BIG_ISLANDS": {
   "SHAPE_CHANCE": 0.35,
   "MIN_SIDE": 32,
@@ -337,6 +342,12 @@
    "max": 1
   },
   {
+   "kind": "axe",
+   "weight": 10,
+   "min": 1,
+   "max": 2
+  },
+  {
    "kind": "nft",
    "weight": 1,
    "min": 1,
@@ -355,13 +366,19 @@
   "silver": [
    {
     "kind": "water",
-    "weight": 55,
+    "weight": 40,
     "min": 1,
     "max": 3
    },
    {
     "kind": "fertiliser",
-    "weight": 45,
+    "weight": 30,
+    "min": 1,
+    "max": 2
+   },
+   {
+    "kind": "axe",
+    "weight": 30,
     "min": 1,
     "max": 2
    }
@@ -369,19 +386,25 @@
   "gold": [
    {
     "kind": "trap",
-    "weight": 50,
+    "weight": 40,
+    "min": 1,
+    "max": 2
+   },
+   {
+    "kind": "axe",
+    "weight": 25,
     "min": 1,
     "max": 2
    },
    {
     "kind": "shield",
-    "weight": 28,
+    "weight": 20,
     "min": 1,
     "max": 1
    },
    {
     "kind": "lightning",
-    "weight": 22,
+    "weight": 15,
     "min": 1,
     "max": 1
    }
@@ -827,7 +850,8 @@
    "energy": 700,
    "smoke": 2000,
    "bloop": 100,
-   "fence": 300
+   "fence": 300,
+   "axe": 150
   },
   "USDC_PRICES": {
    "trap": 0.25,
@@ -836,7 +860,8 @@
    "energy": 0.99,
    "smoke": 1.99,
    "bloop": 0.1,
-   "fence": 0.4
+   "fence": 0.4,
+   "axe": 0.25
   },
   "MAX_HELD": 20,
   "MAX_QTY_PER_PURCHASE": 10

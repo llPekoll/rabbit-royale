@@ -21,7 +21,7 @@ import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
 import { playerLook } from '@/lib/game/look';
-import { players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
+import { burrowCuts, inventory, players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
 import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
 import {
@@ -32,6 +32,7 @@ import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
+import { axeTargets } from '@/lib/game/axe';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
 import { RABBIT_LEVELS } from '@config/tuning';
@@ -91,6 +92,11 @@ async function raidView(runId: string) {
     columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
   });
   const tank = attacker ? currentEnergy(attacker) : null;
+  const axes = await db.query.inventory.findFirst({
+    where: and(eq(inventory.playerId, run.attackerId), eq(inventory.kind, 'axe')),
+    columns: { qty: true },
+  });
+  const axeUsed = run.cutAt !== null;
 
   return {
     raidId: run.id,
@@ -166,6 +172,17 @@ async function raidView(runId: string) {
      * and says who did it.
      */
     struck: run.struckAt !== null,
+    /**
+     * THE AXE (2026-10-12): how many the raider carries, whether this raid's
+     * one is spent, and what it can bring down from where they stand —
+     * computed here like `steps`, so the board only lights what the server
+     * accepts. No targets once it is used or the raid is over.
+     */
+    axe: {
+      held: axes?.qty ?? 0,
+      used: axeUsed,
+      ...(axeUsed || run.endedAt ? { trees: [], planks: [] } : axeTargets(seed, walled, run.tile)),
+    },
   };
 }
 
@@ -534,7 +551,7 @@ export async function PATCH(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as { tile?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { tile?: unknown; cut?: unknown };
   const to = Number(body.tile);
 
   const run = await db.query.raidRuns.findFirst({
@@ -553,6 +570,8 @@ export async function PATCH(req: Request) {
   if (isOnIsland(session.sub)) {
     return Response.json({ error: 'on_island' }, { status: 409 });
   }
+
+  if (body.cut !== undefined) return cut(session.sub, run, body.cut);
 
   // Adjacency is checked SERVER-SIDE. `burrowNeighbors` already excludes walls
   // and off-board indices, so a client naming a distant or blocked tile is
@@ -841,4 +860,79 @@ export async function DELETE(req: Request) {
   if (run.visited.length > 1) await tellDefender(run.id);
 
   return Response.json({ raid: null });
+}
+
+/**
+ * `{ cut: { tile, side? } }` — THE AXE: a tree (`tile`) or a plank (`tile` +
+ * `side`) next to the raider comes down.
+ *
+ * Takes no step and costs no energy: the axe is the price. Claimed ONCE per
+ * raid with a conditional write on `cutAt` (a double tap spends one axe), the
+ * axe taken from the bag under a `qty >= 1` guard, in one transaction — a
+ * raider with none, or a target that is not one, changes nothing.
+ */
+async function cut(
+  attackerId: string,
+  run: { id: string; defenderId: string; tile: number; cutAt: Date | null },
+  raw_: unknown,
+): Promise<Response> {
+  const target = (raw_ && typeof raw_ === 'object' ? raw_ : {}) as { tile?: unknown; side?: unknown };
+  const tile = Number(target.tile);
+  const side = typeof target.side === 'string' ? target.side : null;
+  if (run.cutAt) return Response.json({ error: 'axe_used' }, { status: 409 });
+
+  const walled = fencedSpans(
+    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
+  );
+  await loadBurrowEdits(run.defenderId);
+  const reach = axeTargets(run.defenderId, walled, run.tile);
+  const isPlank = side !== null;
+  const ok = Number.isInteger(tile) && (isPlank
+    ? reach.planks.some((s) => s.tile === tile && s.side === side)
+    : reach.trees.includes(tile));
+  if (!ok) return Response.json({ error: 'not_cuttable' }, { status: 400 });
+
+  const now = new Date();
+  const outcome = await db.transaction(async (tx) => {
+    const [claimed] = await tx.update(raidRuns)
+      .set({ cutAt: now, cutTile: tile, cutSide: side })
+      .where(and(eq(raidRuns.id, run.id), isNull(raidRuns.endedAt), isNull(raidRuns.cutAt)))
+      .returning({ id: raidRuns.id });
+    if (!claimed) return 'axe_used' as const;
+    const [spent] = await tx.update(inventory)
+      .set({ qty: raw`${inventory.qty} - 1` })
+      .where(and(eq(inventory.playerId, attackerId), eq(inventory.kind, 'axe'), raw`${inventory.qty} >= 1`))
+      .returning({ qty: inventory.qty });
+    if (!spent) {
+      tx.rollback();
+      return 'no_axe' as const;
+    }
+    if (isPlank) {
+      // The plank falls and goes home: back in its owner's bag, past the
+      // ceiling if need be, like a plank a rearrangement pushed off.
+      const gone = await tx.delete(fences)
+        .where(and(eq(fences.ownerId, run.defenderId), eq(fences.tile, tile), eq(fences.side, side!)))
+        .returning({ id: fences.id });
+      if (gone.length) {
+        await tx.insert(inventory)
+          .values({ playerId: run.defenderId, kind: 'fence', qty: 1 })
+          .onConflictDoUpdate({
+            target: [inventory.playerId, inventory.kind],
+            set: { qty: raw`${inventory.qty} + 1` },
+          });
+      }
+    } else {
+      await tx.insert(burrowCuts).values({ ownerId: run.defenderId, tile, cutBy: attackerId, cutAt: now });
+    }
+    return 'cut' as const;
+  }).catch((err: unknown) => {
+    // drizzle's rollback throws; the 'no_axe' it carried is the answer.
+    if (err instanceof Error && /rollback/i.test(err.message)) return 'no_axe' as const;
+    throw err;
+  });
+  if (outcome !== 'cut') {
+    return Response.json({ error: outcome }, { status: outcome === 'axe_used' ? 409 : 400 });
+  }
+  await tellDefender(run.id);
+  return Response.json({ raid: await raidView(run.id), cut: { tile, side } });
 }

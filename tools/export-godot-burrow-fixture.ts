@@ -24,7 +24,7 @@ const SEEDS = [
   'e0a1f2b3-c4d5-4e6f-8a9b-0c1d2e3f4a5b',
   'paul',
 ];
-const LETTER = { ground: 'g', blocked: '.', entrance: 'E', field: 'F', doorstep: 'd' } as const;
+const LETTER = { ground: 'g', blocked: '.', entrance: 'E', field: 'F', doorstep: 'd', stump: 's' } as const;
 
 const out = SEEDS.map((seed) => {
   const b = burrowFor(seed);
@@ -90,6 +90,25 @@ function editCases(seed: string) {
     tries.push({ gifts: 1, moves: [[homes[0], at]] });
     if (solid.length) tries.push({ gifts: 1, moves: [[solid[0], homes[0]]] });
   }
+  // THE AXE (2026-10-12): felled trees, alone, with moves (a moved tree cut
+  // where it stands now), on a cell with no tree (ignored), the trees nearest
+  // the field (a crossing that may drop under MIN_CROSSING — still accepted),
+  // and a malformed list.
+  const trees = base.placements.filter((p) => p.kind === 'tree').map((p) => burrowIndex(p.x, p.y));
+  const nearField = [...trees].sort((a, b) => {
+    const d = (t: number) => Math.min(...base.field.map((f) => Math.max(Math.abs(f % 19 - t % 19), Math.abs(Math.floor(f / 19) - Math.floor(t / 19)))));
+    return d(a) - d(b) || a - b;
+  });
+  if (trees.length >= 3) {
+    tries.push({ cuts: [trees[0]] });
+    tries.push({ cuts: trees.slice(0, 3) });
+    tries.push({ cuts: nearField.slice(0, 4) });
+    tries.push({ cuts: [base.entrance, base.field[0]] });
+    const to = clutter[0] ?? (trees[1] + 1) % 361;
+    tries.push({ moves: [[trees[1], to]], cuts: [to] });
+    tries.push({ field: [1, 0], cuts: [trees[2]] });
+    tries.push({ cuts: [-1] } as BurrowEdits);
+  }
   return tries.map((edits) => {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return { edits, refused: out };
@@ -100,7 +119,7 @@ function editCases(seed: string) {
     return {
       edits, cells: out.cells.map((k) => LETTER[k]).join(''), crossing: out.crossing, house,
       // What still stands, and where: the clutter that gave way is gone.
-      placements: out.placements.map((p) => `${p.id}:${p.x},${p.y}`),
+      placements: out.placements.map((p) => `${p.id}:${p.kind}:${p.x},${p.y}`),
     };
   });
 }

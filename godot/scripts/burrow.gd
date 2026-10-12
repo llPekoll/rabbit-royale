@@ -60,6 +60,8 @@ var _raider: HomeRabbit
 var _raider_at := -1
 ## Les pieges sautes a la derniere lecture : chaque nouveau se joue une fois.
 var _sprung_seen := 0
+## Le dernier coup de hache vu sur NOTRE terrier (`incoming.cut`), par raid.
+var _cut_seen := ""
 ## Le raid dont la fin a ete jouee, pour qu'une relecture ne la rejoue pas.
 var _ended_shown := ""
 ## Le raid dont l'eclair a ete joue.
@@ -81,6 +83,23 @@ var _raid_curtain := false
 var _raid_key := ""
 ## Les cases ou une tape est acceptee — la liste du serveur, jamais la notre.
 var _raid_steps := {}
+## Le decor passe en transparence pendant le raid (voir `_see_through`).
+var _faded := {}
+## Le sol du defenseur tel qu'il est dessine (`defender.edits`) : une hache —
+## la notre ou celle d'un autre pillard — le change en plein raid.
+var _raid_edits := ""
+## Les arbres detoures par la hache armee.
+var _axe_lit: Array = []
+## Les comptes a rebours des souches (`_sync_stumps`) : tuile -> Label.
+var _stump_tags := {}
+## Relus toutes les 20 s : la minute s'y voit sans un _process.
+const STUMP_TICK_S := 20.0
+## La taille du nom des lapins de l'ile (island_rabbit NAME_SIZE), suressaye.
+const STUMP_TAG_SIZE := 8
+const STUMP_TAG_OVERSAMPLE := 4.0
+const STUMP_TAG_W := 120.0
+## Au-dessus du pied de la souche, de quoi ne pas mordre dessus.
+const STUMP_TAG_RISE := 26.0
 ## Le lapin du joueur, chez l'autre.
 var _walker: HomeRabbit
 var _walker_at := -1
@@ -168,6 +187,7 @@ func _ready() -> void:
 	if shop.traps.is_empty():
 		shop.refresh()
 	RaidState.current.incoming_changed.connect(_on_incoming)
+	RaidState.current.chopped.connect(_on_chopped)
 	_on_incoming()
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
@@ -178,7 +198,13 @@ func _ready() -> void:
 	# (BurrowScene.ts `setLevel`). Ce plateau n'est jamais que le sien — la
 	# garde du web (« chez soi seulement ») est vraie par construction.
 	Home.changed.connect(_follow_level)
+	Home.changed.connect(_sync_stumps)
 	Home.edits_changed.connect(_on_edits_changed)
+	var ticks := Timer.new()
+	ticks.wait_time = STUMP_TICK_S
+	ticks.timeout.connect(_sync_stumps)
+	add_child(ticks)
+	ticks.start()
 	Home.level_up.connect(func(level: int) -> void:
 		if _own_ground():
 			_props.set_level(level)
@@ -424,6 +450,18 @@ func _on_incoming() -> void:
 		if Chrome.current != null:
 			Chrome.current.alarm_burst()
 
+	# UNE HACHE CHEZ NOUS : l'arbre tombe sous nos yeux, puis le sol se relit
+	# (la souche, `edits.cuts`) et la planche revient au sac.
+	var cut: Variant = inc.get("cut")
+	if cut is Dictionary and _cut_seen != raid_id:
+		_cut_seen = raid_id
+		_fall(cut, false)
+		var who_cut: Dictionary = inc.get("attacker", {}) if inc.get("attacker") is Dictionary else {}
+		var key := "defend.cutPlank" if cut.get("side") != null else "defend.cutTree"
+		Home.noted.emit(I18N.f(key, [String(who_cut.get("name", ""))]), false)
+		Home.refresh()
+		ShopState.shared().refresh()
+
 	# L'ECLAIR, d'ou qu'il soit parti (la tape, le bouton du HUD, un autre
 	# appareil) : la reponse du serveur dit `struck`, le plateau le joue une
 	# fois.
@@ -557,8 +595,9 @@ func _enter_raid(r: Dictionary) -> void:
 	# AVANT le sol : `show_ground` cadre sur-le-champ, et un raid veut la prise
 	# du plateau entier — sinon la camera irait a la maison et en repartirait.
 	_raiding = true
-	show_ground(String(defender.get("id", "")),
-		defender.get("edits", {}) if defender.get("edits") is Dictionary else {})
+	var edits: Dictionary = defender.get("edits", {}) if defender.get("edits") is Dictionary else {}
+	_raid_edits = JSON.stringify(edits)
+	show_ground(String(defender.get("id", "")), edits)
 	_rabbit.visible = false
 	_walker = _spawn_raider(int(r.get("tile", -1)), Look.mine())
 	_walker_at = int(r.get("tile", -1))
@@ -566,6 +605,18 @@ func _enter_raid(r: Dictionary) -> void:
 	if Chrome.current != null:
 		Chrome.current.show_raid(true)
 	_draw_raid(r, true)
+	_reframe_under_hud()
+
+
+## LA PLAQUE DU NOM SE MESURE APRES NOUS : le cadrage d'entree la comptait a
+## zero et le haut du terrier (le potager, les arbres a abattre) passait
+## dessous. Deux images plus tard elle a sa taille ; on recadre une fois, si
+## le doigt n'a pas deja pris la main.
+func _reframe_under_hud() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _raiding and not _cam_moved_by_player:
+		frame_camera()
 
 
 ## RETOUR CHEZ SOI : notre sol, nos bombes, notre lapin, et la prise de la
@@ -578,7 +629,9 @@ func _leave_raid() -> void:
 	Sound.stop_music()
 	_in_raid = false
 	_raid_key = ""
+	_raid_edits = ""
 	_raid_steps = {}
+	_unlight_axe()
 	_ground_level = -1
 	if _walker != null:
 		_walker.queue_free()
@@ -614,12 +667,25 @@ static func _raid_sight(r: Dictionary) -> Array:
 ## et ou l'on se tient changent ensemble a chaque pas, et trois mises a jour
 ## separees montreraient une image du plateau en desaccord avec elle-meme.
 func _draw_raid(r: Dictionary, fresh: bool) -> void:
-	var key := "%s|%s|%s|%s|%d|%d|%s" % [r.get("raidId"), r.get("tile"), r.get("finished"),
+	var defender: Dictionary = r.get("defender", {}) if r.get("defender") is Dictionary else {}
+	var edits: Dictionary = defender.get("edits", {}) if defender.get("edits") is Dictionary else {}
+	var key := "%s|%s|%s|%s|%d|%d|%s|%s|%s" % [r.get("raidId"), r.get("tile"), r.get("finished"),
 		r.get("struck", false), (r.get("view", []) as Array).size(),
-		(r.get("steps", []) as Array).size(), r.get("smoked")]
+		(r.get("steps", []) as Array).size(), r.get("smoked"),
+		JSON.stringify(r.get("axe", {})), JSON.stringify(edits)]
 	if key == _raid_key:
+		_sync_axe()
 		return
 	_raid_key = key
+	# UN ARBRE EST TOMBE (notre hache, ou celle d'un autre pillard) : le sol
+	# du defenseur se redessine sous nous, la camera ne bouge pas.
+	var now_edits := JSON.stringify(edits)
+	if now_edits != _raid_edits:
+		_raid_edits = now_edits
+		show_ground(String(defender.get("id", "")), edits, true)
+		fresh = true
+		if _walker != null:
+			_walker.set_ground(_terrain.map, _rabbit.only)
 	var finished := bool(r.get("finished", false))
 	var tile := int(r.get("tile", -1))
 	# Un raid fini n'offre plus de pas : le plateau reste lisible, mais la
@@ -633,6 +699,12 @@ func _draw_raid(r: Dictionary, fresh: bool) -> void:
 		_walker.send_to(BurrowLayout.cell_of(tile))
 	_walker_at = tile
 	_raid_board.light(steps, tile)
+	var watched: Array[Vector2i] = _props.field.duplicate()
+	watched.append(BurrowLayout.cell_of(tile))
+	for t in steps:
+		watched.append(BurrowLayout.cell_of(int(t)))
+	_see_through(watched)
+	_sync_axe()
 
 	# LA FIN, une fois : il danse sur le potager, ou il s'effondre la ou son
 	# energie a lache. FOUDROYE, c'est l'eclair du defenseur qui le dit, et le
@@ -651,6 +723,197 @@ func _draw_raid(r: Dictionary, fresh: bool) -> void:
 			_walker.exhaust()
 			Sound.music("gameover")
 			Drain.start(self, I18N.t("raid.outOfEnergy").to_upper())
+
+
+# ---------------------------------------------------------------- la hache
+
+## LA HACHE ARMEE ALLUME CE QU'ELLE ATTEINT (2026-10-12) : les arbres autour du
+## lapin detoures avec un chevron d'acier, les planches devant lui en or.
+## Desarmee, tout s'eteint. Les cibles sont celles du serveur (`axe.trees`,
+## `axe.planks`) — jamais calculees ici.
+func _sync_axe() -> void:
+	_unlight_axe()
+	var state := RaidState.current
+	var armed := _in_raid and state.axe_armed
+	var axe := state.axe()
+	var cells: Array[Vector2i] = []
+	if armed:
+		for t in axe.get("trees", []):
+			var c := BurrowLayout.cell_of(int(t))
+			cells.append(c)
+			for n in _scenery.nodes_at(c):
+				if n is Node2D and is_instance_valid(n):
+					var node := n as Node2D
+					node.material = _outline_for(node)
+					node.modulate.a = 1.0
+					_axe_lit.append(node)
+	_raid_board.show_axe(cells)
+	_fences.set_targets(axe.get("planks", []) if armed and axe.get("planks") is Array else [])
+
+
+func _unlight_axe() -> void:
+	for n in _axe_lit:
+		if is_instance_valid(n):
+			(n as Node2D).material = null
+	_axe_lit.clear()
+	if _raid_board != null:
+		var none: Array[Vector2i] = []
+		_raid_board.show_axe(none)
+	if _fences != null:
+		_fences.set_targets([])
+
+
+## LA TAPE DE LA HACHE : l'arbre dont le tronc passe sous le doigt (du pied a
+## quatre demi-cases au-dessus), ou la planche la plus proche — la plus pres
+## des deux gagne. A cote de tout : rien, la hache reste armee.
+func _axe_tap(p: Vector2) -> void:
+	var state := RaidState.current
+	var axe := state.axe()
+	var best: Dictionary = {}
+	var best_d := Iso.half_w() * 0.9
+	for t in axe.get("trees", []):
+		var c := BurrowLayout.cell_of(int(t))
+		var foot := _terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+		var top := foot - Vector2(0, Iso.half_h() * 5.0)
+		var d := _to_segment(p, top, foot)
+		if d < best_d:
+			best_d = d
+			best = {"tile": int(t)}
+	var plank := _fences.pick_target(p)
+	if not plank.is_empty() and p.distance_to(_fences.mid_of(plank)) < best_d:
+		best = {"tile": int(plank["tile"]), "side": String(plank["side"])}
+	if best.is_empty():
+		return
+	state.cut(best)
+
+
+static func _to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var k := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+	return p.distance_to(a + ab * k)
+
+
+## L'ARBRE TOMBE : une copie du sprite, posee sur le plateau (le sol va etre
+## refait sous elle), bascule depuis son pied et s'efface ; la souche est deja
+## dessous quand elle disparait. Une planche, elle, part en poussiere.
+func _on_chopped(target: Dictionary) -> void:
+	_fall(target, true)
+
+
+func _fall(target: Dictionary, ours: bool) -> void:
+	Sound.play("hop", 0.55)
+	if target.has("side") and target.get("side") != null:
+		var mid := _fences.mid_of(target)
+		if mid != Vector2.INF:
+			_dust(mid)
+		return
+	var c := BurrowLayout.cell_of(int(target.get("tile", -1)))
+	for n in _scenery.nodes_at(c):
+		if not (n is Sprite2D) or not is_instance_valid(n):
+			continue
+		var src := n as Sprite2D
+		var ghost := src.duplicate() as Sprite2D
+		ghost.material = null
+		add_child(ghost)
+		ghost.global_transform = src.global_transform
+		ghost.z_as_relative = false
+		ghost.z_index = 3000
+		var side := -1.0 if ours and hash(c) % 2 == 0 else 1.0
+		var tw := ghost.create_tween()
+		tw.tween_property(ghost, "rotation", side * 0.08, 0.06)
+		tw.tween_property(ghost, "rotation", -side * 0.08, 0.06)
+		tw.tween_property(ghost, "rotation", side * 1.45, 0.5) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(ghost, "modulate:a", 0.0, 0.3)
+		tw.tween_callback(ghost.queue_free)
+		_dust(_terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h()))
+		break
+
+
+## LE COMPTE A REBOURS DES SOUCHES, chez soi : « Repousse dans 31h » au-dessus
+## de chaque arbre qu'un pillard a abattu (Home.stumps). Chez un autre, et
+## pendant notre propre raid, rien. Une souche a zero se tait ; la relecture
+## suivante du terrier rend l'arbre.
+func _sync_stumps() -> void:
+	var want := {}
+	if _own_ground() and not _in_raid and _layout != null:
+		for s in Home.stumps:
+			if not (s is Dictionary):
+				continue
+			var left := BurrowTraps._ms_until(String(s.get("regrowsAt", "")))
+			var tile := int(s.get("tile", -1))
+			if left > 0.0 and _layout.placements.any(func(p: Dictionary) -> bool:
+				return String(p.kind) == "felled" and BurrowLayout.index(Vector2i(int(p.x), int(p.y))) == tile):
+				want[tile] = left
+	for tile in _stump_tags.keys():
+		if not want.has(tile):
+			(_stump_tags[tile] as Node).queue_free()
+			_stump_tags.erase(tile)
+	for tile in want:
+		var tag: Label = _stump_tags.get(tile)
+		if tag == null:
+			tag = Label.new()
+			tag.add_theme_font_size_override("font_size", int(STUMP_TAG_SIZE * STUMP_TAG_OVERSAMPLE))
+			tag.add_theme_color_override("font_color", Color("#fff4d6"))
+			tag.add_theme_color_override("font_outline_color", Color("#1d1608"))
+			tag.add_theme_constant_override("outline_size", int(3 * STUMP_TAG_OVERSAMPLE))
+			tag.scale = Vector2.ONE / STUMP_TAG_OVERSAMPLE
+			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			tag.z_as_relative = false
+			tag.z_index = 3000
+			tag.size = Vector2(STUMP_TAG_W, 14) * STUMP_TAG_OVERSAMPLE
+			add_child(tag)
+			_stump_tags[tile] = tag
+		var c := BurrowLayout.cell_of(tile)
+		tag.position = _terrain.map.screen_of(c.x, c.y) + Vector2(-STUMP_TAG_W * 0.5, Iso.half_h() - STUMP_TAG_RISE)
+		tag.text = I18N.f("burrow.stumpRegrows", [I18N.short_wait(float(want[tile]))])
+
+
+## Un nuage de copeaux au pied de ce qui tombe.
+func _dust(at: Vector2) -> void:
+	for i in 7:
+		var bit := Polygon2D.new()
+		var r := 2.0 + randf() * 2.0
+		bit.polygon = PackedVector2Array([Vector2(-r, 0), Vector2(0, -r), Vector2(r, 0), Vector2(0, r)])
+		bit.color = Color("#8a5a32") if i % 2 == 0 else Color("#d9c8a0")
+		bit.position = at
+		bit.z_as_relative = false
+		bit.z_index = 3001
+		add_child(bit)
+		var dir := Vector2.from_angle(-PI * randf())
+		var tw := bit.create_tween().set_parallel(true)
+		tw.tween_property(bit, "position", at + dir * (10.0 + randf() * 14.0), 0.45) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(bit, "modulate:a", 0.0, 0.45).set_delay(0.15)
+		tw.chain().tween_callback(bit.queue_free)
+
+
+## LE DECOR S'EFFACE DEVANT CE QUI SE JOUE : en raid, un arbre devant
+## l'anneau, le lapin ou le potager cachait la case a jouer (2026-10-11,
+## « faut faire attention avec la deco »). Transparent, pas enleve : c'est le
+## terrier de l'autre, son arbre bloque toujours. `[]` rend tout.
+const SEE_THROUGH_ALPHA := 0.35
+
+func _see_through(cells: Array[Vector2i]) -> void:
+	var want := {}
+	for c in cells:
+		for f in IslandScenery.cells_in_front(c):
+			for n in _scenery.nodes_at(f):
+				if n is CanvasItem and is_instance_valid(n) and _scenery.is_tall(n):
+					want[n] = true
+	for n in _faded:
+		if not want.has(n) and is_instance_valid(n):
+			_fade(n, 1.0)
+	for n in want:
+		if not _faded.has(n):
+			_fade(n, SEE_THROUGH_ALPHA)
+	_faded = want
+
+
+func _fade(n: CanvasItem, alpha: float) -> void:
+	n.create_tween().tween_property(n, "modulate:a", alpha, 0.2)
 
 
 ## UN PIEGE A SAUTE SOUS NOUS. Le signal part AVANT que la reponse soit
@@ -806,6 +1069,11 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 		_rabbit.only[BurrowLayout.cell_of(tile)] = true
 	_rabbit.look = Look.mine()
 	_rabbit.build(hash(seed_value))
+	# L'INTRUS qu'on regarde chez nous suit le sol neuf (une souche) : sans
+	# ca, son pas sur la breche etait compte et il restait sur place.
+	if _raider != null and is_instance_valid(_raider):
+		_raider.set_ground(_terrain.map, _rabbit.only)
+	_sync_stumps()
 
 	# LA PRISE DEPEND DU RELIEF : les quatre cadrages sont resolus sur les
 	# bornes de la terre, et une autre graine en a d'autres. Un terrier voisin
@@ -922,11 +1190,11 @@ func _wanted_cam() -> BurrowCamera.Shot:
 	var map := _terrain.map
 	if _raiding:
 		if _cam_moved_by_player:
-			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y)
+			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y,
+				1.0, _chrome_top() / view.y)
 		# SOUS LA PASTILLE : le raid se joue sur toute la ferme, rien ne doit
 		# se passer derriere le chrome du haut.
-		var top := maxf(Kit.TOPBAR_H, TopBar.hang_bottom()) + Kit.PAD_TIGHT
-		return BurrowCamera.board(map, view.x, view.y, top)
+		return BurrowCamera.board(map, view.x, view.y, _chrome_top())
 	# DEFEND GARDE UNE SEULE PRISE, quel que soit l'objet choisi (2026-10-01) :
 	# le bouclier et la fumee n'ont rien a poser, et retombaient sur la prise
 	# de la maison — dezoomee, DIG et SHOP de retour dans un ecran qui ne
@@ -1060,6 +1328,9 @@ func set_raiding(on: bool) -> void:
 		return
 	_raiding = on
 	_cam_moved_by_player = false
+	if not on:
+		var none: Array[Vector2i] = []
+		_see_through(none)
 	_sync_door()
 	_relabel_cycle()
 	frame_camera()
@@ -1308,6 +1579,11 @@ func _on_release(at: Vector2) -> void:
 		if not door.is_empty():
 			_on_landmark(door)
 			return
+	# LA HACHE ARMEE vise un arbre ou une planche, pas une case : l'arbre
+	# deborde de sa case vers le haut, la planche se tient entre deux.
+	if _in_raid and RaidState.current.axe_armed:
+		_axe_tap(_board_at(at))
+		return
 	var cell := _cell_at(at)
 	if cell.x < 0:
 		return
@@ -1344,7 +1620,7 @@ func _hints_live() -> bool:
 func set_place_cam(shot: BurrowCamera.Shot) -> void:
 	var view := get_viewport_rect().size
 	var held := BurrowCamera.clamp_home(shot, _home_map(), view.x, view.y) if _home_cam() \
-		else BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y)
+		else BurrowCamera.clamp_place(shot, _terrain.map, view.x, view.y, 1.0, _chrome_top() / view.y)
 	_cam_moved_by_player = true
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
@@ -1356,7 +1632,7 @@ func set_place_cam(shot: BurrowCamera.Shot) -> void:
 func _pinch_cam(step: Dictionary) -> void:
 	var view := get_viewport_rect().size
 	if not _home_cam():
-		set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, view))
+		set_place_cam(Pinch.apply(step, _current_shot(), _terrain.map, view, _chrome_top() / view.y))
 		return
 	var zoomed := BurrowCamera.home_zoom_at(_current_shot(), step["factor"], step["mid"],
 		_home_map(), view.x, view.y)
@@ -1369,7 +1645,18 @@ func _zoom_cam(factor: float, at: Vector2) -> void:
 	if _home_cam():
 		set_place_cam(BurrowCamera.home_zoom_at(_current_shot(), factor, at, _home_map(), view.x, view.y))
 	else:
-		set_place_cam(BurrowCamera.zoom_at(_current_shot(), factor, at, _terrain.map, view.x, view.y))
+		set_place_cam(BurrowCamera.zoom_at(_current_shot(), factor, at, _terrain.map, view.x, view.y,
+			_chrome_top() / view.y))
+
+
+## CE QUE LE CHROME COUVRE EN HAUT, en px d'ecran — en raid seulement : la
+## pastille, puis la plaque du nom qui pend dessous. Compte par le cadrage ET
+## par les bornes du doigt : sans lui, le pan arretait le haut de la ferme (le
+## potager) sous la plaque, invisible (2026-10-11).
+func _chrome_top() -> float:
+	if not _raiding:
+		return 0.0
+	return maxf(maxf(Kit.TOPBAR_H, TopBar.hang_bottom()), RaidHud.bottom()) + Kit.PAD_TIGHT
 
 
 # ---------------------------------------------------------------- amenager

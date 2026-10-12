@@ -67,6 +67,7 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'SHOP.PRICES.smoke', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un écran de fumée en carottes' },
   { path: 'SHOP.PRICES.bloop', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'un bloop en carottes' },
   { path: 'SHOP.PRICES.fence', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'une clôture en carottes' },
+  { path: 'SHOP.PRICES.axe', kind: 'int', min: 1, max: 100_000, note: 'Prix d\'une hache en carottes' },
 
   /**
    * The money rail, bounded hard on purpose. A price in real currency is the
@@ -81,6 +82,7 @@ export const OVERRIDABLE: readonly TuningSpec[] = [
   { path: 'SHOP.USDC_PRICES.smoke', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un écran de fumée en USDC' },
   { path: 'SHOP.USDC_PRICES.bloop', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'un bloop en USDC' },
   { path: 'SHOP.USDC_PRICES.fence', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'une clôture en USDC' },
+  { path: 'SHOP.USDC_PRICES.axe', kind: 'float', min: 0.01, max: 50, note: 'Prix d\'une hache en USDC' },
   { path: 'PASS.PRICE_USD', kind: 'float', min: 0.99, max: 50, note: 'Prix du Crown Race Ticket en USD' },
 
   // ── The passive economy. Derived from a timestamp at read time (see
@@ -177,6 +179,7 @@ export const ALIASES: ReadonlyMap<string, string> = new Map([
   ['ENERGY_PACK.AMOUNT', 'OUT_OF_RUN_ENERGY.MAX'],
   ['TRAPS.CARROT_COST', 'SHOP.PRICES.trap'],
   ['FENCES.CARROT_COST', 'SHOP.PRICES.fence'],
+  ['AXE.CARROT_COST', 'SHOP.PRICES.axe'],
   ['DROWN.LOSS', 'ENERGY.BOMB_LOSS'],
 ]);
 

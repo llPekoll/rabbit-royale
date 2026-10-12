@@ -228,6 +228,7 @@ export const fr: Dict = {
     gardenAtRisk: (perHour) => `pillable avant la récolte \u00b7 ${perHour}/h`,
     gardenGrowing: (perHour, holds) => `pousse pendant que tu creuses \u00b7 ${perHour}/h \u00b7 contient ${holds}`,
     yieldRate: (perHour) => `${perHour} carottes/h`,
+    stumpRegrows: (when: string) => `Repousse dans ${when}`,
     regenRate: (perHour) => `${perHour} énergie/h`,
   },
 
@@ -260,6 +261,7 @@ export const fr: Dict = {
       crossing_too_long: (n) => `Trop loin : le potager doit rester à ${n} pas au plus.`,
       house_off_ground: 'Ta maison a besoin d\'un sol dégagé.',
       under_raid: 'Un pillage est en cours chez toi. Tu réaménageras après.',
+      thing_cut: 'Une souche ne bouge pas tant que l\'arbre n\'a pas repoussé.',
       bad_edits: 'Cet aménagement a été refusé.',
     },
   },
@@ -558,6 +560,7 @@ export const fr: Dict = {
     /* Une clôture se DRESSE : ce qu'on achète ferme un bord du potager, donc
        le reçu nomme ce que ça devient. */
     boughtFence: (n, paid) => `${n > 1 ? `${n} clôtures prêtes` : 'Clôture prête'} à dresser. ${paid}`,
+    boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} haches aiguisées` : 'Hache aiguisée'}. ${paid}`,
     boughtPack: (name, paid) => `${name} : tout est dans le sac. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
   },
@@ -785,6 +788,12 @@ export const fr: Dict = {
     bounced: (n) => `${n} PILLAGE${n < 2 ? '' : 'S'} REPOUSSÉ${n < 2 ? '' : 'S'}`,
     struck: 'Foudroyé',
     struckBy: (name) => `${name} t’a foudroyé`,
+    axe: {
+      button: 'HACHE',
+      hint: 'Touche un arbre ou une clôture à côté de toi.',
+      used: 'HACHE UTILISÉE',
+      none: 'Pas de hache. La boutique en vend.',
+    },
     smoked: 'Écran de fumée : pas de chiffres ici. Avance à l’aveugle.',
   },
 
@@ -804,6 +813,8 @@ export const fr: Dict = {
     looted: (n) => `IL A PRIS ${n} 🥕`,
     lost: 'Ton terrier a été pillé',
     held_: 'Terrier tenu',
+    cutTree: (name: string) => `${name} a abattu un de tes arbres`,
+    cutPlank: (name: string) => `${name} a abattu une de tes clôtures`,
     incoming: (name) => `${name} pille ton terrier !`,
   },
 
@@ -820,6 +831,9 @@ export const fr: Dict = {
     raid_over: 'Ce pillage est déjà terminé.',
     none_held: 'Pas d’éclair à appeler. La boutique en vend.',
     no_raid: 'Ce pillage est terminé.',
+    no_axe: 'Pas de hache dans ton sac. La boutique en vend.',
+    axe_used: 'Une seule hache par raid.',
+    not_cuttable: 'Rien à abattre ici.',
     unknown_player: 'Ils ont disparu.',
   },
 
@@ -831,6 +845,7 @@ export const fr: Dict = {
     shield: 'BOUCLIER',
     lightning: 'ÉCLAIR',
     genesis: 'RR GENESIS',
+    axe: 'HACHE',
     piece: (amount, label) => `UNE PART EST À TOI - PLUS ${amount}x ${label}`,
   },
 
@@ -1015,6 +1030,10 @@ export const fr: Dict = {
     fence: {
       name: 'Clôture',
       blurb: 'Ferme un bord de ton potager. Les pillards ne peuvent pas le franchir.',
+    },
+    axe: {
+      name: 'Hache',
+      blurb: 'Abat un arbre ou une clôture pendant un raid. Une par raid.',
     },
     shiro_stash: {
       name: 'Réserve de Shiro',

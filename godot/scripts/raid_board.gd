@@ -52,6 +52,12 @@ const Z_CLUE := 4
 ## demi-cases, pas en pixels : le plateau est mis a l'echelle par la camera.
 const ARROW := preload("res://assets/ui/d8-arrow-down.png")
 const GOAL_ARROW_TINT := Color("#ffd45c")
+## Le chevron des arbres que la hache atteint : l'acier de la lame, pas l'or
+## du potager — deux fleches de meme couleur diraient la meme chose. Pose
+## dans le feuillage, pas au-dessus : leve a la cime, il passait sous la
+## plaque du nom pour les arbres du haut du terrier.
+const AXE_TINT := Color("#cfe6ff")
+const AXE_LIFT := 4.0
 const ARROW_SCALE := 0.7
 const ARROW_LIFT := 2.4
 const ARROW_BOB := 5.0
@@ -76,6 +82,8 @@ var _ring: MoveRing
 var _goal: Array[Node2D] = []
 var _door: Array[Node2D] = []
 var _door_shown := false
+## Les chevrons dores au-dessus des arbres que la hache atteint.
+var _axe_marks: Array[Node2D] = []
 ## Les cases que le pillard a vues : pas de « ? » sur elles.
 var _seen: Dictionary = {}
 ## SOUS LA FUMEE, rien ne se lit autour du lapin : pas de « ? » sur les pas,
@@ -155,6 +163,8 @@ func clear() -> void:
 	_seen = {}
 	_drop(_goal)
 	_goal = []
+	_drop(_axe_marks)
+	_axe_marks = []
 
 
 ## CE QUE LE SERVEUR A ENVOYE : `view` = [{tile, clue}], `clue` nul sous la
@@ -290,7 +300,7 @@ func _goal_cell() -> Vector2i:
 ## UN CHEVRON QUI FLOTTE sur une case, au-dessus de tout, et son OMBRE sur la
 ## case, triee avec le sol : un arbre devant la case couvre l'ombre, jamais la
 ## fleche. Rend [fleche, ombre] (vide si la case n'a pas de bloc).
-func _hang(cell: Vector2i, tint: Color) -> Array[Node2D]:
+func _hang(cell: Vector2i, tint: Color, lift: float = ARROW_LIFT) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	if cell.x < 0 or not terrain.has_block(cell):
 		return out
@@ -319,7 +329,7 @@ func _hang(cell: Vector2i, tint: Color) -> Array[Node2D]:
 	arrow.offset = Vector2(-ARROW.get_width() * 0.5, -ARROW.get_height())
 	arrow.scale = Vector2.ONE * (Iso.half_w() * ARROW_SCALE / ARROW.get_width())
 	arrow.modulate = tint
-	arrow.position.y = -Iso.half_h() * ARROW_LIFT
+	arrow.position.y = -Iso.half_h() * lift
 	group.add_child(arrow)
 	var bob := arrow.create_tween().set_loops()
 	bob.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -328,6 +338,17 @@ func _hang(cell: Vector2i, tint: Color) -> Array[Node2D]:
 	out.append(group)
 	out.append(shadow)
 	return out
+
+
+## LA HACHE ARMEE : un chevron dore au-dessus de chaque arbre a portee, comme
+## la fleche du potager — « tape ici ». `[]` les enleve.
+func show_axe(cells: Array[Vector2i]) -> void:
+	_drop(_axe_marks)
+	_axe_marks = []
+	if terrain == null:
+		return
+	for c in cells:
+		_axe_marks.append_array(_hang(c, AXE_TINT, AXE_LIFT))
 
 
 func _drop(nodes: Array[Node2D]) -> void:

@@ -47,6 +47,15 @@ signal finished(raid: Dictionary, outcome: Dictionary)
 ## d'eclairs en poche.
 signal incoming_changed
 
+## LA HACHE vient d'abattre ceci (`{tile}` un arbre, `{tile, side}` une
+## planche) — le plateau joue la chute une fois. Le banc l'ecoute aussi : en
+## faux, `cut` ne part pas au serveur et c'est lui qui repond.
+signal chopped(target: Dictionary)
+
+## EN FAUX (les bancs), une tape sur l'anneau : le banc repond a la place du
+## serveur — c'est ce qui rend un banc jouable au doigt.
+signal fake_step(tile: int)
+
 ## Une phrase a montrer, et si c'est un refus. Le chrome la pose en pastille ;
 ## la liste et le HUD la gardent aussi sous la main (`note`).
 signal noted(text: String, refused: bool)
@@ -103,6 +112,10 @@ var outcome: Dictionary = {}
 var note := ""
 ## Vrai pendant une requete — les boutons qui entrent ou avancent se grisent.
 var busy := false
+## LA HACHE ARMEE (2026-10-12) : la prochaine tape sur un arbre ou une planche
+## allumes la coupe. Se desarme apres la coupe, a la fin du raid, ou au
+## second appui.
+var axe_armed := false
 
 ## Le raid qu'on SUBIT (lib/game/defence.ts `DefenderRaidView`), ou vide :
 ## raidId, attacker {id, name, avatar}, tile, energy, walked, trapsSprung,
@@ -231,7 +244,10 @@ static func _defender_of(r: Dictionary) -> Dictionary:
 ## AVANCER d'une case (`PATCH /api/raid {tile}`). Le plateau appelle ceci ;
 ## la reponse porte le raid entier, et l'issue s'il vient de finir.
 func step(tile: int) -> void:
-	if _faked or busy or not Session.signed_in():
+	if _faked:
+		fake_step.emit(tile)
+		return
+	if busy or not Session.signed_in():
 		return
 	busy = true
 	note = ""
@@ -247,6 +263,61 @@ func step(tile: int) -> void:
 		sprung.emit(tile)
 	if res.get("outcome") is Dictionary:
 		outcome = res["outcome"]
+	_adopt_raid(res.get("raid", {}) if res.get("raid") is Dictionary else {})
+
+
+## Ce que le serveur dit de la hache pour ce raid (api/raid `axe`) :
+## `{held, used, trees, planks}`.
+func axe() -> Dictionary:
+	return raid["axe"] if raid.get("axe") is Dictionary else {}
+
+
+## La hache peut-elle servir maintenant ? Une en sac, celle du raid pas encore
+## levee, le raid pas fini.
+func can_cut() -> bool:
+	var a := axe()
+	return int(a.get("held", 0)) > 0 and not bool(a.get("used", false)) \
+		and not bool(raid.get("finished", false))
+
+
+## ARMER / DESARMER la hache (le bouton du HUD). Sans hache en sac, la phrase
+## dit ou en trouver plutot que de ne rien faire.
+func arm_axe(on: bool) -> void:
+	if on and not can_cut():
+		if int(axe().get("held", 0)) <= 0:
+			note = I18N.t("raid.axe.none")
+			noted.emit(note, true)
+		on = false
+	if axe_armed == on:
+		changed.emit()
+		return
+	axe_armed = on
+	changed.emit()
+
+
+## COUPER (`PATCH /api/raid {cut: {tile, side?}}`) : un arbre ou une planche
+## que le serveur a mis dans `axe.trees` / `axe.planks`. Ne fait aucun pas.
+func cut(target: Dictionary) -> void:
+	if busy or not can_cut():
+		return
+	axe_armed = false
+	if _faked:
+		chopped.emit(target)
+		changed.emit()
+		return
+	if not Session.signed_in():
+		return
+	busy = true
+	note = ""
+	changed.emit()
+	var answer: Answer = await _send("/api/raid", HTTPClient.METHOD_PATCH, {"cut": target})
+	busy = false
+	var res := answer.body
+	if res.has("error") or not answer.ok:
+		_refuse(answer)
+		changed.emit()
+		return
+	chopped.emit(target)
 	_adopt_raid(res.get("raid", {}) if res.get("raid") is Dictionary else {})
 
 
@@ -268,6 +339,7 @@ func leave() -> void:
 	if not raid.is_empty() and not bool(raid.get("finished", false)):
 		Analytics.track("raid_abandon", {"steps": (raid.get("walked", []) as Array).size(), "paid": paid})
 	raid = {}
+	axe_armed = false
 	outcome = {}
 	note = ""
 	changed.emit()
@@ -325,11 +397,18 @@ func _same_raid(a: Dictionary, b: Dictionary) -> bool:
 	for key in ["view", "walked", "steps"]:
 		if (a.get(key, []) as Array).size() != (b.get(key, []) as Array).size():
 			return false
+	# La hache, et le sol qu'elle a change (un autre pillard a pu couper).
+	if JSON.stringify(a.get("axe", {})) != JSON.stringify(b.get("axe", {})):
+		return false
+	if JSON.stringify(_defender_of(a).get("edits", {})) != JSON.stringify(_defender_of(b).get("edits", {})):
+		return false
 	return true
 
 
 func _adopt_raid(next: Dictionary) -> void:
 	raid = next
+	if not can_cut():
+		axe_armed = false
 	changed.emit()
 	if next.is_empty() or not bool(next.get("finished", false)):
 		return
@@ -556,6 +635,10 @@ func _same_incoming(a: Dictionary, b: Dictionary) -> bool:
 	for key in ["raidId", "tile", "energy", "trapsSprung", "finished", "succeeded", "struck"]:
 		if a.get(key) != b.get(key):
 			return false
+	# Un coup de hache ne fait pas de pas : sans lui, l'arbre tombait sans
+	# que le defenseur le voie.
+	if JSON.stringify(a.get("cut")) != JSON.stringify(b.get("cut")):
+		return false
 	return (a.get("walked", []) as Array).size() == (b.get("walked", []) as Array).size()
 
 
@@ -605,6 +688,7 @@ func _on_session_changed() -> void:
 	if _faked:
 		return
 	raid = {}
+	axe_armed = false
 	targets = []
 	targets_read = false
 	outcome = {}
@@ -638,6 +722,8 @@ func _on_locale_changed(_code: String) -> void:
 func fake(state: Dictionary) -> void:
 	_faked = true
 	raid = state.get("raid", raid)
+	if not can_cut():
+		axe_armed = false
 	targets = state.get("targets", targets)
 	incoming = state.get("incoming", incoming)
 	outcome = state.get("outcome", outcome)

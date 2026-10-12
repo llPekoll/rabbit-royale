@@ -111,6 +111,31 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'new',
         text: {
+          en: 'The axe: in a raid, chop one tree or one fence to break into a walled burrow. The stump regrows in 2 days.',
+          fr: 'La hache : en raid, abats un arbre ou une clôture pour entrer dans un terrier muré. La souche repousse en 2 jours.',
+          zh: '斧头：突袭时砍倒一棵树或一段围栏，闯入被围死的洞穴。树桩两天后重新长成树。',
+          'pt-BR': 'O machado: num raid, derrube uma árvore ou uma cerca para entrar numa toca murada. O toco volta a crescer em 2 dias.',
+          vi: 'Rìu: khi raid, chặt một cái cây hoặc một hàng rào để vào hang bị chặn kín. Gốc cây mọc lại sau 2 ngày.',
+        },
+      },
+      {
+        kind: 'fix',
+        text: {
+          en: 'Raids: you can scroll up to the top of the burrow, and trees in front of your rabbit turn see-through.',
+          fr: 'Raids : tu peux remonter jusqu’en haut du terrier, et les arbres devant ton lapin deviennent transparents.',
+          zh: '突袭：可以滑动到洞穴顶部，兔子前方的树会变得半透明。',
+          'pt-BR': 'Raids: dá para rolar até o topo da toca, e as árvores na frente do seu coelho ficam transparentes.',
+          vi: 'Raid: bạn có thể kéo lên tận đỉnh hang, và cây phía trước thỏ sẽ trở nên trong suốt.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    items: [
+      {
+        kind: 'new',
+        text: {
           en: "What's new: tap the version at the bottom right of your burrow.",
           fr: 'Quoi de neuf : touche la version en bas à droite de ton terrier.',
           zh: '更新内容：点击洞穴右下角的版本号即可查看。',

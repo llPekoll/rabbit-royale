@@ -63,7 +63,9 @@ const STEPS: Array[Vector2i] = [
 	Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 ]
 
-enum Cell { BLOCKED, GROUND, ENTRANCE, FIELD, DOORSTEP }
+## STUMP : un arbre abattu par la HACHE d'un pillard (cells.ts `stump`) — on
+## y marche, on n'y mine pas, jusqu'a ce qu'il repousse.
+enum Cell { BLOCKED, GROUND, ENTRANCE, FIELD, DOORSTEP, STUMP }
 
 ## Le relief, tel que le terrain le dessine.
 var map: IslandMap
@@ -103,7 +105,9 @@ static func of(seed_value: String, edits: Dictionary = {}) -> BurrowLayout:
 	if hit != null:
 		return hit
 	var out: Variant = edited(base, edits)
-	var built: BurrowLayout = out if out is BurrowLayout else base
+	# Un amenagement refuse retombe sur le terrier pousse — mais ce qu'une
+	# hache a abattu reste a terre (board.ts `burrowFor`).
+	var built: BurrowLayout = out if out is BurrowLayout else base.fell_trees(cuts_of(edits))
 	_cache[key] = built
 	return built
 
@@ -118,7 +122,19 @@ static func has_edits(edits: Dictionary) -> bool:
 	var m: Variant = edits.get("moves")
 	if m is Array and not m.is_empty():
 		return true
+	if not cuts_of(edits).is_empty():
+		return true
 	return gift_count(edits) > 0
+
+
+## Les cases dont l'arbre est a terre (`edits.cuts`, ecrit par le serveur seul).
+static func cuts_of(edits: Dictionary) -> Array[int]:
+	var out: Array[int] = []
+	var v: Variant = edits.get("cuts")
+	if v is Array:
+		for t in v:
+			out.append(int(t))
+	return out
 
 
 ## LES CADEAUX DE SNACK TIME (SNACK.GIFTS), dans l'ordre ou ils arrivent : un
@@ -315,6 +331,63 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 		return why
 	if house >= 0:
 		out.building = cell_of(house)
+	var cv: Variant = edits.get("cuts")
+	if cv != null:
+		if not (cv is Array):
+			return "bad_edits"
+		for t in cv:
+			if not (t is float or t is int) or int(t) != t or int(t) < 0 or int(t) >= n:
+				return "bad_edits"
+	return out.fell_trees(cuts_of(edits))
+
+
+## generate.ts `fellTrees` : chaque arbre debout sur une case de `cuts` est a
+## terre (`felled`, on passe dessus), et le sol est remesure autour. APRES les
+## regles de l'amenagement et SANS les bornes de traversee — une souche est
+## faite pour raccourcir le chemin. Le paillasson est GARDE. Rend `self` si
+## rien n'est tombe, sinon une copie : le terrier en cache ne bouge jamais.
+func fell_trees(cuts: Array[int]) -> BurrowLayout:
+	if cuts.is_empty():
+		return self
+	var at := {}
+	for t in cuts:
+		at[t] = true
+	var list: Array[Dictionary] = []
+	var any := false
+	for p in placements:
+		if String(p.kind) == "tree" and at.has(index(Vector2i(int(p.x), int(p.y)))):
+			var q: Dictionary = p.duplicate()
+			q.kind = "felled"
+			list.append(q)
+			any = true
+		else:
+			list.append(p)
+	if not any:
+		return self
+	var out := BurrowLayout.new()
+	out.map = map
+	out.seed_text = seed_text
+	out.entrance = entrance
+	out.field = field.duplicate()
+	out.doorstep = doorstep.duplicate()
+	out.building = building
+	out.placements = list
+	var solid := out._solid(list)
+	if building.x >= 0:
+		for q in house_cells(building):
+			solid[q] = true
+	var homestead := out._main_body(solid)
+	var steps := out._step_distances(homestead, entrance)
+	var best := INF
+	for t in field:
+		if steps.has(t):
+			best = minf(best, float(steps[t]))
+	out.crossing = int(best) if best != INF else crossing
+	out._paint(homestead)
+	for p in list:
+		var i := index(Vector2i(int(p.x), int(p.y)))
+		if String(p.kind) == "felled" and out.cells[i] == Cell.GROUND:
+			out.cells[i] = Cell.STUMP
 	return out
 
 
