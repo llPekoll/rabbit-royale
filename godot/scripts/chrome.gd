@@ -65,6 +65,8 @@ var _kit: KitRow
 var _back: BackButton
 ## Le volet du terrier, sous les boutons du haut a droite (house_panel.gd).
 var _house: HousePanel
+## La version, en bas a droite du terrier : QUOI DE NEUF (version_tag.gd).
+var _version: VersionTag
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
 var _mode := ""
 ## NETTOYER LA BASE, en DEFEND : a la place de la colonne, qui s'efface.
@@ -220,6 +222,7 @@ func _mount_place() -> void:
 	_kit = null
 	_back = null
 	_house = null
+	_version = null
 	_arrange_bar = null
 	_arrange_tip = null
 
@@ -275,6 +278,16 @@ func _mount_place() -> void:
 
 	# Le HUD de defense (un raid en cours chez soi) se montre seul.
 	floor_host.add_child(preload("res://scenes/ui/defend_hud.tscn").instantiate())
+
+	# LA VERSION, en bas a droite — sa tape ouvre QUOI DE NEUF. Pas pendant le
+	# tuto : un joueur qui decouvre le jeu n'a rien manque (changelog.gd).
+	if not Island.tutorial_pending():
+		_version = VersionTag.new(Changelog.latest(), Changelog.should_announce())
+		_version.top_level = true
+		floor_host.add_child(_version)
+		_version.tapped.connect(_open_whats_new)
+		if _version.unseen:
+			_announce_whats_new()
 
 
 ## `-- --open=<surface>` : ouvre une surface une fois le terrier lu, pour
@@ -672,6 +685,9 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 	if _kit == null:
 		return
 	_mode = mode
+	# Le coin bas-droit est au kit et a CLEAR ALL le temps du mode.
+	if _version != null:
+		_version.visible = false
 	arrange_state({})
 	_kit.open(mode, expanded)
 	_column.set_editing(true)
@@ -844,6 +860,8 @@ func _end_mode() -> void:
 		return
 	_mode = ""
 	_drop_clean()
+	if _version != null:
+		_version.visible = true
 	if _kit != null:
 		_kit.close()
 		_back.dismiss()
@@ -1153,6 +1171,29 @@ func close_dialog() -> void:
 
 func dialog_open() -> bool:
 	return _dialog != null
+
+
+## QUOI DE NEUF. Vu des qu'il s'ouvre : un dialogue chasse par un autre, ou
+## un lieu quitte, ne doit pas revenir a chaque arrivee.
+func _open_whats_new() -> void:
+	Changelog.mark_seen()
+	if _version != null:
+		_version.unseen = false
+	open(WhatsNewDialog.from_changelog())
+
+
+## A L'ARRIVEE au terrier, une fois le rideau ouvert et le decor pose — et
+## seulement si rien d'autre n'est deja a l'ecran (consentement, boite
+## surprise, vengeance) : `open` le chasserait. Sinon on reessaie a la
+## prochaine arrivee, la version n'est pas marquee vue.
+func _announce_whats_new() -> void:
+	var tag := _version
+	await get_tree().create_timer(1.5).timeout
+	if tag != _version or not is_instance_valid(tag) or not tag.visible:
+		return
+	if dialog_open() or not Screens.in_world() or Screens.place != Screens.Place.BURROW or _raid_shown:
+		return
+	_open_whats_new()
 
 
 ## Un tampon plein ecran (niveau gagne, raid subi) : pose sur l'etage des

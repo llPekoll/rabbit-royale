@@ -1,10 +1,21 @@
 #!/bin/sh
-# Le PDF du deck (rabbit.rip/pitch -> bouton PDF) suit le deck tout seul :
-# si le commit touche landing/pitch/ (hors le PDF lui-meme), on le refait
-# avec tools/pitch-pdf.ts et on l'ajoute au commit. Environ 20 s.
 # Active par : git config core.hooksPath .githooks
 # Sauter une fois : git commit --no-verify
 
+# LE CHANGELOG suit sa source tout seul : si le commit touche
+# src/changelog/entries.ts, on refait les fichiers generes (le jeu, la page
+# rabbit.rip/changelog/) avec tools/build-changelog.ts et on les ajoute au
+# commit. Une source invalide (langue manquante, date dans le desordre)
+# arrete le commit.
+if git diff --cached --name-only -- src/changelog/ | grep -q .; then
+  echo "pre-commit : le changelog a change, on refait le jeu et la page..."
+  bun tools/build-changelog.ts || { echo "pre-commit : changelog invalide (git commit --no-verify pour passer outre)"; exit 1; }
+  git add godot/assets/changelog.json landing/changelog/index.html
+fi
+
+# Le PDF du deck (rabbit.rip/pitch -> bouton PDF) suit le deck tout seul :
+# si le commit touche landing/pitch/ (hors le PDF lui-meme), on le refait
+# avec tools/pitch-pdf.ts et on l'ajoute au commit. Environ 20 s.
 changed=$(git diff --cached --name-only -- landing/pitch/ | grep -v 'rabbit-royale-pitch\.pdf$')
 [ -z "$changed" ] && exit 0
 

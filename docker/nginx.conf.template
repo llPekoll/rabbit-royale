@@ -134,7 +134,7 @@ server {
   #
   # `absolute_redirect off` : nginx ecrirait sinon `http://<hote>:3010/play/`,
   # son port a lui, derriere le reverse proxy HTTPS de Coolify.
-  location ~ ^/(play|pitch|terms|privacy)$ {
+  location ~ ^/(play|pitch|terms|privacy|changelog)$ {
     absolute_redirect off;
     return 301 /$1/;
   }

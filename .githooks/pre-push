@@ -1,0 +1,58 @@
+#!/bin/sh
+# PAS DE PUSH SUR MAIN SANS CHANGELOG.
+#
+# Un push sur main part en prod (Coolify) et chez les telephones (pack OTA).
+# S'il touche le jeu (godot/, server/, src/, config/ — hors bancs et outils),
+# l'un de ses commits doit ajouter une entree a src/changelog/entries.ts : une
+# ligne `fix` suffit pour une correction mineure (la version monte, la page la
+# liste, le jeu ne previent pas).
+#
+# Rien a dire aux joueurs (refactor, banc, reglage invisible) : mettre
+# [no-changelog] dans le message d'un des commits pousses.
+# Sauter une fois : git push --no-verify
+#
+# Verifie aussi que les fichiers generes (godot/assets/changelog.json,
+# landing/changelog/index.html) suivent leur source.
+
+zero=0000000000000000000000000000000000000000
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] || continue
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+
+  touched=$(git diff --name-only "$range" -- godot/ server/ src/ config/ 2>/dev/null \
+    | grep -vE '^godot/(scripts/bench|scenes/bench|scripts/demo|scenes/demo|tools)/' \
+    | grep -v '^src/changelog/')
+  [ -z "$touched" ] && continue
+
+  if git diff --name-only "$range" -- src/changelog/entries.ts | grep -q .; then
+    continue
+  fi
+  if git log --format=%B "$range" | grep -q '\[no-changelog\]'; then
+    continue
+  fi
+
+  echo ""
+  echo "pre-push : ce push change le jeu mais n'ajoute rien au changelog."
+  echo "  Ajoute une entree en tete de src/changelog/entries.ts (une ligne 'fix'"
+  echo "  suffit pour une correction mineure), puis commit."
+  echo "  Rien de visible pour les joueurs ? [no-changelog] dans le message."
+  echo "  Fichiers concernes :"
+  echo "$touched" | head -10 | sed 's/^/    /'
+  echo ""
+  status=1
+done
+
+[ $status -ne 0 ] && exit $status
+
+bun tools/build-changelog.ts --check || {
+  echo "pre-push : fichiers du changelog perimes — bun tools/build-changelog.ts puis commit."
+  exit 1
+}
+exit 0
