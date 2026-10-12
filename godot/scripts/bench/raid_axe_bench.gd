@@ -12,6 +12,8 @@ extends Node2D
 ##   ... -- --none                              # sans hache en sac
 ##   ... -- --plank                             # devant les planches
 ##   ... -- --owner                             # chez lui : la souche et son compte a rebours
+##   ... -- --regrow                            # ... et l'arbre qui repousse (en boucle)
+##   ... -- --regrow --mark                     # un repere couche, qui se releve (terrier de paul)
 ##
 ## `RaidState.fake` coupe le reseau : rien ne part au serveur.
 
@@ -27,6 +29,10 @@ var _edits := {"moves": MOVES}
 var _planks: Array = PLANKS.duplicate(true)
 var _walked: Array = []
 var _held := 2
+## Le terrier du proprietaire (`--owner`, `--regrow`) et la case coupee.
+var _own := DEFENDER
+var _own_edits := {"moves": MOVES}
+var _own_cut := 173
 var _used := false
 
 
@@ -37,11 +43,20 @@ func _ready() -> void:
 	if "--none" in args:
 		_held = 0
 	# CHEZ LE PROPRIETAIRE, le lendemain : l'arbre 173 est a terre depuis 17 h.
-	if "--owner" in args:
-		Session.player = {"id": DEFENDER}
+	if "--mark" in args:
+		_own = "paul"
+		_own_edits = {}
+		for p in BurrowLayout.of("paul").placements:
+			if String(p.kind) == "landmark":
+				_own_cut = BurrowLayout.index(Vector2i(int(p.x), int(p.y)))
+				break
+	if "--owner" in args or "--regrow" in args:
+		Session.player = {"id": _own}
 		var regrows := Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 31 * 3600) + "Z"
-		Home.stumps = [{"tile": 173, "regrowsAt": regrows}]
-		Home.edits = {"moves": MOVES, "cuts": [173]}
+		Home.stumps = [{"tile": _own_cut, "regrowsAt": regrows}]
+		var cut := _own_edits.duplicate(true)
+		cut["cuts"] = [_own_cut]
+		Home.edits = cut
 
 	var burrow: Node2D = preload("res://scenes/burrow.tscn").instantiate()
 	add_child(burrow)
@@ -62,6 +77,18 @@ func _ready() -> void:
 	await get_tree().create_timer(0.3).timeout
 	if "--owner" in args:
 		return
+	# LA REPOUSSE, comme le serveur la rend : la coupe part des edits, l'arbre
+	# sort de sa souche ; puis la hache repasse, et on recommence.
+	if "--regrow" in args:
+		while true:
+			await get_tree().create_timer(2.0).timeout
+			Home.stumps = []
+			Home.adopt_edits(_own_edits.duplicate(true))
+			await get_tree().create_timer(2.5).timeout
+			Home.stumps = [{"tile": _own_cut, "regrowsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 48 * 3600) + "Z"}]
+			var cut := _own_edits.duplicate(true)
+			cut["cuts"] = [_own_cut]
+			Home.adopt_edits(cut)
 
 	var layout := BurrowLayout.of(DEFENDER, _edits)
 	var goal := AT_PLANKS if "--plank" in args else AT_WALL
@@ -135,6 +162,16 @@ func _on_chopped(target: Dictionary) -> void:
 		var cuts: Array = _edits.get("cuts", [])
 		cuts.append(int(target.tile))
 		_edits["cuts"] = cuts
+		# axe.ts `planksTouching` : les planches qui touchent sa case tombent.
+		var u := BurrowLayout.cell_of(int(target.tile))
+		_planks = _planks.filter(func(s: Dictionary) -> bool:
+			var a := BurrowLayout.cell_of(int(s.tile))
+			var d: Vector2i = STEP[String(s.side)]
+			var x0 := a.x + (1 if d.x > 0 else 0) if d.x != 0 else a.x
+			var x1 := x0 if d.x != 0 else a.x + 1
+			var y0 := a.y + (1 if d.y > 0 else 0) if d.y != 0 else a.y
+			var y1 := y0 if d.y != 0 else a.y + 1
+			return not (x1 >= u.x and x0 <= u.x + 1 and y1 >= u.y and y0 <= u.y + 1))
 	_held -= 1
 	_used = true
 	# Le temps que l'arbre bascule, puis le sol se relit — comme la reponse
@@ -214,7 +251,7 @@ static func _trees_around(layout: BurrowLayout, at: int) -> Array:
 	var here := BurrowLayout.cell_of(at)
 	var out: Array = []
 	for p in layout.placements:
-		if String(p.kind) != "tree":
+		if not BurrowLayout.CUTTABLE.has(String(p.kind)):
 			continue
 		var c := Vector2i(int(p.x), int(p.y))
 		if c != here and absi(c.x - here.x) <= 1 and absi(c.y - here.y) <= 1:

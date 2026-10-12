@@ -280,6 +280,9 @@
   "stumpRegrows": {
    "$t": "Mọc lại sau {0}"
   },
+  "markStands": {
+   "$t": "Dựng lại sau {0}"
+  },
   "regenRate": {
    "$t": "{0} năng lượng/giờ"
   }
@@ -335,7 +338,6 @@
    },
    "house_off_ground": "Nhà cần một khoảng đất trống.",
    "under_raid": "Hang đang bị cướp. Xong rồi hẵng sắp xếp lại.",
-   "thing_cut": "Gốc cây nằm yên cho đến khi cây mọc lại.",
    "bad_edits": "Cách sắp xếp này bị từ chối."
   }
  },

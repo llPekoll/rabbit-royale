@@ -16,9 +16,10 @@
  *   new doorstep, under the garden) is lifted and refunded, as
  *   `evictDoorstep` does — and so is one the move puts UNDER THE HOUSE.
  */
-import { and, eq, inArray, sql as raw } from 'drizzle-orm';
+import { and, eq, gt, inArray, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { fences, inventory, players, traps } from '@/lib/db/schema';
+import { burrowCuts, fences, inventory, players, traps } from '@/lib/db/schema';
+import { AXE } from '@config/tuning';
 import { getSession } from '@/lib/auth/jwt';
 import {
   baseBurrowFor, burrowColRow, burrowIndex, isTrappable, setBurrowEdits,
@@ -27,7 +28,7 @@ import { houseTiles } from '@/game/burrow/buildings';
 import { editBurrow, hasEdits, withGifts } from '@/game/burrow/generate';
 import { fieldReachable, isSpan } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
-import { activeCuts, burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
+import { burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
 import { giftsOwned } from '@/lib/game/snack';
 import { snackRowOf } from '@/lib/game/snackState';
 
@@ -71,20 +72,35 @@ export async function PUT(req: Request) {
       edits = placed;
     }
   }
-  // THE STUMPS STAY PUT (2026-10-12): what an axe felled is judged with the
-  // edits, and every stump must stand where it fell, the same thing on it,
-  // until it regrows. `cuts` is the server's (`burrow_cuts`): whatever the
-  // client sent was dropped by `parseBurrowEdits`, and it is never stored.
-  const cuts = (await activeCuts(id)).map((c) => c.tile);
+  // A STUMP MOVES LIKE ITS TREE, AND STAYS A STUMP (2026-10-12, Paul : « il
+  // peut deplacer mais ca reste une souche pas un arbre »). `cuts` is the
+  // server's (`burrow_cuts`) and names the cell a tree was felled ON: each
+  // stump is found by its thing's id on the old layout, and its row follows
+  // that thing to its new cell. Whatever the client sent as `cuts` was
+  // dropped by `parseBurrowEdits`, and cuts are never stored in the edits.
+  const since = new Date(Date.now() - AXE.REGROW_MS);
+  const cutRows = await db.query.burrowCuts.findMany({
+    where: and(eq(burrowCuts.ownerId, id), gt(burrowCuts.cutAt, since)),
+    columns: { id: true, tile: true },
+  });
   const stored = edits;
-  if (cuts.length) {
-    const felled = (t: ReturnType<typeof editBurrow>) => typeof t === 'string' ? '' : t.placements
-      .filter((p) => p.kind === 'felled').map((p) => `${p.id}@${p.x},${p.y}`).sort().join();
-    const before = felled(editBurrow(base, { ...(player.burrowEdits ?? {}), cuts }));
-    edits = { ...edits, cuts };
-    if (felled(editBurrow(base, edits)) !== before) {
-      return Response.json({ error: 'thing_cut' }, { status: 400 });
+  const recut: Array<{ id: string; tile: number }> = [];
+  if (cutRows.length) {
+    const plain = editBurrow(base, edits);
+    if (typeof plain === 'string') return Response.json({ error: plain }, { status: 400 });
+    const old = editBurrow(base, { ...(player.burrowEdits ?? {}), cuts: cutRows.map((r) => r.tile) });
+    const stumpOn = new Map<number, string>();
+    if (typeof old !== 'string') {
+      for (const p of old.placements) if (p.kind === 'felled' || p.kind === 'toppled') stumpOn.set(burrowIndex(p.x, p.y), p.id);
     }
+    const cellOf = new Map(plain.placements.map((p) => [p.id, burrowIndex(p.x, p.y)]));
+    for (const r of cutRows) {
+      const thing = stumpOn.get(r.tile);
+      const to = thing === undefined ? undefined : cellOf.get(thing);
+      if (to !== undefined && to !== r.tile) recut.push({ id: r.id, tile: to });
+    }
+    const moved = new Map(recut.map((r) => [r.id, r.tile]));
+    edits = { ...edits, cuts: [...new Set(cutRows.map((r) => moved.get(r.id) ?? r.tile))] };
   }
   if (hasEdits(edits)) {
     const out = editBurrow(base, edits);
@@ -118,6 +134,9 @@ export async function PUT(req: Request) {
       await tx.update(players)
         .set({ burrowEdits: hasEdits(stored) ? stored : null })
         .where(eq(players.id, id));
+      for (const r of recut) {
+        await tx.update(burrowCuts).set({ tile: r.tile }).where(eq(burrowCuts.id, r.id));
+      }
 
       const moved = now[0] !== was[0] || now[1] !== was[1];
       if (standing.length && (moved || !keep)) {

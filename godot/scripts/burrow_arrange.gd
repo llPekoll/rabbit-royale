@@ -245,10 +245,6 @@ func _hold(what: Held, index: int, cell: Vector2i) -> void:
 func _thing_at(cell: Vector2i) -> int:
 	for p in layout.placements:
 		if int(p.x) == cell.x and int(p.y) == cell.y:
-			# UNE SOUCHE NE SE PREND PAS : elle reste ou la hache l'a laissee
-			# jusqu'a la repousse (le serveur refuse `thing_cut`).
-			if String(p.get("kind", "")) == "felled":
-				return -1
 			return int(_rank_of.get(String(p.get("id", "")), -1))
 	return -1
 
@@ -310,6 +306,14 @@ func _candidate(cell: Vector2i) -> Dictionary:
 			if to != from:
 				moves.append([from, to])
 			next["moves"] = moves
+			# UNE SOUCHE SE DEPLACE ET RESTE UNE SOUCHE : sa coupe la suit
+			# (le serveur fait de meme dans `burrow_cuts`, layout PUT).
+			var here := BurrowLayout.index(held_cell)
+			var cuts: Array = []
+			for t in BurrowLayout.cuts_of(draft):
+				cuts.append(to if t == here else t)
+			if not cuts.is_empty():
+				next["cuts"] = cuts
 	return _clean(next)
 
 
@@ -357,4 +361,7 @@ static func _clean(edits: Dictionary) -> Dictionary:
 	var gifts := BurrowLayout.gift_count(edits)
 	if gifts > 0:
 		out["gifts"] = gifts
+	var cuts := BurrowLayout.cuts_of(edits)
+	if not cuts.is_empty():
+		out["cuts"] = cuts
 	return out

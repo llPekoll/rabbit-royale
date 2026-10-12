@@ -391,9 +391,9 @@ export const fences = pgTable('fences', {
  * A TREE A RAIDER'S AXE BROUGHT DOWN (2026-10-12) — a stump anyone walks
  * through until `cutAt + AXE.REGROW_MS`, then the tree stands again.
  *
- * `tile` is the cell the tree stood on when it fell, in the burrow as its
- * owner arranged it. The owner cannot move a stump (layout PUT refuses), so
- * the cell keeps naming it until it regrows. No bomb goes on a stump: the
+ * `tile` is the cell the stump stands on, in the burrow as its owner
+ * arranged it. The owner may move a stump — it stays a stump — and the
+ * layout PUT moves `tile` with it. No bomb goes on a stump: the
  * breach stays a breach. A PLANK that is cut has no row here — it falls and
  * goes back to its owner's bag, like a plank the owner lifted.
  */

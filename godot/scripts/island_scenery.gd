@@ -151,6 +151,12 @@ const SOLDIER_KINDS := ["pawnBlue", "warriorBlue", "archerBlue", "warriorRed", "
 ## pour eux et ne garde que leur propre facteur : 0,62 pour un mouton, 0,5 pour
 ## un soldat. Ce n'est pas un oubli du portage, c'est la ligne du web.
 const DECO_SCALE := 0.4
+## Le repere couche (`_toppled`) : le long de l'axe iso SE (90 - 26,6 deg),
+## pivot a mi-hauteur, aplati par la perspective, terni.
+const TOPPLED_TILT := deg_to_rad(63.4)
+const TOPPLED_PIVOT := 0.55
+const TOPPLED_FLAT := 0.8
+const TOPPLED_TINT := Color(0.82, 0.8, 0.76)
 const SHEEP_SCALE := 0.62
 const SOLDIER_SCALE := 0.5
 
@@ -236,6 +242,8 @@ func build(ground: IslandGround, skip: Dictionary = {}, bushes: bool = false) ->
 				node = _gift(variant)
 			"felled":
 				node = _stump(variant)
+			"toppled":
+				node = _toppled(variant)
 			"sheep", "soldier":
 				var kinds: Array = SHEEP_KINDS if kind == "sheep" else SOLDIER_KINDS
 				unit = kinds[variant % kinds.size()]
@@ -598,6 +606,20 @@ func _stump(variant: int) -> Sprite2D:
 	s.centered = false
 	s.offset = Vector2(-TREE_FRAME.x * 0.5, -float(TREE_FOOT_PX[v]))
 	s.scale = Vector2(DECO_SCALE, DECO_SCALE)
+	return s
+
+
+## UN REPERE A TERRE (`toppled`, 2026-10-12) : le panneau ou l'epouvantail
+## qu'une hache a couche — le meme art, allonge dans l'herbe le long de l'axe
+## de la case, un peu terni. Pas d'art neuf : on le reconnait, et il se releve.
+func _toppled(variant: int) -> Sprite2D:
+	var index := NATURAL_PROPS + variant % (PROPS.size() - NATURAL_PROPS)
+	var s := _prop(index)
+	# Pivot au milieu de sa hauteur : couche, il reste sur SA case.
+	s.offset.y = -float(PROP_FOOT_PX[index]) * TOPPLED_PIVOT
+	s.rotation = TOPPLED_TILT
+	s.scale = Vector2(DECO_SCALE, DECO_SCALE * TOPPLED_FLAT)
+	s.modulate = TOPPLED_TINT
 	return s
 
 

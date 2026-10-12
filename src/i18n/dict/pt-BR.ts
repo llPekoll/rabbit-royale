@@ -233,6 +233,7 @@ export const ptBR: Dict = {
     gardenGrowing: (perHour, holds) => `cresce enquanto você cava \u00b7 ${perHour}/h \u00b7 cabe ${holds}`,
     yieldRate: (perHour) => `${perHour} cenouras/h`,
     stumpRegrows: (when: string) => `Cresce de novo em ${when}`,
+    markStands: (when: string) => `Levanta de novo em ${when}`,
     regenRate: (perHour) => `${perHour} de energia/h`,
   },
 
@@ -265,7 +266,6 @@ export const ptBR: Dict = {
       crossing_too_long: (n) => `Longe demais: a horta deve ficar a no máximo ${n} passos.`,
       house_off_ground: 'Sua casa precisa de chão livre.',
       under_raid: 'Tem um ataque na sua toca. Reorganize quando acabar.',
-      thing_cut: 'O toco fica no lugar até a árvore crescer de novo.',
       bad_edits: 'Essa organização foi recusada.',
     },
   },

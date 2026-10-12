@@ -229,6 +229,7 @@ export const fr: Dict = {
     gardenGrowing: (perHour, holds) => `pousse pendant que tu creuses \u00b7 ${perHour}/h \u00b7 contient ${holds}`,
     yieldRate: (perHour) => `${perHour} carottes/h`,
     stumpRegrows: (when: string) => `Repousse dans ${when}`,
+    markStands: (when: string) => `Se relève dans ${when}`,
     regenRate: (perHour) => `${perHour} énergie/h`,
   },
 
@@ -261,7 +262,6 @@ export const fr: Dict = {
       crossing_too_long: (n) => `Trop loin : le potager doit rester à ${n} pas au plus.`,
       house_off_ground: 'Ta maison a besoin d\'un sol dégagé.',
       under_raid: 'Un pillage est en cours chez toi. Tu réaménageras après.',
-      thing_cut: 'Une souche ne bouge pas tant que l\'arbre n\'a pas repoussé.',
       bad_edits: 'Cet aménagement a été refusé.',
     },
   },

@@ -12,7 +12,7 @@ import {
 import { editBurrow } from '@/game/burrow/generate';
 import { baseBurrowFor } from '@/game/burrow/board';
 import { fenceBlocks, type FenceSeg } from '@/game/burrow/fence';
-import { axeTargets } from '@/lib/game/axe';
+import { axeTargets, planksTouching } from '@/lib/game/axe';
 
 const ID = 'sol:6jqajzkMbciCYjKiXKJfXqwMUo9xBDaHUrrKXkoZhyVL';
 const MOVES: [number, number][] = [[270, 174], [213, 193], [232, 173], [239, 172], [200, 177], [163, 158], [202, 120], [140, 100], [289, 101], [122, 81], [141, 80], [160, 79], [220, 178], [221, 196], [298, 140], [169, 197], [292, 121], [84, 82], [64, 61], [210, 62], [180, 192], [219, 212], [51, 211], [50, 63], [69, 179], [104, 198], [259, 160], [148, 141], [241, 122], [88, 103], [129, 139]];
@@ -71,5 +71,28 @@ describe('raid axe', () => {
     // 100 is the outer cell of two planks: 99's SE face and 119's NE face.
     const front = axeTargets(ID, PLANKS, 100);
     expect(front.planks).toEqual([{ tile: 99, side: 'SE' }, { tile: 119, side: 'NE' }]);
+  });
+
+  it('a landmark falls too, toppled, and is walked like a stump', () => {
+    const seed = Array.from({ length: 300 }, (_, i) => `p${i}`)
+      .find((id) => baseBurrowFor(id).placements.some((p) => p.kind === 'landmark'))!;
+    const lm = baseBurrowFor(seed).placements.find((p) => p.kind === 'landmark')!;
+    const at = lm.y * 19 + lm.x;
+    try {
+      setBurrowEdits(seed, { cuts: [at] });
+      expect(burrowFor(seed).placements.find((p) => p.id === lm.id)?.kind).toBe('toppled');
+      expect(burrowCell(seed, at)).toBe('stump');
+    } finally {
+      setBurrowEdits(seed, null);
+    }
+  });
+
+  it('a falling tree takes every plank touching its cell, corners included', () => {
+    // 100's square meets 99's SE and 119's NE faces, and 99's NE face at a
+    // corner; 98's NE face stops a cell short.
+    expect(planksTouching(PLANKS, 100)).toEqual([
+      { tile: 99, side: 'NE' }, { tile: 99, side: 'SE' }, { tile: 119, side: 'NE' },
+    ]);
+    expect(planksTouching(PLANKS, 173)).toEqual([]);
   });
 });

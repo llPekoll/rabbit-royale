@@ -24,6 +24,7 @@ export type ThingKind =
   | 'tree'
   | 'stump'
   | 'felled'
+  | 'toppled'
   | 'rock'
   | 'bush'
   | 'prop'
@@ -61,6 +62,10 @@ export const THING_RULES: Record<ThingKind, ThingRule> = {
   // over until it regrows (AXE.REGROW_MS). Not `stump`, which is scenery and
   // blocks — the same picture would otherwise mean two things.
   felled:   { blocks: false, wanders: false },
+  // A burrow LANDMARK the axe brought down (2026-10-12) — a signpost or a
+  // scarecrow lying in the grass: walked over, and it stands again with the
+  // trees. Without it a moved landmark was the one wall nothing could open.
+  toppled:  { blocks: false, wanders: false },
   rock:     { blocks: true,  wanders: false },
   // Waist-high, and a rabbit pushes through it. Blocking looked right on
   // paper and was wrong in play: bushes are the most-scattered thing on the

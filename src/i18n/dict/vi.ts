@@ -237,6 +237,7 @@ export const vi: Dict = {
     gardenGrowing: (perHour, holds) => `lớn trong lúc bạn đào · ${perHour}/giờ · chứa ${holds}`,
     yieldRate: (perHour) => `${perHour} cà rốt/giờ`,
     stumpRegrows: (when: string) => `Mọc lại sau ${when}`,
+    markStands: (when: string) => `Dựng lại sau ${when}`,
     regenRate: (perHour) => `${perHour} năng lượng/giờ`,
   },
 
@@ -269,7 +270,6 @@ export const vi: Dict = {
       crossing_too_long: (n) => `Quá xa: vườn phải cách tối đa ${n} bước.`,
       house_off_ground: 'Nhà cần một khoảng đất trống.',
       under_raid: 'Hang đang bị cướp. Xong rồi hẵng sắp xếp lại.',
-      thing_cut: 'Gốc cây nằm yên cho đến khi cây mọc lại.',
       bad_edits: 'Cách sắp xếp này bị từ chối.',
     },
   },

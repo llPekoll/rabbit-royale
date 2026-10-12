@@ -109,6 +109,14 @@ function editCases(seed: string) {
     tries.push({ field: [1, 0], cuts: [trees[2]] });
     tries.push({ cuts: [-1] } as BurrowEdits);
   }
+  // A landmark goes down too (`toppled`), and one moved then cut.
+  const marks = base.placements.filter((p) => p.kind === 'landmark').map((p) => burrowIndex(p.x, p.y));
+  if (marks.length) {
+    tries.push({ cuts: [marks[0]] });
+    if (trees.length) tries.push({ cuts: [marks[0], trees[0]] });
+    const to = clutter[0] ?? (marks[0] + 1) % 361;
+    tries.push({ moves: [[marks[0], to]], cuts: [to] });
+  }
   return tries.map((edits) => {
     const out = editBurrow(base, edits);
     if (typeof out === 'string') return { edits, refused: out };

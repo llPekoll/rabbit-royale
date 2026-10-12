@@ -322,6 +322,9 @@
   "stumpRegrows": {
    "$t": "Repousse dans {0}"
   },
+  "markStands": {
+   "$t": "Se relève dans {0}"
+  },
   "regenRate": {
    "$t": "{0} énergie/h"
   }
@@ -405,7 +408,6 @@
    },
    "house_off_ground": "Ta maison a besoin d'un sol dégagé.",
    "under_raid": "Un pillage est en cours chez toi. Tu réaménageras après.",
-   "thing_cut": "Une souche ne bouge pas tant que l'arbre n'a pas repoussé.",
    "bad_edits": "Cet aménagement a été refusé."
   }
  },

@@ -111,6 +111,31 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-12',
     items: [
       {
+        kind: 'tune',
+        text: {
+          en: 'The axe also knocks over signposts and scarecrows, and the fences touching a felled tree fall with it.',
+          fr: 'La hache renverse aussi les panneaux et les épouvantails, et les clôtures qui touchent un arbre abattu tombent avec lui.',
+          zh: '斧头也能推倒路牌和稻草人，紧挨被砍倒的树的围栏会一起倒下。',
+          'pt-BR': 'O machado também derruba placas e espantalhos, e as cercas encostadas numa árvore derrubada caem junto.',
+          vi: 'Rìu giờ còn quật ngã biển báo và bù nhìn, và hàng rào chạm vào cây bị chặt sẽ đổ theo.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'Your stumps can be moved, and you watch the tree grow back when its time is up.',
+          fr: 'Tu peux déplacer tes souches, et tu vois l’arbre repousser quand son temps est écoulé.',
+          zh: '树桩可以移动了，时间一到就能看到树重新长出来。',
+          'pt-BR': 'Você pode mover seus tocos, e vê a árvore crescer de novo quando o tempo acaba.',
+          vi: 'Bạn có thể di chuyển gốc cây, và xem cây mọc lại khi hết thời gian.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    items: [
+      {
         kind: 'new',
         text: {
           en: 'On the web, play with the keyboard: arrows or WASD to hop, 1 2 3 for your actions. In bomb mode, the arrows aim and 3 or Enter marks.',

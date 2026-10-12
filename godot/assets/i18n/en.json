@@ -304,6 +304,9 @@
   "stumpRegrows": {
    "$t": "Regrows in {0}"
   },
+  "markStands": {
+   "$t": "Back up in {0}"
+  },
   "regenRate": {
    "$t": "{0} energy/hour"
   }
@@ -375,7 +378,6 @@
    },
    "house_off_ground": "Your house needs open ground.",
    "under_raid": "A raid is on your burrow. Rearrange once it is over.",
-   "thing_cut": "A stump stays put until the tree regrows.",
    "bad_edits": "That layout was refused."
   }
  },

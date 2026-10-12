@@ -304,6 +304,9 @@
   "stumpRegrows": {
    "$t": "Cresce de novo em {0}"
   },
+  "markStands": {
+   "$t": "Levanta de novo em {0}"
+  },
   "regenRate": {
    "$t": "{0} de energia/h"
   }
@@ -387,7 +390,6 @@
    },
    "house_off_ground": "Sua casa precisa de chão livre.",
    "under_raid": "Tem um ataque na sua toca. Reorganize quando acabar.",
-   "thing_cut": "O toco fica no lugar até a árvore crescer de novo.",
    "bad_edits": "Essa organização foi recusada."
   }
  },

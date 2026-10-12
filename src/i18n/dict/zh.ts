@@ -235,6 +235,7 @@ export const zh: Dict = {
     gardenGrowing: (perHour, holds) => `挖掘时生长 \u00b7 每小时 ${perHour} \u00b7 可存 ${holds}`,
     yieldRate: (perHour) => `每小时 ${perHour} 根胡萝卜`,
     stumpRegrows: (when: string) => `${when}后重新长出`,
+    markStands: (when: string) => `${when}后重新立起`,
     regenRate: (perHour) => `每小时 ${perHour} 点能量`,
   },
 
@@ -267,7 +268,6 @@ export const zh: Dict = {
       crossing_too_long: (n) => `太远了：菜园最多 ${n} 步。`,
       house_off_ground: '房子需要一块空地。',
       under_raid: '你的兔窝正在被掠夺，结束后再布置。',
-      thing_cut: '树桩在树重新长出前不能移动。',
       bad_edits: '这个布置被拒绝了。',
     },
   },

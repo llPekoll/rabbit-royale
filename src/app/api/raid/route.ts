@@ -32,7 +32,7 @@ import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
-import { axeTargets } from '@/lib/game/axe';
+import { axeTargets, planksTouching } from '@/lib/game/axe';
 import { smokeActive } from '@/lib/game/inventory';
 import { standingTraps } from '@/lib/game/traps';
 import { RABBIT_LEVELS } from '@config/tuning';
@@ -907,21 +907,26 @@ async function cut(
       tx.rollback();
       return 'no_axe' as const;
     }
-    if (isPlank) {
-      // The plank falls and goes home: back in its owner's bag, past the
-      // ceiling if need be, like a plank a rearrangement pushed off.
+    // The planks fall and go home: back in their owner's bag, past the
+    // ceiling if need be, like planks a rearrangement pushed off. A plank cut
+    // on its own, or every plank touching a felled tree (`planksTouching`).
+    const falling = isPlank ? [{ tile, side: side! }] : planksTouching(walled, tile);
+    let back = 0;
+    for (const s of falling) {
       const gone = await tx.delete(fences)
-        .where(and(eq(fences.ownerId, run.defenderId), eq(fences.tile, tile), eq(fences.side, side!)))
+        .where(and(eq(fences.ownerId, run.defenderId), eq(fences.tile, s.tile), eq(fences.side, s.side)))
         .returning({ id: fences.id });
-      if (gone.length) {
-        await tx.insert(inventory)
-          .values({ playerId: run.defenderId, kind: 'fence', qty: 1 })
-          .onConflictDoUpdate({
-            target: [inventory.playerId, inventory.kind],
-            set: { qty: raw`${inventory.qty} + 1` },
-          });
-      }
-    } else {
+      back += gone.length;
+    }
+    if (back) {
+      await tx.insert(inventory)
+        .values({ playerId: run.defenderId, kind: 'fence', qty: back })
+        .onConflictDoUpdate({
+          target: [inventory.playerId, inventory.kind],
+          set: { qty: raw`${inventory.qty} + ${back}` },
+        });
+    }
+    if (!isPlank) {
       await tx.insert(burrowCuts).values({ ownerId: run.defenderId, tile, cutBy: attackerId, cutAt: now });
     }
     return 'cut' as const;

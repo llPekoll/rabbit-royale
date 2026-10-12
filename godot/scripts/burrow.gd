@@ -92,6 +92,10 @@ var _raid_edits := ""
 var _axe_lit: Array = []
 ## Les comptes a rebours des souches (`_sync_stumps`) : tuile -> Label.
 var _stump_tags := {}
+## Une relecture demandee pour une souche arrivee a zero (`_sync_stumps`).
+var _regrow_asked := {}
+const WOOD_CHIPS := [Color("#8a5a32"), Color("#d9c8a0")]
+const LEAVES := [Color("#5f9e3a"), Color("#a8d65a"), Color("#3f7a2c")]
 ## Relus toutes les 20 s : la minute s'y voit sans un _process.
 const STUMP_TICK_S := 20.0
 ## La taille du nom des lapins de l'ile (island_rabbit NAME_SIZE), suressaye.
@@ -858,9 +862,14 @@ func _sync_stumps() -> void:
 				continue
 			var left := BurrowTraps._ms_until(String(s.get("regrowsAt", "")))
 			var tile := int(s.get("tile", -1))
-			if left > 0.0 and _layout.placements.any(func(p: Dictionary) -> bool:
-				return String(p.kind) == "felled" and BurrowLayout.index(Vector2i(int(p.x), int(p.y))) == tile):
-				want[tile] = left
+			# A ZERO, LE SERVEUR REND L'ARBRE : une relecture, une seule, et
+			# l'arbre repousse sous les yeux (`_on_edits_changed`).
+			if left <= 0.0 and not _regrow_asked.has(tile):
+				_regrow_asked[tile] = true
+				Home.refresh()
+			var fallen := _fallen_at(tile)
+			if left > 0.0 and fallen != "":
+				want[tile] = [left, fallen]
 	for tile in _stump_tags.keys():
 		if not want.has(tile):
 			(_stump_tags[tile] as Node).queue_free()
@@ -884,16 +893,78 @@ func _sync_stumps() -> void:
 			_stump_tags[tile] = tag
 		var c := BurrowLayout.cell_of(tile)
 		tag.position = _terrain.map.screen_of(c.x, c.y) + Vector2(-STUMP_TAG_W * 0.5, Iso.half_h() - STUMP_TAG_RISE)
-		tag.text = I18N.f("burrow.stumpRegrows", [I18N.short_wait(float(want[tile]))])
+		var key := "burrow.stumpRegrows" if want[tile][1] == "felled" else "burrow.markStands"
+		tag.text = I18N.f(key, [I18N.short_wait(float(want[tile][0]))])
 
 
-## Un nuage de copeaux au pied de ce qui tombe.
-func _dust(at: Vector2) -> void:
+## L'ARBRE REPOUSSE (2026-10-12) : la souche s'efface, l'arbre sort de son
+## pied — ecrase, il s'etire, depasse un peu, se pose — dans une gerbe de
+## feuilles. `stumps` : les fantomes des souches, pris avant que le sol ne se
+## refasse (`_ghost_stumps`).
+func _regrow(cells: Array[Vector2i], stumps: Array[Sprite2D]) -> void:
+	for ghost in stumps:
+		var tw := ghost.create_tween()
+		tw.tween_interval(0.15)
+		tw.tween_property(ghost, "modulate:a", 0.0, 0.35)
+		tw.tween_callback(ghost.queue_free)
+	if cells.is_empty():
+		return
+	Sound.play("hop", 1.3)
+	for c in cells:
+		for n in _scenery.nodes_at(c):
+			if not (n is Node2D) or not is_instance_valid(n) or not _scenery.is_tall(n):
+				continue
+			var node := n as Node2D
+			var full := node.scale
+			node.scale = Vector2(full.x * 0.45, full.y * 0.08)
+			var tw := node.create_tween()
+			tw.tween_interval(0.1)
+			tw.tween_property(node, "scale", Vector2(full.x * 0.92, full.y * 1.12), 0.42) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(node, "scale", Vector2(full.x * 1.04, full.y * 0.97), 0.12)
+			tw.tween_property(node, "scale", full, 0.12)
+		var foot := _terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+		# Un arbre en feuilles, un repere en copeaux.
+		var bits := LEAVES if _layout.placements.any(func(p: Dictionary) -> bool:
+			return String(p.kind) == "tree" and Vector2i(int(p.x), int(p.y)) == c) else WOOD_CHIPS
+		_dust(foot, bits)
+		_dust(foot + Vector2(0, -26), bits)
+
+
+## Ce qui gît sur `tile` : "felled" (une souche), "toppled" (un repere
+## couche), ou "".
+func _fallen_at(tile: int) -> String:
+	for p in _layout.placements:
+		if BurrowLayout.FALLEN.has(String(p.kind)) and BurrowLayout.index(Vector2i(int(p.x), int(p.y))) == tile:
+			return String(p.kind)
+	return ""
+
+
+## Les souches de `tiles`, recopiees a leur place exacte avant que le sol ne
+## se refasse : elles s'effacent sous l'arbre qui repousse.
+func _ghost_stumps(tiles: Array) -> Array[Sprite2D]:
+	var out: Array[Sprite2D] = []
+	for t in tiles:
+		for n in _scenery.nodes_at(BurrowLayout.cell_of(int(t))):
+			if not (n is Sprite2D) or not is_instance_valid(n):
+				continue
+			var ghost := (n as Sprite2D).duplicate() as Sprite2D
+			ghost.material = null
+			add_child(ghost)
+			ghost.global_transform = (n as Sprite2D).global_transform
+			ghost.z_as_relative = false
+			ghost.z_index = 2999
+			out.append(ghost)
+	return out
+
+
+## Un nuage de copeaux au pied de ce qui tombe — ou de feuilles, `colors`.
+func _dust(at: Vector2, colors: Array = WOOD_CHIPS) -> void:
 	for i in 7:
 		var bit := Polygon2D.new()
 		var r := 2.0 + randf() * 2.0
 		bit.polygon = PackedVector2Array([Vector2(-r, 0), Vector2(0, -r), Vector2(r, 0), Vector2(0, r)])
-		bit.color = Color("#8a5a32") if i % 2 == 0 else Color("#d9c8a0")
+		bit.color = colors[i % colors.size()]
 		bit.position = at
 		bit.z_as_relative = false
 		bit.z_index = 3001
@@ -1712,8 +1783,21 @@ func _on_edits_changed() -> void:
 		return
 	if JSON.stringify(Home.edits) == JSON.stringify(_local_edits):
 		return
+	# LES ARBRES QUI REPOUSSENT : une coupe partie, et un arbre a nouveau sur
+	# sa case (une souche deplacee laisse aussi sa coupe, mais pas d'arbre).
+	var was := BurrowLayout.cuts_of(_local_edits)
+	var now := BurrowLayout.cuts_of(Home.edits)
+	var gone: Array = was.filter(func(t: int) -> bool: return not now.has(t))
+	var stumps := _ghost_stumps(gone)
 	_local_edits = Home.edits
 	show_ground(_own_seed(), _local_edits, true)
+	var grown: Array[Vector2i] = []
+	for t in gone:
+		var c := BurrowLayout.cell_of(int(t))
+		if _layout.placements.any(func(p: Dictionary) -> bool:
+			return BurrowLayout.CUTTABLE.has(String(p.kind)) and Vector2i(int(p.x), int(p.y)) == c):
+			grown.append(c)
+	_regrow(grown, stumps)
 
 
 ## Peut-on amenager maintenant ? Pas chez un autre, pas pendant un raid sur

@@ -276,6 +276,8 @@ export const en = {
     yieldRate: (perHour: number) => `${perHour} carrots/hour`,
     /* A felled tree's stump, on the owner's board: how long until it stands again. */
     stumpRegrows: (when: string) => `Regrows in ${when}`,
+    /* A landmark the axe knocked over, on the owner's board. */
+    markStands: (when: string) => `Back up in ${when}`,
     regenRate: (perHour: number) => `${perHour} energy/hour`,
   },
 
@@ -310,7 +312,6 @@ export const en = {
       crossing_too_long: (n: number) => `Too far: the garden must stay within ${n} steps.`,
       house_off_ground: 'Your house needs open ground.',
       under_raid: 'A raid is on your burrow. Rearrange once it is over.',
-      thing_cut: 'A stump stays put until the tree regrows.',
       bad_edits: 'That layout was refused.',
     },
   },

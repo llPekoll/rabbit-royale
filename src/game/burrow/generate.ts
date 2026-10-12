@@ -1064,9 +1064,13 @@ export function editBurrow(
   return fellTrees(out, edits.cuts ?? []);
 }
 
+/** What an axe brings down: a tree, or a landmark (2026-10-12). */
+export const CUTTABLE = new Set<string>(['tree', 'landmark']);
+
 /**
  * THE AXE'S MARK: each tree standing on a `cuts` cell is down — a `felled`
- * thing a raider walks over — and the ground is measured again round it.
+ * thing a raider walks over — and the ground is measured again round it. A
+ * landmark goes down the same way, `toppled`.
  *
  * AFTER `editBurrow`'s checks and WITHOUT the crossing limits, on purpose. A
  * felled tree is meant to shorten the way in; asked as an edit, a crossing
@@ -1083,9 +1087,9 @@ export function fellTrees(t: BurrowTerrain, cuts: readonly number[]): BurrowTerr
   const at = new Set(cuts);
   let any = false;
   const placements = t.placements.map((p) => {
-    if (p.kind !== 'tree' || !at.has(index(p.x, p.y))) return p;
+    if (!CUTTABLE.has(p.kind) || !at.has(index(p.x, p.y))) return p;
     any = true;
-    return { ...p, kind: 'felled' as const };
+    return { ...p, kind: p.kind === 'tree' ? 'felled' as const : 'toppled' as const };
   });
   if (!any) return t;
   const square = t.house === undefined ? [] : houseFootprint(t.house) ?? [];
@@ -1095,7 +1099,7 @@ export function fellTrees(t: BurrowTerrain, cuts: readonly number[]): BurrowTerr
   const cells = paint(main, t.entrance, t.field, t.doorstep);
   for (const p of placements) {
     const i = index(p.x, p.y);
-    if (p.kind === 'felled' && cells[i] === 'ground') cells[i] = 'stump';
+    if ((p.kind === 'felled' || p.kind === 'toppled') && cells[i] === 'ground') cells[i] = 'stump';
   }
   return { ...t, placements, cells, crossing: Number.isFinite(crossing) ? crossing : t.crossing };
 }

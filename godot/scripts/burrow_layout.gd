@@ -341,8 +341,15 @@ static func edited(base: BurrowLayout, edits: Dictionary) -> Variant:
 	return out.fell_trees(cuts_of(edits))
 
 
+## Ce que la hache abat (generate.ts `CUTTABLE`) : un arbre, ou un repere
+## (2026-10-12) — et ce qu'il en reste, qu'on traverse.
+const CUTTABLE := {"tree": true, "landmark": true}
+const FALLEN := {"felled": true, "toppled": true}
+
+
 ## generate.ts `fellTrees` : chaque arbre debout sur une case de `cuts` est a
-## terre (`felled`, on passe dessus), et le sol est remesure autour. APRES les
+## terre (`felled`, on passe dessus), et le sol est remesure autour. Un repere
+## tombe pareil (`toppled`). APRES les
 ## regles de l'amenagement et SANS les bornes de traversee — une souche est
 ## faite pour raccourcir le chemin. Le paillasson est GARDE. Rend `self` si
 ## rien n'est tombe, sinon une copie : le terrier en cache ne bouge jamais.
@@ -355,9 +362,10 @@ func fell_trees(cuts: Array[int]) -> BurrowLayout:
 	var list: Array[Dictionary] = []
 	var any := false
 	for p in placements:
-		if String(p.kind) == "tree" and at.has(index(Vector2i(int(p.x), int(p.y)))):
+		var kind := String(p.kind)
+		if CUTTABLE.has(kind) and at.has(index(Vector2i(int(p.x), int(p.y)))):
 			var q: Dictionary = p.duplicate()
-			q.kind = "felled"
+			q.kind = "felled" if kind == "tree" else "toppled"
 			list.append(q)
 			any = true
 		else:
@@ -386,7 +394,7 @@ func fell_trees(cuts: Array[int]) -> BurrowLayout:
 	out._paint(homestead)
 	for p in list:
 		var i := index(Vector2i(int(p.x), int(p.y)))
-		if String(p.kind) == "felled" and out.cells[i] == Cell.GROUND:
+		if FALLEN.has(String(p.kind)) and out.cells[i] == Cell.GROUND:
 			out.cells[i] = Cell.STUMP
 	return out
 
