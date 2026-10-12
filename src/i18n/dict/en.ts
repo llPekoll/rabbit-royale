@@ -529,7 +529,6 @@ export const en = {
       detail: { carrots: (n: number) => `+${n} carrots`, rare: 'item', epic: 'pack', jackpot: 'skin' },
       buffTitle: 'BONUS OF THE DAY · BELLY FULL',
       buffBody: (max: number) => `Your first run today pays double carrots (up to +${max}).`,
-      buffIdle: 'Starts when you open the box',
       buffActive: 'ACTIVE until midnight - go dig!',
       buffUsed: (n: number) => `Used today: +${n} carrots`,
       gift: { mushroom: 'Giant Mushroom', pumpkin: 'Lucky Pumpkin', carrot: 'Giant Carrot', scarecrow: 'Golden Scarecrow' },

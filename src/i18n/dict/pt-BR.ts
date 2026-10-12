@@ -437,7 +437,6 @@ export const ptBR: Dict = {
       detail: { carrots: (n) => `+${n} cenouras`, rare: 'item', epic: 'pacote', jackpot: 'skin' },
       buffTitle: 'BÔNUS DO DIA · BARRIGA CHEIA',
       buffBody: (max) => `Sua 1ª partida de hoje rende o dobro (até +${max}).`,
-      buffIdle: 'Começa quando você abre a caixa',
       buffActive: 'ATIVO até a meia-noite - vá cavar!',
       buffUsed: (n) => `Usado hoje: +${n} cenouras`,
       gift: { mushroom: 'Cogumelo gigante', pumpkin: 'Abóbora da sorte', carrot: 'Cenoura gigante', scarecrow: 'Espantalho dourado' },

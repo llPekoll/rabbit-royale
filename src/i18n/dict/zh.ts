@@ -439,7 +439,6 @@ export const zh: Dict = {
       detail: { carrots: (n) => `+${n} 胡萝卜`, rare: '道具', epic: '补给包', jackpot: '皮肤' },
       buffTitle: '今日加成 · 吃饱了',
       buffBody: (max) => `今天第一局胡萝卜翻倍（最多 +${max}）。`,
-      buffIdle: '打开盒子后生效',
       buffActive: '午夜前有效 - 快去挖！',
       buffUsed: (n) => `今天已用：+${n} 胡萝卜`,
       gift: { mushroom: '巨型蘑菇', pumpkin: '幸运南瓜', carrot: '巨型胡萝卜', scarecrow: '金色稻草人' },

@@ -669,7 +669,6 @@
    "buffBody": {
     "$t": "Ta 1re partie du jour rapporte double (jusqu'à +{0})."
    },
-   "buffIdle": "Commence quand tu ouvres la boîte",
    "buffActive": "ACTIF jusqu'à minuit - va creuser !",
    "buffUsed": {
     "$t": "Utilisé aujourd'hui : +{0} carottes"

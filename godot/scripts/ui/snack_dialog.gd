@@ -416,12 +416,16 @@ func _action(parent: Control, text: String, rect: Rect2, pack: String, live := t
 
 func _label(parent: Control, text: String, rect: Rect2, px: int, color: Color) -> Label:
 	var label := Kit.label(text, Shop._fit(text, px, rect.size.x - 4), color, true)
-	label.position = rect.position
-	label.size = rect.size
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(label)
+	# LA TAILLE APRES L'ARBRE : hors de l'arbre, le label se mesure avec la
+	# face de secours de Godot, plus large, grandit vers la droite et ne
+	# rapetisse plus — le pied du Snack Time, centre a 445, l'etait a 500
+	# et passait sous les feuilles (2026-10-12).
+	label.position = rect.position
+	label.size = rect.size
 	return label
 
 
@@ -463,6 +467,7 @@ func _panel(parent: Control, rect: Rect2, selected: bool) -> Control:
 	if selected:
 		frame.tint = Color(1.35, 1.15, 0.75)
 		var light := _picture(panel, Shop._glow_texture(Palette.GOLD, 0.32), Rect2(8, 7, rect.size.x - 16, rect.size.y - 14), false)
+		light.name = "Glow"
 		var pulse := light.create_tween().set_loops()
 		pulse.tween_property(light, "modulate:a", 0.45, 1.1).set_trans(Tween.TRANS_SINE)
 		pulse.tween_property(light, "modulate:a", 1.0, 1.1).set_trans(Tween.TRANS_SINE)

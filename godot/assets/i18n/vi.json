@@ -591,7 +591,6 @@
    "buffBody": {
     "$t": "Lượt đầu hôm nay nhân đôi cà rốt (tối đa +{0})."
    },
-   "buffIdle": "Bắt đầu khi bạn mở hộp",
    "buffActive": "ĐANG BẬT đến nửa đêm - đi đào thôi!",
    "buffUsed": {
     "$t": "Đã dùng hôm nay: +{0} cà rốt"

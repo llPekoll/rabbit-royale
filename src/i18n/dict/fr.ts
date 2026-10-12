@@ -433,7 +433,6 @@ export const fr: Dict = {
       detail: { carrots: (n) => `+${n} carottes`, rare: 'objet', epic: 'pack', jackpot: 'skin' },
       buffTitle: 'BONUS DU JOUR · VENTRE PLEIN',
       buffBody: (max) => `Ta 1re partie du jour rapporte double (jusqu'à +${max}).`,
-      buffIdle: 'Commence quand tu ouvres la boîte',
       buffActive: 'ACTIF jusqu\'à minuit - va creuser !',
       buffUsed: (n) => `Utilisé aujourd'hui : +${n} carottes`,
       gift: { mushroom: 'Champignon géant', pumpkin: 'Citrouille porte-bonheur', carrot: 'Carotte géante', scarecrow: 'Épouvantail doré' },

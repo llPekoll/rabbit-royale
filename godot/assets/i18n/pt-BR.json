@@ -651,7 +651,6 @@
    "buffBody": {
     "$t": "Sua 1ª partida de hoje rende o dobro (até +{0})."
    },
-   "buffIdle": "Começa quando você abre a caixa",
    "buffActive": "ATIVO até a meia-noite - vá cavar!",
    "buffUsed": {
     "$t": "Usado hoje: +{0} cenouras"

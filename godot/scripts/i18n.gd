@@ -38,6 +38,8 @@ const DEFAULT_LOCALE := "en"
 ## Retaillees sur la grille de la face de l'anglais (tools/fusion-godot.py).
 const FUSION_LATIN := preload("res://assets/fonts/fusion-pixel-10-rr-latin.ttf")
 const FUSION_ZH := preload("res://assets/fonts/fusion-pixel-10-rr-zh.ttf")
+## Fusion a la ligne de d8, derriere l'anglais (tools/fusion-tight.py).
+const FUSION_TIGHT := preload("res://assets/fonts/fusion-pixel-10-rr-latin-tight.ttf")
 const SAVE_PATH := "user://locale.cfg"
 const DICT_DIR := "res://assets/i18n/"
 
@@ -453,7 +455,29 @@ func _apply_theme_face() -> void:
 	if _pixel_font == null:
 		_pixel_font = theme.default_font
 	var wanted := face()
-	theme.default_font = _pixel_font if wanted == null else wanted
+	theme.default_font = _english_face() if wanted == null else wanted
+
+
+## L'ANGLAIS AUSSI A FUSION DERRIERE d8 (2026-10-12). d8 n'a que l'ASCII :
+## le « · » du Snack Time, un « ’ », un « — », un nom de joueur accentue
+## tombaient sur les faces du systeme — presentes sur un ordinateur, ABSENTES
+## sur le web, ou ils sortaient en tofu (« BONUS OF THE DAY ▯ BELLY FULL »).
+## d8 garde tout ce qu'il sait dessiner ; Fusion ne prend que ce qui lui
+## manque. La copie SERREE : avec la Fusion des autres langues, Godot prenait
+## sa ligne de 1,25 em pour toute la pile, et chaque texte anglais sur deux
+## lignes s'ecartait.
+var _english_font: Font = null
+
+
+func _english_face() -> Font:
+	if _english_font == null and _pixel_font != null:
+		var tight := FUSION_TIGHT.duplicate() as FontFile
+		tight.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		tight.hinting = TextServer.HINTING_NONE
+		tight.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+		_english_font = _pixel_font.duplicate() as Font
+		_english_font.fallbacks = [tight]
+	return _english_font if _english_font != null else _pixel_font
 
 
 ## Pour les noeuds qui portent DEJA un override (l'accueil) : `null` le

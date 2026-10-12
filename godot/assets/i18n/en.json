@@ -639,7 +639,6 @@
    "buffBody": {
     "$t": "Your first run today pays double carrots (up to +{0})."
    },
-   "buffIdle": "Starts when you open the box",
    "buffActive": "ACTIVE until midnight - go dig!",
    "buffUsed": {
     "$t": "Used today: +{0} carrots"

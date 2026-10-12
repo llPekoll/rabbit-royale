@@ -32,8 +32,10 @@ const ART := {
 	"magic_hat": "res://assets/ui/snack/hat.png",
 	"lucky_foot": "res://assets/ui/snack/basket.png",
 }
-## Le lapin assis, dans une planche de skin.
-const SKIN_SEAT := Rect2(4, 9, 24, 23)
+## Le lapin assis, dans une planche de skin : un carre centre sur son dessin
+## (x 8-22, y 18-32). L'ancienne coupe le laissait dans son coin bas-gauche,
+## et sur la ligne Jackpot il tombait sous le texte (2026-10-12).
+const SKIN_SEAT := Rect2(5, 15, 20, 20)
 ## Les cadeaux, comme IslandScenery.GIFTS les pose au terrier, rognes a l'encre.
 const GIFT_ART := {
 	"mushroom": {"prop": 2, "region": Rect2(14, 12, 38, 37)},
@@ -51,6 +53,7 @@ var _chest: LootChest
 var _chest_glow: TextureRect
 var _open_button: PlankButton
 var _buff_card: Control
+var _odds_card: Control
 var _opening := false
 var _rng := RandomNumberGenerator.new()
 
@@ -411,8 +414,7 @@ func _after_reveal() -> void:
 			tw.tween_property(card, "scale", Vector2.ONE * 1.25, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			tw.tween_property(card, "scale", Vector2.ONE, 0.25)
 		Sound.play("coin", 1.4)
-		var hint := _content.get_node("Hint") as Label
-		hint.text = I18N.f("snack.box.unlocked", [_gift_name(String(gift))])
+		var hint := _set_hint(I18N.f("snack.box.unlocked", [_gift_name(String(gift))]))
 		hint.add_theme_color_override("font_color", Palette.LEAF)
 	else:
 		var cell := _content.find_child("Day_%d" % _state.days(), true, false) as Control
@@ -420,7 +422,7 @@ func _after_reveal() -> void:
 			cell.pivot_offset = cell.size * 0.5
 			cell.scale = Vector2.ONE * 1.3
 			cell.create_tween().tween_property(cell, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		(_content.get_node("Hint") as Label).text = _hint_text()
+		_set_hint(_hint_text())
 	_light_buff()
 
 
@@ -451,19 +453,98 @@ func _update_wait() -> void:
 
 # ── Le bonus du jour ────────────────────────────────────────────────────────
 
+## LA COLONNE DE DROITE SUIT SON TEXTE (2026-10-12) : chaque cadre se mesure
+## a son contenu et les deux s'empilent, centres entre la piste et le pied.
+## Les hauteurs figees (92 et 118) laissaient « ACTIVE until midnight » et le
+## Jackpot sur le bord bas, et un vide quand la ligne d'etat manquait.
+const COLUMN_X := 490.0
+const COLUMN_W := 348.0
+const COLUMN_TOP := 136.0
+const COLUMN_BOTTOM := 364.0
+const COLUMN_GAP := 8.0
+## Le dedans d'un cadre : 10 sous le biseau du haut, 14 au-dessus de
+## l'etagere du bas, plus epaisse — a 10, la derniere ligne s'y posait.
+const CARD_PAD := 10.0
+const CARD_FOOT := 14.0
+## La carotte x2 tient dans 64 : le cadre du bonus ne descend pas dessous.
+const BUFF_MIN_H := 84.0
+## Les rangs des cotes : 22 quand il y a la place, 18 au plus serre — en
+## francais la phrase du bonus prend trois lignes et poussait le Jackpot
+## hors de la colonne.
+const ODDS_HEAD := 26.0
+const ODDS_ROW := 22.0
+const ODDS_ROW_MIN := 18.0
+
+
 func _build_buff() -> void:
-	var b := _state.buff()
-	_buff_card = _panel(_content, Rect2(490, 140, 348, 92), String(b.get("state", "idle")) == "active")
+	_buff_card = _card(_buff_active())
 	_buff_card.name = "Buff"
 	_fill_buff()
+
+
+func _buff_active() -> bool:
+	return String(_state.buff().get("state", "idle")) == "active"
+
+
+## Un cadre de la colonne, a sa place provisoire : `_stack` le pose.
+func _card(selected: bool) -> Control:
+	return _panel(_content, Rect2(COLUMN_X, COLUMN_TOP, COLUMN_W, BUFF_MIN_H), selected)
+
+
+## LA HAUTEUR D'UN CADRE DEJA REMPLI : le 9-slice et la lueur suivent.
+func _fit_card(card: Control, h: float) -> void:
+	card.size.y = h
+	for child in card.get_children():
+		if child is NineSlice:
+			(child as NineSlice).size.y = h
+		elif child is TextureRect and String(child.name).begins_with("Glow"):
+			(child as TextureRect).size.y = h - 14.0
 
 
 func _fill_buff() -> void:
 	var b := _state.buff()
 	var state := String(b.get("state", "idle"))
+	# Les mots dans un calque, centre dans le cadre une fois mesure.
+	var words := Control.new()
+	words.name = "Words"
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_buff_card.add_child(words)
+	var title := _label(words, I18N.t("snack.box.buffTitle"), Rect2(84, CARD_PAD, 256, 18), 12, Palette.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# La phrase passe a la ligne a la largeur de la carte, et le cadre prend
+	# la hauteur de ses lignes : `_label` ajuste pour UNE ligne.
+	var body := Kit.label(I18N.f("snack.box.buffBody", [int(b.get("max", 0))]), 11, Palette.CREAM, true)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_theme_constant_override("line_spacing", 2)
+	words.add_child(body)
+	body.position = Vector2(84, CARD_PAD + 19.0)
+	body.size = Vector2(256, 0)
+	var lines := body.get_line_count()
+	var body_h := lines * body.get_line_height() + maxi(lines - 1, 0) * body.get_theme_constant("line_spacing")
+	body.size.y = body_h
+	var y := body.position.y + body_h + 2.0
+	# Boite pas encore ouverte : rien sous la phrase (« Starts when you open
+	# the box » disait ce que le bouton OUVRIR dit deja, 2026-10-12).
+	var status := ""
+	var color := Palette.PARCHMENT
+	match state:
+		"active":
+			status = I18N.t("snack.box.buffActive")
+			color = Palette.LEAF
+		"used":
+			status = I18N.f("snack.box.buffUsed", [int(b.get("bonus", 0))])
+	if not status.is_empty():
+		var line := _label(words, status, Rect2(84, y, 256, 18), 11, color)
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		y += 18.0
+	var h := maxf(y + CARD_FOOT, BUFF_MIN_H)
+	_fit_card(_buff_card, h)
+	words.position.y = roundf((h - y - CARD_FOOT) * 0.5)
+
 	var art := Control.new()
 	art.name = "BuffArt"
-	art.position = Vector2(12, 14)
+	art.position = Vector2(12, roundf((h - 64.0) * 0.5))
 	art.size = Vector2(64, 64)
 	_buff_card.add_child(art)
 	_picture(art, Kit.ICONS["carrot"], Rect2(4, 6, 52, 52))
@@ -472,37 +553,32 @@ func _fill_buff() -> void:
 	times.add_theme_color_override("font_outline_color", Palette.SOIL_DEEP)
 	if state == "used":
 		art.modulate = Color(1, 1, 1, 0.45)
-	var title := _label(_buff_card, I18N.t("snack.box.buffTitle"), Rect2(84, 10, 256, 20), 12, Palette.GOLD)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	# Deux lignes, a la largeur de la carte : `_label` ajuste la taille pour
-	# UNE ligne, et la phrase deborderait du cadre.
-	var body := Kit.label(I18N.f("snack.box.buffBody", [int(b.get("max", 0))]), 11, Palette.CREAM, true)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.position = Vector2(84, 29)
-	body.custom_minimum_size = Vector2(256, 0)
-	body.size = Vector2(256, 36)
-	_buff_card.add_child(body)
-	var status := I18N.t("snack.box.buffIdle")
-	var color := Palette.PARCHMENT.darkened(0.2)
-	match state:
-		"active":
-			status = I18N.t("snack.box.buffActive")
-			color = Palette.LEAF
-		"used":
-			status = I18N.f("snack.box.buffUsed", [int(b.get("bonus", 0))])
-			color = Palette.PARCHMENT
-	var line := _label(_buff_card, status, Rect2(84, 64, 256, 18), 11, color)
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
+## Les deux cadres l'un sous l'autre, centres dans la hauteur libre.
+func _stack() -> void:
+	if _buff_card == null or _odds_card == null:
+		return
+	# Au plus serre (le francais), l'ecart entre les cadres cede jusqu'a 4.
+	var cards := _buff_card.size.y + _odds_card.size.y
+	var gap := clampf(COLUMN_BOTTOM - COLUMN_TOP - cards, 4.0, COLUMN_GAP)
+	var top := roundf(COLUMN_TOP + maxf(0.0, (COLUMN_BOTTOM - COLUMN_TOP - cards - gap) * 0.5))
+	_buff_card.position = Vector2(COLUMN_X, top)
+	_odds_card.position = Vector2(COLUMN_X, top + _buff_card.size.y + gap)
 
 
 func _light_buff() -> void:
-	var at := _buff_card.position
+	# Renommes avant d'etre liberes : sinon les nouveaux prennent « Buff@2 ».
+	_buff_card.name = "BuffOld"
 	_buff_card.queue_free()
-	_buff_card = _panel(_content, Rect2(at, Vector2(348, 92)), String(_state.buff().get("state", "")) == "active")
+	_buff_card = _card(_buff_active())
 	_buff_card.name = "Buff"
 	_fill_buff()
+	# La ligne d'etat arrive : le bonus grandit, les cotes se resserrent.
+	_odds_card.name = "OddsOld"
+	_odds_card.queue_free()
+	_odds_card = null
+	_build_odds()
 	_buff_card.pivot_offset = _buff_card.size * 0.5
 	_buff_card.scale = Vector2.ONE * 1.08
 	_buff_card.create_tween().tween_property(_buff_card, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -511,14 +587,18 @@ func _light_buff() -> void:
 # ── Les cotes ───────────────────────────────────────────────────────────────
 
 func _build_odds() -> void:
-	var panel := _panel(_content, Rect2(490, 240, 348, 118), false)
+	var panel := _card(false)
+	panel.name = "Odds"
+	_odds_card = panel
 	var gold := _waiting() and _state.golden()
 	var head := I18N.t("snack.box.inside") + ("  ·  " + I18N.t("snack.box.goldenTag") if gold else "")
 	_label(panel, head, Rect2(0, 6, 348, 18), 11, Palette.GOLD)
 	var odds := _state.odds(gold)
 	var box := _state.box()
 	var dim_ink := Palette.CHALK_DIM.darkened(0.3)
-	var y := 26.0
+	var room := COLUMN_BOTTOM - COLUMN_TOP - COLUMN_GAP - _buff_card.size.y - ODDS_HEAD - CARD_FOOT
+	var step := clampf(floorf(room / TIERS.size()), ODDS_ROW_MIN, ODDS_ROW)
+	var y := ODDS_HEAD
 	for tier in TIERS:
 		var pct := int(odds.get(tier, 0))
 		var dim := pct == 0
@@ -542,14 +622,31 @@ func _build_odds() -> void:
 		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var p_label := _label(panel, "%d%%" % pct, Rect2(280, y, 54, 20), 13, dim_ink if dim else Palette.CREAM)
 		p_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		y += 22.0
+		y += step
+	_fit_card(panel, y + CARD_FOOT)
+	_stack()
 
 
 # ── Le pied ─────────────────────────────────────────────────────────────────
 
+## Entre les deux coins feuillus du bas : a 66-826 la fin du texte passait
+## sous les feuilles de droite.
+const HINT_RECT := Rect2(80, 369, 730, 20)
+const HINT_PX := 12
+
+
 func _build_hint() -> void:
-	var hint := _label(_content, _hint_text(), Rect2(66, 369, 760, 20), 12, Palette.PARCHMENT)
+	var hint := _label(_content, _hint_text(), HINT_RECT, HINT_PX, Palette.PARCHMENT)
 	hint.name = "Hint"
+
+
+## Le pied change apres l'ouverture : la taille se recalcule avec le texte,
+## sinon un texte plus long gardait celle du premier et debordait.
+func _set_hint(text: String) -> Label:
+	var hint := _content.get_node("Hint") as Label
+	hint.text = text
+	hint.add_theme_font_size_override("font_size", Shop._fit(text, HINT_PX, HINT_RECT.size.x - 4))
+	return hint
 
 
 func _hint_text() -> String:

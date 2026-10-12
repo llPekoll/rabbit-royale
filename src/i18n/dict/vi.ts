@@ -441,7 +441,6 @@ export const vi: Dict = {
       detail: { carrots: (n) => `+${n} cà rốt`, rare: 'vật phẩm', epic: 'gói', jackpot: 'skin' },
       buffTitle: 'THƯỞNG TRONG NGÀY · NO BỤNG',
       buffBody: (max) => `Lượt đầu hôm nay nhân đôi cà rốt (tối đa +${max}).`,
-      buffIdle: 'Bắt đầu khi bạn mở hộp',
       buffActive: 'ĐANG BẬT đến nửa đêm - đi đào thôi!',
       buffUsed: (n) => `Đã dùng hôm nay: +${n} cà rốt`,
       gift: { mushroom: 'Nấm khổng lồ', pumpkin: 'Bí ngô may mắn', carrot: 'Cà rốt khổng lồ', scarecrow: 'Bù nhìn vàng' },
