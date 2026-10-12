@@ -111,7 +111,7 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-12',
     items: [
       {
-        kind: 'new',
+        kind: 'fix',
         text: {
           en: 'A Discord button in What’s New and in Settings: come say hi, report bugs, find rivals.',
           fr: 'Un bouton Discord dans Quoi de neuf et dans les Réglages : viens dire bonjour, signaler un bug, trouver des rivaux.',
