@@ -176,6 +176,7 @@ function pageHtml(): string {
     <header class="top">
       <a href="/"><img src="/assets/logo.png" alt="Rabbit Royale" /></a>
       <nav>
+        <a href="https://discord.gg/xCjMwUp8nK" target="_blank" rel="noopener">Discord</a>
         <a href="/play/" id="play">${esc(ui.play)}</a>
       </nav>
     </header>
@@ -191,6 +192,7 @@ ${CHANGELOG.map(releaseHtml).join('\n\n')}
 
     <footer>
       <span>&copy; 2026 Rabbit Royale</span>
+      <a href="https://discord.gg/xCjMwUp8nK" target="_blank" rel="noopener">Discord</a>
       <a href="/terms/">Terms</a>
       <a href="/privacy/">Privacy</a>
     </footer>

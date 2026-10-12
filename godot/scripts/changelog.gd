@@ -23,6 +23,9 @@ class_name Changelog
 
 ## PRELOAD : un `load()` d'un chemin n'est pas vu par l'exportateur (i18n.gd).
 const DATA := preload("res://assets/changelog.json")
+## LE DISCORD DES JOUEURS — QUOI DE NEUF et le pied des reglages y menent.
+## Une invitation permanente (le bot du serveur l'a creee, 2026-10-12).
+const DISCORD_URL := "https://discord.gg/xCjMwUp8nK"
 const SEEN_PATH := "user://changelog.cfg"
 
 static var _seen_cache := -2

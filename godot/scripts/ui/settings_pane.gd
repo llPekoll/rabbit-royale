@@ -89,8 +89,14 @@ func _init(k: float = 0.7) -> void:
 	_solo_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_solo_note.clip_text = false
 
-	# Le pied : rien a valider, tout s'enregistre au changement.
-	_rule(35, 611, 250, 2, Color("#2b6170"))
+	# Le pied : le Discord a gauche (a la place du filet de 05), rien a
+	# valider au milieu, la confidentialite a droite.
+	var discord := CampStyle.hit("Discord")
+	_place(discord, 35, 596, 250, 30)
+	var invite := CampStyle.text("Discord", 17 * M * _k, CampStyle.COPPER)
+	Kit.fill(invite)
+	discord.add_child(invite)
+	discord.pressed.connect(func() -> void: OS.shell_open(Changelog.DISCORD_URL))
 	_icon("icon-check-small", 300, 598, 28, 26)
 	_words["autosaved"] = _say(17, 338, 598, 570, 26, Color("#8fb3bd"))
 	if Analytics.backend() != "none" or Consent.needed:

@@ -111,6 +111,21 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-12',
     items: [
       {
+        kind: 'new',
+        text: {
+          en: 'A Discord button in What’s New and in Settings: come say hi, report bugs, find rivals.',
+          fr: 'Un bouton Discord dans Quoi de neuf et dans les Réglages : viens dire bonjour, signaler un bug, trouver des rivaux.',
+          zh: '“更新内容”和“设置”里新增 Discord 按钮：来打个招呼、反馈问题、寻找对手。',
+          'pt-BR': 'Um botão do Discord em Novidades e nas Configurações: venha dizer oi, reportar bugs, achar rivais.',
+          vi: 'Nút Discord trong mục Có gì mới và Cài đặt: ghé chào hỏi, báo lỗi, tìm đối thủ.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    items: [
+      {
         kind: 'tune',
         text: {
           en: 'The axe also knocks over signposts and scarecrows, and the fences touching a felled tree fall with it.',

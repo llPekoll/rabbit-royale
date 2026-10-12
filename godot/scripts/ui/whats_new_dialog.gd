@@ -8,7 +8,8 @@ extends Dialog
 ##   • les nouveautes et l'equilibrage d'abord, MAX_LINES au plus ;
 ##   • les corrections tiennent en une ligne (« + 6 fixes ») — seules, elles
 ##     n'ouvrent pas ce dialogue, la page web les garde.
-## TOUT VOIR ouvre rabbit.rip/changelog/?lang=<langue>#<version>.
+## TOUT VOIR ouvre rabbit.rip/changelog/?lang=<langue>#<version>, DISCORD le
+## serveur des joueurs (Changelog.DISCORD_URL) sans fermer le dialogue.
 ##
 ## Les mots (titre, boutons, etiquettes) viennent du changelog lui-meme
 ## (Changelog.ui), dans les cinq langues : src/changelog/entries.ts.
@@ -91,6 +92,13 @@ func _ready() -> void:
 			OS.shell_open(VersionTag.page_url_for(version))
 		closed.emit())
 	row.add_child(all)
+	# Le Discord : c'est la que la mise a jour se discute (et les bugs).
+	var discord := Kit.button("DISCORD", "blue", 0.0, BUTTON_H)
+	discord.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	discord.pressed.connect(func() -> void:
+		if open_page:
+			OS.shell_open(Changelog.DISCORD_URL))
+	row.add_child(discord)
 	var play := Kit.button(I18N.shout(Changelog.ui("play")), "gold", 0.0, BUTTON_H)
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	play.pressed.connect(func() -> void: closed.emit())
