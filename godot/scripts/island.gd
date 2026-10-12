@@ -108,6 +108,9 @@ var _back: BackButton
 ## Le mode X est-il arme ? Il tombe apres UN marquage (voir `setFlagMode` du
 ## web) : la tape suivante est de nouveau un pas.
 var _armed := false
+## La case que 3 ou Entree marquera, choisie aux fleches en mode X ; (-1,-1)
+## sans visee au clavier.
+var _key_target := Vector2i(-1, -1)
 ## Le compte du joueur — ce que `FirstRun.State` lit. Ses propres coups, pas
 ## ceux d'un autre : la bombe d'un inconnu n'est jamais la lecon du joueur.
 var _digs := 0
@@ -177,6 +180,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_reframe)
 	frame_camera(true)
 	_add_chrome()
+	var keys := KeySteer.new()
+	keys.step.connect(_key_step)
+	add_child(keys)
 	Screens.moved.connect(func(id: Screens.Place) -> void:
 		if id == Screens.Place.ISLAND:
 			_arrive())
@@ -878,6 +884,17 @@ func _reframe() -> void:
 ## l'instant du bouton). Le GUI ne consomme que la version souris, donc c'est
 ## elle, et elle seule, qui vaut une tape. Journal du Seeker, 2026-09-23.
 func _unhandled_input(event: InputEvent) -> void:
+	# LE X AU CLAVIER : 3 ou Entree le pose sur la case visee. Et la ou l'ile
+	# porte son propre bouton (le tutoriel), X ou 3 l'arme — le bouton du HUD,
+	# qui le fait ailleurs, n'y est pas.
+	if _armed and _key_target.x >= 0 and KeySteer.confirm(event):
+		get_viewport().set_input_as_handled()
+		_key_tap(_key_target)
+		return
+	if not _armed and _mark != null and _mark.is_visible_in_tree() and _arm_key(event):
+		get_viewport().set_input_as_handled()
+		_set_armed(true)
+		return
 	# LE PINCEMENT, sur les doigts BRUTS — la seule entree tactile lue ici :
 	# le glissement et la tape restent sur la souris emulee (voir plus haut).
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
@@ -905,6 +922,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion:
 		if _pressing and not _pinch.active():
 			_on_move(event.position)
+
+
+func _arm_key(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo or not KeySteer.enabled():
+		return false
+	return (key.keycode == KEY_X and not key.ctrl_pressed and not key.meta_pressed) or KeySteer.digit(event) == 3
 
 
 func _on_press(at: Vector2) -> void:
@@ -966,6 +990,45 @@ func _on_release(at: Vector2) -> void:
 	else:
 		_ring.pulse()
 		Sound.deny()
+	tile_tapped.emit(cell)
+
+
+## UN PAS AU CLAVIER (key_steer.gd) : la voisine dans le cap presse, puis la
+## meme route qu'une tape. Refuse
+## (falaise, arbre, mer), c'est la case exacte du cap qui recoit le NON, pour
+## que l'anneau et le buzz disent pourquoi. Jamais en regardant : le
+## spectateur n'a pas de lapin.
+func _key_step(dir: Vector2) -> void:
+	if _board == null or _watching():
+		return
+	var here := _me_cell()
+	# EN MODE X, la fleche DEPLACE LA VISEE, elle ne pose rien : 3 ou Entree
+	# valide (`_unhandled_input`). Rien de marquable dans ce cap : non.
+	if _armed:
+		var aim := KeySteer.neighbour(here, dir, func(c: Vector2i) -> bool: return _markable(here, c))
+		if aim.x < 0:
+			Sound.deny()
+			return
+		_key_target = aim
+		_ring.set_focus(aim)
+		return
+	var cell := KeySteer.neighbour(here, dir, func(c: Vector2i) -> bool: return _board.may_step(here, c))
+	if cell.x < 0:
+		cell = KeySteer.straight(here, dir)
+	_key_tap(cell)
+
+
+## LA TAPE DU CLAVIER : la meme route qu'un clic, sans la visee de l'eclair.
+func _key_tap(cell: Vector2i) -> void:
+	if _is_tutorial():
+		if not _done:
+			_tutorial_tap(cell)
+	elif local_run != null:
+		_local_tap(cell)
+	elif _remote:
+		_remote_tap(cell)
+	else:
+		return
 	tile_tapped.emit(cell)
 
 
@@ -1745,15 +1808,15 @@ func _refresh_ring() -> void:
 			if not _board.content.has(n):
 				continue
 			if _armed:
-				var st = _board.state.get(n)
-				if st == IslandBoard.State.DUG or st == IslandBoard.State.HINTED:
-					continue
-				if _board.is_flagged(n) or _board.content[n] == IslandBoard.Content.CHEST:
-					continue
-				lit.append(n)
+				if _markable(here, n):
+					lit.append(n)
 			elif _board.may_step(here, n) and not _board.is_flagged(n):
 				lit.append(n)
 	_ring.set_lit(lit, here, _armed)
+	# LA CASE VISEE AU CLAVIER tient tant qu'elle reste allumee.
+	if not _armed or not lit.has(_key_target):
+		_key_target = Vector2i(-1, -1)
+	_ring.set_focus(_key_target)
 
 
 func _refresh_compass() -> void:
@@ -1897,17 +1960,31 @@ func markable_count() -> int:
 	var here := _me_cell()
 	var n := 0
 	for c in _board._neighbours(here):
-		var st = _board.state.get(c)
-		if st == IslandBoard.State.DUG or st == IslandBoard.State.HINTED:
-			continue
-		if _board.is_flagged(c) or _board.content.get(c) == IslandBoard.Content.CHEST:
-			continue
-		n += 1
+		if _markable(here, c):
+			n += 1
 	return n
+
+
+## UN X PEUT-IL ALLER LA ? Une voisine de terre dont on ne sait encore rien :
+## ni creusee, ni lue, ni deja marquee, ni un coffre.
+func _markable(here: Vector2i, c: Vector2i) -> bool:
+	if _board == null or not _board.content.has(c) or not _board.is_beside(here, c):
+		return false
+	var st = _board.state.get(c)
+	if st == IslandBoard.State.DUG or st == IslandBoard.State.HINTED:
+		return false
+	return not _board.is_flagged(c) and _board.content[c] != IslandBoard.Content.CHEST
 
 
 func _set_armed(armed: bool) -> void:
 	_armed = armed
+	# ARME AU CLAVIER, une case est visee d'emblee — la plus haute a l'ecran ;
+	# les fleches la deplacent, 3 ou Entree y pose le X (`_key_step`).
+	_key_target = Vector2i(-1, -1)
+	if armed and KeySteer.keyboard_last and KeySteer.enabled() and _board != null:
+		var here := _me_cell()
+		_key_target = KeySteer.neighbour(here, Vector2(0, -1),
+			func(c: Vector2i) -> bool: return _markable(here, c), -2.0)
 	if _mark != null:
 		_mark.set_plank_tint(MarkBombButton.ARMED_TINT if armed else Color.WHITE)
 		_place_mark()

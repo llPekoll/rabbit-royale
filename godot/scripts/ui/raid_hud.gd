@@ -199,6 +199,21 @@ func _build() -> void:
 		(child as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 
+## LE CLAVIER (key_steer.gd) : 1 arme ou desarme la hache, comme son bouton ;
+## Echap la desarme.
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or not _axe_plate.visible:
+		return
+	var state := RaidState.current
+	var key := event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE and state.axe_armed:
+		state.arm_axe(false)
+		get_viewport().set_input_as_handled()
+	elif KeySteer.digit(event) == 1 and not _axe.disabled:
+		state.arm_axe(not state.axe_armed)
+		get_viewport().set_input_as_handled()
+
+
 ## Le bouton de la hache : le compte en sac, grise une fois celle du raid
 ## levee, en or quand elle est armee — comme les armes de l'ile.
 func _style_axe(state: RaidState, done: bool) -> void:

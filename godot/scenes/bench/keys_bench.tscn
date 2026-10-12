@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; Le banc du clavier — voir scripts/bench/keys_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/keys_bench.gd" id="1_bench"]
+
+[node name="KeysBench" type="Node"]
+script = ExtResource("1_bench")

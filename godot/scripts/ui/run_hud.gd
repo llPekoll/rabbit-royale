@@ -276,6 +276,27 @@ func _style_arm(b: Button, held: int, armed: bool) -> void:
 		b.add_theme_color_override(key, ink)
 
 
+## LE CLAVIER (key_steer.gd) : 1 arme l'eclair, 2 le bloop — la meme chose
+## que leurs boutons, donc rien quand le bouton est cache ou a zero. Une
+## seconde fois desarme (`set_aiming` bascule), Echap aussi.
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or not _arm_plate.visible:
+		return
+	var key := event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE \
+			and not RunState.current.aiming.is_empty():
+		RunState.current.set_aiming("")
+		get_viewport().set_input_as_handled()
+		return
+	var n := KeySteer.digit(event)
+	if n != 1 and n != 2:
+		return
+	if (_strike if n == 1 else _bloop).disabled:
+		return
+	RunState.current.set_aiming("strike" if n == 1 else "bloop")
+	get_viewport().set_input_as_handled()
+
+
 ## LA MISE EN PAGE : la bande a Kit.PAD_TIGHT sous la barre du haut (comme les
 ## pastilles du chrome), la ligne des spectateurs a 6px au-dessus de MARK A
 ## BOMB — le compte est l'avertissement, le bouton dessous la reponse.
@@ -404,8 +425,8 @@ func _refresh_plates() -> void:
 	if _arm_plate.visible:
 		_style_arm(_strike, int(state.bag.get("lightning", 0)), state.aiming == "strike")
 		_style_arm(_bloop, int(state.bag.get("bloop", 0)), state.aiming == "bloop")
-		_strike.tooltip_text = I18N.t("run.strike")
-		_bloop.tooltip_text = I18N.t("run.bloop")
+		_strike.tooltip_text = I18N.t("run.strike") + " [1]"
+		_bloop.tooltip_text = I18N.t("run.bloop") + " [2]"
 		var empty := int(state.bag.get("lightning", 0)) <= 0 and int(state.bag.get("bloop", 0)) <= 0
 		_buy.visible = empty
 		_buy.text = I18N.t("run.buyArms")

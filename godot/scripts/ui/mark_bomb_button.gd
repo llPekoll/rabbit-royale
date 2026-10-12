@@ -240,14 +240,17 @@ func _on_me() -> void:
 	_urge = not subject.is_empty() and energy > 0 and energy <= Tuning.i("ENERGY.BOMB_LOSS")
 
 
-## LE CLAVIER : X arme, Echap desarme — sans repetition, sans modificateur.
+## LE CLAVIER : X arme ou desarme, 3 (la rangee des actions — key_steer.gd)
+## arme seulement — arme, 3 POSE le X sur la case visee aux fleches, et c'est
+## l'ile qui le prend (island.gd `_unhandled_input`). Echap desarme. Sans
+## repetition, sans modificateur.
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey):
 		return
 	var key := event as InputEventKey
 	if not key.pressed or key.echo or key.ctrl_pressed or key.meta_pressed or key.alt_pressed:
 		return
-	if key.keycode == KEY_X:
+	if key.keycode == KEY_X or (KeySteer.digit(event) == 3 and not _armed):
 		RunState.current.set_flag_mode(not _armed)
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_ESCAPE and _armed:

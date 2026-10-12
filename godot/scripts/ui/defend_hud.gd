@@ -119,6 +119,15 @@ func _build() -> void:
 	column.add_child(_over)
 
 
+## LE CLAVIER (key_steer.gd) : 1 foudroie l'intrus, comme le bouton — donc
+## achete l'eclair d'abord quand la poche est vide, et rien quand il est eteint.
+func _unhandled_input(event: InputEvent) -> void:
+	if KeySteer.digit(event) != 1 or not is_visible_in_tree() or not _live.visible or _strike.disabled:
+		return
+	get_viewport().set_input_as_handled()
+	RaidState.current.buy_and_strike()
+
+
 func _reach_top() -> void:
 	offset_top = -get_viewport_rect().size.y
 	offset_bottom = 0.0

@@ -47,6 +47,10 @@ const SWEEP_STEP_SECONDS := 0.25
 const SWEEP_MIN_LAP_SECONDS := 1.6
 ## Le plein claque a 1, puis s'efface en une seconde.
 const BLINK_SECONDS := 1.0
+## La case visee au clavier bat entre ces deux pleins, un demi-tour chacun.
+const FOCUS_HIGH := 1.0
+const FOCUS_LOW := 0.6
+const FOCUS_BEAT_SECONDS := 0.45
 
 ## DANS LE BLOC : le sol a 1, le voile a 2, le chiffre a 3, le X a 4. L'anneau
 ## passe au-dessus de tout ce qui habille la case.
@@ -87,6 +91,10 @@ var _fades: Dictionary = {}
 var _lit: Array[Vector2i] = []
 var _sweep: Timer
 var _step := 0
+## LA CASE VISEE AU CLAVIER (key_steer.gd), (-1,-1) sans elle : pleine et
+## battante pendant que le balayage se tait — c'est elle que 3 ou Entree vise.
+var _focus := Vector2i(-1, -1)
+var _focus_tween: Tween
 
 static var _outline_tex: ImageTexture
 
@@ -144,6 +152,7 @@ func build(cells: Array[Vector2i]) -> void:
 
 
 func clear() -> void:
+	_drop_focus()
 	_stop_sweep()
 	for cell in _fades:
 		var t: Tween = _fades[cell]
@@ -163,8 +172,10 @@ func clear() -> void:
 
 
 ## ALLUME CES CASES, et rien d'autre. `centre` est la case du lapin, pour trier
-## le balayage par angle ; `risky` passe l'anneau au rouge du X.
+## le balayage par angle ; `risky` passe l'anneau au rouge du X. La case visee
+## au clavier tombe avec : l'appelant la repose (`set_focus`) si elle tient.
 func set_lit(cells: Array[Vector2i], centre: Vector2i, risky: bool = false) -> void:
+	_drop_focus()
 	_stop_sweep()
 	for cell in _lit:
 		if _outline.has(cell):
@@ -214,6 +225,40 @@ func _on_rise(cell: Vector2i) -> void:
 		m.visible = false
 
 
+## VISE UNE CASE ALLUMEE au clavier : son plein bat entre deux eclats au lieu
+## de s'effacer, et le balayage s'arrete pour qu'on ne lise qu'elle. (-1,-1)
+## rend l'anneau a son balayage.
+func set_focus(cell: Vector2i) -> void:
+	if cell == _focus:
+		return
+	_drop_focus()
+	if not _lit.has(cell) or not _blink.has(cell):
+		if not _lit.is_empty():
+			_sweep.start()
+		return
+	_focus = cell
+	_stop_sweep()
+	for c in _lit:
+		_kill_fade(c)
+		(_blink[c] as Sprite2D).modulate.a = 0.0
+	var b: Sprite2D = _blink[cell]
+	b.modulate.a = FOCUS_HIGH
+	_focus_tween = create_tween().set_loops()
+	_focus_tween.tween_property(b, "modulate:a", FOCUS_LOW, FOCUS_BEAT_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_focus_tween.tween_property(b, "modulate:a", FOCUS_HIGH, FOCUS_BEAT_SECONDS) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _drop_focus() -> void:
+	if _focus_tween != null and _focus_tween.is_valid():
+		_focus_tween.kill()
+	_focus_tween = null
+	if _blink.has(_focus):
+		(_blink[_focus] as Sprite2D).modulate.a = 0.0
+	_focus = Vector2i(-1, -1)
+
+
 ## FAIT CLIGNOTER TOUT L'ANNEAU D'UN COUP — la reponse a une tape hors de portee.
 func pulse() -> void:
 	for cell in _lit:
@@ -229,7 +274,7 @@ func _tick() -> void:
 
 ## UN ECLAIR D'OR : plein a 1, puis fondu vers 0 en une seconde.
 func _flash(cell: Vector2i) -> void:
-	if not _blink.has(cell):
+	if not _blink.has(cell) or cell == _focus:
 		return
 	var b: Sprite2D = _blink[cell]
 	if not b.visible:

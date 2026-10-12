@@ -194,6 +194,9 @@ func _ready() -> void:
 	# La tape d'une case va a ce que le mode en fait : un pas de raid, une
 	# bombe — hors mode, le decor.
 	tile_tapped.connect(_on_tile_tapped)
+	var keys := KeySteer.new()
+	keys.step.connect(_key_step)
+	add_child(keys)
 	# LA MAISON SUIT LE NIVEAU du terrier ; l'achat d'un niveau la fete
 	# (BurrowScene.ts `setLevel`). Ce plateau n'est jamais que le sien — la
 	# garde du web (« chez soi seulement ») est vraie par construction.
@@ -294,6 +297,19 @@ func _on_tile_tapped(cell: Vector2i) -> void:
 	# HORS MODE, LE CLIC EST POUR LE DECOR (voir « amenager ») : le lapin
 	# erre seul.
 	_decor_tap(cell)
+
+
+## UN PAS DE RAID AU CLAVIER (key_steer.gd) : la case de l'anneau dans le cap
+## presse. Hors raid, le lapin erre seul et le clavier ne le mene pas.
+func _key_step(dir: Vector2) -> void:
+	if not _in_raid or _walker_at < 0:
+		return
+	var cell := KeySteer.neighbour(BurrowLayout.cell_of(_walker_at), dir, func(c: Vector2i) -> bool:
+		return c.x >= 0 and c.x < BurrowLayout.COLS and _raid_steps.has(BurrowLayout.index(c)))
+	if cell.x >= 0:
+		_on_tile_tapped(cell)
+	else:
+		Sound.deny()
 
 
 ## UNE PORTE DES BATIMENTS, planche ou batiment : le chrome sait ou elle mene.

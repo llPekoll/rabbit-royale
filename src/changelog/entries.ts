@@ -111,6 +111,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'new',
         text: {
+          en: 'On the web, play with the keyboard: arrows or WASD to hop, 1 2 3 for your actions. In bomb mode, the arrows aim and 3 or Enter marks.',
+          fr: 'Sur le web, joue au clavier : flèches ou WASD pour sauter, 1 2 3 pour tes actions. En mode bombe, les flèches visent et 3 ou Entrée marque.',
+          zh: '网页版可以用键盘玩了：方向键或 WASD 移动，1 2 3 使用行动。标记炸弹时，方向键瞄准，按 3 或回车标记。',
+          'pt-BR': 'Na web, jogue pelo teclado: setas ou WASD para pular, 1 2 3 para suas ações. No modo bomba, as setas miram e 3 ou Enter marca.',
+          vi: 'Trên web, chơi bằng bàn phím: phím mũi tên hoặc WASD để nhảy, 1 2 3 cho các hành động. Ở chế độ bom, mũi tên để ngắm, 3 hoặc Enter để đánh dấu.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    items: [
+      {
+        kind: 'new',
+        text: {
           en: 'The axe: in a raid, chop one tree or one fence to break into a walled burrow. The stump regrows in 2 days.',
           fr: 'La hache : en raid, abats un arbre ou une clôture pour entrer dans un terrier muré. La souche repousse en 2 jours.',
           zh: '斧头：突袭时砍倒一棵树或一段围栏，闯入被围死的洞穴。树桩两天后重新长成树。',
