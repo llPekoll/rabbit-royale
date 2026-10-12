@@ -11,7 +11,11 @@ class_name Changelog
 ## reglage (`tune`) ouvre QUOI DE NEUF a l'arrivee au terrier et allume NEW.
 ## Des corrections seules (`fix`) montent la version sans rien dire.
 ##
-## LA DERNIERE VERSION VUE vit dans user://changelog.cfg. Sans ce fichier :
+## LA DERNIERE VERSION VUE vit dans user://changelog.cfg, comptee en
+## versions (`seen_count`) et non par son nom : le nom se recalcule (une
+## version de correctifs seuls est devenue v1.2.1), le nombre jamais, la
+## liste ne fait que grandir. L'ancienne cle `seen` = "v1.N" vaut N + 1 (avant
+## le 2026-10-12, chaque version montait d'un cran). Sans rien :
 ##   • un nouveau joueur (tuto a faire) est mis a jour en silence — il n'a
 ##     rien manque ;
 ##   • un joueur d'avant le changelog voit la derniere version seulement, pas
@@ -21,7 +25,7 @@ class_name Changelog
 const DATA := preload("res://assets/changelog.json")
 const SEEN_PATH := "user://changelog.cfg"
 
-static var _seen_cache := "?"
+static var _seen_cache := -2
 
 
 static func releases() -> Array:
@@ -52,36 +56,39 @@ static func text(item: Dictionary) -> String:
 	return String(texts.get(I18N.locale, texts.get(I18N.DEFAULT_LOCALE, "")))
 
 
-static func seen() -> String:
-	if _seen_cache == "?":
+## Combien de versions le joueur a vues ; -1 s'il n'en a jamais vu.
+static func seen() -> int:
+	if _seen_cache == -2:
 		var cfg := ConfigFile.new()
-		_seen_cache = String(cfg.get_value("changelog", "seen", "")) if cfg.load(SEEN_PATH) == OK else ""
+		_seen_cache = -1
+		if cfg.load(SEEN_PATH) == OK:
+			if cfg.has_section_key("changelog", "seen_count"):
+				_seen_cache = int(cfg.get_value("changelog", "seen_count"))
+			else:
+				var legacy := String(cfg.get_value("changelog", "seen", ""))
+				if legacy.begins_with("v1."):
+					_seen_cache = legacy.trim_prefix("v1.").to_int() + 1
 	return _seen_cache
 
 
 static func mark_seen() -> void:
 	var cfg := ConfigFile.new()
-	cfg.set_value("changelog", "seen", latest())
+	cfg.set_value("changelog", "seen_count", releases().size())
 	cfg.save(SEEN_PATH)
-	_seen_cache = latest()
+	_seen_cache = releases().size()
 
 
 ## Les versions que le joueur n'a pas vues, la plus recente d'abord.
 static func unseen() -> Array:
 	var all := releases()
 	var mark := seen()
-	if mark.is_empty():
+	if mark < 0:
 		# Premier lancement avec le changelog : voir la doc en tete.
 		if Island.tutorial_pending():
 			mark_seen()
 			return []
 		return all.slice(0, 1)
-	var out := []
-	for r in all:
-		if String(r["version"]) == mark:
-			break
-		out.append(r)
-	return out
+	return all.slice(0, maxi(all.size() - mark, 0))
 
 
 ## Faut-il prevenir ? Vrai si une version non vue porte du `new` ou du `tune`.

@@ -9,11 +9,13 @@
  *
  * ONE ENTRY PER PLAYER-VISIBLE PUSH, NEWEST FIRST. Prepend; never reorder or
  * delete — the version number is DERIVED from the position (the oldest entry
- * is v1.0, the next v1.1…), so the list is append-only history.
+ * is v1.0, the next v1.1…, a `fix`-only entry a patch like v1.2.1), so the
+ * list is append-only history.
  *
  * WHAT GETS ANNOUNCED. `new` and `tune` open WHAT'S NEW in the game and light
  * NEW on the version tag. A push of `fix` lines only is still written here —
- * it bumps the version and is listed on the page — but the game stays quiet.
+ * it bumps the patch (v1.2 → v1.2.1) and is listed on the page — but the game
+ * stays quiet.
  *
  * Write for players, not commits: what they will notice, in a short sentence.
  * Every line exists in every language; the compiler refuses a missing one.
@@ -392,7 +394,20 @@ export const CHANGELOG: Release[] = [
   },
 ];
 
-/** v1.0 for the oldest entry, then v1.1, v1.2… */
-export function versionAt(index: number, total: number = CHANGELOG.length): string {
-  return `v1.${total - 1 - index}`;
+/**
+ * v1.0 for the oldest entry, then v1.1, v1.2… A release of `fix` lines only
+ * is a patch of the one before it: v1.2, then v1.2.1, v1.2.2, then v1.3.
+ */
+export function versionAt(index: number, list: Release[] = CHANGELOG): string {
+  let minor = -1;
+  let patch = 0;
+  for (let i = list.length - 1; i >= index; i--) {
+    if (minor < 0 || list[i].items.some((c) => c.kind !== 'fix')) {
+      minor++;
+      patch = 0;
+    } else {
+      patch++;
+    }
+  }
+  return patch ? `v1.${minor}.${patch}` : `v1.${minor}`;
 }
