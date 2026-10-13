@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.7.3",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "The loading carrot in the browser lost its stray white pixel.",
+            "fr": "La carotte du chargement dans le navigateur a perdu son pixel blanc égaré.",
+            "zh": "浏览器加载画面的胡萝卜不再有多余的白色像素。",
+            "pt-BR": "A cenoura do carregamento no navegador perdeu o pixel branco perdido.",
+            "vi": "Củ cà rốt lúc tải trên trình duyệt đã hết điểm ảnh trắng lạc chỗ."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.7.2",
       "date": "2026-10-13",
       "items": [

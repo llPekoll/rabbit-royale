@@ -113,6 +113,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'fix',
         text: {
+          en: 'The loading carrot in the browser lost its stray white pixel.',
+          fr: 'La carotte du chargement dans le navigateur a perdu son pixel blanc égaré.',
+          zh: '浏览器加载画面的胡萝卜不再有多余的白色像素。',
+          'pt-BR': 'A cenoura do carregamento no navegador perdeu o pixel branco perdido.',
+          vi: 'Củ cà rốt lúc tải trên trình duyệt đã hết điểm ảnh trắng lạc chỗ.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    items: [
+      {
+        kind: 'fix',
+        text: {
           en: 'Buying in the browser works again, whichever wallet you have open.',
           fr: 'Acheter dans le navigateur remarche, quel que soit le portefeuille ouvert.',
           zh: '浏览器内购买恢复正常，无论打开的是哪个钱包。',
