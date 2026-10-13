@@ -42,6 +42,7 @@ export async function POST(req: Request) {
       'account wallet': player?.wallet ?? 'none',
       'paying wallet': text(body.payer, 60),
       quote: text(body.paymentId, 60),
+      signature: text(body.signature, 100),
       shown: text(body.shown, 300),
     },
   });

@@ -111,6 +111,21 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-13',
     items: [
       {
+        kind: 'fix',
+        text: {
+          en: 'A browser payment no longer shows "still confirming" when nothing was paid.',
+          fr: "Un paiement dans le navigateur n'affiche plus « encore en confirmation » quand rien n'a été payé.",
+          zh: '浏览器付款在未实际支付时不再显示“仍在确认”。',
+          'pt-BR': 'Um pagamento no navegador não mostra mais "ainda confirmando" quando nada foi pago.',
+          vi: 'Thanh toán trên trình duyệt không còn hiện "đang xác nhận" khi chưa trả gì.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    items: [
+      {
         kind: 'new',
         text: {
           en: 'On the season board and in your raid history, every name says if you can raid them, if they are in game to watch and strike, or how long their shield lasts. Tap to raid.',

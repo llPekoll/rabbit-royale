@@ -449,12 +449,14 @@ export type BroadcastFailure = 'bad_transaction' | 'send_failed';
  * It waits a little for the transfer to land (Alchemy has no
  * signatureSubscribe — see the note on PATCH /api/shop/pay), so that the one
  * read that follows usually finds it. Still not there → the caller's 202, and
- * the claim on the next shop opening credits it.
+ * the claim on the next shop opening credits it. The wait stays well under the
+ * client's 10 s (net.gd TIMEOUT_SECONDS): 15 s here made the confirm look
+ * "offline" to the player while the server was still waiting (2026-10-13).
  */
 export async function broadcastSignedTx(
   base64: string,
   reference: string,
-): Promise<{ ok: true; signature: string } | { ok: false; reason: BroadcastFailure }> {
+): Promise<{ ok: true; signature: string } | { ok: false; reason: BroadcastFailure; detail?: string }> {
   let tx: Transaction;
   try {
     tx = Transaction.from(Buffer.from(base64, 'base64'));
@@ -472,10 +474,11 @@ export async function broadcastSignedTx(
     signature = await conn.sendRawTransaction(tx.serialize(), { preflightCommitment: USDC.COMMITMENT });
   } catch (err) {
     console.warn('[pay] could not send the signed transfer', err);
-    return { ok: false, reason: 'send_failed' };
+    return { ok: false, reason: 'send_failed', detail: String((err as Error)?.message ?? err) };
   }
-  for (let i = 0; i < 10; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  console.info('[pay] relayed a signed transfer', signature);
+  for (let i = 0; i < 5; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     const status = await conn.getSignatureStatuses([signature]).catch(() => null);
     const seen = status?.value[0];
     if (seen?.err) break;

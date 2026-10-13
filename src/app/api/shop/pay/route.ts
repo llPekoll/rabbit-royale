@@ -18,6 +18,7 @@ import { and, desc, eq, lt, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { inventory, payments, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
+import { payAlert } from '@/lib/pay/alert';
 import { holdings, isShopKind, purchaseBlocker, purchaseUsdc } from '@/lib/game/inventory';
 import { grantItem, paidUsdcUnits } from '@/lib/game/grant';
 import { isPackKind, packBlocker, packUsdc } from '@/lib/game/packs';
@@ -269,7 +270,16 @@ export async function PATCH(req: Request) {
       return Response.json({ error: 'quote_expired' }, { status: 410 });
     }
     const sent = await broadcastSignedTx(body.signedTx, intent.reference);
-    if (!sent.ok) return Response.json({ error: sent.reason }, { status: 400 });
+    if (!sent.ok) {
+      // The client reports this too, but only we saw the RPC's own words.
+      payAlert({
+        title: 'Relay failed: ' + intent.kind,
+        playerId: session.sub,
+        reason: sent.reason + (sent.detail ? ': ' + sent.detail : ''),
+        fields: { rail: intent.token, quote: intent.id, wallet: session.wallet ?? 'none' },
+      });
+      return Response.json({ error: sent.reason }, { status: 400 });
+    }
     signature = sent.signature;
   }
 

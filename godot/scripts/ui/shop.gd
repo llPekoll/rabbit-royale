@@ -1291,6 +1291,7 @@ class UsdcPay:
 	var _rail := ""
 	var _payer := ""
 	var _payment_id := ""
+	var _signature := ""
 
 	## Rend la reponse du serveur sur un achat credite, {} sinon — `error` dit
 	## pourquoi, et reste vide sur un simple refus dans le wallet.
@@ -1304,6 +1305,7 @@ class UsdcPay:
 		_rail = rail
 		_payer = ""
 		_payment_id = ""
+		_signature = ""
 		if not Wallet.available():
 			return _fail(I18N.t("pay.noWallet"))
 		_to(Stage.QUOTING)
@@ -1340,6 +1342,7 @@ class UsdcPay:
 		# ouverture de l'etal, creditera.
 		# « signed: » : le wallet du navigateur a signe sans envoyer (son envoi
 		# a casse, voir shell.html) — c'est le serveur qui l'envoie.
+		_signature = "relayed by rr-ws" if signature.begins_with("signed:") else signature
 		var proof := {"signedTx": signature.substr(7)} if signature.begins_with("signed:") else {"signature": signature}
 		proof["paymentId"] = payment_id
 		var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH, proof, Session.token)
@@ -1390,7 +1393,7 @@ class UsdcPay:
 	func _report(where: String, why: String, shown: String) -> void:
 		Net.post_json("/api/shop/pay/failed", {
 			"kind": _kind, "rail": _rail, "stage": where, "reason": why, "shown": shown,
-			"payer": _payer, "paymentId": _payment_id,
+			"payer": _payer, "paymentId": _payment_id, "signature": _signature,
 			"platform": "web" if OS.has_feature("web") else OS.get_name().to_lower(),
 		}, Session.token)
 
