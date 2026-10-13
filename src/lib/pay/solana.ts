@@ -430,3 +430,56 @@ export async function buildPaymentTx(opts: {
 }
 
 const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+
+export type BroadcastFailure = 'bad_transaction' | 'send_failed';
+
+/**
+ * SEND a transfer the player's wallet SIGNED but did not send.
+ *
+ * The browser bridge falls back on this when the extension's own
+ * signAndSendTransaction breaks with nothing more than "Unexpected error"
+ * (Phantom's -32603, 2026-10-13) — the same transfer, signed by the player,
+ * sent through our RPC instead of the wallet's. Nothing here is trusted beyond
+ * that: the signature it returns still goes through verifyPayment like any
+ * other. Any wallet may sign it (see the note at the top), but it must carry
+ * the quote's reference in its memo: this is not a relay for any transaction
+ * someone wants sent, and an unsigned one is refused before it costs an RPC
+ * call.
+ *
+ * It waits a little for the transfer to land (Alchemy has no
+ * signatureSubscribe — see the note on PATCH /api/shop/pay), so that the one
+ * read that follows usually finds it. Still not there → the caller's 202, and
+ * the claim on the next shop opening credits it.
+ */
+export async function broadcastSignedTx(
+  base64: string,
+  reference: string,
+): Promise<{ ok: true; signature: string } | { ok: false; reason: BroadcastFailure }> {
+  let tx: Transaction;
+  try {
+    tx = Transaction.from(Buffer.from(base64, 'base64'));
+  } catch {
+    return { ok: false, reason: 'bad_transaction' };
+  }
+  const memo = tx.instructions.some((ix) => ix.programId.equals(MEMO_PROGRAM)
+    && Buffer.from(ix.data).toString('utf8') === reference);
+  if (!memo) return { ok: false, reason: 'bad_transaction' };
+  if (!tx.signature || !tx.verifySignatures()) return { ok: false, reason: 'bad_transaction' };
+
+  const conn = connection();
+  let signature: string;
+  try {
+    signature = await conn.sendRawTransaction(tx.serialize(), { preflightCommitment: USDC.COMMITMENT });
+  } catch (err) {
+    console.warn('[pay] could not send the signed transfer', err);
+    return { ok: false, reason: 'send_failed' };
+  }
+  for (let i = 0; i < 10; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const status = await conn.getSignatureStatuses([signature]).catch(() => null);
+    const seen = status?.value[0];
+    if (seen?.err) break;
+    if (seen?.confirmationStatus === 'confirmed' || seen?.confirmationStatus === 'finalized') break;
+  }
+  return { ok: true, signature };
+}

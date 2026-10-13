@@ -26,7 +26,7 @@ import { isSkinKind, ownsSkin, skinForKind, skinSaleBlocker } from '@/lib/game/s
 import { USDC, usdcBaseUnits } from '@config/tuning';
 import { PublicKey } from '@solana/web3.js';
 import {
-  buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled,
+  broadcastSignedTx, buildPaymentTx, cluster, findPaidSignature, mintFor, payEnabled,
   treasuryAddress,
   treasurySignatures,
   verifyPayment,
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   const treasury = treasuryAddress()!;
 
   const body = (await req.json().catch(() => ({}))) as {
-    kind?: unknown; qty?: unknown; token?: unknown; build?: unknown;
+    kind?: unknown; qty?: unknown; token?: unknown; build?: unknown; payer?: unknown;
   };
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden
   // boosts, and those have no price. Guarding on the wider set would let a
@@ -146,8 +146,21 @@ export async function POST(req: Request) {
    */
   let built: { tx: string; cluster: string } | null = null;
   if (body.build === true) {
+    // WHO PAYS: the wallet that is open in front of the player, not the one
+    // the account signed in with. Any wallet may pay (the memo binds the
+    // transfer to the quote, see verifyPayment) — a transfer built for the
+    // account's wallet could not be signed by another one, and Phantom only
+    // said "Unexpected error" (2026-10-13).
+    let payer = new PublicKey(session.wallet);
+    if (typeof body.payer === 'string' && body.payer !== '') {
+      try {
+        payer = new PublicKey(body.payer);
+      } catch {
+        return Response.json({ error: 'bad_request' }, { status: 400 });
+      }
+    }
     const result = await buildPaymentTx({
-      payer: new PublicKey(session.wallet),
+      payer,
       treasury,
       mint: mintFor(token),
       amount,
@@ -234,17 +247,31 @@ export async function PATCH(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as {
-    paymentId?: unknown; signature?: unknown;
+    paymentId?: unknown; signature?: unknown; signedTx?: unknown;
   };
-  if (typeof body.paymentId !== 'string' || typeof body.signature !== 'string') {
+  if (typeof body.paymentId !== 'string'
+    || (typeof body.signature !== 'string' && typeof body.signedTx !== 'string')) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
-  const signature = body.signature;
 
   const intent = await db.query.payments.findFirst({
     where: and(eq(payments.id, body.paymentId), eq(payments.playerId, session.sub)),
   });
   if (!intent) return Response.json({ error: 'unknown_payment' }, { status: 404 });
+
+  // SIGNED BUT NOT SENT: the browser wallet's own send broke, so the bridge
+  // asked it to sign only and hands the transfer to us (broadcastSignedTx).
+  // Only for a quote still open, and only a transfer carrying ITS reference.
+  let signature = typeof body.signature === 'string' ? body.signature : '';
+  if (typeof body.signedTx === 'string' && intent.status === 'pending') {
+    if (intent.expiresAt.getTime() < Date.now()) {
+      await db.update(payments).set({ status: 'expired' }).where(eq(payments.id, intent.id));
+      return Response.json({ error: 'quote_expired' }, { status: 410 });
+    }
+    const sent = await broadcastSignedTx(body.signedTx, intent.reference);
+    if (!sent.ok) return Response.json({ error: sent.reason }, { status: 400 });
+    signature = sent.signature;
+  }
 
   // Already credited. Answering OK rather than erroring makes the confirm step
   // idempotent, which it has to be: a player who loses their connection between
@@ -254,6 +281,8 @@ export async function PATCH(req: Request) {
     const state = await shopState(session.sub);
     return Response.json({ alreadyCredited: true, bought: { kind: intent.kind, qty: intent.qty }, ...state });
   }
+  // A signed transfer for a quote already over: nothing was sent, nothing to read.
+  if (!signature) return Response.json({ error: 'quote_expired' }, { status: 410 });
   // The rail comes from the INTENT, never from the request: it decides which
   // ledger the transfer is read from, and letting the client name it would let
   // a lamport transfer be checked against token balances (and pass by finding

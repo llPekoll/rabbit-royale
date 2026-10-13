@@ -1300,8 +1300,17 @@ class UsdcPay:
 		_to(Stage.QUOTING)
 		Analytics.track("begin_checkout", {"item_id": kind, "quantity": qty, "rail": rail})
 
-		var quote: Answer = await Net.post_json("/api/shop/pay",
-			{"kind": kind, "qty": qty, "token": rail, "build": true}, Session.token)
+		# N'IMPORTE QUEL WALLET PAIE. Dans le navigateur, celui qui est ouvert
+		# n'est pas forcement celui du compte (autre poste, autre compte
+		# Phantom) : le serveur construit la tx pour LUI, sinon le wallet ne
+		# peut pas la signer (« Unexpected error », 2026-10-13).
+		var order := {"kind": kind, "qty": qty, "token": rail, "build": true}
+		if OS.has_feature("web"):
+			var payer := await Wallet.address()
+			if payer.is_empty():
+				return _fail(Wallet.last_error)
+			order["payer"] = payer
+		var quote: Answer = await Net.post_json("/api/shop/pay", order, Session.token)
 		if not quote.ok or quote.body.has("error") or String(quote.body.get("tx", "")).is_empty():
 			return _fail(_quote_error(quote))
 
@@ -1318,8 +1327,11 @@ class UsdcPay:
 		# toutes les 2,5 s. Un 202
 		# veut dire « pas encore » : le webhook, ou le rattrapage a la prochaine
 		# ouverture de l'etal, creditera.
-		var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH,
-			{"paymentId": payment_id, "signature": signature}, Session.token)
+		# « signed: » : le wallet du navigateur a signe sans envoyer (son envoi
+		# a casse, voir shell.html) — c'est le serveur qui l'envoie.
+		var proof := {"signedTx": signature.substr(7)} if signature.begins_with("signed:") else {"signature": signature}
+		proof["paymentId"] = payment_id
+		var res: Answer = await Net.send_json("/api/shop/pay", HTTPClient.METHOD_PATCH, proof, Session.token)
 		if res.ok and not res.body.has("error"):
 			_to(Stage.DONE)
 			var shop := ShopState.shared()

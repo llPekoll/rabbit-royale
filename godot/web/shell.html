@@ -336,21 +336,43 @@ window.rrWalletWeb = (function () {
 		// wallet de l'extension veut un objet Transaction, pas des octets :
 		// web3.js est charge au PREMIER paiement (jsdelivr), jamais au boot —
 		// ~140 Ko gzip pour une boutique que la plupart n'ouvrent pas.
+		//
+		// N'importe quel wallet paie : la tx est construite pour celui qui est
+		// OUVERT (shop.gd lui demande son adresse avant le devis), pas pour
+		// celui du compte. Et si signAndSendTransaction casse quand meme sans
+		// raison (Phantom « Unexpected error », -32603, 2026-10-13), on lui
+		// redemande de SIGNER seulement, et c'est le serveur qui envoie
+		// (« signed:<base64> », PATCH /api/shop/pay `signedTx`).
 		send: function (txBase64, _cluster, cb) {
 			const w = provider();
 			if (!w || !w.signAndSendTransaction) return setTimeout(function () { cb('', ''); }, 0);
+			let tx = null;
 			loadWeb3()
 				.then(function (web3) {
 					const bytes = Uint8Array.from(atob(txBase64), function (c) { return c.charCodeAt(0); });
-					return Promise.resolve(w.connect()).then(function () {
-						return w.signAndSendTransaction(web3.Transaction.from(bytes));
+					tx = web3.Transaction.from(bytes);
+					return Promise.resolve(w.connect());
+				})
+				.then(function () {
+					return w.signAndSendTransaction(tx).then(function (r) {
+						const sig = (r && r.signature) || r;
+						return typeof sig === 'string' ? sig : base58(new Uint8Array(sig));
+					}, function (e) {
+						if (reason(e) === '' || !w.signTransaction) throw e;
+						console.warn('[wallet] signAndSendTransaction failed, signing only', e);
+						return Promise.resolve(w.signTransaction(tx)).then(function (signed) {
+							const raw = signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+							let bin = '';
+							for (let i = 0; i < raw.length; i++) bin += String.fromCharCode(raw[i]);
+							return 'signed:' + btoa(bin);
+						});
 					});
 				})
-				.then(function (r) {
-					const sig = (r && r.signature) || r;
-					cb(typeof sig === 'string' ? sig : base58(new Uint8Array(sig)), '');
-				})
-				.catch(function (e) { cb('', reason(e)); });
+				.then(function (sig) { cb(sig, ''); })
+				.catch(function (e) {
+					console.warn('[wallet] payment failed', e);
+					cb('', reason(e));
+				});
 		},
 		sign: function (message, cb) {
 			const w = provider();

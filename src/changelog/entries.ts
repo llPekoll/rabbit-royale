@@ -113,6 +113,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'fix',
         text: {
+          en: 'Buying in the browser works again, whichever wallet you have open.',
+          fr: 'Acheter dans le navigateur remarche, quel que soit le portefeuille ouvert.',
+          zh: '浏览器内购买恢复正常，无论打开的是哪个钱包。',
+          'pt-BR': 'Comprar no navegador voltou a funcionar, com qualquer carteira aberta.',
+          vi: 'Mua hàng trên trình duyệt đã hoạt động trở lại, với bất kỳ ví nào đang mở.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    items: [
+      {
+        kind: 'fix',
+        text: {
           en: 'The game no longer crashes when you leave an island with the bomb mark still armed.',
           fr: 'Le jeu ne plante plus quand tu quittes une île avec le marquage de bombe encore armé.',
           zh: '在炸弹标记仍处于开启状态时离开小岛，游戏不再崩溃。',

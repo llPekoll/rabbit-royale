@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.7.2",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Buying in the browser works again, whichever wallet you have open.",
+            "fr": "Acheter dans le navigateur remarche, quel que soit le portefeuille ouvert.",
+            "zh": "浏览器内购买恢复正常，无论打开的是哪个钱包。",
+            "pt-BR": "Comprar no navegador voltou a funcionar, com qualquer carteira aberta.",
+            "vi": "Mua hàng trên trình duyệt đã hoạt động trở lại, với bất kỳ ví nào đang mở."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.7.1",
       "date": "2026-10-13",
       "items": [
