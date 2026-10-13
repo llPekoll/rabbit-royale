@@ -1939,6 +1939,23 @@ func _on_screen() -> bool:
 func _exit_tree() -> void:
 	if _on_screen() and _mark != null and _mark.visible:
 		RunState.current.set_island_owns_mark(false)
+	_unplug()
+
+
+## DEBRANCHER L'ILE DE CE QUI LUI SURVIT. Screens la retire de l'arbre puis la
+## libere en fin d'image (`_clear`) : entre les deux, RunState, Screens, I18N
+## et le viewport l'appelaient encore, et `get_viewport()` y est nul. En debug
+## une erreur rouge ; en release un SIGSEGV (Crashlytics, 2026-10-13 : le HUD
+## desarme le X en se cachant, `flag_mode_changed` -> `_place_mark` ->
+## `get_visible_rect` sur rien). L'ile ne revient jamais dans l'arbre.
+func _unplug() -> void:
+	for c in get_incoming_connections():
+		var sig: Signal = c["signal"]
+		var from := sig.get_object()
+		if from is Node and (from == self or is_ancestor_of(from)):
+			continue
+		if sig.is_connected(c["callable"]):
+			sig.disconnect(c["callable"])
 
 
 ## PAS DE RETOUR PENDANT LE TUTORIEL : la lecon se fait d'un bout a l'autre,

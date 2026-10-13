@@ -108,6 +108,21 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-13',
+    items: [
+      {
+        kind: 'fix',
+        text: {
+          en: 'The game no longer crashes when you leave an island with the bomb mark still armed.',
+          fr: 'Le jeu ne plante plus quand tu quittes une île avec le marquage de bombe encore armé.',
+          zh: '在炸弹标记仍处于开启状态时离开小岛，游戏不再崩溃。',
+          'pt-BR': 'O jogo não trava mais quando você sai de uma ilha com a marcação de bomba ainda armada.',
+          vi: 'Trò chơi không còn bị văng khi bạn rời đảo lúc chế độ đánh dấu bom vẫn đang bật.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-12',
     items: [
       {
