@@ -1286,6 +1286,11 @@ class UsdcPay:
 	signal changed
 	var stage: Stage = Stage.IDLE
 	var error := ""
+	# Ce qui part avec un echec (_report) : l'achat en cours.
+	var _kind := ""
+	var _rail := ""
+	var _payer := ""
+	var _payment_id := ""
 
 	## Rend la reponse du serveur sur un achat credite, {} sinon — `error` dit
 	## pourquoi, et reste vide sur un simple refus dans le wallet.
@@ -1295,6 +1300,10 @@ class UsdcPay:
 			return {}
 		if not Session.signed_in():
 			return {}
+		_kind = kind
+		_rail = rail
+		_payer = ""
+		_payment_id = ""
 		if not Wallet.available():
 			return _fail(I18N.t("pay.noWallet"))
 		_to(Stage.QUOTING)
@@ -1308,17 +1317,19 @@ class UsdcPay:
 		if OS.has_feature("web"):
 			var payer := await Wallet.address()
 			if payer.is_empty():
-				return _fail(Wallet.last_error)
+				return _fail_wallet(Wallet.last_error)
 			order["payer"] = payer
+			_payer = payer
 		var quote: Answer = await Net.post_json("/api/shop/pay", order, Session.token)
 		if not quote.ok or quote.body.has("error") or String(quote.body.get("tx", "")).is_empty():
-			return _fail(_quote_error(quote))
+			return _fail(_quote_error(quote), "quote: " + _code(quote))
+		_payment_id = String(quote.body.get("paymentId", ""))
 
 		_to(Stage.SIGNING)
 		var signature := await Wallet.send(String(quote.body["tx"]), String(quote.body.get("cluster", "mainnet-beta")))
 		if signature.is_empty():
 			# Fermer la feuille n'est pas une panne : on ne dit rien.
-			return _fail(Wallet.last_error)
+			return _fail_wallet(Wallet.last_error)
 
 		_to(Stage.CONFIRMING)
 		var payment_id := String(quote.body.get("paymentId", ""))
@@ -1345,18 +1356,47 @@ class UsdcPay:
 			_to(Stage.IDLE)
 			return res.body
 		if not bool(res.body.get("retry", false)) and res.error() != "offline":
-			return _fail(_confirm_error(res))
-		return _fail(I18N.t("pay.stillConfirming"))
+			return _fail(_confirm_error(res), "confirm: " + _code(res))
+		return _fail(I18N.t("pay.stillConfirming"), "confirm: " + _code(res))
 
 	func _to(s: Stage) -> void:
 		stage = s
 		changed.emit()
 
-	func _fail(text: String) -> Dictionary:
-		Analytics.track("purchase_error", {"stage": Stage.keys()[stage].to_lower(), "reason": text})
+	## `reason` = ce qui s'est VRAIMENT passe (code serveur, mots du wallet),
+	## pour nous ; `text` = ce que le joueur lit. Un refus (les deux vides)
+	## ne part nulle part.
+	func _fail(text: String, reason: String = "") -> Dictionary:
+		var why := reason if not reason.is_empty() else text
+		var where := String(Stage.keys()[stage]).to_lower()
+		Analytics.track("purchase_error", {"stage": where, "reason": why.left(100)})
+		if not why.is_empty():
+			_report(where, why, text)
 		error = text
 		_to(Stage.IDLE)
 		return {}
+
+	## Le wallet a casse (pas un refus : celui-la arrive vide). Ses mots a lui
+	## (« Unexpected error ») ne disent rien au joueur : on lui dit quoi faire,
+	## et ses mots partent dans l'alerte.
+	func _fail_wallet(raw: String) -> Dictionary:
+		if raw.is_empty():
+			return _fail("")
+		return _fail(I18N.t("pay.walletFailed"), "wallet: " + raw)
+
+	## L'ALERTE (#payment-alerts sur Discord, via rr-ws) : quel que soit le
+	## consentement analytics, et sans attendre — un echec qui ne peut pas
+	## etre signale ne doit rien bloquer de plus.
+	func _report(where: String, why: String, shown: String) -> void:
+		Net.post_json("/api/shop/pay/failed", {
+			"kind": _kind, "rail": _rail, "stage": where, "reason": why, "shown": shown,
+			"payer": _payer, "paymentId": _payment_id,
+			"platform": "web" if OS.has_feature("web") else OS.get_name().to_lower(),
+		}, Session.token)
+
+	static func _code(answer: Answer) -> String:
+		var code := answer.error()
+		return "%s (HTTP %d)" % [code if not code.is_empty() else "?", answer.status]
 
 	## Le mot d'une cotation refusee. Les refus du wallet (pas assez, pas de
 	## compte de jeton) arrivent AVANT la feuille : le serveur a lu le solde.

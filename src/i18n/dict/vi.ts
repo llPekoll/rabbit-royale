@@ -622,6 +622,7 @@ export const vi: Dict = {
     noToken: (symbol: string) => 'Ví này không có ' + symbol + '. Thử loại tiền khác.',
     linkWallet: 'Liên kết ví với hang của bạn để trả bằng tiền.',
     expired: 'Giá này đã hết hạn. Chạm lại để lấy giá mới.',
+    walletFailed: 'Ví của bạn không gửi được khoản thanh toán. Hãy mở ví, kiểm tra đã mở khóa, rồi thử lại.',
   },
 
   kit: {

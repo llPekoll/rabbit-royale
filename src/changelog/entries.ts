@@ -113,6 +113,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'fix',
         text: {
+          en: 'When a wallet fails to pay, the game now says what to do instead of a bare error.',
+          fr: "Quand un portefeuille n'arrive pas à payer, le jeu dit maintenant quoi faire au lieu d'une erreur brute.",
+          zh: '钱包付款失败时，游戏现在会告诉你该怎么做，而不是只显示错误。',
+          'pt-BR': 'Quando uma carteira não consegue pagar, o jogo agora diz o que fazer em vez de um erro seco.',
+          vi: 'Khi ví không thanh toán được, trò chơi giờ sẽ hướng dẫn bạn thay vì chỉ báo lỗi.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    items: [
+      {
+        kind: 'fix',
+        text: {
           en: 'The loading carrot in the browser lost its stray white pixel.',
           fr: 'La carotte du chargement dans le navigateur a perdu son pixel blanc égaré.',
           zh: '浏览器加载画面的胡萝卜不再有多余的白色像素。',

@@ -616,6 +616,7 @@ export const zh: Dict = {
     noToken: (symbol: string) => '此钱包没有 ' + symbol + '。换一种货币试试。',
     linkWallet: '将钱包绑定到你的兔窝即可用钱支付。',
     expired: '该报价已过期。再点一次获取新报价。',
+    walletFailed: '钱包未能发送这笔付款。请打开钱包，确认已解锁，然后重试。',
   },
 
   kit: {

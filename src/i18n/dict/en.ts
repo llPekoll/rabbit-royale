@@ -737,6 +737,7 @@ export const en = {
     noToken: (symbol: string) => 'No ' + symbol + ' in this wallet. Try another currency.',
     linkWallet: 'Link a wallet to your burrow to pay with money.',
     expired: 'That price expired. Tap again for a fresh one.',
+    walletFailed: 'Your wallet could not send the payment. Open it, check it is unlocked, then try again.',
   },
 
   /* ── What you are carrying ────────────────────────────────────────────── */

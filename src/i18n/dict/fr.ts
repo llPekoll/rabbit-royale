@@ -617,6 +617,7 @@ export const fr: Dict = {
     noToken: (symbol: string) => 'Pas de ' + symbol + ' dans ce portefeuille. Essaie une autre monnaie.',
     linkWallet: 'Relie un portefeuille à ton terrier pour payer en argent.',
     expired: 'Ce prix a expiré. Retape pour en avoir un nouveau.',
+    walletFailed: "Ton portefeuille n'a pas pu envoyer le paiement. Ouvre-le, vérifie qu'il est déverrouillé, puis réessaie.",
   },
 
   kit: {

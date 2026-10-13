@@ -621,6 +621,7 @@ export const ptBR: Dict = {
     noToken: (symbol: string) => 'Nenhum ' + symbol + ' nesta carteira. Tente outra moeda.',
     linkWallet: 'Vincule uma carteira à sua toca para pagar com dinheiro.',
     expired: 'Esse preço expirou. Toque de novo para um novo.',
+    walletFailed: 'Sua carteira não conseguiu enviar o pagamento. Abra-a, confira se está desbloqueada e tente de novo.',
   },
 
   kit: {
