@@ -29,6 +29,10 @@ extends Dialog
 ##     effacer une pastille que le joueur n'a jamais regardee. Les lignes
 ##     encore non lues portent NEW : la pastille rouge promettait des
 ##     nouvelles, la liste doit dire lesquelles.
+##   • CHAQUE NOM DU JOURNAL DIT SI ON PEUT LE RAIDER (2026-10-13) : le
+##     verdict du serveur (`raids.doors`, RaidDoor) sous le nom — attaquable,
+##     en jeu a regarder, ou le temps avant que son bouclier tombe — et le
+##     bouton qui va avec : RAID (REVENGE sur une dette), REGARDER, les deux.
 ##   • CHAQUE RAID SUBI EST UNE DETTE jusqu'a ce qu'on reprenne quelque chose
 ##     au voleur (`avengedAt`) ; une ligne reglee est barree et perd son
 ##     bouton, une ligne ouverte porte REVENGE NOW et le point de presence.
@@ -41,6 +45,9 @@ extends Dialog
 
 ## Aller rendre un raid a ce joueur — le chrome ouvre les cibles.
 signal revenge(player_id: String)
+
+## Regarder sa run : il creuse, et de son ile on le foudroie ou on l'encre.
+signal watch(player_id: String)
 
 ## Le nom ou l'avatar viennent d'etre sauves ; Session.player est deja a jour.
 signal updated(patch: Dictionary)
@@ -122,6 +129,9 @@ var _history_failed := false
 var _history_asked := false
 ## Combien de raids etaient NON LUS quand l'historique est arrive.
 var _new_raids := 0
+## Peut-on raider chaque nom du journal, par id (RaidDoor, date a l'arrivee) ;
+## null quand ce joueur ne peut raider personne (niveau, solo).
+var _doors: Variant = null
 ## Ou sont les voleurs, par id — pousse par la socket tant que l'onglet est la.
 var _presence: Dictionary = {}
 ## Les pastilles de presence de l'historique affiche, par joueur : une
@@ -813,18 +823,35 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 	bg.size = row.custom_minimum_size
 	row.add_child(bg)
 	_icon("icon-swords-small", 12, 7, 34, 34, row, o)
-	var who := _say(_who_line(r), 55, 0, 240, 48, 18, CampStyle.TEXT, false, row, o)
+	var other_id := String(r.get("otherId", ""))
+	# PEUT-ON LE RAIDER : le verdict du serveur, quand ce joueur peut raider.
+	var door: Dictionary = _doors.get(other_id, {}) if _doors is Dictionary else {}
+	var where := String(_presence.get(other_id, door.get("presence", "away")))
+	var raid_ok := RaidDoor.can_raid(door) if not door.is_empty() else (owed and not paid)
+	var watch_ok := not door.is_empty() and RaidDoor.can_watch(door, where)
+	# Le nom en haut, le verdict dessous ; sans verdict, le nom au milieu.
+	var who := _say(_who_line(r), 55, 2 if not door.is_empty() else 0, 240, 26 if not door.is_empty() else 48, 18, CampStyle.TEXT, false, row, o)
+	if not door.is_empty():
+		var tone := RaidDoor.tone(door, where)
+		var ink: Color = {"raid": CampStyle.GOOD, "watch": Color("#8fd3ff"), "wait": Palette.LAMP}.get(tone, CampStyle.MUTED)
+		var said := _say(RaidDoor.line(door, where), 55, 26, 297 if (raid_ok or watch_ok) else 365, 20, 13, ink, false, row, o)
+		said.clip_text = true
+		said.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var action := String(r.get("kind", "burrow"))
 	var looted := int(r.get("carrotsLooted", 0))
 	var loot := action == "burrow" and String(r.get("result", "")) != "blocked" and looted > 0
-	# Une dette ouverte laisse la place de l'heure a son bouton : le
-	# montant recule d'autant.
+	# Un bouton ouvert (RAID, REVENGE, REGARDER) prend la place de l'heure :
+	# le montant recule d'autant.
 	var debt := owed and not paid
-	var shift := 105.0 if debt else 0.0
-	var what := _say(("%s%d" % ["-" if owed else "+", looted]) if loot else _what_line(r), (290 if loot else 240) - shift + (30 if debt and loot else 0), 0, 105 if loot else 155, 48, 20 if loot else 15, CampStyle.BAD if owed else CampStyle.GOOD, false, row, o)
+	var acts := raid_ok or watch_ok
+	var shift := 105.0 if acts else 0.0
+	# Avec un verdict, le montant monte sur la ligne du nom : le verdict
+	# prend toute la largeur dessous.
+	var two := not door.is_empty()
+	var what := _say(("%s%d" % ["-" if owed else "+", looted]) if loot else _what_line(r), (290 if loot else 240) - shift + (30 if acts and loot else 0), 2 if two else 0, 105 if loot else 155, 26 if two else 48, (17 if two else 20) if loot else 15, CampStyle.BAD if owed else CampStyle.GOOD, false, row, o)
 	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if loot:
-		_icon("icon-carrot-small", 398 - shift + (30 if debt else 0), 9, 26, 30, row, o)
+		_icon("icon-carrot-small", 398 - shift + (30 if acts else 0), 3 if two else 9, 22 if two else 26, 24 if two else 30, row, o)
 	var when := _say(_ago(String(r.get("createdAt", ""))), 425, 0, 70, 48, 16, CampStyle.MUTED, false, row, o)
 	when.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	if paid:
@@ -836,8 +863,6 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 	elif owed:
 		# Ou ils sont MAINTENANT — le fait qui decide si riposter ce soir est
 		# une promenade ou un combat.
-		var other_id := String(r.get("otherId", ""))
-		var where := String(_presence.get(other_id, "away"))
 		var dot := Kit.panel(_dot_style(where))
 		dot.tooltip_text = I18N.t("raid.presence." + where)
 		_put(dot, 40, 6, 9, 9, row, o)
@@ -848,23 +873,41 @@ func _raid_row(r: Dictionary, owed: bool, paid: bool, fresh: bool) -> Control:
 		var tag := Kit.panel(_news_style())
 		tag.add_child(Kit.label("NEW", maxi(8, roundi(12 * _k)), Palette.SOIL_DEEP))
 		_put(tag, 4, -2, 30, 16, row, o)
-	if owed and not paid:
-		# La dette : le bouton prend la place de l'heure.
-		when.hide()
-		var b := CampStyle.hit("Revenge")
-		_put(b, 357, 7, 141, 34, row, o)
-		var frame := CampStyle.nine("outline", _k)
-		frame.size = b.size
-		b.add_child(frame)
-		var words := _say(I18N.t("profile.revenge"), 357, 7, 141, 34, 14, CampStyle.COPPER, false, b, Vector2(357, 7))
-		words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var other := String(r.get("otherId", ""))
-		b.tooltip_text = _ago(String(r.get("createdAt", "")))
-		b.pressed.connect(func() -> void:
-			# Le raid se joue sur le plateau derriere : le panneau s'ecarte.
+	if not acts:
+		# Une porte fermee se dit aussi au curseur : le sens interdit.
+		if not door.is_empty():
+			row.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
+		return row
+	# Les gestes ouverts prennent la place de l'heure : un seul tient toute la
+	# case, les deux se la partagent.
+	when.hide()
+	var tooltip := _ago(String(r.get("createdAt", "")))
+	if raid_ok:
+		var words := I18N.t("profile.revenge") if debt and not watch_ok else I18N.shout(I18N.t("raid.raidIt"))
+		_act_button("Revenge" if debt else "Raid", words, 357, 141 if not watch_ok else 70, row, tooltip, func() -> void:
+			# Le raid se joue au terrier : le panneau s'ecarte.
 			closed.emit()
-			revenge.emit(other))
+			revenge.emit(other_id))
+	if watch_ok:
+		_act_button("Watch", I18N.shout(I18N.t("raid.watchIt")), 357 if not raid_ok else 430, 141 if not raid_ok else 68, row, tooltip, func() -> void:
+			closed.emit()
+			watch.emit(other_id))
 	return row
+
+
+## UN GESTE de la ligne de raid, dans la case de l'heure (357..498).
+func _act_button(node_name: String, words: String, x: float, w: float, row: Control, tooltip: String, act: Callable) -> void:
+	var o := Vector2.ZERO
+	var b := CampStyle.hit(node_name)
+	_put(b, x, 7, w, 34, row, o)
+	var frame := CampStyle.nine("outline", _k)
+	frame.size = b.size
+	b.add_child(frame)
+	var label := _say(words, x, 7, w, 34, 14 if w > 100 else 11, CampStyle.COPPER, false, b, Vector2(x, 7))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.clip_text = true
+	b.tooltip_text = tooltip
+	b.pressed.connect(act)
 
 
 func _purchase_row(p: Dictionary) -> Control:
@@ -903,6 +946,12 @@ func show_history(history: Dictionary) -> void:
 	_offline = _offline or not Session.signed_in()
 	_history = history
 	_history_failed = false
+	var doors: Variant = (history.get("raids", {}) as Dictionary).get("doors") if history.get("raids") is Dictionary else null
+	_doors = null
+	if doors is Dictionary:
+		_doors = {}
+		for id in doors:
+			_doors[String(id)] = RaidDoor.stamp(doors[id])
 	_history_asked = true
 	var raids: Dictionary = history.get("raids", {}) if history.get("raids") is Dictionary else {}
 	_new_raids = int(raids.get("unseen", 0))
@@ -1261,7 +1310,7 @@ func _follow_raiders() -> void:
 	if not raids is Dictionary:
 		return
 	var ids := {}
-	for r in raids.get("against", []):
+	for r in raids.get("against", []) + raids.get("by", []):
 		ids[String(r.get("otherId", ""))] = true
 	if ids.is_empty():
 		return
@@ -1310,5 +1359,6 @@ static func open(tab: Tab = Tab.PROFILE) -> Profile:
 	var dialog := Profile.new()
 	dialog._tab = tab
 	dialog.revenge.connect(Chrome.current.revenge)
+	dialog.watch.connect(Chrome.current.watch)
 	Chrome.current.open(dialog)
 	return dialog

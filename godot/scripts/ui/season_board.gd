@@ -21,6 +21,11 @@ extends Dialog
 ##     l'id (`spectate`), et c'est la page qui traverse. Inerte pour soi-meme
 ##     et pour qui n'est pas sur une ile — un spectate qui atterrit sur un
 ##     plateau vide est l'erreur `not_playing` deguisee en fonction.
+##   • UNE LIGNE DIT SI ON PEUT LE RAIDER (2026-10-13). Sous chaque nom, le
+##     verdict du serveur (`raid`, RaidDoor) : attaquable, en jeu a regarder,
+##     ou le temps avant que son bouclier tombe. Le tap RAIDE quand la porte
+##     est ouverte, et REGARDE sinon quand il creuse ; les deux a la fois
+##     ajoutent un petit REGARDER au bout de la ligne.
 ##   • LA LIGNE DU JOUEUR EST UN PETIT CADRE A ELLE, dans la chaleur qu'elle a
 ##     toujours eue — trouvee d'un coup d'oeil dans une liste de cinquante.
 ##   • LE TABLEAU RAPPORTE VOTRE RANG (`me_changed`) : la pastille affiche le
@@ -39,6 +44,10 @@ extends Dialog
 
 ## Regarder la run de ce joueur — le chrome decide ce que ca veut dire.
 signal spectate(player_id: String)
+
+## Raider le terrier de ce joueur (chrome.gd `revenge`, la meme porte que le
+## journal du profil).
+signal raid(player_id: String)
 
 ## Votre rang et l'ecart au rang au-dessus, tels que /api/leaderboard les
 ## rend. -1 quand il n'y a rien : pas classe, ou #1 sans personne a rattraper.
@@ -97,6 +106,14 @@ const GOLD_ON_PAPER := Color("#9a6400")
 ## Le titre descend jusque-la pour tenir entre la couronne et le compte a
 ## rebours ; en dessous il s'abrege.
 const TITLE_MIN := 10
+## Les encres du verdict sur le parchemin : vert pour y aller, bleu pour
+## regarder, or pour une attente, ecorce pour rien.
+const DOOR_INK := {
+	"raid": Color("#3f7a12"),
+	"watch": Color("#1f5f8b"),
+	"wait": GOLD_ON_PAPER,
+	"shut": Color(Palette.BARK, 0.7),
+}
 
 var _list: VBoxContainer
 var _scroll: ScrollContainer
@@ -212,7 +229,13 @@ func refresh() -> void:
 func show_rows(entries: Array, me: Dictionary = {}, season: Dictionary = {}) -> void:
 	_offline = _offline or not Session.signed_in()
 	_loaded = true
-	_entries = entries
+	# Les verdicts de raid dates a l'arrivee : leur attente se decompte d'ici.
+	_entries = []
+	for e in entries:
+		if e is Dictionary:
+			var row: Dictionary = e.duplicate()
+			row["raid"] = RaidDoor.stamp(e.get("raid"))
+			_entries.append(row)
 	_me = me
 	_season = season
 	_report_me()
@@ -270,6 +293,9 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 	var crowned := bool(e.get("crowned", false))
 	var digging := bool(e.get("digging", false))
 	var me := id == mine and not mine.is_empty()
+	var door: Dictionary = {} if me else e.get("raid", {})
+	var raid_ok := not door.is_empty() and RaidDoor.can_raid(door)
+	var watch_ok := digging and not me and (door.is_empty() or RaidDoor.can_watch(door, "digging"))
 	var on_podium := rank <= PODIUM
 	var lead := _lead_size(roomy)
 
@@ -327,36 +353,68 @@ func _make_row(e: Dictionary, index: int, mine: String, roomy: bool) -> Control:
 		# Le point vert vit sur le NOM, pas dans la colonne du rang : c'est un
 		# fait sur le joueur, et la colonne du rang est une case fixe.
 		name_line.add_child(_live_dot())
-		var sub := Kit.label(I18N.t("board.diggingNow"), SUB_FONT, Color(GOLD_ON_PAPER, 0.8))
+	# LA SOUS-LIGNE : le verdict de raid quand le serveur l'a rendu (tout
+	# autre joueur, pour qui peut raider) ; sinon « en train de creuser ».
+	var sub_text := ""
+	var sub_ink := Color(GOLD_ON_PAPER, 0.8)
+	if not door.is_empty():
+		var where := "digging" if digging else String(door.get("presence", "away"))
+		sub_text = RaidDoor.line(door, where)
+		sub_ink = DOOR_INK[RaidDoor.tone(door, where)]
+	elif digging:
+		sub_text = I18N.t("board.diggingNow")
+	if not sub_text.is_empty():
+		var sub := Kit.label(sub_text, SUB_FONT, sub_ink)
 		sub.clip_text = true
 		sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		names.add_child(sub)
+		sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# LES DEUX GESTES OUVERTS : le tap de la ligne raide, et REGARDER se
+		# pose en pastille au debut de la sous-ligne — dans la colonne du nom,
+		# qui se rogne deja, plutot qu'en colonne a elle : le panneau du coin
+		# d'un Seeker n'avait pas sa place (le tableau sortait de l'ecran).
+		if raid_ok and watch_ok:
+			var sub_line := Kit.hbox(4)
+			sub_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sub_line.add_child(_watch_chip(id))
+			sub_line.add_child(sub)
+			names.add_child(sub_line)
+		else:
+			names.add_child(sub)
 
 	var score := Kit.label(I18N.group_digits(float(e.get("score", 0))), font, Palette.CARROT)
 	score.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(score)
-
-	# Le Button vient EN DERNIER, sur tout le panneau : c'est lui qui recoit
-	# le tap, les labels le laissent passer.
+	# Le Button couvre tout le panneau : c'est lui qui recoit le tap.
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
-	b.disabled = me or not digging
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not b.disabled else Control.CURSOR_ARROW
-	b.tooltip_text = I18N.f("board.watch", [e.get("name", "")]) if digging \
+	b.disabled = me or not (raid_ok or watch_ok)
+	# Une porte fermee (bouclier, rien a prendre…) se dit aussi au curseur :
+	# le sens interdit, la ou une ligne sans verdict garde la fleche.
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not b.disabled \
+		else Control.CURSOR_FORBIDDEN if not door.is_empty() else Control.CURSOR_ARROW
+	b.tooltip_text = sub_text if not door.is_empty() \
+		else I18N.f("board.watch", [e.get("name", "")]) if digging \
 		else I18N.f("board.notOut", [e.get("name", "")])
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		b.add_theme_stylebox_override(state, Kit.style_empty())
 	b.pressed.connect(func() -> void:
-		spectate.emit(id)
-		# Le tableau couvre le monde : rester ouvert cacherait la run qu'il
-		# vient d'ouvrir. C'est ce que fait le telephone sur le web.
+		# Le tableau couvre le monde : rester ouvert cacherait la run (ou le
+		# terrier) qu'il vient d'ouvrir. C'est ce que fait le telephone.
+		if raid_ok:
+			raid.emit(id)
+		else:
+			spectate.emit(id)
 		closed.emit())
 	# Une ligne qu'on ne peut pas taper s'efface un peu — sauf la votre, et
-	# sauf celle qui creuse (`.rr-lb-row:disabled:not(.me):not(.digging)`).
-	if b.disabled and not me and not digging:
+	# sauf celle qui creuse ou porte un bouclier : son attente se lit.
+	if b.disabled and not me and not digging and RaidDoor.tone(door) != "wait":
 		panel.modulate.a = 0.62
 	panel.add_child(b)
 	Kit.fill(b)
+	# SOUS les libelles plutot que par-dessus : ils laissent tous passer le
+	# doigt (MOUSE_FILTER_IGNORE) jusqu'a lui — sauf la pastille REGARDER,
+	# qui garde son propre tap.
+	panel.move_child(b, 0)
 	return panel
 
 
@@ -376,6 +434,40 @@ func _row_style(me: bool, odd: bool) -> StyleBoxFlat:
 		s.bg_color = Color(Palette.BARK, 0.10)
 	else:
 		s.bg_color = Color(0, 0, 0, 0)
+	return s
+
+
+## REGARDER, la pastille bleue de la sous-ligne : sa run, et de son ile la
+## foudre ou l'encre.
+func _watch_chip(id: String) -> Button:
+	var watch := Button.new()
+	watch.name = "Watch"
+	watch.text = I18N.t("raid.watchIt")
+	watch.focus_mode = Control.FOCUS_NONE
+	watch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	watch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	watch.add_theme_font_size_override("font_size", SUB_FONT)
+	for state in ["font_color", "font_hover_color", "font_pressed_color"]:
+		watch.add_theme_color_override(state, Palette.CREAM)
+	watch.add_theme_stylebox_override("normal", _chip_style(DOOR_INK["watch"]))
+	watch.add_theme_stylebox_override("hover", _chip_style(DOOR_INK["watch"].lightened(0.15)))
+	watch.add_theme_stylebox_override("pressed", _chip_style(DOOR_INK["watch"].darkened(0.2)))
+	watch.add_theme_stylebox_override("focus", Kit.style_empty())
+	watch.pressed.connect(func() -> void:
+		spectate.emit(id)
+		closed.emit())
+	return watch
+
+
+## Le fond d'une pastille.
+func _chip_style(fill: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = fill
+	s.set_corner_radius_all(5)
+	s.content_margin_left = 4
+	s.content_margin_right = 4
+	s.content_margin_top = 1
+	s.content_margin_bottom = 1
 	return s
 
 

@@ -924,6 +924,21 @@ export const en = {
     raidIt: 'Raid',
     /** The button on a row whose owner is out digging: watch the run, not raid the burrow. */
     watchIt: 'Watch',
+    /**
+     * CAN I RAID THEM, under a rival's name on the season board and in the
+     * profile's raid log (lib/game/raid-door.ts). `wait` is a short duration.
+     */
+    door: {
+      open: 'Raidable now',
+      openDigging: 'In game · raidable',
+      shield: (wait: string) => `Shield · raid in ${wait}`,
+      shieldDigging: (wait: string) => `Shield ${wait} · in game: watch`,
+      digging: 'In game · watch to strike',
+      bare: 'Nothing to take',
+      asleep: 'Asleep · already raided',
+      locked: 'Too young to raid',
+      solo: 'Solo · out of PvP',
+    },
     brief: 'Reach their garden. Their bombs are buried and unmarked.',
     outOfEnergy: 'Out of energy',
     nothingTaken: 'Nothing taken',

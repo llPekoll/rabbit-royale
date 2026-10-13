@@ -1129,6 +1129,21 @@
   },
   "raidIt": "掠夺",
   "watchIt": "观看",
+  "door": {
+   "open": "可突袭",
+   "openDigging": "游戏中 · 可突袭",
+   "shield": {
+    "$t": "护盾 · {0}后可突袭"
+   },
+   "shieldDigging": {
+    "$t": "护盾 {0} · 游戏中：观看"
+   },
+   "digging": "游戏中 · 观看并出手",
+   "bare": "没有可拿的",
+   "asleep": "沉睡中 · 已被突袭",
+   "locked": "等级不足，无法突袭",
+   "solo": "单人 · 不参与 PvP"
+  },
   "brief": "抵达他们的菜园。他们的炸弹埋在地下，没有标记。",
   "outOfEnergy": "能量耗尽",
   "nothingTaken": "什么都没拿到",

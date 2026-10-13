@@ -1321,6 +1321,21 @@
   },
   "raidIt": "Raid",
   "watchIt": "Watch",
+  "door": {
+   "open": "Raidable now",
+   "openDigging": "In game · raidable",
+   "shield": {
+    "$t": "Shield · raid in {0}"
+   },
+   "shieldDigging": {
+    "$t": "Shield {0} · in game: watch"
+   },
+   "digging": "In game · watch to strike",
+   "bare": "Nothing to take",
+   "asleep": "Asleep · already raided",
+   "locked": "Too young to raid",
+   "solo": "Solo · out of PvP"
+  },
   "brief": "Reach their garden. Their bombs are buried and unmarked.",
   "outOfEnergy": "Out of energy",
   "nothingTaken": "Nothing taken",

@@ -1227,6 +1227,21 @@
   },
   "raidIt": "Cướp",
   "watchIt": "Xem",
+  "door": {
+   "open": "Có thể đột kích",
+   "openDigging": "Đang chơi · có thể đột kích",
+   "shield": {
+    "$t": "Khiên · đột kích sau {0}"
+   },
+   "shieldDigging": {
+    "$t": "Khiên {0} · đang chơi: xem"
+   },
+   "digging": "Đang chơi · xem để tấn công",
+   "bare": "Không có gì để lấy",
+   "asleep": "Đang ngủ · đã bị đột kích",
+   "locked": "Chưa đủ cấp để đột kích",
+   "solo": "Solo · ngoài PvP"
+  },
   "brief": "Tới được vườn của họ. Bom của họ chôn kín, không đánh dấu.",
   "outOfEnergy": "Hết năng lượng",
   "nothingTaken": "Không lấy được gì",

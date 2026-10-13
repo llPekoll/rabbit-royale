@@ -13,6 +13,7 @@ import { topPlayers, rankOf, onlineAmong, gapToNextRank } from '@/lib/leaderboar
 import { SEASON } from '@config/tuning';
 import { holdersAmong } from '@/lib/game/season-pass';
 import { looksOf } from '@/lib/game/look';
+import { raidDoors } from '@/lib/game/raid-door';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,12 @@ export async function GET(req: Request) {
   // play as, skin included, not just the fur they picked.
   const looks = await looksOf(rows);
 
+  // CAN I RAID THEM, written on the row (2026-10-13): the board is where
+  // a player meets rivals by name, and a row is a door — raid, watch, or the
+  // wait until the shield drops. Only for a signed-in viewer who can raid.
+  const session = await getSession(req);
+  const doors = session ? await raidDoors(session.sub, rows.map((p) => p.id)) : null;
+
   const entries = rows.map((p, i) => ({
     rank: i + 1,
     playerId: p.id,
@@ -112,11 +119,13 @@ export async function GET(req: Request) {
     digging: online.has(p.id),
     /** Holds this season's pass — in the race for the pot. */
     pass: passHolders.has(p.id),
+    /** The raid door for the viewer (lib/game/raid-door.ts); absent for
+     *  themselves, and for a viewer who cannot raid at all. */
+    raid: doors?.get(p.id) ?? null,
   }));
 
   // Where the viewer sits, even when they are nowhere near the top — a board
   // that cannot show you your own rank is a board you stop opening.
-  const session = await getSession(req);
   let me: { rank: number | null; score: number; toPass: number | null } | null = null;
   if (session) {
     const row = await db.query.players.findFirst({ where: eq(players.id, session.sub) });

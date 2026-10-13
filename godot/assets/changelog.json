@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.8",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "On the season board and in your raid history, every name says if you can raid them, if they are in game to watch and strike, or how long their shield lasts. Tap to raid.",
+            "fr": "Dans le classement et ton historique de raids, chaque nom dit si tu peux le raider, s’il est en jeu à regarder pour le frapper, ou combien de temps dure son bouclier. Touche pour raider.",
+            "zh": "在赛季榜和你的突袭记录里，每个名字都会显示能否突袭、是否在游戏中可观看并出手，或护盾还剩多久。点击即可突袭。",
+            "pt-BR": "No ranking e no seu histórico de ataques, cada nome diz se você pode atacá-lo, se está em jogo para assistir e atingir, ou quanto tempo dura o escudo. Toque para atacar.",
+            "vi": "Trên bảng mùa giải và lịch sử đột kích, mỗi cái tên cho biết bạn có thể đột kích không, họ có đang chơi để xem và tấn công không, hoặc khiên còn bao lâu. Chạm để đột kích."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.7.4",
       "date": "2026-10-13",
       "items": [

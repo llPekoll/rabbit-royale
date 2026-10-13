@@ -1383,6 +1383,21 @@
   },
   "raidIt": "Piller",
   "watchIt": "Regarder",
+  "door": {
+   "open": "Attaquable",
+   "openDigging": "En jeu · attaquable",
+   "shield": {
+    "$t": "Bouclier · raid dans {0}"
+   },
+   "shieldDigging": {
+    "$t": "Bouclier {0} · en jeu : regarder"
+   },
+   "digging": "En jeu · regarder pour frapper",
+   "bare": "Rien à prendre",
+   "asleep": "Endormi · déjà raidé",
+   "locked": "Trop jeune pour un raid",
+   "solo": "Solo · hors PvP"
+  },
   "brief": "Atteins leur potager. Leurs bombes sont enterrées et invisibles.",
   "outOfEnergy": "Plus d’énergie",
   "nothingTaken": "Rien pris",

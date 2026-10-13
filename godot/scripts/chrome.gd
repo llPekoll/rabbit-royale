@@ -363,6 +363,7 @@ func _on_bag_spent(name: String, data: Variant) -> void:
 func _open_season() -> void:
 	var board := SeasonBoard.open()
 	board.spectate.connect(watch)
+	board.raid.connect(revenge)
 
 
 ## REGARDER LA RUN D'UN AUTRE : fermer la carte, entrer dans sa salle sans

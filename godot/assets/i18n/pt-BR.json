@@ -1346,6 +1346,21 @@
   },
   "raidIt": "Saquear",
   "watchIt": "Assistir",
+  "door": {
+   "open": "Pode atacar",
+   "openDigging": "Em jogo · pode atacar",
+   "shield": {
+    "$t": "Escudo · ataque em {0}"
+   },
+   "shieldDigging": {
+    "$t": "Escudo {0} · em jogo: assistir"
+   },
+   "digging": "Em jogo · assista para atingir",
+   "bare": "Nada para levar",
+   "asleep": "Dormindo · já atacado",
+   "locked": "Jovem demais para ataques",
+   "solo": "Solo · fora do PvP"
+  },
   "brief": "Alcance a horta deles. As bombas deles estão enterradas e sem marca.",
   "outOfEnergy": "Sem energia",
   "nothingTaken": "Nada levado",

@@ -27,6 +27,7 @@ import { db } from '@/lib/db';
 import { payments, players, purchases, raids, runs } from '@/lib/db/schema';
 import { isPayTokenId, wholeFor, type PayTokenId } from '@/lib/pay/tokens';
 import { getSession } from '@/lib/auth/jwt';
+import { raidDoors } from '@/lib/game/raid-door';
 
 /** How far back the profile looks. Long enough to see a habit, short enough to stay one query. */
 const DAYS = 14;
@@ -147,6 +148,10 @@ export async function GET(req: Request) {
     return { ...p, token: paid, amount: wholeFor(p.cost, paid) };
   });
 
+  // CAN I RAID THEM BACK, for every name in the log (2026-10-13) — not
+  // only the debts: a feud is read from both sides.
+  const doors = await raidDoors(session.sub, [...against, ...by].map((r) => r.otherId));
+
   return Response.json({
     days,
     runs: recentRuns,
@@ -156,6 +161,9 @@ export async function GET(req: Request) {
       by: by.map((r) => ({ ...r, direction: 'by' as const })),
       /** The badge on the button: raids the player has not looked at yet. */
       unseen: against.filter((r) => !r.seenByDefender).length,
+      /** The raid door of each name in the log, by id (lib/game/raid-door.ts);
+       *  null when this player cannot raid at all. */
+      doors: doors ? Object.fromEntries(doors) : null,
     },
   });
 }

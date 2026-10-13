@@ -83,8 +83,30 @@ func _fake_entries() -> Array:
 			"avatar": avatars[i],
 			"crowned": i == 0,
 			"digging": i == 1 or i == 7,
+			"raid": _fake_doors().get("p%d" % i) if i != 4 else null,
 		})
 	return out
+
+
+## `--doors` : les verdicts de raid (RaidDoor) sur le tableau et le journal —
+## ouvert, en jeu, bouclier, delai, rien a prendre, trop jeune.
+func _fake_doors() -> Dictionary:
+	if not "--doors" in OS.get_cmdline_user_args():
+		return {}
+	var h := 3600000
+	return {
+		"p0": {"state": "shield", "waitMs": 3 * h + 12 * 60000, "presence": "away"},
+		"p1": {"state": "open", "waitMs": 0, "presence": "digging"},
+		"p2": {"state": "open", "waitMs": 0, "presence": "home"},
+		"p3": {"state": "bare", "waitMs": 0, "presence": "away"},
+		"p5": {"state": "shield", "waitMs": 25 * 60000, "presence": "home"},
+		"p6": {"state": "locked", "waitMs": 0, "presence": "away"},
+		"p7": {"state": "shield", "waitMs": 5 * h, "presence": "digging"},
+		"p8": {"state": "open", "waitMs": 0, "presence": "away"},
+		"p9": {"state": "asleep", "waitMs": 0, "presence": "away"},
+		"p10": {"state": "open", "waitMs": 0, "presence": "away"},
+		"p11": {"state": "solo", "waitMs": 0, "presence": "away"},
+	}
 
 
 func _fake_history() -> Dictionary:
@@ -119,6 +141,7 @@ func _fake_history() -> Dictionary:
 					"createdAt": iso.call(6 * 86400), "otherId": "p3", "otherName": "Sorrel", "otherAvatar": "yellow", "direction": "by"},
 			],
 			"unseen": 2,
+			"doors": _fake_doors() if not _fake_doors().is_empty() else null,
 		},
 	}
 
