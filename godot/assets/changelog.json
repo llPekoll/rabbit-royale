@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.9.1",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "HARVEST tucks itself away while the garden is empty, and the house panel no longer repeats your carrot bar.",
+            "fr": "RÉCOLTER se range tant que le potager est vide, et le volet de la maison ne répète plus la barre de tes carottes.",
+            "zh": "菜园空着时，收获按钮会收起来；小屋面板也不再重复显示你的胡萝卜条。",
+            "pt-BR": "COLHER se recolhe enquanto a horta está vazia, e o painel da casa não repete mais a barra das suas cenouras.",
+            "vi": "THU HOẠCH tự thu lại khi vườn trống, và bảng nhà không còn lặp lại thanh cà rốt của bạn."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.9",
       "date": "2026-10-13",
       "items": [

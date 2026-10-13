@@ -306,31 +306,10 @@ func _build_panel(d: Dictionary) -> PanelContainer:
 	head.add_child(_Cross.new(fold, _k))
 
 	# LA BARRE : la part a l'abri, puis la part exposee, au prorata du stock.
-	var bar := _VaultBar.new()
-	bar.safe = int(d.safe)
-	bar.exposed = int(d.exposed)
-	bar.custom_minimum_size = Vector2(0, _s(10))
-	col.add_child(bar)
-	var legend := Kit.hbox(_s(4))
-	col.add_child(legend)
-	var left := Kit.vbox(0)
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.add_child(_figure(int(d.safe), SAFE_INK, Kit.ICONS["shield"]))
-	left.add_child(Kit.label(I18N.t("burrow.safe"), _f(8), Palette.CHALK_DIM))
-	legend.add_child(left)
-	var right := Kit.vbox(0)
-	right.add_child(_figure(int(d.exposed), EXPOSED_INK, Kit.ICONS["swords"]))
-	# « EXPOSEES » seul : la cle porte le chiffre (« {0} EXPOSEES »), qu'on
-	# pose deja au-dessus.
-	var exposed_word := Kit.label(I18N.f("burrow.exposed", [""]).strip_edges(), _f(8), Palette.CHALK_DIM)
-	exposed_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.add_child(exposed_word)
-	legend.add_child(right)
-
-	var rule := ColorRect.new()
-	rule.color = Color(1, 1, 1, 0.12)
-	rule.custom_minimum_size = Vector2(0, 1)
-	col.add_child(rule)
+	# Sous le haut du terrier, elle y est deja (burrow_hud.gd, la planche du
+	# milieu) : le volet ne la redit pas (2026-10-13 : « plus la peine ici »).
+	if under == null:
+		_vault(col, d)
 
 	# CE QUE LE NIVEAU SUIVANT AJOUTE, puis le bouton.
 	if int(d.next_yield) >= 0:
@@ -444,6 +423,35 @@ class _VaultBar extends Control:
 
 
 # ── Le bouton replie ─────────────────────────────────────────────────────────
+
+## Le coffre en barre et sa legende, puis le trait qui le separe du reste.
+func _vault(col: VBoxContainer, d: Dictionary) -> void:
+	var bar := _VaultBar.new()
+	bar.safe = int(d.safe)
+	bar.exposed = int(d.exposed)
+	bar.custom_minimum_size = Vector2(0, _s(10))
+	col.add_child(bar)
+	var legend := Kit.hbox(_s(4))
+	col.add_child(legend)
+	var left := Kit.vbox(0)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_child(_figure(int(d.safe), SAFE_INK, Kit.ICONS["shield"]))
+	left.add_child(Kit.label(I18N.t("burrow.safe"), _f(8), Palette.CHALK_DIM))
+	legend.add_child(left)
+	var right := Kit.vbox(0)
+	right.add_child(_figure(int(d.exposed), EXPOSED_INK, Kit.ICONS["swords"]))
+	# « EXPOSEES » seul : la cle porte le chiffre (« {0} EXPOSEES »), qu'on
+	# pose deja au-dessus.
+	var exposed_word := Kit.label(I18N.f("burrow.exposed", [""]).strip_edges(), _f(8), Palette.CHALK_DIM)
+	exposed_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(exposed_word)
+	legend.add_child(right)
+
+	var rule := ColorRect.new()
+	rule.color = Color(1, 1, 1, 0.12)
+	rule.custom_minimum_size = Vector2(0, 1)
+	col.add_child(rule)
+
 
 ## LA MAISON ET SON NIVEAU, sur le meme fond que le panneau ; la maison
 ## deborde du cadre a gauche, le point rouge bat au coin oppose quand

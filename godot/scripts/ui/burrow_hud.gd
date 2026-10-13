@@ -75,6 +75,11 @@ var _legend: HBoxContainer
 var _entrance: Tween
 var _pulse := 0.0
 var _garden_full := false
+## LE POTAGER VIDE RANGE HARVEST (2026-10-13 : « range le harvest quand t'es
+## a 0 ») : son cote rentre sous la planche du milieu, et ressort, avec le
+## geste de l'entree, des qu'il y a quelque chose a rentrer.
+var _harvest_out := true
+var _wing: Tween
 ## EN JEU, le haut lit le terrier lui-meme (`Home`), et se relit chaque
 ## seconde : le potager pousse, le bouclier compte. Le banc, lui, le nourrit.
 var live := false
@@ -189,6 +194,9 @@ func show_data(d: Dictionary) -> void:
 	_set_text(_harvest_word, I18N.shout(I18N.t("burrow.harvest")))
 	_set_text(_harvest_amount, "+%s" % I18N.group_digits(garden))
 	harvest_button.disabled = garden <= 0
+	if (garden > 0) != _harvest_out:
+		_harvest_out = garden > 0
+		_slide_harvest()
 	_garden_full = float(d.get("fill", 0.0)) >= 1.0
 	_stock.text = I18N.group_digits(float(d.get("stock", 0)))
 	var shield := float(d.get("shield", -1.0))
@@ -236,7 +244,7 @@ func _fit_legend() -> void:
 func rest_rect(part: String) -> Rect2:
 	match part:
 		"house": return Rect2((LEFT_AT + BUTTON_AT) * K, BUTTON * K)
-		"harvest": return Rect2((RIGHT_AT + BUTTON_AT) * K, BUTTON * K)
+		"harvest": return Rect2((RIGHT_AT + BUTTON_AT) * K, BUTTON * K) if _harvest_out else Rect2()
 	return Rect2(CENTER_AT * K, MIDDLE * K)
 
 
@@ -257,10 +265,14 @@ func play_entrance(delay: float = 0.0) -> void:
 	modulate.a = 1.0
 	if _entrance and _entrance.is_valid():
 		_entrance.kill()
+	if _wing and _wing.is_valid():
+		_wing.kill()
 	var tl := LEFT_AT * K
-	var tr := RIGHT_AT * K
+	# Rentre, HARVEST reste sous le milieu : il n'a rien a annoncer.
+	var tr := RIGHT_AT * K if _harvest_out else _tucked()
+	var bounce := 1.0 if _harvest_out else 0.0
 	_left.position = Vector2((CENTER_AT.x + 40) * K, tl.y)
-	_right.position = Vector2((CENTER_AT.x + MIDDLE.x - 40 - WING.x) * K, tr.y)
+	_right.position = _tucked()
 	_body.position = Vector2(0, -(position.y + size.y + UiEntrance.OFFSCREEN))
 	_entrance = create_tween().set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	if delay > 0.0:
@@ -269,11 +281,34 @@ func play_entrance(delay: float = 0.0) -> void:
 	_entrance.tween_property(_body, "position", Vector2.ZERO, 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_entrance.tween_interval(0.03)
 	_entrance.tween_property(_left, "position", tl + Vector2(-4, 0) * K, 0.44)
-	_entrance.parallel().tween_property(_right, "position", tr + Vector2(4, 0) * K, 0.44)
+	_entrance.parallel().tween_property(_right, "position", tr + Vector2(4, 0) * K * bounce, 0.44)
 	_entrance.tween_property(_left, "position", tl + Vector2(1, 0) * K, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_entrance.parallel().tween_property(_right, "position", tr + Vector2(-1, 0) * K, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_entrance.parallel().tween_property(_right, "position", tr + Vector2(-1, 0) * K * bounce, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_entrance.tween_property(_left, "position", tl, 0.1).set_trans(Tween.TRANS_SINE)
 	_entrance.parallel().tween_property(_right, "position", tr, 0.1).set_trans(Tween.TRANS_SINE)
+
+
+## Le cote droit range sous le milieu.
+func _tucked() -> Vector2:
+	return Vector2((CENTER_AT.x + MIDDLE.x - 40 - WING.x) * K, RIGHT_AT.y * K)
+
+
+## HARVEST SORT OU RENTRE. Pendant l'entree, on attend qu'elle ait fini :
+## elle pose deja le cote ou il doit etre.
+func _slide_harvest() -> void:
+	harvest_button.mouse_filter = Control.MOUSE_FILTER_STOP if _harvest_out else Control.MOUSE_FILTER_IGNORE
+	if _entrance and _entrance.is_running():
+		return
+	if _wing and _wing.is_valid():
+		_wing.kill()
+	var tr := RIGHT_AT * K
+	_wing = create_tween()
+	if _harvest_out:
+		_wing.tween_property(_right, "position", tr + Vector2(4, 0) * K, 0.44).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		_wing.tween_property(_right, "position", tr + Vector2(-1, 0) * K, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_wing.tween_property(_right, "position", tr, 0.1).set_trans(Tween.TRANS_SINE)
+	else:
+		_wing.tween_property(_right, "position", _tucked(), 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 
 func _process(delta: float) -> void:
