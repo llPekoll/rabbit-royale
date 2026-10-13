@@ -252,7 +252,11 @@
     }
    ]
   },
-  "allShielded": "every burrow is shielded"
+  "allShielded": "every burrow is shielded",
+  "bury": "BURY",
+  "atRisk": {
+   "$t": "+{0} at risk"
+  }
  },
  "next": {
   "label": "NEXT",
@@ -290,6 +294,7 @@
   },
   "garden": "GARDEN",
   "harvest": "HARVEST",
+  "word": "BURROW",
   "energy": "ENERGY",
   "gardenGrows": "THE GARDEN GROWS FASTER",
   "gardenAtRisk": {
@@ -310,6 +315,28 @@
   "regenRate": {
    "$t": "{0} energy/hour"
   }
+ },
+ "tour": {
+  "next": {
+   "$t": "NEXT {0}/{1}"
+  },
+  "gotIt": "GOT IT",
+  "carrotsTitle": "YOUR CARROTS",
+  "carrots": "Everything you dig ends up here. The gold part is safe. The red part, a raider could take.",
+  "gardenTitle": "YOUR GARDEN",
+  "garden": {
+   "$t": "It grows by itself, +{0} an hour. Tap HARVEST to bring the carrots in. Until then, they can be stolen."
+  },
+  "houseTitle": "YOUR HOUSE",
+  "house": "Spend carrots to make it bigger: more carrots an hour, and more of them safe.",
+  "digTitle": "DIG",
+  "dig": "The island is where carrots come from. Each dig costs energy, and the ring fills back up on its own.",
+  "buryTitle": "BURY",
+  "bury": "Raiders WILL come for your garden. Bury bombs on their path. Make them pay for every step!",
+  "raidTitle": "RAID",
+  "raid": "And you get to do it back. Their gardens, your carrots!",
+  "questTitle": "WHEN IN DOUBT",
+  "quest": "Follow your quest. It always knows the next step."
  },
  "arrange": {
   "tip": "Tap a tree, your house or your garden to move it.",

@@ -204,6 +204,8 @@ export const ptBR: Dict = {
     burrowsOpen: (n) => `${n} toca${n === 1 ? '' : 's'} abert${n === 1 ? 'a' : 'as'}`,
     bombsInBag: (n) => `${n} bomba${n === 1 ? '' : 's'} na bolsa`,
     allShielded: 'todas as tocas com escudo',
+    bury: 'ENTERRAR',
+    atRisk: (n) => `+${n} em risco`,
   },
 
   next: {
@@ -227,6 +229,7 @@ export const ptBR: Dict = {
     exposed: (n) => `${n} EXPOSTAS`,
     garden: 'HORTA',
     harvest: 'COLHER',
+    word: 'TOCA',
     energy: 'ENERGIA',
     gardenGrows: 'A HORTA CRESCE MAIS RÁPIDO',
     gardenAtRisk: (perHour) => `saqueável até a colheita \u00b7 ${perHour}/h`,
@@ -235,6 +238,25 @@ export const ptBR: Dict = {
     stumpRegrows: (when: string) => `Cresce de novo em ${when}`,
     markStands: (when: string) => `Levanta de novo em ${when}`,
     regenRate: (perHour) => `${perHour} de energia/h`,
+  },
+
+  tour: {
+    next: (i, n) => `PRÓXIMO ${i}/${n}`,
+    gotIt: 'ENTENDI',
+    carrotsTitle: 'SUAS CENOURAS',
+    carrots: 'Tudo o que você cava vem parar aqui. A parte dourada está a salvo. A parte vermelha, um saqueador pode levar.',
+    gardenTitle: 'SUA HORTA',
+    garden: (perHour) => `Ela cresce sozinha, +${perHour} por hora. Toque em COLHER para guardar as cenouras. Até lá, podem roubá-las.`,
+    houseTitle: 'SUA CASA',
+    house: 'Gaste cenouras para aumentá-la: mais cenouras por hora, e mais delas a salvo.',
+    digTitle: 'CAVAR',
+    dig: 'As cenouras vêm da ilha. Cada escavação gasta energia, e o anel se enche sozinho.',
+    buryTitle: 'ENTERRAR',
+    bury: 'Os saqueadores VÃO vir atrás da sua horta. Enterre bombas no caminho deles. Faça-os pagar cada passo!',
+    raidTitle: 'SAQUEAR',
+    raid: 'E você pode dar o troco. As hortas deles, as suas cenouras!',
+    questTitle: 'NA DÚVIDA',
+    quest: 'Siga sua missão. Ela sempre sabe o próximo passo.',
   },
 
   arrange: {

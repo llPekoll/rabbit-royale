@@ -208,6 +208,8 @@ export const vi: Dict = {
     burrowsOpen: (n) => `${n} hang đang mở`,
     bombsInBag: (n) => `${n} bom trong túi`,
     allShielded: 'mọi hang đều có khiên',
+    bury: 'CHÔN BOM',
+    atRisk: (n) => `+${n} có thể mất`,
   },
 
   next: {
@@ -231,6 +233,7 @@ export const vi: Dict = {
     exposed: (n) => `${n} BỊ LỘ`,
     garden: 'VƯỜN',
     harvest: 'THU HOẠCH',
+    word: 'HANG',
     energy: 'NĂNG LƯỢNG',
     gardenGrows: 'VƯỜN LỚN NHANH HƠN',
     gardenAtRisk: (perHour) => `bị cướp được tới khi thu · ${perHour}/giờ`,
@@ -239,6 +242,25 @@ export const vi: Dict = {
     stumpRegrows: (when: string) => `Mọc lại sau ${when}`,
     markStands: (when: string) => `Dựng lại sau ${when}`,
     regenRate: (perHour) => `${perHour} năng lượng/giờ`,
+  },
+
+  tour: {
+    next: (i, n) => `TIẾP ${i}/${n}`,
+    gotIt: 'ĐÃ HIỂU',
+    carrotsTitle: 'CÀ RỐT CỦA BẠN',
+    carrots: 'Mọi thứ bạn đào được đều về đây. Phần vàng là an toàn. Phần đỏ, kẻ cướp có thể lấy.',
+    gardenTitle: 'VƯỜN CỦA BẠN',
+    garden: (perHour) => `Vườn tự lớn, +${perHour} mỗi giờ. Chạm THU HOẠCH để mang cà rốt vào. Trước đó, chúng có thể bị cướp.`,
+    houseTitle: 'NHÀ CỦA BẠN',
+    house: 'Tiêu cà rốt để mở rộng nhà: thêm cà rốt mỗi giờ, và nhiều cà rốt an toàn hơn.',
+    digTitle: 'ĐÀO',
+    dig: 'Cà rốt đến từ hòn đảo. Mỗi lần đào tốn năng lượng, và vòng năng lượng tự đầy lại.',
+    buryTitle: 'CHÔN BOM',
+    bury: 'Kẻ cướp SẼ đến vì khu vườn của bạn. Chôn bom trên đường chúng đi. Bắt chúng trả giá từng bước!',
+    raidTitle: 'CƯỚP',
+    raid: 'Và bạn cũng được cướp lại. Vườn của chúng, cà rốt của bạn!',
+    questTitle: 'KHI PHÂN VÂN',
+    quest: 'Hãy theo nhiệm vụ. Nó luôn biết bước tiếp theo.',
   },
 
   arrange: {

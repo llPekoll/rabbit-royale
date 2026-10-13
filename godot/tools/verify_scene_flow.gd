@@ -10,7 +10,8 @@ extends SceneTree
 ## Les trois bugs que le gestionnaire de scenes a remplaces, un par un :
 ##   - l'ile derriere l'accueil         → « accueil : monde vide »
 ##   - un plateau d'ile au terrier      → « terrier : une scene, un terrier »
-##   - les boutons du sol disparus      → « terrier : batiments poses »
+##   - les boutons du sol disparus      → « terrier : batiments poses » (ou,
+##     sans ilots, « terrier : barre du sol posee »)
 ##     (depuis le 2026-09-24 les portes sont des batiments du monde,
 ##     burrow_landmarks.gd, et plus une barre du chrome)
 ## Et un quatrieme, qui guette tout gestionnaire qui construit : la fuite. Le
@@ -56,9 +57,18 @@ func _run() -> void:
 		_screens.cross(_screens.Place.BURROW)
 		await _wait(3.0)
 		_check("terrier : une scene, un terrier", world.get_child_count() == 1 and not (world.get_child(0).scene_file_path.ends_with("island.tscn")))
-		var marks: Node = _find(world, "BurrowLandmarks")
-		_check("terrier : batiments poses", marks != null and marks.get("sea_map") != null \
-			and marks.get_child_count() > 1)
+		# LES PORTES DU TERRIER : les ilots, ou — eteints (Chrome.islets,
+		# 2026-10-13) — la barre du sol et le haut du terrier.
+		# Lu a l'execution : nommer `Chrome` ici le compilait avant les
+		# autoloads (« Identifier not found: Home »).
+		var islets: bool = bool(load("res://scripts/chrome.gd").get("islets"))
+		if islets:
+			var marks: Node = _find(world, "BurrowLandmarks")
+			_check("terrier : batiments poses", marks != null and marks.get("sea_map") != null \
+				and marks.get_child_count() > 1)
+		else:
+			_check("terrier : barre du sol posee", _find(chrome_host, "LoopBar") != null \
+				and _find(chrome_host, "BurrowHud") != null)
 		_check("terrier : rideau fini", not _screens.crossing)
 		await _wait(0.2)
 		counts.append(_count(get_root()))

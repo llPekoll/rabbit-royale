@@ -271,6 +271,8 @@ func buy(kind: String, qty: int = 1) -> Dictionary:
 ## vraiment : l'appelant doit dessiner la marque, et ne doit pas en dessiner
 ## une pour une pose que le serveur a refusee.
 func place_trap(tile: int) -> bool:
+	if _fake and sandbox:
+		return _sandbox_trap(tile, true)
 	if not Session.signed_in() or _fake:
 		return false
 	_say("", false)
@@ -286,6 +288,8 @@ func place_trap(tile: int) -> bool:
 ## y en a un, ce qui est pourquoi relever une bombe marchait en Storybook et
 ## ne faisait rien en production.
 func remove_trap(tile: int) -> bool:
+	if _fake and sandbox:
+		return _sandbox_trap(tile, false)
 	if not Session.signed_in() or _fake:
 		return false
 	_say("", false)
@@ -337,6 +341,8 @@ func base_dirty() -> bool:
 ## des mots (`would_seal_burrow`) plutot que comme une planche qui apparait
 ## puis disparait a la relecture suivante.
 func place_fence(tile: int, side: String) -> bool:
+	if _fake and sandbox:
+		return _sandbox_fence(tile, side, true)
 	if not Session.signed_in() or _fake:
 		return false
 	_say("", false)
@@ -347,6 +353,8 @@ func place_fence(tile: int, side: String) -> bool:
 
 ## En retirer une. Elle revient entiere dans le sac — voir la route.
 func remove_fence(tile: int, side: String) -> bool:
+	if _fake and sandbox:
+		return _sandbox_fence(tile, side, false)
 	if not Session.signed_in() or _fake:
 		return false
 	_say("", false)
@@ -523,6 +531,55 @@ func fake(fake_items: Array, fake_traps: Dictionary, usdc_enabled: bool = false,
 	}
 	fences = {"placed": [], "spans": [], "offers": [], "held": 0, "maxHeld": 0}
 	changed.emit()
+
+
+## LE BAC A SABLE D'UN BANC : avec `fake`, les poses et retraits de bombes
+## et de planches REUSSISSENT sur place au lieu d'etre refuses — pour essayer
+## une defense sans serveur (burrow_ux_bench). Ni la regle du portail ni le
+## plafond de pose ne sont juges ici : c'est un outil, pas l'arbitre.
+var sandbox := false
+
+
+func _sandbox_trap(tile: int, put: bool) -> bool:
+	var placed: Array = traps.get("placed", [])
+	var armed: Array = traps.get("armed", [])
+	if put:
+		if placed.has(tile) or int(traps.get("held", 0)) <= 0:
+			return false
+		placed.append(tile)
+		armed.append(tile)
+		traps["held"] = int(traps.get("held", 0)) - 1
+	else:
+		if not placed.has(tile):
+			return false
+		placed.erase(tile)
+		armed.erase(tile)
+		traps["held"] = int(traps.get("held", 0)) + 1
+	traps["placed"] = placed
+	traps["armed"] = armed
+	changed.emit()
+	return true
+
+
+func _sandbox_fence(tile: int, side: String, put: bool) -> bool:
+	var placed: Array = fences.get("placed", [])
+	var at := -1
+	for i in placed.size():
+		if int(placed[i]["tile"]) == tile and String(placed[i]["side"]) == side:
+			at = i
+	if put:
+		if at >= 0 or int(fences.get("held", 0)) <= 0:
+			return false
+		placed.append({"tile": tile, "side": side})
+		fences["held"] = int(fences.get("held", 0)) - 1
+	else:
+		if at < 0:
+			return false
+		placed.remove_at(at)
+		fences["held"] = int(fences.get("held", 0)) + 1
+	fences["placed"] = placed
+	changed.emit()
+	return true
 
 
 ## DELETE, que Net n'offre pas : le meme aller-retour que Net._send, avec le

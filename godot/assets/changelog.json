@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.9",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "Your burrow is easier to read. DIG, BURY and RAID are back as planks at the bottom, your carrots, house and garden sit together at the top, and Shiro and Kuro show you around on your first visit.",
+            "fr": "Ton terrier se lit mieux. CREUSER, ENTERRER et PILLER reviennent en planches en bas, tes carottes, ta maison et ton potager sont réunis en haut, et Shiro et Kuro te font la visite à ta première arrivée.",
+            "zh": "你的兔窝更容易看懂了。挖掘、埋雷和掠夺回到了底部的木板上，你的胡萝卜、小屋和菜园集中在顶部，第一次回来时 Shiro 和 Kuro 会带你逛一圈。",
+            "pt-BR": "Sua toca ficou mais fácil de entender. CAVAR, ENTERRAR e SAQUEAR voltam como tábuas embaixo, suas cenouras, sua casa e sua horta ficam juntas no alto, e Shiro e Kuro te mostram tudo na primeira visita.",
+            "vi": "Hang của bạn dễ hiểu hơn. ĐÀO, CHÔN BOM và CƯỚP trở lại thành tấm ván ở dưới, cà rốt, nhà và vườn của bạn nằm cùng nhau ở trên, và Shiro cùng Kuro dẫn bạn đi một vòng ở lần đầu ghé."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.8.2",
       "date": "2026-10-13",
       "items": [

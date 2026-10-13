@@ -234,6 +234,10 @@ export const en = {
     burrowsOpen: (n: number) => `${n} burrow${n === 1 ? '' : 's'} open`,
     bombsInBag: (n: number) => `${n} bomb${n === 1 ? '' : 's'} in the bag`,
     allShielded: 'every burrow is shielded',
+    /* The middle verb of the floor bar (2026-10-13): you dig up on the
+       islands, you bury at home. DEFEND stays the name of the live defence. */
+    bury: 'BURY',
+    atRisk: (n: string) => `+${n} at risk`,
   },
 
   /* ── The NEXT strip ───────────────────────────────────────────────────── */
@@ -266,6 +270,8 @@ export const en = {
     exposed: (n: string) => `${n} EXPOSED`,
     garden: 'GARDEN',
     harvest: 'HARVEST',
+    /* The house button of the burrow HUD; its level sits under it. */
+    word: 'BURROW',
     energy: 'ENERGY',
     gardenGrows: 'THE GARDEN GROWS FASTER',
     /* The cards' fine print (garden-card.tsx, burrow-card-panel.tsx), shown
@@ -279,6 +285,28 @@ export const en = {
     /* A landmark the axe knocked over, on the owner's board. */
     markStands: (when: string) => `Back up in ${when}`,
     regenRate: (perHour: number) => `${perHour} energy/hour`,
+  },
+
+  /* ── The burrow tour (burrow_tour.gd): Shiro, calm, shows each thing once
+     after the tutorial; Kuro, restless, takes BURY and RAID. Titles in
+     capitals (the kit's atlas), the lines in sentence case. ─────────────── */
+  tour: {
+    next: (i: number, n: number) => `NEXT ${i}/${n}`,
+    gotIt: 'GOT IT',
+    carrotsTitle: 'YOUR CARROTS',
+    carrots: 'Everything you dig ends up here. The gold part is safe. The red part, a raider could take.',
+    gardenTitle: 'YOUR GARDEN',
+    garden: (perHour: number) => `It grows by itself, +${perHour} an hour. Tap HARVEST to bring the carrots in. Until then, they can be stolen.`,
+    houseTitle: 'YOUR HOUSE',
+    house: 'Spend carrots to make it bigger: more carrots an hour, and more of them safe.',
+    digTitle: 'DIG',
+    dig: 'The island is where carrots come from. Each dig costs energy, and the ring fills back up on its own.',
+    buryTitle: 'BURY',
+    bury: 'Raiders WILL come for your garden. Bury bombs on their path. Make them pay for every step!',
+    raidTitle: 'RAID',
+    raid: 'And you get to do it back. Their gardens, your carrots!',
+    questTitle: 'WHEN IN DOUBT',
+    quest: 'Follow your quest. It always knows the next step.',
   },
 
   /* ── Rearranging the burrow (Godot: burrow_arrange.gd) ─────────────────

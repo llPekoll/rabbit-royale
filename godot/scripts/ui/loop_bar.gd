@@ -158,6 +158,33 @@ const BOARDS := {
 
 ## Le banc force l'affichage : il n'y a ni monde ni lieu dans un banc.
 var bench_mode := false
+## LE CADRAN D'ENERGIE PORTE DIG — la planche a cadran du haut (EnergyDial),
+## « DIG » ecrit sur son bois, au niveau des deux autres planches (essai du
+## banc burrow_ux_bench, 2026-10-13). Les carottes restent en haut.
+var dig_dial := false
+## Le cadran plus grand que les planches (« fais que ca prenne plus de
+## place », 2026-10-13) : son echelle, centre sur la rangee.
+var dial_grow := 1.0
+## Et remonte d'autant de pixels : plus grand, son pied passait sous l'ecran.
+var dial_rise := 0.0
+## Et part plus a gauche : son anneau mord sur la gouttiere de l'ecran.
+var dial_left := 0.0
+## LE VERBE DU MILIEU A L'ESSAI : BURY plutot que DEFEND (2026-10-13). DIG ▸
+## BURY ▸ RAID — on deterre sur les iles, on enterre chez soi. DEFEND reste
+## le nom de la defense en direct, quand la menace est la. Vides : le jeu.
+## `defend_risk` porte « +{0} at risk », le potager comme enjeu ;
+## `defend_mark` couvre le bouclier peint de la planche.
+var defend_word := ""
+var defend_risk := ""
+var defend_mark: Texture2D
+## LE JEU EN BARRE (2026-10-13, « les planches c'est mieux ») : BURY dans la
+## langue du joueur (`loop.bury`, `loop.atRisk`), la bombe sur le bouclier,
+## et la barre lit elle-meme ce que les ilots lisaient — les bombes posees
+## (ShopState), les terriers ouverts (RaidState, demandes une fois), le
+## niveau qui ouvre les raids.
+var bury := false
+var _targets_asked := false
+var _dial: DialSlab
 
 var _row: HBoxContainer
 var _slabs: Dictionary = {}
@@ -205,8 +232,21 @@ func _ready() -> void:
 	_row.sort_children.connect(_place_haul)
 
 	_slabs["dig"] = _add_slab("dig", Kit.PLANK, DIG_VERB, DIG_VERB_SHADOW)
+	if dig_dial:
+		_slabs["dig"].visible = false
+		_dial = DialSlab.new()
+		_dial.grow = dial_grow
+		_dial.rise = dial_rise
+		_dial.left = dial_left
+		_dial.pressed.connect(func() -> void: dig_pressed.emit())
+		_row.add_child(_dial)
+		_row.move_child(_dial, _slabs["dig"].get_index() + 1)
 	_row.add_child(_arrow())
 	_slabs["defend"] = _add_slab("defend", Kit.SCROLL_PLANK_BLUE, DEF_VERB, Color.TRANSPARENT)
+	if bury and defend_mark == null:
+		defend_mark = Kit.ICONS["bomb"]
+	if defend_mark != null:
+		(_slabs["defend"] as Slab).cover_mark(defend_mark)
 	_row.add_child(_arrow())
 	_slabs["raid"] = _add_slab("raid", Kit.SKULL_PLANK_RED, RAID_VERB, RAID_VERB_SHADOW)
 
@@ -235,6 +275,11 @@ func _ready() -> void:
 	add_child(_land)
 
 	Home.changed.connect(_on_home_changed)
+	if bury and not bench_mode:
+		ShopState.shared().changed.connect(_on_shop_changed)
+		RaidState.current.targets_changed.connect(_on_targets_changed)
+		_on_shop_changed()
+		_on_targets_changed()
 	I18N.locale_changed.connect(func(_code: String) -> void: _relabel())
 	Screens.changed.connect(_update_visible)
 	GameSocket.event.connect(_on_socket_event)
@@ -264,6 +309,35 @@ func _arrive() -> void:
 		UiEntrance.play(node as Control, UiEntrance.FROM_BOTTOM, rank)
 		if (node as Control).visible:
 			rank += 1
+
+
+# ── Ce que la barre lit seule (`bury`) ──────────────────────────────────────
+
+func _on_shop_changed() -> void:
+	var traps := ShopState.shared().traps
+	var placed: Variant = traps.get("placed", [])
+	set_defence((placed as Array).size() if placed is Array else 0, int(traps.get("held", 0)))
+
+
+func _on_targets_changed() -> void:
+	var targets := RaidState.current.targets
+	set_targets(targets.size(), targets.is_empty())
+
+
+## LES CIBLES, UNE FOIS par barre (burrow_landmarks.gd `_ask_targets`) :
+## une fois le niveau connu et s'il ouvre les raids. Jamais pendant un raid.
+func _ask_targets() -> void:
+	if _targets_asked or not bury or bench_mode or not Home.loaded() or not Session.signed_in():
+		return
+	if not _raids_unlocked() or RaidState.current.has_raid():
+		return
+	_targets_asked = true
+	RaidState.current.refresh()
+
+
+func _raids_unlocked() -> bool:
+	return int(Home.player.get("level", 1)) >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) \
+		and not PlaySettings.solo_on()
 
 
 # ── L'API du chrome ──────────────────────────────────────────────────────────
@@ -354,6 +428,8 @@ func _measure() -> void:
 		var on_art: bool = kind != "dig"
 		slab.relayout(h, BOARDS[kind], VERB_SHORT if (short and on_art) else verb_size,
 			LINE_MIN if (short and on_art) else line_size)
+	if _dial != null:
+		_dial.relayout(h, verb_size, line_size)
 	_place_haul()
 
 
@@ -477,6 +553,13 @@ func _relabel() -> void:
 		I18N.f("loop.shieldFor", [I18N.wait(shield)]) if shield >= 0 else I18N.t("loop.noShield"),
 		I18N.f("loop.traps", [_traps_placed]),
 	]
+	# BURY : l'enjeu d'abord (ce qu'un pillard prendrait), puis les bombes ;
+	# le bouclier a quitte la planche, il est sur celle des carottes.
+	if bury or not defend_risk.is_empty():
+		home_parts = [I18N.f("loop.traps", [_traps_placed])]
+		if garden > 0:
+			home_parts.push_front(I18N.f("loop.atRisk", [I18N.group_digits(garden)]) if bury \
+				else defend_risk.format([I18N.group_digits(garden)]))
 
 	# RAID : les portes qui s'ouvriront, ou — le reservoir trop bas pour y
 	# aller — ce qu'un raid demande et quand on l'aura (le refus que le web
@@ -492,6 +575,17 @@ func _relabel() -> void:
 		raid_lamp = true
 	else:
 		raid_parts.append(I18N.t("loop.allShielded"))
+	# EN BARRE, ce que l'ilot RAID disait : le niveau qui ouvre les raids, ou
+	# le mode solo — pas « tous les terriers sont proteges », qui mentait.
+	if bury and not bench_mode:
+		_ask_targets()
+		var raid_min := Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
+		if int(Home.player.get("level", 1)) < raid_min:
+			raid_parts = [I18N.f("rabbitLevel.badge", [raid_min])]
+			raid_lamp = false
+		elif PlaySettings.solo_on():
+			raid_parts = [I18N.t("sound.solo")]
+			raid_lamp = false
 	if _bombs > 0:
 		raid_parts.append(I18N.f("loop.bombsInBag", [_bombs]))
 
@@ -499,7 +593,16 @@ func _relabel() -> void:
 	var defend: Slab = _slabs["defend"]
 	var raid: Slab = _slabs["raid"]
 	dig.say(I18N.shout(I18N.t("loop.dig")), dig_parts, DIG_LINE, Color.TRANSPARENT)
-	defend.say(I18N.shout(I18N.t("loop.defend")), home_parts,
+	if _dial != null:
+		# Plus de pastille en haut pour lire le reservoir : la ligne le dit,
+		# et le prix de la traversee s'en va (la ligne ne tenait plus) ; a
+		# sec, l'attente suit.
+		var dial_parts: Array[String] = [I18N.f("loop.energyOf", [energy, max_energy])]
+		if not can_dig:
+			dial_parts.append_array(dig_parts.slice(1))
+		_dial.say(I18N.shout(I18N.t("loop.dig")), dial_parts, energy, max_energy)
+	var defend_verb := I18N.shout(I18N.t("loop.bury")) if bury else defend_word
+	defend.say(defend_verb if not defend_verb.is_empty() else I18N.shout(I18N.t("loop.defend")), home_parts,
 		DEF_DANGER if garden > 0 else DEF_LINE, Color.TRANSPARENT)
 	raid.say(I18N.shout(I18N.t("loop.raid")), raid_parts, RAID_LAMP if raid_lamp else RAID_LINE, Color.TRANSPARENT)
 
@@ -720,6 +823,7 @@ class Slab extends Button:
 	var verb: Label
 	var line: StateLine
 	var corner: Control
+	var mark: Control
 	var _inset := Vector4.ZERO
 	var _content_y := 0.0
 	var _art_y := 0.0
@@ -793,6 +897,29 @@ class Slab extends Button:
 			var cs := corner.get_combined_minimum_size()
 			corner.size = cs
 			corner.position = Vector2(size.x - 4.0 - cs.x, -8.0 + _content_y)
+		if mark != null:
+			# Le bouclier de l'art : 44..88 x 30..76 sur 354x104, dans le
+			# bout gauche (107 px d'art pour `edge.x` a l'ecran).
+			var sx := board.edge.x / 107.0
+			var sy := board.size.y / 104.0
+			mark.size = Vector2(46.0 * sx, 48.0 * sy)
+			mark.position = board.position + Vector2(66.0 * sx, 53.0 * sy) - mark.size * 0.5 + Vector2(0, _content_y)
+
+	## UNE MARQUE PAR-DESSUS LE BOUCLIER PEINT : un pan de parchemin, et
+	## l'icone dessus. Le temps d'essayer un autre verbe sans repeindre.
+	func cover_mark(tex: Texture2D) -> void:
+		mark = Control.new()
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.draw.connect(func() -> void:
+			var r := Rect2(Vector2.ZERO, mark.size)
+			mark.draw_rect(r, Color("#fad99f"))
+			var t := Vector2(tex.get_size())
+			var k := minf(r.size.x / t.x, r.size.y / t.y) * 0.95
+			var at := (r.size - t * k) * 0.5
+			mark.draw_texture_rect(tex, Rect2(at, t * k), false))
+		mark.resized.connect(mark.queue_redraw)
+		add_child(mark)
+		_place()
 
 	func say(word: String, parts: Array[String], ink: Color, shadow: Color) -> void:
 		verb.text = word
@@ -858,6 +985,71 @@ class Slab extends Button:
 		shake.tween_property(self, "rotation", deg_to_rad(2.5), 0.08)
 		shake.tween_property(self, "rotation", deg_to_rad(-1.0), 0.08)
 		shake.tween_property(self, "rotation", 0.0, 0.08)
+
+
+## DIG SUR LE CADRAN : l'art de la pastille du haut, a l'echelle ou sa
+## PLANCHE (rangees 31..86) a la hauteur du bois des autres (BODY_SPAN de la
+## rangee), centree comme elles ; le cadran deborde en haut et en bas. Le
+## verbe et la ligne d'etat se posent sur le bois propre (`inset`, `room`).
+class DialSlab extends Button:
+	var dial: EnergyDial
+	var column: VBoxContainer
+	var verb: Label
+	var line: StateLine
+	var grow := 1.0
+	var rise := 0.0
+	var left := 0.0
+	var _h := 0.0
+
+	func _init() -> void:
+		focus_mode = Control.FOCUS_NONE
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+			add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		dial = EnergyDial.new()
+		dial.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dial.hub = true
+		dial.beat = true
+		dial.mark = float(Tuning.raid_floor())
+		add_child(dial)
+		column = Kit.vbox(1)
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(column)
+		verb = Kit.label("", 13, LoopBar.DIG_VERB)
+		verb.add_theme_color_override("font_shadow_color", LoopBar.DIG_VERB_SHADOW)
+		verb.add_theme_constant_override("shadow_offset_x", 0)
+		verb.add_theme_constant_override("shadow_offset_y", 2)
+		column.add_child(verb)
+		line = StateLine.new()
+		column.add_child(line)
+		button_down.connect(func() -> void: dial.modulate = Color(0.88, 0.88, 0.88))
+		button_up.connect(func() -> void: dial.modulate = Color.WHITE)
+
+	func relayout(h: float, verb_size: int, line_size: int) -> void:
+		_h = h
+		var k := LoopBar.BODY_SPAN * h / (EnergyDial.PLANK_BOTTOM - EnergyDial.PLANK_TOP) * grow
+		dial.set_height(EnergyDial.ART.y * k)
+		custom_minimum_size = Vector2(dial.size.x - left, h)
+		verb.add_theme_font_size_override("font_size", roundi(verb_size * grow))
+		line.custom_minimum_size.y = maxf(float(line_size) * 1.25,
+			line.label.get_theme_font("font").get_height(line_size))
+		line.label.add_theme_font_size_override("font_size", roundi(line_size * minf(grow, 1.2)))
+		_place()
+
+	func _place() -> void:
+		var k := dial.scale_factor()
+		var mid := (EnergyDial.PLANK_TOP + EnergyDial.PLANK_BOTTOM) * 0.5 * k
+		dial.position = Vector2(-left, roundf(_h * 0.5 - mid - rise))
+		var want := column.get_combined_minimum_size()
+		column.size = Vector2(dial.room(), want.y)
+		column.position = Vector2(dial.inset() - left, floorf(_h * 0.5 - want.y * 0.5 - rise))
+
+	func say(word: String, parts: Array[String], energy: int, max_energy: int) -> void:
+		verb.text = word
+		line.say(parts, line.label.get_theme_font_size("font_size"), LoopBar.DIG_LINE, Color.TRANSPARENT)
+		dial.max_value = float(max_energy)
+		dial.value = float(energy)
+		_place()
 
 
 ## Le chevron « ▸ » entre deux planches, a l'encre de craie sur son ombre.

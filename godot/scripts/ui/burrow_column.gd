@@ -174,6 +174,14 @@ func _update_visible() -> void:
 
 ## Ce que les cartes occupent vraiment a l'ecran (la boite, pas l'hote qui
 ## descend jusqu'au sol) : ce qui se pose en bas l'evite (ArrangeBar).
+## LA CARTE DE LA QUETE a l'ecran (la visite du terrier la montre seule,
+## pas toute la colonne). Vide si elle n'est pas la.
+func quest_rect() -> Rect2:
+	if not visible or _cards.is_empty() or not _cards[0].is_visible_in_tree():
+		return Rect2()
+	return _cards[0].get_global_rect()
+
+
 func cards_rect() -> Rect2:
 	if _scroll == null or not visible:
 		return Rect2()

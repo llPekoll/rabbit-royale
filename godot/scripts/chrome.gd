@@ -52,6 +52,19 @@ const SCRIM_BLUR := preload("res://shaders/scrim_blur.gdshader")
 ## Les panneaux de cote s'arretent a la maquette (342 px de 1376) : plus
 ## large, ce n'est plus un panneau mais une bande de texte clairseme.
 const COLUMN_MAX := 360.0
+## LES ILOTS OU LES PLANCHES (2026-10-13, « en fait les planches c'est
+## mieux ») : DIG, BURY, RAID en barre au sol (loop_bar.gd), la maison et le
+## potager en boutons du haut du terrier (burrow_hud.gd), la visite de Shiro
+## et Kuro a la premiere arrivee (burrow_tour.gd). Le code des ilots
+## (burrow_landmarks.gd) reste entier : vrai, il revient tel quel. Une
+## variable et pas une constante : le banc (burrow_ux_bench) rallume les
+## ilots pour les comparer.
+static var islets := false
+## Le cadran d'energie qui porte DIG : plus grand que les planches, un peu
+## remonte, et pas colle au bord (« ca touche le cote et un peu plus bas »).
+const DIAL_GROW := 1.6
+const DIAL_RISE := 8.0
+const DIAL_LEFT := 0.0
 const BOARD_MIN := 280.0
 const BOARD_MAX := 380.0
 
@@ -65,6 +78,9 @@ var _kit: KitRow
 var _back: BackButton
 ## Le volet du terrier, sous les boutons du haut a droite (house_panel.gd).
 var _house: HousePanel
+## SANS ILOTS : le haut du terrier (KIT 04) et la visite.
+var _hud: BurrowHud
+var _tour: BurrowTour
 ## La version, en bas a droite du terrier : QUOI DE NEUF (version_tag.gd).
 var _version: VersionTag
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
@@ -219,7 +235,10 @@ func _mount_place() -> void:
 			child.queue_free()
 	_column = null
 	_loop = null
+	_hud = null
+	_tour = null
 	_kit = null
+	_measure()
 	_back = null
 	_house = null
 	_version = null
@@ -270,6 +289,9 @@ func _mount_place() -> void:
 	# LE VOLET DU TERRIER, sous les boutons du haut a droite : le niveau, le
 	# suivant, le coffre, AMELIORER (house_panel.gd).
 	_house = HousePanel.new()
+	if not islets:
+		_mount_floor()
+		_house.under = _hud.house_button
 	floor_host.add_child(_house)
 
 	_back = preload("res://scenes/ui/back_button.tscn").instantiate()
@@ -290,6 +312,100 @@ func _mount_place() -> void:
 			_announce_whats_new()
 
 
+## LA BARRE AU SOL ET LE HAUT DU TERRIER, quand les ilots sont eteints.
+## DIG sur le cadran d'energie, BURY ▸ RAID sur leurs planches ; au-dessus,
+## BURROW · les carottes et leur coffre · HARVEST. Chacun entre a son tour
+## (UiEntrance) ; la camera cadre l'ile au-dessus de la barre.
+func _mount_floor() -> void:
+	_loop = preload("res://scenes/ui/loop_bar.tscn").instantiate()
+	_loop.dig_dial = true
+	_loop.dial_grow = DIAL_GROW
+	_loop.dial_rise = DIAL_RISE
+	_loop.dial_left = DIAL_LEFT
+	_loop.bury = true
+	floor_host.add_child(_loop)
+	_loop.dig_pressed.connect(_on_door.bind("dig"))
+	_loop.defend_pressed.connect(_on_door.bind("defend"))
+	_loop.raid_pressed.connect(_on_door.bind("raid"))
+
+	_hud = BurrowHud.new()
+	_hud.live = true
+	# Le sol est une bande de hauteur nulle en bas de l'ecran : le haut se
+	# pose en coordonnees d'ecran, comme la version.
+	_hud.top_level = true
+	floor_host.add_child(_hud)
+	_hud.house_pressed.connect(_on_door.bind("upgrade"))
+	_hud.harvest_pressed.connect(_on_door.bind("harvest"))
+	_place_hud()
+	_hud.pose()
+	Screens.on_reveal(_hud_arrive)
+
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_floor_reserve"):
+		burrow.call("set_floor_reserve", _loop.height() + Kit.EDGE + Kit.PAD_TIGHT)
+
+	if not BurrowTour.seen() and not Island.tutorial_pending():
+		Screens.on_reveal(_start_tour)
+	_measure()
+
+
+## Centre en haut, a la hauteur des boutons du rail.
+func _place_hud() -> void:
+	if not is_instance_valid(_hud):
+		return
+	var view := get_viewport_rect().size
+	_hud.position = Vector2(roundf((view.x - _hud.size.x) * 0.5), Kit.screen_inset().y)
+
+
+## Le haut entre apres les trois boutons du rail (top_bar.gd `_arrive`).
+func _hud_arrive() -> void:
+	if is_instance_valid(_hud):
+		_hud.play_entrance(UiEntrance.STEP * 3)
+
+
+## Ou les carottes recoltees volent quand la pastille se tait (burrow.gd).
+func hud_carrot() -> Vector2:
+	if is_instance_valid(_hud) and _hud.is_visible_in_tree():
+		return _hud.carrot_target()
+	return Vector2(INF, INF)
+
+
+## LA VISITE, une fois par joueur : les sept choses de l'ecran, dans l'ordre
+## ou on s'en sert.
+func _start_tour() -> void:
+	if is_instance_valid(_tour) or not is_instance_valid(_hud) or _raid_shown or BurrowTour.seen():
+		return
+	var hud := _hud
+	var loop := _loop
+	var col := _column
+	var part := func(name: String) -> Rect2:
+		if not is_instance_valid(hud) or not hud.is_visible_in_tree():
+			return Rect2()
+		var r := hud.rest_rect(name)
+		return Rect2(hud.global_position + r.position, r.size)
+	var slab := func(kind: String) -> Rect2:
+		if not is_instance_valid(loop) or not loop.is_visible_in_tree():
+			return Rect2()
+		if kind == "dig":
+			return loop._dial.dial.get_global_rect() if loop._dial != null else Rect2()
+		var s: Control = loop._slabs.get(kind)
+		return s.get_global_rect() if s != null and s.is_visible_in_tree() else Rect2()
+	var quest := func() -> Rect2:
+		return col.quest_rect() if is_instance_valid(col) else Rect2()
+	var yield_h := int(Home.burrow.get("yieldPerHour", 0))
+	_tour = BurrowTour.new()
+	_tour.steps.assign([
+		{"rect": part.bind("middle"), "who": "SHIRO", "title": I18N.t("tour.carrotsTitle"), "why": I18N.t("tour.carrots")},
+		{"rect": part.bind("harvest"), "who": "SHIRO", "title": I18N.t("tour.gardenTitle"), "why": I18N.f("tour.garden", [yield_h])},
+		{"rect": part.bind("house"), "who": "SHIRO", "title": I18N.t("tour.houseTitle"), "why": I18N.t("tour.house")},
+		{"rect": slab.bind("dig"), "who": "SHIRO", "title": I18N.t("tour.digTitle"), "why": I18N.t("tour.dig")},
+		{"rect": slab.bind("defend"), "who": "KURO", "title": I18N.t("tour.buryTitle"), "why": I18N.t("tour.bury")},
+		{"rect": slab.bind("raid"), "who": "KURO", "title": I18N.t("tour.raidTitle"), "why": I18N.t("tour.raid")},
+		{"rect": quest, "who": "SHIRO", "title": I18N.t("tour.questTitle"), "why": I18N.t("tour.quest")},
+	])
+	floor_host.add_child(_tour)
+
+
 ## `-- --open=<surface>` : ouvre une surface une fois le terrier lu, pour
 ## qu'une capture (DevShot) la trouve sans main. Outil, pas comportement.
 func _dev_open() -> void:
@@ -307,6 +423,10 @@ func _dev_open() -> void:
 		# Traverser vers l'ile, comme la planche DIG (`_dig`) — pour capturer
 		# une ile servie par le serveur sans main.
 		"dig": _dig()
+		# La porte DEFEND, comme son ilot la pousse.
+		"defend": _on_door("defend")
+		# Le volet de la maison, comme le bouton BURROW du haut l'ouvre.
+		"upgrade": _on_door("upgrade")
 		"profile": Profile.open()
 		"season": _open_season()
 		"pass": PassDialog.open()
@@ -461,7 +581,11 @@ func _on_door(door: String) -> void:
 		# la place de la carte qui s'ouvrait au milieu de l'ecran.
 		"upgrade":
 			if _house != null:
-				_house.expand()
+				# Le bouton BURROW du haut ouvre ET referme son volet.
+				if _house.under != null:
+					_house.toggle()
+				else:
+					_house.expand()
 
 
 ## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,
@@ -698,6 +822,8 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 		_version.visible = false
 	arrange_state({})
 	_kit.open(mode, expanded)
+	if _loop != null:
+		_loop.set_away(true)
 	_column.set_editing(true)
 	_back.show_for(mode)
 	_mount_clean()
@@ -874,6 +1000,8 @@ func _end_mode() -> void:
 		_kit.close()
 		_back.dismiss()
 		_column.set_editing(false)
+	if _loop != null:
+		_loop.set_away(false)
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", false)
@@ -970,7 +1098,12 @@ func _measure() -> void:
 	column.offset_right = Kit.EDGE + column_w
 	column.offset_bottom = -Kit.EDGE
 
-	toasts.offset_top = Kit.TOPBAR_H + Kit.PAD_TIGHT
+	_place_hud()
+	# Les legendes passent sous le haut du terrier, qui tient le milieu.
+	var toast_top := Kit.TOPBAR_H
+	if is_instance_valid(_hud):
+		toast_top = maxf(toast_top, _hud.position.y + _hud.size.y)
+	toasts.offset_top = toast_top + Kit.PAD_TIGHT
 	var toast_w := minf(560.0, view.x - 2.0 * (column_w + 24.0))
 	toasts.offset_left = -toast_w * 0.5
 	toasts.offset_right = toast_w * 0.5

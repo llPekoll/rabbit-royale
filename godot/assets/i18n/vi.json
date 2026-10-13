@@ -228,7 +228,11 @@
   "bombsInBag": {
    "$t": "{0} bom trong túi"
   },
-  "allShielded": "mọi hang đều có khiên"
+  "allShielded": "mọi hang đều có khiên",
+  "bury": "CHÔN BOM",
+  "atRisk": {
+   "$t": "+{0} có thể mất"
+  }
  },
  "next": {
   "label": "TIẾP",
@@ -266,6 +270,7 @@
   },
   "garden": "VƯỜN",
   "harvest": "THU HOẠCH",
+  "word": "HANG",
   "energy": "NĂNG LƯỢNG",
   "gardenGrows": "VƯỜN LỚN NHANH HƠN",
   "gardenAtRisk": {
@@ -286,6 +291,28 @@
   "regenRate": {
    "$t": "{0} năng lượng/giờ"
   }
+ },
+ "tour": {
+  "next": {
+   "$t": "TIẾP {0}/{1}"
+  },
+  "gotIt": "ĐÃ HIỂU",
+  "carrotsTitle": "CÀ RỐT CỦA BẠN",
+  "carrots": "Mọi thứ bạn đào được đều về đây. Phần vàng là an toàn. Phần đỏ, kẻ cướp có thể lấy.",
+  "gardenTitle": "VƯỜN CỦA BẠN",
+  "garden": {
+   "$t": "Vườn tự lớn, +{0} mỗi giờ. Chạm THU HOẠCH để mang cà rốt vào. Trước đó, chúng có thể bị cướp."
+  },
+  "houseTitle": "NHÀ CỦA BẠN",
+  "house": "Tiêu cà rốt để mở rộng nhà: thêm cà rốt mỗi giờ, và nhiều cà rốt an toàn hơn.",
+  "digTitle": "ĐÀO",
+  "dig": "Cà rốt đến từ hòn đảo. Mỗi lần đào tốn năng lượng, và vòng năng lượng tự đầy lại.",
+  "buryTitle": "CHÔN BOM",
+  "bury": "Kẻ cướp SẼ đến vì khu vườn của bạn. Chôn bom trên đường chúng đi. Bắt chúng trả giá từng bước!",
+  "raidTitle": "CƯỚP",
+  "raid": "Và bạn cũng được cướp lại. Vườn của chúng, cà rốt của bạn!",
+  "questTitle": "KHI PHÂN VÂN",
+  "quest": "Hãy theo nhiệm vụ. Nó luôn biết bước tiếp theo."
  },
  "arrange": {
   "tip": "Chạm vào cây, nhà hoặc vườn để dời nó đi.",

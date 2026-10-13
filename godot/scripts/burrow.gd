@@ -154,6 +154,14 @@ var _saving := false
 ## graine change, pas a chaque pose d'un arbre.
 var _landmarks: BurrowLandmarks
 var _landmarks_seed := ""
+## LES ILOTS SONT ETEINTS (2026-10-13, « les planches c'est mieux ») : DIG,
+## BURY et RAID reviennent en barre au sol (loop_bar.gd), la maison et le
+## potager en boutons du haut (burrow_hud.gd). Le code des ilots reste
+## entier ; vrai, il revient tel quel. L'interrupteur est au chrome
+## (`Chrome.islets`), qui monte l'un ou l'autre.
+## LE SOL DU CHROME (la barre, son bord, son air) : la prise maison cadre
+## l'ile dans ce qui reste au-dessus (`set_floor_reserve`).
+var floor_reserve := 0.0
 
 
 func _ready() -> void:
@@ -243,6 +251,10 @@ func _on_harvested(amount: int) -> void:
 	var target := func() -> Vector2:
 		if is_instance_valid(pill) and pill.is_visible_in_tree():
 			return pill.carrot_target()
+		# EN BARRE (sans ilots), la pastille se tait au terrier : les carottes
+		# volent a celle du haut du terrier (burrow_hud.gd).
+		if is_instance_valid(chrome) and chrome.hud_carrot().x < INF:
+			return chrome.hud_carrot()
 		# Pas de pastille : vers le haut de l'ecran, au milieu.
 		return Vector2(get_viewport_rect().size.x * 0.5, -20.0)
 	if pill != null:
@@ -278,7 +290,7 @@ func _follow_level() -> void:
 ## la mer qui les borde et leurs planches se refont ; le reste du terrier ne
 ## bouge pas.
 func _rebuild_islets() -> void:
-	if _layout == null or not _own_ground():
+	if not Chrome.islets or _layout == null or not _own_ground():
 		return
 	_landmarks.build(_layout.map, true)
 	_landmarks.follow(_layout.building, _props.field, _props.home)
@@ -1123,7 +1135,7 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_traps.clear()
 	_terrain.map = _layout.map
 	_terrain.build()
-	if _landmarks_seed != seed_value:
+	if Chrome.islets and _landmarks_seed != seed_value:
 		_landmarks_seed = seed_value
 		_landmarks.build(_layout.map, _own_ground())
 	# Les decors lisent LE MEME relief : une maison posee sur un autre terrain
@@ -1349,8 +1361,16 @@ func _wanted_cam() -> BurrowCamera.Shot:
 			return BurrowCamera.wall(map, _props.field, view.x, view.y)
 		return BurrowCamera.place(map, view.x, view.y)
 	if _cam_moved_by_player:
-		return BurrowCamera.clamp_home(_current_shot(), _home_map(), view.x, view.y)
-	return BurrowCamera.home(_home_map(), view.x, view.y)
+		return BurrowCamera.clamp_home(_current_shot(), _home_map(), view.x, view.y - floor_reserve)
+	return BurrowCamera.home(_home_map(), view.x, view.y - floor_reserve)
+
+
+## LE CHROME POSE SA BARRE AU SOL : la prise maison remonte d'autant.
+func set_floor_reserve(px: float) -> void:
+	if is_equal_approx(px, floor_reserve):
+		return
+	floor_reserve = px
+	frame_camera()
 
 
 ## LA MAISON CADRE LES ILOTS AVEC L'ILE : ce sont ses boutons.
@@ -1864,6 +1884,12 @@ func can_arrange() -> bool:
 	return inc.is_empty() or bool(inc.get("finished", false))
 
 
+## LE DECOR NE SE PREND PAS : le terrier se regarde, et ne s'amenage que dans
+## un mode qui le dit (burrow_ux_bench, la piste CONSTRUIRE). Faux par
+## defaut : le jeu garde son clic qui prend.
+var arrange_locked := false
+
+
 ## UN CLIC CHEZ SOI, hors pose : prendre, poser, reposer, ou changer de main.
 func _decor_tap(cell: Vector2i) -> void:
 	if not _can_drag_decor():
@@ -2313,7 +2339,7 @@ func _refusal_text(code: String) -> String:
 ## maintien au doigt arme le glisser.
 func _process(delta: float) -> void:
 	# LES PLANCHES DES BATIMENTS : chez soi, hors de tout mode, rien en main.
-	_landmarks.set_live(_own_ground() and not _in_raid and not _raiding
+	_landmarks.set_live(Chrome.islets and _own_ground() and not _in_raid and not _raiding
 		and not _placing and not _walling and _arrange == null and not _dragging_decor)
 	if _arrange != null and _arrange.settling() and _arrange.settle(3000):
 		_paint_arrange()
@@ -2342,7 +2368,8 @@ var _drag_over := Vector2i(-1, -1)
 
 ## Peut-on toucher au decor ? Chez soi, hors pose, hors raid.
 func _can_drag_decor() -> bool:
-	var ok := not _placing and not _walling and not _defending and can_arrange()
+	var ok := not arrange_locked and not _placing and not _walling and not _defending \
+		and can_arrange()
 	if not ok:
 		_alog("pas d'amenagement : placing=%s walling=%s defending=%s in_raid=%s own=%s incoming=%s" % [
 			_placing, _walling, _defending, _in_raid, _own_ground(),

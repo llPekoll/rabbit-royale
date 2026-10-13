@@ -289,6 +289,11 @@ func reflect_place() -> void:
 	# moyen de racheter une bombe ou un eclair sans quitter.
 	shop_button.visible = true
 	story_button.visible = home
+	# SANS ILOTS (2026-10-13), le terrier a son haut a lui (burrow_hud.gd) :
+	# les carottes y sont, l'energie sur le cadran de DIG. La pastille s'y
+	# tait — sauf en raid, ou elle porte la jauge du raid.
+	var raid := Chrome.current != null and Chrome.current.raid_shown()
+	pill.visible = not home or Chrome.islets or raid or preview
 	pill.refresh()
 
 

@@ -270,7 +270,11 @@
     }
    ]
   },
-  "allShielded": "tous les terriers sont protégés"
+  "allShielded": "tous les terriers sont protégés",
+  "bury": "ENTERRER",
+  "atRisk": {
+   "$t": "+{0} en danger"
+  }
  },
  "next": {
   "label": "SUITE",
@@ -308,6 +312,7 @@
   },
   "garden": "POTAGER",
   "harvest": "RÉCOLTER",
+  "word": "TERRIER",
   "energy": "ÉNERGIE",
   "gardenGrows": "LE POTAGER POUSSE PLUS VITE",
   "gardenAtRisk": {
@@ -328,6 +333,28 @@
   "regenRate": {
    "$t": "{0} énergie/h"
   }
+ },
+ "tour": {
+  "next": {
+   "$t": "SUIVANT {0}/{1}"
+  },
+  "gotIt": "COMPRIS",
+  "carrotsTitle": "TES CAROTTES",
+  "carrots": "Tout ce que tu creuses arrive ici. La part dorée est à l’abri. La part rouge, un pillard peut la prendre.",
+  "gardenTitle": "TON POTAGER",
+  "garden": {
+   "$t": "Il pousse tout seul, +{0} par heure. Touche RÉCOLTER pour rentrer les carottes. D’ici là, on peut te les voler."
+  },
+  "houseTitle": "TA MAISON",
+  "house": "Dépense des carottes pour l’agrandir : plus de carottes par heure, et plus à l’abri.",
+  "digTitle": "CREUSER",
+  "dig": "Les carottes viennent de l’île. Chaque fouille coûte de l’énergie, et l’anneau se remplit tout seul.",
+  "buryTitle": "ENTERRER",
+  "bury": "Les pillards VONT venir pour ton potager. Enterre des bombes sur leur chemin. Fais-leur payer chaque pas !",
+  "raidTitle": "PILLER",
+  "raid": "Et tu peux leur rendre la pareille. Leurs potagers, tes carottes !",
+  "questTitle": "DANS LE DOUTE",
+  "quest": "Suis ta quête. Elle connaît toujours la prochaine étape."
  },
  "arrange": {
   "tip": "Touche un arbre, ta maison ou ton potager pour le déplacer.",

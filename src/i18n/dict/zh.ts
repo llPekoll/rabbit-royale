@@ -206,6 +206,8 @@ export const zh: Dict = {
     burrowsOpen: (n) => `${n} 个兔窝敞着`,
     bombsInBag: (n) => `背包里有 ${n} 颗炸弹`,
     allShielded: '所有兔窝都有护盾',
+    bury: '埋雷',
+    atRisk: (n) => `+${n} 有危险`,
   },
 
   next: {
@@ -229,6 +231,7 @@ export const zh: Dict = {
     exposed: (n) => `${n} 暴露在外`,
     garden: '菜园',
     harvest: '收获',
+    word: '兔窝',
     energy: '能量',
     gardenGrows: '菜园长得更快了',
     gardenAtRisk: (perHour) => `收获前可被掠夺 \u00b7 每小时 ${perHour}`,
@@ -237,6 +240,25 @@ export const zh: Dict = {
     stumpRegrows: (when: string) => `${when}后重新长出`,
     markStands: (when: string) => `${when}后重新立起`,
     regenRate: (perHour) => `每小时 ${perHour} 点能量`,
+  },
+
+  tour: {
+    next: (i, n) => `下一步 ${i}/${n}`,
+    gotIt: '明白了',
+    carrotsTitle: '你的胡萝卜',
+    carrots: '你挖到的一切都在这里。金色部分是安全的。红色部分，掠夺者可能拿走。',
+    gardenTitle: '你的菜园',
+    garden: (perHour) => `菜园自己生长，每小时 +${perHour}。点击收获把胡萝卜收进来。在那之前，它们可能被偷走。`,
+    houseTitle: '你的小屋',
+    house: '花胡萝卜扩建它：每小时更多胡萝卜，也有更多是安全的。',
+    digTitle: '挖掘',
+    dig: '胡萝卜来自小岛。每次挖掘都消耗能量，能量环会自己慢慢充满。',
+    buryTitle: '埋雷',
+    bury: '掠夺者一定会来抢你的菜园！在他们的路上埋炸弹，让他们每一步都付出代价！',
+    raidTitle: '掠夺',
+    raid: '你也可以以牙还牙。他们的菜园，你的胡萝卜！',
+    questTitle: '拿不准时',
+    quest: '跟着任务走。它总知道下一步。',
   },
 
   arrange: {

@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+; LE TERRIER REPENSE — squelette jouable : regarder / CONSTRUIRE (decor,
+; bombes, clotures), chemin du pillard, TESTER. Voir
+; scripts/bench/burrow_ux_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/burrow_ux_bench.gd" id="1_ux"]
+
+[node name="BurrowUxBench" type="Node2D"]
+script = ExtResource("1_ux")

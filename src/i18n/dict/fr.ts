@@ -200,6 +200,8 @@ export const fr: Dict = {
     burrowsOpen: (n) => `${n} terrier${n < 2 ? '' : 's'} ouvert${n < 2 ? '' : 's'}`,
     bombsInBag: (n) => `${n} bombe${n < 2 ? '' : 's'} en sac`,
     allShielded: 'tous les terriers sont protégés',
+    bury: 'ENTERRER',
+    atRisk: (n) => `+${n} en danger`,
   },
 
   next: {
@@ -223,6 +225,7 @@ export const fr: Dict = {
     exposed: (n) => `${n} EXPOSÉES`,
     garden: 'POTAGER',
     harvest: 'RÉCOLTER',
+    word: 'TERRIER',
     energy: 'ÉNERGIE',
     gardenGrows: 'LE POTAGER POUSSE PLUS VITE',
     gardenAtRisk: (perHour) => `pillable avant la récolte \u00b7 ${perHour}/h`,
@@ -231,6 +234,25 @@ export const fr: Dict = {
     stumpRegrows: (when: string) => `Repousse dans ${when}`,
     markStands: (when: string) => `Se relève dans ${when}`,
     regenRate: (perHour) => `${perHour} énergie/h`,
+  },
+
+  tour: {
+    next: (i, n) => `SUIVANT ${i}/${n}`,
+    gotIt: 'COMPRIS',
+    carrotsTitle: 'TES CAROTTES',
+    carrots: 'Tout ce que tu creuses arrive ici. La part dorée est à l’abri. La part rouge, un pillard peut la prendre.',
+    gardenTitle: 'TON POTAGER',
+    garden: (perHour) => `Il pousse tout seul, +${perHour} par heure. Touche RÉCOLTER pour rentrer les carottes. D’ici là, on peut te les voler.`,
+    houseTitle: 'TA MAISON',
+    house: 'Dépense des carottes pour l’agrandir : plus de carottes par heure, et plus à l’abri.',
+    digTitle: 'CREUSER',
+    dig: 'Les carottes viennent de l’île. Chaque fouille coûte de l’énergie, et l’anneau se remplit tout seul.',
+    buryTitle: 'ENTERRER',
+    bury: 'Les pillards VONT venir pour ton potager. Enterre des bombes sur leur chemin. Fais-leur payer chaque pas !',
+    raidTitle: 'PILLER',
+    raid: 'Et tu peux leur rendre la pareille. Leurs potagers, tes carottes !',
+    questTitle: 'DANS LE DOUTE',
+    quest: 'Suis ta quête. Elle connaît toujours la prochaine étape.',
   },
 
   arrange: {

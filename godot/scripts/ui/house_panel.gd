@@ -68,6 +68,10 @@ var _signature := ""
 var _anim: Tween
 ## L'echelle du volet, celle du rail (1 sur le Seeker).
 var _k := 1.0
+## SOUS UN BOUTON DU HAUT (2026-10-13) : sans ilots, la maison est le bouton
+## BURROW du haut du terrier (burrow_hud.gd). Le volet n'a plus de bouton
+## replie a lui ; il se deplie SOUS celui-la, qui le replie aussi.
+var under: Control
 
 
 func _init() -> void:
@@ -76,6 +80,9 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# Replie a chaque arrivee : le bouton du haut est la pour le rouvrir.
+	if under != null:
+		_expanded = false
 	Home.changed.connect(_rebuild)
 	I18N.locale_changed.connect(func(_c: String) -> void:
 		_signature = ""
@@ -89,6 +96,13 @@ func expand() -> void:
 		return
 	_expanded = true
 	_morph(true)
+
+
+func toggle() -> void:
+	if _expanded:
+		fold()
+	else:
+		expand()
 
 
 func fold() -> void:
@@ -106,10 +120,10 @@ func _morph(open: bool) -> void:
 	if _anim != null and _anim.is_valid():
 		_anim.kill()
 	_place()
-	_panel.pivot_offset = Vector2(_panel.size.x, 0.0)
+	_panel.pivot_offset = Vector2(_panel.size.x if under == null else 0.0, 0.0)
 	_button.pivot_offset = Vector2(_button.size.x, 0.0)
 	_panel.visible = true
-	_button.visible = true
+	_button.visible = under == null
 	_anim = create_tween().set_parallel(true)
 	if open:
 		_panel.scale = Vector2.ONE * FOLDED
@@ -137,7 +151,7 @@ func _settle() -> void:
 	_panel.visible = _expanded
 	_panel.scale = Vector2.ONE
 	_panel.modulate.a = 1.0
-	_button.visible = not _expanded
+	_button.visible = not _expanded and under == null
 	_button.scale = Vector2.ONE
 	_button.modulate.a = 1.0
 
@@ -239,6 +253,14 @@ func _place() -> void:
 	visible = Screens.in_world() and Screens.place == Screens.Place.BURROW \
 		and chrome != null and chrome._column != null and chrome._column.visible
 	if not visible:
+		return
+	var want_size := _panel.get_combined_minimum_size()
+	if is_instance_valid(under):
+		# Sous le bouton, son bord gauche sur le sien, dans l'ecran.
+		var at := under.get_global_rect()
+		_panel.size = Vector2(maxf(_s(PANEL_W), want_size.x), want_size.y)
+		var x := clampf(at.position.x, Kit.EDGE, get_viewport_rect().size.x - Kit.EDGE - _panel.size.x)
+		_panel.global_position = Vector2(x, at.end.y + _s(GAP)).round()
 		return
 	var rail := _rail_rect()
 	var right := rail.end.x if rail.has_area() else get_viewport_rect().size.x - Kit.EDGE

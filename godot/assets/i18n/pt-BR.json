@@ -252,7 +252,11 @@
     }
    ]
   },
-  "allShielded": "todas as tocas com escudo"
+  "allShielded": "todas as tocas com escudo",
+  "bury": "ENTERRAR",
+  "atRisk": {
+   "$t": "+{0} em risco"
+  }
  },
  "next": {
   "label": "AGORA",
@@ -290,6 +294,7 @@
   },
   "garden": "HORTA",
   "harvest": "COLHER",
+  "word": "TOCA",
   "energy": "ENERGIA",
   "gardenGrows": "A HORTA CRESCE MAIS RÁPIDO",
   "gardenAtRisk": {
@@ -310,6 +315,28 @@
   "regenRate": {
    "$t": "{0} de energia/h"
   }
+ },
+ "tour": {
+  "next": {
+   "$t": "PRÓXIMO {0}/{1}"
+  },
+  "gotIt": "ENTENDI",
+  "carrotsTitle": "SUAS CENOURAS",
+  "carrots": "Tudo o que você cava vem parar aqui. A parte dourada está a salvo. A parte vermelha, um saqueador pode levar.",
+  "gardenTitle": "SUA HORTA",
+  "garden": {
+   "$t": "Ela cresce sozinha, +{0} por hora. Toque em COLHER para guardar as cenouras. Até lá, podem roubá-las."
+  },
+  "houseTitle": "SUA CASA",
+  "house": "Gaste cenouras para aumentá-la: mais cenouras por hora, e mais delas a salvo.",
+  "digTitle": "CAVAR",
+  "dig": "As cenouras vêm da ilha. Cada escavação gasta energia, e o anel se enche sozinho.",
+  "buryTitle": "ENTERRAR",
+  "bury": "Os saqueadores VÃO vir atrás da sua horta. Enterre bombas no caminho deles. Faça-os pagar cada passo!",
+  "raidTitle": "SAQUEAR",
+  "raid": "E você pode dar o troco. As hortas deles, as suas cenouras!",
+  "questTitle": "NA DÚVIDA",
+  "quest": "Siga sua missão. Ela sempre sabe o próximo passo."
  },
  "arrange": {
   "tip": "Toque numa árvore, na sua casa ou na sua horta para mudá-la de lugar.",
