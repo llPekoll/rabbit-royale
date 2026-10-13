@@ -113,6 +113,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'fix',
         text: {
+          en: 'Trees no longer hide the numbers: a tree standing in front of one turns see-through. And the number of the tile your rabbit sits on now shows at its feet.',
+          fr: 'Les arbres ne cachent plus les chiffres : un arbre posé devant un chiffre devient transparent. Et le chiffre de la case où se tient ton lapin s’affiche à ses pieds.',
+          zh: '树木不再遮挡数字：挡在数字前面的树会变得透明。兔子所在格子的数字现在显示在它脚下。',
+          'pt-BR': 'As árvores não escondem mais os números: uma árvore na frente de um número fica transparente. E o número da casa onde seu coelho está agora aparece aos pés dele.',
+          vi: 'Cây không còn che các con số: cây đứng trước một con số sẽ trở nên trong suốt. Và số của ô thỏ đang đứng giờ hiện ngay dưới chân nó.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    items: [
+      {
+        kind: 'fix',
+        text: {
           en: 'A browser payment no longer shows "still confirming" when nothing was paid.',
           fr: "Un paiement dans le navigateur n'affiche plus « encore en confirmation » quand rien n'a été payé.",
           zh: '浏览器付款在未实际支付时不再显示“仍在确认”。',

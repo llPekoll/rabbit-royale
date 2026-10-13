@@ -773,6 +773,8 @@ func frame_camera(immediate: bool = false) -> void:
 
 func _process(delta: float) -> void:
 	_update_hole()
+	_update_veil(delta)
+	_update_front()
 	_tick_local_flock(delta)
 
 
@@ -852,6 +854,120 @@ func _select_hole(cell: Vector2i) -> void:
 				if n is CanvasItem and is_instance_valid(n):
 					(n as CanvasItem).material = _hole_mat
 					_holed.append(n)
+
+
+## LE VOILE DU DECOR : un arbre ou un repere dont les pixels PLEINS couvrent
+## un chiffre se laisse voir au travers, en trame, ou que soit le lapin.
+## « le decor gene pas mal la visibilite » (2026-10-13). Le trou de profondeur
+## garde la main sur ce qui est devant le lapin. Compare sur
+## scenes/bench/decor_veil_bench.tscn.
+const VEIL_SHADER := preload("res://shaders/dither_veil.gdshader")
+## La part des pixels effaces : l'arbre ne garde que son fil et un pixel sur
+## quatre. A 0,5 la trame etait trop fine pour qu'on voie la difference.
+const VEIL_AMOUNT := 0.75
+## Le choix des arbres se refait quatre fois par seconde, pas a chaque image :
+## un chiffre n'apparait qu'a un pas.
+const VEIL_EVERY := 0.25
+## Ou l'on tate l'arbre au-dessus d'un chiffre, en pixels du monde dans le
+## porteur incline du glyphe (8x12) : le centre et ses quatre bords.
+const VEIL_PROBES := [Vector2(0, 0), Vector2(-4, 0), Vector2(4, 0), Vector2(0, -3), Vector2(0, 3)]
+
+## Les bancs comparent avec et sans (decor_veil_bench, rabbit_cell_bench).
+var veil_on := true:
+	set(on):
+		veil_on = on
+		_veil_clock = 0.0
+var front_on := true
+
+var _veil_mat: ShaderMaterial
+var _veiled: Dictionary = {}
+var _veil_clock := 0.0
+
+
+func _update_veil(delta: float) -> void:
+	if _scenery == null or _tiles == null:
+		return
+	if _veil_mat == null:
+		_veil_mat = ShaderMaterial.new()
+		_veil_mat.shader = VEIL_SHADER
+		_veil_mat.set_shader_parameter("amount", VEIL_AMOUNT)
+	_veil_clock -= delta
+	if _veil_clock <= 0.0:
+		_veil_clock = VEIL_EVERY
+		var want := _covering_hints() if veil_on else {}
+		for n in _veiled:
+			if not want.has(n) and is_instance_valid(n) and (n as CanvasItem).material == _veil_mat:
+				(n as CanvasItem).material = null
+		_veiled = want
+	var k := scale.x * get_viewport().get_final_transform().get_scale().x
+	_veil_mat.set_shader_parameter("dot_px", maxf(1.0, round(k)))
+	# A CHAQUE IMAGE : `_select_hole` remet a nu ce qu'il quitte, y compris un
+	# arbre voile ; on le revoile aussitot.
+	for n in _veiled:
+		if is_instance_valid(n) and not _holed.has(n) and (n as CanvasItem).material != _veil_mat:
+			(n as CanvasItem).material = _veil_mat
+
+
+## Pour chaque decor haut, les cases qu'il peut cacher (`cells_in_front` lu a
+## l'envers) ; sur celles dont le chiffre se voit, un pixel plein de l'arbre
+## au-dessus du glyphe suffit.
+func _covering_hints() -> Dictionary:
+	var out := {}
+	var cone := IslandScenery.cells_in_front(Vector2i.ZERO)
+	for c in _scenery.cells():
+		var tree_cell: Vector2i = c
+		for node in _scenery.nodes_at(tree_cell):
+			if not (node is Sprite2D) or not is_instance_valid(node) or not _scenery.is_tall(node):
+				continue
+			var sprite: Sprite2D = node
+			for d in cone:
+				var glyph := _tiles.shown_hint(tree_cell - d)
+				if glyph != null and _hides(sprite, glyph):
+					out[sprite] = true
+					break
+	return out
+
+
+static func _hides(sprite: Sprite2D, glyph: Sprite2D) -> bool:
+	var holder := glyph.get_parent() as Node2D
+	for p in VEIL_PROBES:
+		if sprite.is_pixel_opaque(sprite.to_local(holder.to_global(p))):
+			return true
+	return false
+
+
+## LE CHIFFRE DEVANT LE LAPIN : assis sur sa case, il cache le chiffre qui
+## decide du prochain pas. Le meme glyphe, couche comme lui, glisse a la
+## pointe avant de la case et se trie juste au-dessus du lapin. En melange
+## NORMAL : multiplie, il disparaissait sur le brun du lapin. Choisi parmi
+## quatre sur scenes/bench/rabbit_cell_bench.tscn (2026-10-13).
+const FRONT_DROP := 6.0
+
+var _front: Sprite2D
+
+
+func _update_front() -> void:
+	if _rabbit == null or _tiles == null:
+		return
+	if _front == null:
+		_front = Sprite2D.new()
+		_front.centered = true
+		_front.visible = false
+		add_child(_front)
+	var glyph := _tiles.shown_hint(_rabbit.at())
+	var on := front_on and glyph != null and _rabbit.visible and not _rabbit.is_under()
+	_front.visible = on
+	if not on:
+		return
+	_front.texture = glyph.texture
+	var t := (glyph.get_parent() as Node2D).global_transform
+	_front.global_transform = Transform2D(t.x, t.y, t.origin + Vector2(0, FRONT_DROP) * global_scale.y)
+	_front.z_index = _rabbit.z_index + 1
+
+
+## Les arbres voiles en ce moment — pour les bancs.
+func veiled() -> Array:
+	return _veiled.keys()
 
 
 ## Les deux doigts du pincement (pinch.gd).

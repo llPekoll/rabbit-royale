@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LE CHIFFRE DE LA CASE DU LAPIN, quatre solutions sur la vraie ile. Voir
+; scripts/bench/rabbit_cell_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/rabbit_cell_bench.gd" id="1_cell"]
+
+[node name="RabbitCellBench" type="Node2D"]
+script = ExtResource("1_cell")

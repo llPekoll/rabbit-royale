@@ -627,6 +627,14 @@ func bush_at(cell: Vector2i) -> Node2D:
 	return _bush_at.get(cell, null)
 
 
+## LE CHIFFRE QUI SE VOIT SUR `cell`, ou null : le glyphe et son porteur
+## incline, pour qui veut le repeter (le chiffre sous le lapin) ou savoir ce
+## qu'un decor cache.
+func shown_hint(cell: Vector2i) -> Sprite2D:
+	var g: Sprite2D = _hints.get(cell)
+	return g if g != null and g.visible else null
+
+
 ## LES COFFRES QUI DORMENT ENCORE, pour la boussole : `{cell, node, tint}`.
 ## Le noeud est le porteur monte dans le bloc — sa position globale est celle
 ## de la case a l'ecran, camera comprise.

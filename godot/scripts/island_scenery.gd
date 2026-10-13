@@ -345,6 +345,11 @@ func nodes_at(cell: Vector2i) -> Array:
 	return _at.get(cell, [])
 
 
+## Les cases qui portent quelque chose.
+func cells() -> Array:
+	return _at.keys()
+
+
 ## Ce qui se dresse assez haut pour cacher une case derriere soi : un arbre,
 ## un repere. Une souche, une touffe, un cadeau, non.
 func is_tall(node: Node) -> bool:

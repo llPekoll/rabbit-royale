@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.8.2",
+      "date": "2026-10-13",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Trees no longer hide the numbers: a tree standing in front of one turns see-through. And the number of the tile your rabbit sits on now shows at its feet.",
+            "fr": "Les arbres ne cachent plus les chiffres : un arbre posé devant un chiffre devient transparent. Et le chiffre de la case où se tient ton lapin s’affiche à ses pieds.",
+            "zh": "树木不再遮挡数字：挡在数字前面的树会变得透明。兔子所在格子的数字现在显示在它脚下。",
+            "pt-BR": "As árvores não escondem mais os números: uma árvore na frente de um número fica transparente. E o número da casa onde seu coelho está agora aparece aos pés dele.",
+            "vi": "Cây không còn che các con số: cây đứng trước một con số sẽ trở nên trong suốt. Và số của ô thỏ đang đứng giờ hiện ngay dưới chân nó."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.8.1",
       "date": "2026-10-13",
       "items": [
