@@ -20,7 +20,11 @@ extends Control
 ## chez soi.
 
 const WIDTH := 420.0
+## Ce que les boutons des coins (rail a gauche, lapin a droite) prennent.
+const RAIL_CLEAR := 170.0
 
+## La carte a l'ecran, pour la camera du raid subi (burrow.gd `_chrome_top`).
+static var live: DefendHud
 var _panel: PanelContainer
 var _title: Label
 var _energy: Label
@@ -37,6 +41,7 @@ var _over_haul: Label
 
 
 func _ready() -> void:
+	live = self
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# L'ECRAN ENTIER, pas l'etage. Le chrome la pose dans %Floor, une bande
 	# de hauteur nulle epinglee en bas : « remplir son etage » lui donnait
@@ -128,6 +133,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	RaidState.current.buy_and_strike()
 
 
+## LE BAS DE LA CARTE, en y d'ecran : elle couvre le haut du terrier, la ou
+## le potager est. La camera du raid subi se cadre dessous (2026-10-14 : Kuro
+## marchait vers le potager cache sous la carte).
+static func bottom() -> float:
+	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree() \
+			or live._panel == null:
+		return 0.0
+	return live._panel.get_global_rect().end.y
+
+
 func _reach_top() -> void:
 	offset_top = -get_viewport_rect().size.y
 	offset_bottom = 0.0
@@ -140,6 +155,10 @@ func _measure() -> void:
 	# SOUS CE QUI PEND DE LA BARRE (la pastille et son reservoir), pas a
 	# TOPBAR_H : le titre passait sous le « 300⚡ ».
 	var top := Kit.TOPBAR_H + Kit.PAD_TIGHT
+	# SANS PASTILLE (le terrier), a la hauteur du rail, si les boutons des
+	# coins lui laissent la place : le terrier garde le plus d'ecran possible.
+	if TopBar.hang_bottom() <= 0.0 and (size.x - w) * 0.5 >= RAIL_CLEAR:
+		top = Kit.screen_inset().y
 	var hang := TopBar.hang_bottom()
 	if hang > 0.0:
 		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)

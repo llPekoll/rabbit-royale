@@ -167,6 +167,8 @@ var floor_reserve := 0.0
 ## la prise de pose cadre TOUT le terrier dedans — le chemin du pillard va de
 ## la porte au potager, il doit tenir entier.
 var plan_room := Vector2.ZERO
+## La rangee du kit en bas pendant la defense en direct (KitRow, ses cases).
+const DEFEND_FLOOR := 66.0
 ## Le chemin du pillard dessine sur le sol (RaidRoute.cheapest), `{}` = rien.
 var _route := {}
 var _route_view: Node2D
@@ -492,6 +494,9 @@ func _on_incoming() -> void:
 		_raider_at = tile
 		_raider.send_to(BurrowLayout.cell_of(tile))
 		Sound.play("step")
+	# LA CARTE DE LA DEFENSE se montre apres l'arrivee et change de hauteur
+	# d'un pas a l'autre : la prise se recale dessous (`_chrome_top`).
+	frame_camera.call_deferred()
 
 	# UNE BOMBE A SAUTE sous lui : le souffle, le sursaut, le bruit — et la
 	# bombe repart en recharge, que la boutique relira.
@@ -1482,8 +1487,10 @@ func _wanted_cam() -> BurrowCamera.Shot:
 			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y,
 				1.0, _chrome_top() / view.y)
 		# SOUS LA PASTILLE : le raid se joue sur toute la ferme, rien ne doit
-		# se passer derriere le chrome du haut.
-		return BurrowCamera.board(map, view.x, view.y, _chrome_top())
+		# se passer derriere le chrome du haut. Chez soi, AU-DESSUS DE LA
+		# RANGEE DU KIT aussi (la defense en direct, `_defend_kit`).
+		var floor_h := DEFEND_FLOOR if _defend_kit and not _in_raid else 0.0
+		return BurrowCamera.board(map, view.x, view.y - floor_h, _chrome_top())
 	# DEFEND GARDE UNE SEULE PRISE, quel que soit l'objet choisi (2026-10-01) :
 	# le bouclier et la fumee n'ont rien a poser, et retombaient sur la prise
 	# de la maison — dezoomee, DIG et SHOP de retour dans un ecran qui ne
@@ -1955,7 +1962,7 @@ func _zoom_cam(factor: float, at: Vector2) -> void:
 func _chrome_top() -> float:
 	if not _raiding:
 		return 0.0
-	return maxf(maxf(Kit.TOPBAR_H, TopBar.hang_bottom()), RaidHud.bottom()) + Kit.PAD_TIGHT
+	return maxf(maxf(maxf(Kit.TOPBAR_H, TopBar.hang_bottom()), RaidHud.bottom()), DefendHud.bottom()) + Kit.PAD_TIGHT
 
 
 # ---------------------------------------------------------------- amenager

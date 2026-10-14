@@ -96,7 +96,10 @@ func _exit_tree() -> void:
 ## ecrivait son titre dessous (« KURO IS RAIDI300 OU », 2026-09-30). 0 sans
 ## barre visible.
 static func hang_bottom() -> float:
-	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree() or live.pill == null:
+	# CACHEE (le terrier, 2026-10-13), elle ne pend rien : la mesurer quand
+	# meme posait la carte de la defense 40 px trop bas.
+	if live == null or not is_instance_valid(live) or not live.is_visible_in_tree() or live.pill == null \
+			or not live.pill.is_visible_in_tree():
 		return 0.0
 	return live.pill.hang_bottom()
 

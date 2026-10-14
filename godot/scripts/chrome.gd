@@ -65,7 +65,7 @@ static var islets := false
 ## puis un peu plus a gauche (2026-10-14).
 const DIAL_GROW := 1.6
 const DIAL_RISE := 8.0
-const DIAL_LEFT := 12.0
+const DIAL_LEFT := 24.0
 const BOARD_MIN := 280.0
 const BOARD_MAX := 380.0
 
@@ -85,6 +85,8 @@ var _hud: BurrowHud
 ## le verdict, TESTER. Il prend la place du haut le temps du mode.
 var _plan: BuryPlan
 var _plan_testing := false
+## Un raid subi est en cours chez nous (`defend`).
+var _defending := false
 var _tour: BurrowTour
 ## La version, en bas a droite du terrier : QUOI DE NEUF (version_tag.gd).
 var _version: VersionTag
@@ -242,6 +244,7 @@ func _mount_place() -> void:
 	_loop = null
 	_hud = null
 	_plan = null
+	_defending = false
 	_tour = null
 	_kit = null
 	_measure()
@@ -424,6 +427,10 @@ func _dev_open() -> void:
 	while not (Home.loaded() and Screens.in_world()):
 		await Home.changed
 	await get_tree().create_timer(1.0).timeout
+	# `--open=raid:<id>` : entrer chez ce terrier, comme RAID dans la liste.
+	if what.begins_with("raid:"):
+		revenge(what.trim_prefix("raid:"))
+		return
 	match what:
 		"shop": Shop.open()
 		# Traverser vers l'ile, comme la planche DIG (`_dig`) — pour capturer
@@ -431,6 +438,8 @@ func _dev_open() -> void:
 		"dig": _dig()
 		# La porte DEFEND, comme son ilot la pousse.
 		"defend": _on_door("defend")
+		# La planche RAID : sa liste de terriers (tools/scenarios/raid-lab.ts).
+		"raid": _on_door("raid")
 		# BURY puis TESTER : Kuro sur le chemin du plan (bury_plan.gd).
 		"bury-test":
 			_on_door("defend")
@@ -664,6 +673,10 @@ func _offer_refill() -> void:
 ## liste des cibles, le codex, l'energie restaient par-dessus la defense
 ## (page.tsx, l'effet du defenseur). A la fin, le mode pose se referme.
 func defend(on: bool, finished: bool = false) -> void:
+	# LE HAUT DU TERRIER S'EFFACE LE TEMPS DU RAID SUBI (2026-10-14) : la
+	# carte de la defense prend sa place ; pendue dessous, elle couvrait le
+	# potager, la ou l'intrus va.
+	_defending = on
 	if on:
 		close_dialog()
 		# UN VRAI RAID : le plan et sa repetition s'effacent, la defense en
@@ -678,6 +691,10 @@ func defend(on: bool, finished: bool = false) -> void:
 		alarm_off()
 		if _mode == "placing":
 			_end_mode()
+	var was := is_instance_valid(_hud) and _hud.visible
+	_sync_top()
+	if is_instance_valid(_hud) and _hud.visible and not was:
+		_hud.play_entrance()
 
 
 ## L'ALERTE DU RAID SUBI (raid_alarm.gd) : les bords battent en rouge et des
@@ -1421,7 +1438,7 @@ func _sync_top() -> void:
 	if is_instance_valid(_plan):
 		_plan.visible = calm
 	if is_instance_valid(_hud):
-		_hud.visible = calm and not is_instance_valid(_plan)
+		_hud.visible = calm and not is_instance_valid(_plan) and not _defending
 
 
 func dialog_open() -> bool:

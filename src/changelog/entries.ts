@@ -113,6 +113,21 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'fix',
         text: {
+          en: 'When someone raids you, the alert no longer hides your garden: the whole burrow stays in view while they walk. And the name plate in a raid only takes the room it needs.',
+          fr: 'Quand on te pille, l’alerte ne cache plus ton potager : tout le terrier reste visible pendant qu’il marche. Et la plaque du nom en raid ne prend plus que la place qu’il lui faut.',
+          zh: '有人掠夺你时，警报不再挡住你的菜园：对方行走时整个兔窝都在视野内。掠夺时的名字牌也只占它需要的空间。',
+          'pt-BR': 'Quando alguém saqueia você, o alerta não esconde mais sua horta: a toca inteira fica à vista enquanto ele anda. E a placa do nome no saque só ocupa o espaço que precisa.',
+          vi: 'Khi bị cướp, cảnh báo không còn che vườn của bạn: cả hang luôn trong tầm nhìn khi kẻ cướp đi. Và bảng tên khi đi cướp chỉ chiếm đúng chỗ cần thiết.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-14',
+    items: [
+      {
+        kind: 'fix',
+        text: {
           en: 'The top of your burrow steps aside when a menu is open, its middle plank wears leaves, and the crossing cost on the island no longer sits on top of your energy.',
           fr: 'Le haut de ton terrier s’efface quand un menu est ouvert, sa planche du milieu porte des feuilles, et le prix de la traversée sur l’île ne se pose plus sur ton énergie.',
           zh: '打开菜单时，兔窝顶部会让开；中间的木板长出了叶子；岛上的渡海消耗不再压在你的能量上。',

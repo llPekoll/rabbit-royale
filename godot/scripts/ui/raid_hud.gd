@@ -277,6 +277,19 @@ func _measure() -> void:
 	var hang := TopBar.hang_bottom()
 	if hang > 0.0:
 		top = maxf(top, ceilf(hang - get_global_rect().position.y) + Kit.PAD_TIGHT)
+	# LA PLAQUE A LA TAILLE DE SON NOM (2026-10-14, « ca prend trop de place
+	# pour rien ») : tant qu'elle ne dit que « Navet's burrow » (et les bombes
+	# sautees), elle s'arrete au texte. La note et la fin du raid, qui
+	# reviennent a la ligne, reprennent toute la largeur.
+	if not _over.visible and not _note.visible:
+		var font := _name.get_theme_font("font")
+		var want := font.get_string_size(_name.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			_name.get_theme_font_size("font_size")).x + 2.0
+		if _sprung.visible:
+			want += Kit.PAD + _sprung.get_combined_minimum_size().x
+		var box := _panel.get_theme_stylebox("panel")
+		want += box.get_margin(SIDE_LEFT) + box.get_margin(SIDE_RIGHT)
+		w = minf(w, ceilf(want))
 	_panel.position = Vector2(floor((size.x - w) * 0.5), top)
 	_panel.size = Vector2(w, _panel.get_combined_minimum_size().y)
 	if _axe_plate != null:
