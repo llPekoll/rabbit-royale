@@ -41,6 +41,8 @@ const CENTER_AT := Vector2(322, 0)
 const RIGHT_AT := Vector2(792, 27)
 const WING := Vector2(340, 136)
 const MIDDLE := Vector2(488, 168)
+## Ce que les bouts de la planche du milieu depassent de chaque cote.
+const MIDDLE_OVERHANG := 30.0
 const SPAN := Vector2(1132, 168)
 ## Le bouton dans son cote.
 const BUTTON_AT := Vector2(39, 23)
@@ -127,8 +129,17 @@ func _init() -> void:
 	_fill(shadow, _body)
 
 	middle = _group(CENTER_AT, MIDDLE)
-	var mid := NineSlice.make(CENTER, Vector4i(10, 10, 10, 10), Vector4(15, 15, 15, 15) * K)
-	_fill(mid, middle)
+	# LA PLANCHE DE DIG au milieu (Kit.PLANK, 2026-10-14) : « la planche
+	# centrale est trop droite, prends-en une avec des feuilles ». Trois
+	# morceaux, sa hauteur suit la boite ; les bouts feuillus debordent un peu
+	# sur les cotes (MIDDLE_OVERHANG), comme ceux du sol.
+	var h := MIDDLE.y * K
+	var cap := Kit.PLANK_CAP * h / float(Kit.PLANK.get_height())
+	var mid := NineSlice.make(Kit.PLANK, Vector4i(Kit.PLANK_CAP, 0, Kit.PLANK_CAP, 0), Vector4(cap, 0, cap, 0), true)
+	mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mid.position = Vector2(-MIDDLE_OVERHANG * K, 0)
+	mid.size = Vector2(MIDDLE.x * K + 2.0 * MIDDLE_OVERHANG * K, h)
+	middle.add_child(mid)
 	var figure := HBoxContainer.new()
 	figure.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	figure.alignment = BoxContainer.ALIGNMENT_CENTER

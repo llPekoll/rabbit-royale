@@ -452,6 +452,26 @@ func _refresh_plates() -> void:
 ## TOPBAR_H, d'autant plus que la fenetre est grande : en plein ecran,
 ## « ⚡ 295/300 in the tank » passait derriere lui (Paul, 2026-09-23). On
 ## mesure donc le bas de ce qui est vraiment dessine.
+##
+## ET ELLE SE RECALE TANT QU'ELLE PARLE (2026-10-14) : dite a l'arrivee, elle
+## se posait avant que la pastille accroche sa rangee du dessous (l'energie,
+## le sac, les coffres), et « ⚡ 295/300 · a crossing costs 5 » se lisait a
+## travers elle.
+const STRIP_RECHECK_S := 0.2
+var _strip_clock := 0.0
+
+
+func _process(delta: float) -> void:
+	_strip_clock -= delta
+	if _strip_clock > 0.0 or _strip == null:
+		return
+	_strip_clock = STRIP_RECHECK_S
+	for panel in _slots:
+		if panel.visible:
+			_strip.offset_top = _below_pill()
+			return
+
+
 func _below_pill() -> float:
 	var bottom := Kit.TOPBAR_H
 	if not is_inside_tree():

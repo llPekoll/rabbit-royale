@@ -61,10 +61,11 @@ const COLUMN_MAX := 360.0
 ## ilots pour les comparer.
 static var islets := false
 ## Le cadran d'energie qui porte DIG : plus grand que les planches, un peu
-## remonte, et pas colle au bord (« ca touche le cote et un peu plus bas »).
+## remonte, pas colle au bord (« ca touche le cote et un peu plus bas »),
+## puis un peu plus a gauche (2026-10-14).
 const DIAL_GROW := 1.6
 const DIAL_RISE := 8.0
-const DIAL_LEFT := 0.0
+const DIAL_LEFT := 12.0
 const BOARD_MIN := 280.0
 const BOARD_MAX := 380.0
 
@@ -881,9 +882,11 @@ func _drop_plan() -> void:
 	_plan_testing = false
 	if is_instance_valid(_plan):
 		_plan.queue_free()
+		_plan = null
 		if is_instance_valid(_hud):
-			_hud.visible = true
-			_hud.play_entrance()
+			_sync_top()
+			if _hud.visible:
+				_hud.play_entrance()
 	_plan = null
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_plan_room"):
@@ -1346,6 +1349,7 @@ func open(dialog: Control, dismiss: bool = true, placement: String = "center") -
 	dialogs.modulate.a = 0.0
 	create_tween().tween_property(dialogs, "modulate:a", 1.0, 0.14)
 	Analytics.dialog_opened(dialog)
+	_sync_top()
 
 
 func _center_dialog() -> void:
@@ -1406,6 +1410,18 @@ func close_dialog() -> void:
 		_scrim.queue_free()
 		_scrim = null
 	dialogs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sync_top()
+
+
+## LE HAUT DU TERRIER SE TAIT SOUS UN MENU (2026-10-14) : pose a l'ecran
+## (`top_level`), il passait par-dessus le profil, le codex, la boutique.
+## Le plan de BURY aussi ; sans menu, le plan tient la place du haut.
+func _sync_top() -> void:
+	var calm := _dialog == null
+	if is_instance_valid(_plan):
+		_plan.visible = calm
+	if is_instance_valid(_hud):
+		_hud.visible = calm and not is_instance_valid(_plan)
 
 
 func dialog_open() -> bool:

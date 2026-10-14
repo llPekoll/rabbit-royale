@@ -111,6 +111,21 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-14',
     items: [
       {
+        kind: 'fix',
+        text: {
+          en: 'The top of your burrow steps aside when a menu is open, its middle plank wears leaves, and the crossing cost on the island no longer sits on top of your energy.',
+          fr: 'Le haut de ton terrier s’efface quand un menu est ouvert, sa planche du milieu porte des feuilles, et le prix de la traversée sur l’île ne se pose plus sur ton énergie.',
+          zh: '打开菜单时，兔窝顶部会让开；中间的木板长出了叶子；岛上的渡海消耗不再压在你的能量上。',
+          'pt-BR': 'O topo da sua toca sai do caminho quando um menu está aberto, a tábua do meio ganhou folhas, e o custo da travessia na ilha não fica mais em cima da sua energia.',
+          vi: 'Phần trên của hang tự tránh khi mở menu, tấm ván giữa có thêm lá, và giá qua biển trên đảo không còn đè lên năng lượng của bạn.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-14',
+    items: [
+      {
         kind: 'new',
         text: {
           en: "BURY shows the raider's best path through your burrow, and whether they reach your garden. Tap TEST and Kuro walks it for real, bombs and all.",
