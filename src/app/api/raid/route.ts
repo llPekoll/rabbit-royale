@@ -28,6 +28,7 @@ import {
   asleep, awakeSince, distanceToField, nothingToTake, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
+import { raidDoors } from '@/lib/game/raid-door';
 import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
@@ -301,7 +302,11 @@ export async function GET(req: Request) {
   const [owed, live, rich] = await Promise.all([
     owedIds.length
       ? db.select(columns).from(players)
-        .where(and(raidable, inArray(players.id, owedIds), or(gte(players.lastSeenAt, awakeSince()), notRaidedSinceSeen)))
+        // ALWAYS LISTED (2026-10-14) : asleep and already raided, or with
+        // nothing left to take, they still owe me — the user looked for who
+        // raided them and did not find them. Their row says why it is shut
+        // (`door`), like the leaderboard does.
+        .where(and(raidable, inArray(players.id, owedIds)))
       : Promise.resolve([]),
     liveIds.length
       ? db.select(columns).from(players)
@@ -327,7 +332,7 @@ export async function GET(req: Request) {
   const sleeping = (t: { id: string; lastSeenAt: Date }) => !listed.has(t.id) && asleep(t.lastSeenAt, now);
   const owing = new Set(owed.map((t) => t.id));
   const targets = [...owed, ...live.filter((t) => !owing.has(t.id)), ...rich.filter((t) => !listed.has(t.id) && !owing.has(t.id))]
-    .filter((t) => !nothingToTake(t.stock, gardenYield(t, now), sleeping(t)));
+    .filter((t) => owing.has(t.id) || !nothingToTake(t.stock, gardenYield(t, now), sleeping(t)));
 
   /**
    * WHERE EACH OWNER IS STANDING — the one thing this list never said.
@@ -352,7 +357,9 @@ export async function GET(req: Request) {
    * silence the list had before any of this existed.
    */
   const ids = targets.map((t) => t.id);
-  const [connected, digging] = await Promise.all([connectedAmong(ids), onlineAmong(ids)]);
+  const [connected, digging, doors] = await Promise.all([
+    connectedAmong(ids), onlineAmong(ids), raidDoors(session.sub, ids),
+  ]);
   return Response.json({
     raid: null,
     targets: targets.map((t) => ({
@@ -389,6 +396,12 @@ export async function GET(req: Request) {
        *  (`owedIds` above): the list puts them first, and says why — the
        *  Godot list draws them as the REVENGE pick (2026-10-14). */
       owed: owing.has(t.id),
+      /** The leaderboard's verdict on this door (`raidDoors`), so the list and
+       *  every other place a name is shown say the same thing: `open`,
+       *  `shield` (with `doorWaitMs`, the shield or my cooldown), `bare`,
+       *  `asleep`. Absent when the viewer cannot raid at all. */
+      door: doors?.get(t.id)?.state ?? null,
+      doorWaitMs: doors?.get(t.id)?.waitMs ?? 0,
       /** The old boolean, kept for one release: a client from before `presence`
        *  is still reading this field, and dropping it would blank the dot for
        *  anyone who has not reloaded. */

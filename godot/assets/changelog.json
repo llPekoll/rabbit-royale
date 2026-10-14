@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.11.1",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Whoever raided you always shows up in your RAID list now, even with a shield or nothing left to take, and every row says why it is shut. Your shield timer at the top counts down live.",
+            "fr": "Celui qui t’a pillé apparaît toujours dans ta liste RAID, même sous bouclier ou sans rien à prendre, et chaque ligne dit pourquoi elle est fermée. Le bouclier en haut se décompte en direct.",
+            "zh": "掠夺过你的人现在总会出现在你的掠夺列表中，即使有护盾或已无可抢，每一行都会说明为何无法掠夺。顶部的护盾计时会实时倒数。",
+            "pt-BR": "Quem te saqueou sempre aparece na sua lista de SAQUE agora, mesmo com escudo ou sem nada para levar, e cada linha diz por que está fechada. O escudo no alto faz a contagem ao vivo.",
+            "vi": "Kẻ đã cướp bạn giờ luôn có trong danh sách CƯỚP, kể cả khi có khiên hay không còn gì để lấy, và mỗi dòng nói rõ vì sao bị khóa. Đồng hồ khiên ở trên đếm ngược trực tiếp."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.11",
       "date": "2026-10-14",
       "items": [

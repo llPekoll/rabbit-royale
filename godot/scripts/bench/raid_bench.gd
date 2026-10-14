@@ -25,6 +25,9 @@ func _ready() -> void:
 
 	RaidState.current.fake({
 		"targets": [
+			# Celui qui nous a pilles, sans rien a prendre (la carte REVANCHE fermee).
+			{"id": "t0", "name": "Kuro", "avatar": "gray", "stock": 0, "garden": 0, "owed": true,
+				"door": "bare", "doorWaitMs": 0, "shielded": false, "shieldedFor": 0, "presence": "away"},
 			{"id": "t1", "name": "Thistle", "avatar": "gray", "stock": 4820, "garden": 1260,
 				"shielded": false, "shieldedFor": 0, "presence": "away"},
 			{"id": "t2", "name": "Bramblewick the Long-Named", "avatar": "orange", "stock": 2210, "garden": 640,
@@ -46,6 +49,14 @@ func _ready() -> void:
 		},
 		"lightning": 2,
 	})
+	# `--many` : cinquante terriers, comme la liste d'un serveur charge.
+	if "--many" in OS.get_cmdline_user_args():
+		var many: Array = RaidState.current.targets.duplicate()
+		for k in 50:
+			many.append({"id": "m%d" % k, "name": "Burrow%d" % k, "avatar": "brown", "stock": 3000 - k,
+				"garden": 10, "shielded": k % 4 == 0, "shieldedFor": (k % 4 == 0) as int * 3600000.0 * (k % 9 + 1),
+				"presence": "away", "door": "shield" if k % 4 == 0 else "open", "doorWaitMs": 0})
+		RaidState.current.fake({"targets": many})
 
 	var panel := ""
 	for arg in OS.get_cmdline_user_args():

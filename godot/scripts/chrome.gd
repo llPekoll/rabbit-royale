@@ -417,6 +417,10 @@ func _start_tour() -> void:
 
 ## `-- --open=<surface>` : ouvre une surface une fois le terrier lu, pour
 ## qu'une capture (DevShot) la trouve sans main. Outil, pas comportement.
+## Le temps que l'accueil s'efface avant un `--open=` (captures).
+const DEV_OPEN_DELAY_S := 8.0
+
+
 func _dev_open() -> void:
 	var what := ""
 	for arg in OS.get_cmdline_user_args():
@@ -424,9 +428,14 @@ func _dev_open() -> void:
 			what = arg.trim_prefix("--open=")
 	if what.is_empty():
 		return
+	# SONDE, pas `await Home.changed` : le terrier charge, plus rien ne
+	# change pendant une minute, et `--open=` partait a 60-90 s (ou jamais).
 	while not (Home.loaded() and Screens.in_world()):
-		await Home.changed
-	await get_tree().create_timer(1.0).timeout
+		await get_tree().create_timer(0.3).timeout
+	# L'ACCUEIL DOIT AVOIR FINI DE S'EFFACER : un dialogue ouvert sous son
+	# fondu le laissait « Loading... » a l'ecran (2026-10-14, --open=raid,
+	# ouvert 6 s apres le lancement sur un serveur chaud).
+	await get_tree().create_timer(DEV_OPEN_DELAY_S).timeout
 	# `--open=raid:<id>` : entrer chez ce terrier, comme RAID dans la liste.
 	if what.begins_with("raid:"):
 		revenge(what.trim_prefix("raid:"))

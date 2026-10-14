@@ -208,6 +208,11 @@ func _rebuild() -> void:
 		_picks.add_child(Kit.note(I18N.t("raid.nobodyYet"), Palette.INK, 13))
 	else:
 		var chosen := _choose(targets)
+		# TOUT EST FERME : le dire en tete, plutot qu'une liste grise muette.
+		if not chosen.any(func(p: Dictionary) -> bool: return _open(p["target"])):
+			var all_shut := Kit.note(I18N.t("raid.allShielded"), Palette.INK, 12)
+			all_shut.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_picks.add_child(all_shut)
 		for pick in chosen:
 			_picks.add_child(_pick_card(pick["target"], String(pick["why"]), pick["ink"], state))
 		var taken: Array = chosen.map(func(p: Dictionary) -> Dictionary: return p["target"])
@@ -233,10 +238,10 @@ func _rebuild() -> void:
 
 ## LES TROIS PRISES, dans cet ordre : celui qui m'a pille (`owed`, le
 ## serveur le met deja en tete), le plus riche, le plus riche de ceux qui
-## creusent (sans garde). Seulement des terriers qu'on peut piller
-## maintenant ; une prise qui manque n'est pas remplacee.
+## creusent (sans garde). Les deux dernieres seulement parmi les terriers
+## qu'on peut piller maintenant ; une prise qui manque n'est pas remplacee.
 func _choose(targets: Array) -> Array[Dictionary]:
-	var open: Array = targets.filter(func(t: Dictionary) -> bool: return _shield_left(t) <= 0.0)
+	var open: Array = targets.filter(func(t: Dictionary) -> bool: return _open(t))
 	var rich := open.duplicate()
 	rich.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("stock", 0)) > int(b.get("stock", 0)))
@@ -246,7 +251,11 @@ func _choose(targets: Array) -> Array[Dictionary]:
 		if t is Dictionary and not taken.has(t):
 			taken.append(t)
 			out.append({"target": t, "why": why, "ink": ink})
-	var owed: Array = open.filter(func(t: Dictionary) -> bool: return bool(t.get("owed", false)))
+	# LA REVANCHE, MEME FERMEE (2026-10-14, « et celui qui t'a raid en
+	# dernier ? ») : le dernier qui nous a pilles a sa carte, son bouclier ou
+	# sa raison a la place des carottes, RAID grise. Le serveur les met en
+	# tete, du plus recent au plus ancien.
+	var owed: Array = targets.filter(func(t: Dictionary) -> bool: return bool(t.get("owed", false)))
 	if not owed.is_empty():
 		take.call(owed[0], I18N.t("raid.pickRevenge"), OWED_INK)
 	for t in rich:
@@ -262,10 +271,27 @@ func _choose(targets: Array) -> Array[Dictionary]:
 
 ## Ce qui reste de leur bouclier maintenant. Une cible sans `shieldedFor`
 ## (un vieux serveur) garde le drapeau qu'on lui a envoye, sans heure (-1).
+##
+## Le verdict du classement (`door`, raid-door.ts) compte aussi : « shield »
+## porte l'attente du bouclier OU de mon delai entre deux raids sur lui.
 func _shield_left(target: Dictionary) -> float:
+	var wait := float(target.get("doorWaitMs", 0.0)) if String(target.get("door", "")) == "shield" else 0.0
 	if target.has("shieldedFor"):
-		return maxf(0.0, float(target["shieldedFor"]) - _elapsed_ms)
+		return maxf(0.0, maxf(float(target["shieldedFor"]), wait) - _elapsed_ms)
 	return 1.0 if bool(target.get("shielded", false)) else 0.0
+
+
+## FERME POUR UNE AUTRE RAISON qu'un bouclier : rien a prendre (`bare`), ou
+## endormi et deja pille depuis (`asleep`). Ceux-la ne sont listes que parce
+## qu'ils nous doivent une revanche ; la ligne dit pourquoi, comme le
+## classement. "" : ouvert.
+static func _closed(target: Dictionary) -> String:
+	var door := String(target.get("door", ""))
+	return door if door in ["bare", "asleep"] else ""
+
+
+func _open(target: Dictionary) -> bool:
+	return _shield_left(target) <= 0.0 and _closed(target).is_empty()
 
 
 ## UNE PRISE : sa raison en tete, le visage du lapin, le nom, ce qu'il
@@ -324,7 +350,7 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	well.mouse_filter = Control.MOUSE_FILTER_PASS
 	# Une ligne protegee s'assombrit pour que l'oeil passe — sauf celle d'un
 	# creuseur, qui garde un geste ouvert (REGARDER).
-	if shielded and where != RaidState.DIGGING:
+	if (shielded and where != RaidState.DIGGING) or not _closed(target).is_empty():
 		well.modulate.a = SHIELDED_DIM
 	var line := Kit.hbox(6)
 	well.add_child(line)
@@ -357,6 +383,10 @@ func _name(target: Dictionary, px: int) -> Label:
 func _carrots(target: Dictionary, px: int) -> HBoxContainer:
 	var row := Kit.hbox(3)
 	row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var shut := _closed(target)
+	if not shut.is_empty():
+		row.add_child(Kit.label(I18N.t("raid.door." + shut), px - 1, Palette.LAMP))
+		return row
 	var left := _shield_left(target)
 	if left > 0.0:
 		row.add_child(Kit.icon(Kit.ICONS["shield"], px + 2))
@@ -372,7 +402,7 @@ func _carrots(target: Dictionary, px: int) -> HBoxContainer:
 ## dit « Shielded ».
 func _raid_button(target: Dictionary, state: RaidState, w: float, h: float) -> PlankButton:
 	var shielded := _shield_left(target) > 0.0
-	var off := state.busy or shielded
+	var off := state.busy or not _open(target)
 	var button := Kit.button(I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt"), "wood", w, h)
 	button.label_size = 11
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER

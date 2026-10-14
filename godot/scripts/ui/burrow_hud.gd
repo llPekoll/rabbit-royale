@@ -179,6 +179,11 @@ func read_home() -> void:
 	var stock := int(b.get("stock", 0))
 	var shield: Variant = b.get("shieldMs", null)
 	var shield_ms := float(shield) if (shield is float or shield is int) and float(shield) > 0.0 else -1.0
+	# LE BOUCLIER SE DECOMPTE (2026-10-14) : `shieldMs` est mesure a la
+	# lecture de /api/burrow ; la seconde qui tourne (`live`) lui retire le
+	# temps passe depuis, sinon « 14h 11m » restait fige jusqu'a la relecture.
+	if shield_ms > 0.0:
+		shield_ms = maxf(0.0, shield_ms - float(Time.get_ticks_msec() - Home._fetched_ms))
 	var safe: int = BURROW_PANEL.safe_stock(stock)
 	show_data({
 		"stock": stock,
