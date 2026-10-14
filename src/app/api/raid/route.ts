@@ -385,6 +385,10 @@ export async function GET(req: Request) {
        * readings, "out on an island" is the one that changes the raid.
        */
       presence: digging.has(t.id) ? 'digging' : connected.has(t.id) ? 'home' : 'away',
+      /** They took something from me this week and I have not paid them back
+       *  (`owedIds` above): the list puts them first, and says why — the
+       *  Godot list draws them as the REVENGE pick (2026-10-14). */
+      owed: owing.has(t.id),
       /** The old boolean, kept for one release: a client from before `presence`
        *  is still reading this field, and dropping it would blank the dot for
        *  anyone who has not reloaded. */

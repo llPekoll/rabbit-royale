@@ -21,6 +21,13 @@ extends Dialog
 ##     liste est l'endroit ou le joueur decide de la depenser — le nombre
 ##     n'etait nulle part a l'ecran jusqu'au 22 septembre 2026.
 ##
+##   • TROIS PRISES EN TETE (2026-10-14, « on voit que 3 personnes sur tout
+##     un ecran, c'est nul » ; la 6 de scenes/bench/target_list_lab.tscn) :
+##     la revanche, le plus riche, celui qui creuse — chacune avec sa raison
+##     ecrite. Tout le reste dessous, une ligne par terrier sur deux
+##     colonnes : douze a l'ecran au lieu de trois. Le peage tient dans
+##     l'en-tete, a droite du titre.
+##
 ## La planche RAID est en rouge — c'est le geste le plus fort de l'ecran,
 ## la pression qui lance un vol ; une cible protegee garde une planche de
 ## bois grisee : montree, pas attaquable, parce qu'une liste qui cache ses
@@ -50,11 +57,22 @@ const WATCH_H := 28.0
 ## Ce que Chrome._center_dialog laisse autour d'un dialogue : 17 en haut (le
 ## [x] qui deborde), Kit.EDGE en bas.
 const DIALOG_AIR := 27.0
+## La largeur du paysage : deux colonnes de lignes et trois prises de front.
+const WIDTH := 860.0
+## Une ligne du registre, et le plus petit RAID ou les feuilles laissent lire
+## « Raid », « Watch », « Shielded ».
+const ROW_H := 26.0
+const ROW_BUTTON_W := 96.0
+const WATCH_W := 90.0
+const PICK_SCALE := 3.5
+const OWED_INK := Color("#ff6a4a")
+## Le peage ou le refus, a droite du titre : le titre garde sa place.
+const FOOT_MAX_W := 460.0
 
 var _scroll: ScrollContainer
-var _rows: VBoxContainer
+var _picks: HBoxContainer
+var _rows: GridContainer
 var _foot: Label
-var _foot_inset: MarginContainer
 ## La largeur commune des planches RAID, mesuree sur le plus long des deux
 ## mots de la langue (`_button_width`).
 var _button_w := RAID_W
@@ -79,34 +97,39 @@ var _scrolled_at := -100000
 
 func _init() -> void:
 	# `min(720px, 100%)`, la meme largeur que la liste des iles.
-	super(I18N.t("raid.whose"), 720, 0)
+	super(I18N.t("raid.whose"), WIDTH, 0)
 
 
 func _ready() -> void:
+	var column := Kit.vbox(Kit.PAD_TIGHT)
+	set_body(column)
+	_picks = Kit.hbox(8)
+	column.add_child(_picks)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_scroll.custom_minimum_size = Vector2(0, 180)  # jusqu'a `_fit_scroll`
+	_scroll.custom_minimum_size = Vector2(0, 120)  # jusqu'a `_fit_scroll`
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	set_body(_scroll)
-	_rows = Kit.vbox(Kit.PAD_TIGHT)
+	column.add_child(_scroll)
+	_rows = GridContainer.new()
+	_rows.columns = 2
+	_rows.add_theme_constant_override("h_separation", 12)
+	_rows.add_theme_constant_override("v_separation", 2)
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_rows)
 	ScrollFade.attach(_scroll)
 	_scroll.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void:
 		_scrolled_at = Time.get_ticks_msec())
 
-	# LE PIED S'ARRETE OU LES LIGNES S'ARRETENT. Quand la liste defile, sa
-	# barre prend une bande a droite des lignes ; le pied, lui, allait
-	# jusqu'au bord et depassait les planches de toute la barre. Il recule
-	# d'autant, mesure sur les lignes elles-memes.
-	var foot := Kit.plank_note("", 12)
-	_foot = foot.get_child(0) as Label
-	_foot_inset = Kit.margin(0, 0, 0, 0)
-	_foot_inset.add_child(foot)
-	add_footer(_foot_inset)
-	_rows.resized.connect(func() -> void:
-		_foot_inset.add_theme_constant_override("margin_right",
-			int(maxf(0.0, _scroll.size.x - _rows.size.x))))
+	# LE PEAGE DANS L'EN-TETE, a droite du titre — sa planche de pied
+	# mangeait deux lignes. Un refus du serveur (`state.note`) y prend sa
+	# place, en rouge.
+	_foot = Kit.label("", 10, Palette.INK)
+	_foot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_foot.clip_text = true
+	_foot.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_header.add_child(_foot)
+	_header.move_child(_foot, _close_reserve.get_index())
 	get_viewport().size_changed.connect(_queue_fit)
 
 	_tick = Timer.new()
@@ -172,109 +195,186 @@ func _rebuild() -> void:
 		closed.emit()
 		return
 
-	for old in _rows.get_children():
-		_rows.remove_child(old)
-		old.queue_free()
+	for host in [_picks, _rows]:
+		for old in (host as Node).get_children():
+			host.remove_child(old)
+			old.queue_free()
 
 	_button_w = _button_width()
-	if state.targets.is_empty() and state.targets_pending():
-		_rows.add_child(LoadingNote.new(13, Palette.INK))
-	elif state.targets.is_empty():
-		_rows.add_child(Kit.note(I18N.t("raid.nobodyYet"), Palette.INK, 13))
+	var targets: Array = state.targets.filter(func(t: Variant) -> bool: return t is Dictionary)
+	if targets.is_empty() and state.targets_pending():
+		_picks.add_child(LoadingNote.new(13, Palette.INK))
+	elif targets.is_empty():
+		_picks.add_child(Kit.note(I18N.t("raid.nobodyYet"), Palette.INK, 13))
 	else:
-		for target in state.targets:
-			if target is Dictionary:
+		var chosen := _choose(targets)
+		for pick in chosen:
+			_picks.add_child(_pick_card(pick["target"], String(pick["why"]), pick["ink"], state))
+		var taken: Array = chosen.map(func(p: Dictionary) -> Dictionary: return p["target"])
+		for target in targets:
+			if not taken.has(target):
 				_rows.add_child(_row(target, state))
+	_picks.visible = _picks.get_child_count() > 0
+	_scroll.visible = _rows.get_child_count() > 0
 
 	if not state.note.is_empty():
 		_foot.text = state.note
-		_foot.add_theme_color_override("font_color", Color("#ffb3a3"))
+		_foot.add_theme_color_override("font_color", Palette.BAD_ON_WOOD)
 	else:
-		_foot.text = "%s\n%s" % [I18N.t("raid.brief"),
-			I18N.f("raid.cost", [Tuning.i("RAID_RUN.TOLL"), Tuning.i("RAID_RUN.STAKE")])]
-		_foot.add_theme_color_override("font_color", Palette.CREAM)
+		_foot.text = I18N.f("raid.cost", [Tuning.i("RAID_RUN.TOLL"), Tuning.i("RAID_RUN.STAKE")])
+		_foot.add_theme_color_override("font_color", Palette.INK)
+	# UN LIBELLE COUPE N'A PAS DE LARGEUR A LUI : sans celle de son texte, il
+	# tombait a zero a cote du titre.
+	var font := _foot.get_theme_font("font")
+	var line := font.get_string_size(_foot.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _foot.get_theme_font_size("font_size")).x
+	_foot.custom_minimum_size.x = ceilf(minf(line + 2.0, FOOT_MAX_W))
 	_queue_fit()
 
 
-## UNE LIGNE : le nom et la presence dessous, ce qui pousse dehors, la
-## planche. Un creux du kit (`wl-runtime-well`) sur le parchemin, la ou le
-## web posait une planche en relief sur la terre.
-func _row(target: Dictionary, state: RaidState) -> Control:
-	# Ce qui reste de leur bouclier maintenant. Une cible sans `shieldedFor`
-	# (un vieux serveur) garde le drapeau qu'on lui a envoye, et ne montre
-	# pas d'heure.
-	var left := -1.0
-	if target.has("shieldedFor"):
-		left = maxf(0.0, float(target["shieldedFor"]) - _elapsed_ms)
-	var shielded := bool(target.get("shielded", false)) if left < 0.0 else left > 0.0
-	var off := state.busy or shielded
+## LES TROIS PRISES, dans cet ordre : celui qui m'a pille (`owed`, le
+## serveur le met deja en tete), le plus riche, le plus riche de ceux qui
+## creusent (sans garde). Seulement des terriers qu'on peut piller
+## maintenant ; une prise qui manque n'est pas remplacee.
+func _choose(targets: Array) -> Array[Dictionary]:
+	var open: Array = targets.filter(func(t: Dictionary) -> bool: return _shield_left(t) <= 0.0)
+	var rich := open.duplicate()
+	rich.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.get("stock", 0)) > int(b.get("stock", 0)))
+	var out: Array[Dictionary] = []
+	var taken: Array = []
+	var take := func(t: Variant, why: String, ink: Color) -> void:
+		if t is Dictionary and not taken.has(t):
+			taken.append(t)
+			out.append({"target": t, "why": why, "ink": ink})
+	var owed: Array = open.filter(func(t: Dictionary) -> bool: return bool(t.get("owed", false)))
+	if not owed.is_empty():
+		take.call(owed[0], I18N.t("raid.pickRevenge"), OWED_INK)
+	for t in rich:
+		if not taken.has(t):
+			take.call(t, I18N.t("raid.pickRichest"), Palette.LAMP)
+			break
+	for t in rich:
+		if not taken.has(t) and RaidState.current.presence_of(t) == RaidState.DIGGING:
+			take.call(t, I18N.t("raid.pickUnguarded"), WHERE_INK["digging"])
+			break
+	return out
 
-	# Une planche a feuilles (`.rr-raid-row`, PxPanel PLANK), comme le web.
-	# Plus d'air en bas qu'en haut : la face du bois s'arrete a 85 % de la
-	# planche (la levre sombre et l'ombre dessous), et la ligne de presence
-	# s'y posait dessus.
-	var panel := PanelContainer.new()
-	var plank := Kit.style_plank()
-	plank.content_margin_top = 6.0
-	plank.content_margin_bottom = 9.0
-	panel.add_theme_stylebox_override("panel", plank)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+## Ce qui reste de leur bouclier maintenant. Une cible sans `shieldedFor`
+## (un vieux serveur) garde le drapeau qu'on lui a envoye, sans heure (-1).
+func _shield_left(target: Dictionary) -> float:
+	if target.has("shieldedFor"):
+		return maxf(0.0, float(target["shieldedFor"]) - _elapsed_ms)
+	return 1.0 if bool(target.get("shielded", false)) else 0.0
+
+
+## UNE PRISE : sa raison en tete, le visage du lapin, le nom, ce qu'il
+## garde, et RAID en grand — REGARDER a cote pour celui qui creuse.
+func _pick_card(target: Dictionary, why: String, ink: Color, state: RaidState) -> Control:
+	var card := PanelContainer.new()
+	var s := Kit.style_well(true)
+	s.set_content_margin_all(6)
+	card.add_theme_stylebox_override("panel", s)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	var line := Kit.hbox(8)
+	card.add_child(line)
+	var face := AvatarFace.portrait(target.get("avatar"), PICK_SCALE)
+	face.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(face)
+	var col := Kit.vbox(2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var reason := Kit.label(why, 10, ink)
+	reason.clip_text = true
+	reason.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	col.add_child(reason)
+	col.add_child(_name(target, 13))
+	col.add_child(_carrots(target, 13))
+	var buttons := Kit.hbox(4)
+	var raid := _raid_button(target, state, 0.0, 30.0)
+	raid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buttons.add_child(raid)
+	if state.presence_of(target) == RaidState.DIGGING:
+		buttons.add_child(_watch_button(target, state, WATCH_W, 30.0))
+	col.add_child(buttons)
+	line.add_child(col)
+	return card
+
+
+## UNE LIGNE DU REGISTRE : le point de la presence, le nom, REVANCHE s'il
+## nous doit, ce qu'il garde (ou l'heure de son bouclier), RAID — et
+## REGARDER pour qui creuse. Un creux du parchemin, pas une planche : deux
+## fois moins haute.
+func _row(target: Dictionary, state: RaidState) -> Control:
+	var shielded := _shield_left(target) > 0.0
+	var where := state.presence_of(target)
+	var well := PanelContainer.new()
+	var s := Kit.style_well()
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(5)
+	s.content_margin_left = 6
+	s.content_margin_right = 3
+	s.content_margin_top = 1
+	s.content_margin_bottom = 1
+	well.add_theme_stylebox_override("panel", s)
+	well.custom_minimum_size.y = ROW_H
+	well.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Un PanelContainer ARRETE le doigt par defaut : au mobile, la liste ne
 	# defilait que dans les interstices entre deux planches (2026-10-01).
-	panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	if shielded:
-		panel.modulate.a = SHIELDED_DIM
-	var line := Kit.hbox(Kit.PAD)
-	line.alignment = BoxContainer.ALIGNMENT_CENTER
-	panel.add_child(line)
+	well.mouse_filter = Control.MOUSE_FILTER_PASS
+	# Une ligne protegee s'assombrit pour que l'oeil passe — sauf celle d'un
+	# creuseur, qui garde un geste ouvert (REGARDER).
+	if shielded and where != RaidState.DIGGING:
+		well.modulate.a = SHIELDED_DIM
+	var line := Kit.hbox(6)
+	well.add_child(line)
+	line.add_child(_dot(WHERE_INK.get(where, WHERE_INK["away"]), where == RaidState.DIGGING))
+	var name := _name(target, 12)
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name.custom_minimum_size.x = 40
+	line.add_child(name)
+	if bool(target.get("owed", false)):
+		var tag := Kit.label(I18N.t("raid.owedTag"), 9, OWED_INK, true)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(tag)
+	line.add_child(_carrots(target, 11))
+	if where == RaidState.DIGGING:
+		line.add_child(_watch_button(target, state, WATCH_W, ROW_H - 4.0))
+	line.add_child(_raid_button(target, state, ROW_BUTTON_W, ROW_H - 4.0))
+	return well
 
-	# Le nom, et OU SE TIENT LE PROPRIETAIRE dessous. La liste classait par
-	# reserve, ce qui repond a « combien » et non a « quel raid est-ce » —
-	# et ce sont trois raids differents.
-	var who := Kit.vbox(2)
-	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var name := Kit.label(String(target.get("name", "")), 13, Palette.CREAM, true)
+
+func _name(target: Dictionary, px: int) -> Label:
+	var name := Kit.label(String(target.get("name", "")), px, Palette.CREAM, true)
 	name.clip_text = true
 	name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	who.add_child(name)
-	var where := state.presence_of(target)
-	Net.trace("ligne %s : %s" % [String(target.get("name", "")), where])
-	var ink: Color = WHERE_INK.get(where, WHERE_INK["away"])
-	var where_line := Kit.hbox(5)
-	where_line.add_child(_dot(ink, where == RaidState.DIGGING))
-	where_line.add_child(Kit.label(I18N.t("raid.presence." + where), 11, ink))
-	who.add_child(where_line)
-	line.add_child(who)
+	name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return name
 
-	# CE QUI POUSSE DEHORS : le jardin, la bourse d'un raid — c'est ce qu'un
-	# raid prend en premier. La reserve, si le serveur est trop vieux pour
-	# le dire.
-	var purse := Kit.vbox(2)
-	purse.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var amount := Kit.hbox(4)
-	amount.alignment = BoxContainer.ALIGNMENT_END
-	amount.add_child(Kit.icon(Kit.ICONS["carrot"], 16))
-	# LA RESERVE, comme la rangee du web (`groupDigits(t.stock)` 🥕) : le
-	# « UNGUARDED » est le sous-titre de la dalle RAID, pas de la ligne.
-	amount.add_child(Kit.label(I18N.group_digits(int(target.get("stock", 0))), 12, Palette.CREAM, true))
-	amount.move_child(amount.get_child(0), 1)
-	purse.add_child(amount)
-	if shielded and left > 0.0:
-		# L'attente en lumiere de lampe, la meme encre chaude que le reste de
-		# ce monde donne a un DELAI — et pas sur la planche : celle-ci ne sait
-		# pas empiler deux lignes.
-		var wait := Kit.label(I18N.short_wait(left), 11, Palette.LAMP)
-		wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		purse.add_child(wait)
-	line.add_child(purse)
 
-	# « Raid » dans sa casse, sur le bois du web (DANGER que la peau des bois
-	# dessine en planche) : en capitales sur l'or rouge, « RAID » sortait
-	# « Al », rogne par les feuilles.
-	var words := I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt")
-	var button := Kit.button(words, "wood", _button_w, RAID_H)
-	button.label_size = 12
+## LA RESERVE, comme la rangee du web (`groupDigits(t.stock)` 🥕) — ou,
+## protege, QUAND le bouclier tombe, en lumiere de lampe.
+func _carrots(target: Dictionary, px: int) -> HBoxContainer:
+	var row := Kit.hbox(3)
+	row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var left := _shield_left(target)
+	if left > 0.0:
+		row.add_child(Kit.icon(Kit.ICONS["shield"], px + 2))
+		if target.has("shieldedFor"):
+			row.add_child(Kit.label(I18N.short_wait(left), px - 1, Palette.LAMP))
+		return row
+	row.add_child(Kit.label(I18N.group_digits(int(target.get("stock", 0))), px, Palette.CREAM, true))
+	row.add_child(Kit.icon(Kit.ICONS["carrot"], px + 2))
+	return row
+
+
+## « Raid » dans sa casse, sur le bois du web. Protege : la planche grisee
+## dit « Shielded ».
+func _raid_button(target: Dictionary, state: RaidState, w: float, h: float) -> PlankButton:
+	var shielded := _shield_left(target) > 0.0
+	var off := state.busy or shielded
+	var button := Kit.button(I18N.t("raid.shielded") if shielded else I18N.t("raid.raidIt"), "wood", w, h)
+	button.label_size = 11
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.disabled = off
 	button.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -284,40 +384,30 @@ func _row(target: Dictionary, state: RaidState) -> Control:
 	button.pressed.connect(func() -> void:
 		if _just_scrolled():
 			return
-		Net.trace("bouton Raid sur %s (busy=%s, presence=%s)" % [id, str(state.busy), where])
+		Net.trace("bouton Raid sur %s (busy=%s, presence=%s)" % [id, str(state.busy), state.presence_of(target)])
 		state.enter(id))
+	return button
 
-	# IL CREUSE : son terrier est SANS GARDE, c'est le meilleur moment pour
-	# le voler (le serveur l'accepte : POST /api/raid ne regarde que niveau,
-	# bouclier et cooldown). RAID reste donc l'action principale, comme sur
-	# toute ligne ; REGARDER s'ajoute dessous — aller le voir sur son ile et
-	# de la l'electrocuter ou l'encrer (le spectateur arme, server/index.ts
-	# `lightning`/`bloop`). Le bouclier ne protege que le terrier : regarder
-	# reste ouvert meme quand RAID est grise.
-	if where != RaidState.DIGGING:
-		line.add_child(button)
-		return panel
-	# Une ligne protegee s'assombrit pour que l'oeil passe ; celle-ci a encore
-	# un geste ouvert (REGARDER), elle garde toute sa lumiere.
-	panel.modulate.a = 1.0
-	var actions := Kit.vbox(4)
-	actions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	actions.add_child(button)
-	var watch := Kit.button(I18N.t("raid.watchIt"), "blue", _button_w, WATCH_H)
+
+## IL CREUSE : aller le voir sur son ile, et de la l'electrocuter ou
+## l'encrer (le spectateur arme, server/index.ts `lightning`/`bloop`). Le
+## bouclier ne protege que le terrier : regarder reste ouvert.
+func _watch_button(target: Dictionary, state: RaidState, w: float, h: float) -> PlankButton:
+	var watch := Kit.button(I18N.t("raid.watchIt"), "blue", w, h)
 	watch.label_size = 11
+	watch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	watch.disabled = state.busy
 	watch.mouse_filter = Control.MOUSE_FILTER_PASS
 	if state.busy:
 		watch.modulate.a = 0.75
+	var id := String(target.get("id", ""))
 	watch.pressed.connect(func() -> void:
 		if _just_scrolled():
 			return
 		Net.trace("bouton Regarder sur %s (busy=%s)" % [id, str(state.busy)])
 		if Chrome.current != null:
 			Chrome.current.watch(id))
-	actions.add_child(watch)
-	line.add_child(actions)
-	return panel
+	return watch
 
 
 ## LA LISTE PREND LA HAUTEUR QU'ELLE A, EN LIGNES ENTIERES. Un creux fixe de
@@ -341,6 +431,7 @@ func _queue_fit() -> void:
 func _fit_scroll() -> void:
 	_fit_queued = false
 	if not is_inside_tree() or _rows.get_child_count() == 0:
+		_scroll.custom_minimum_size.y = 0.0
 		return
 	var want := _rows.get_combined_minimum_size().y
 	var others := get_combined_minimum_size().y - _scroll.custom_minimum_size.y
@@ -355,8 +446,9 @@ func _fit_scroll() -> void:
 		else ScrollContainer.SCROLL_MODE_AUTO
 	if not fits:
 		var first := _rows.get_child(0) as Control
-		var pitch := first.get_combined_minimum_size().y + Kit.PAD_TIGHT
-		h = maxf(pitch - Kit.PAD_TIGHT, floorf((room + Kit.PAD_TIGHT) / pitch) * pitch - Kit.PAD_TIGHT)
+		var gap := float(_rows.get_theme_constant("v_separation"))
+		var pitch := first.get_combined_minimum_size().y + gap
+		h = maxf(pitch - gap, floorf((room + gap) / pitch) * pitch - gap)
 	# Au pixel pres : un demi-pixel de va-et-vient (la barre qui parait et
 	# disparait) ne doit pas relancer la mesure.
 	h = floorf(h)

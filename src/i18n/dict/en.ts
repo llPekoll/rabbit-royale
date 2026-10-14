@@ -928,6 +928,12 @@ export const en = {
     another: 'Raid another burrow',
     choose: 'Choose a burrow',
     whose: 'WHOSE BURROW?',
+    /* The three picks on top of the RAID list (Godot TargetList): each one
+       says why it is there. */
+    pickRevenge: 'REVENGE — they raided you',
+    pickRichest: 'THE RICHEST',
+    pickUnguarded: 'UNGUARDED — out digging',
+    owedTag: 'REVENGE',
     /* The toll, on the list's footer: a raid draws on the one tank, and the
        list is where the player decides to spend it. */
     cost: (toll: number, stake: number) => `A raid crossing costs ${toll} energy, ${stake} at most.`,

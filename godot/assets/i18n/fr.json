@@ -1397,6 +1397,10 @@
   "another": "Piller un autre terrier",
   "choose": "Choisis un terrier",
   "whose": "QUEL TERRIER ?",
+  "pickRevenge": "REVANCHE — il t’a pillé",
+  "pickRichest": "LE PLUS RICHE",
+  "pickUnguarded": "SANS GARDE — il creuse",
+  "owedTag": "REVANCHE",
   "cost": {
    "$t": "La traversée d’un pillage coûte {0} d’énergie, {1} au plus."
   },

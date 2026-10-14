@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; LA LISTE RAID, SIX CADRAGES — voir scripts/bench/target_list_lab.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/target_list_lab.gd" id="1_lab"]
+
+[node name="TargetListLab" type="Node2D"]
+script = ExtResource("1_lab")

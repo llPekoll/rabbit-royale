@@ -1360,6 +1360,10 @@
   "another": "Saquear outra toca",
   "choose": "Escolha uma toca",
   "whose": "TOCA DE QUEM?",
+  "pickRevenge": "VINGANÇA — ele te saqueou",
+  "pickRichest": "O MAIS RICO",
+  "pickUnguarded": "SEM GUARDA — está cavando",
+  "owedTag": "VINGANÇA",
   "cost": {
    "$t": "A travessia de um saque custa {0} de energia, no máximo {1}."
   },

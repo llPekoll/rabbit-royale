@@ -1241,6 +1241,10 @@
   "another": "Cướp một hang khác",
   "choose": "Chọn một hang",
   "whose": "HANG CỦA AI?",
+  "pickRevenge": "TRẢ THÙ — họ đã cướp bạn",
+  "pickRichest": "GIÀU NHẤT",
+  "pickUnguarded": "KHÔNG CANH — đang đào",
+  "owedTag": "TRẢ THÙ",
   "cost": {
    "$t": "Một lần cướp tốn {0} năng lượng để qua biển, tối đa {1}."
   },

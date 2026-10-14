@@ -1335,6 +1335,10 @@
   "another": "Raid another burrow",
   "choose": "Choose a burrow",
   "whose": "WHOSE BURROW?",
+  "pickRevenge": "REVENGE — they raided you",
+  "pickRichest": "THE RICHEST",
+  "pickUnguarded": "UNGUARDED — out digging",
+  "owedTag": "REVENGE",
   "cost": {
    "$t": "A raid crossing costs {0} energy, {1} at most."
   },

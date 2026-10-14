@@ -111,6 +111,21 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-14',
     items: [
       {
+        kind: 'new',
+        text: {
+          en: 'The RAID list shows far more burrows at once. On top, three picks with their reason: revenge on whoever raided you, the richest, and someone out digging with nobody home. Everyone else below, on two columns.',
+          fr: 'La liste RAID montre bien plus de terriers d’un coup. En haut, trois prises avec leur raison : la revanche sur celui qui t’a pillé, le plus riche, et celui qui creuse sans personne pour garder. Tous les autres dessous, sur deux colonnes.',
+          zh: '掠夺列表一次能看到更多兔窝。顶部三个推荐并写明理由：向掠夺过你的人复仇、最富有的、以及正在挖掘无人看守的。其余的在下方分两列显示。',
+          'pt-BR': 'A lista de SAQUE mostra muito mais tocas de uma vez. No alto, três escolhas com o motivo: vingança contra quem te saqueou, o mais rico, e quem está cavando sem ninguém em casa. Todos os outros embaixo, em duas colunas.',
+          vi: 'Danh sách CƯỚP giờ hiện nhiều hang hơn cùng lúc. Trên cùng là ba lựa chọn kèm lý do: trả thù kẻ đã cướp bạn, người giàu nhất, và người đang đi đào không ai canh nhà. Những người còn lại ở dưới, chia hai cột.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-14',
+    items: [
+      {
         kind: 'fix',
         text: {
           en: 'When someone raids you, the alert no longer hides your garden: the whole burrow stays in view while they walk. And the name plate in a raid only takes the room it needs.',
