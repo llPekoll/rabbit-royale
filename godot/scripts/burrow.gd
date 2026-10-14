@@ -162,6 +162,18 @@ var _landmarks_seed := ""
 ## LE SOL DU CHROME (la barre, son bord, son air) : la prise maison cadre
 ## l'ile dans ce qui reste au-dessus (`set_floor_reserve`).
 var floor_reserve := 0.0
+## LE PLAN DE DEFENSE (BURY, chrome `_plan`) : la place que son panneau du
+## haut et la rangee du kit laissent au terrier (x = haut, y = bas). Non nul,
+## la prise de pose cadre TOUT le terrier dedans — le chemin du pillard va de
+## la porte au potager, il doit tenir entier.
+var plan_room := Vector2.ZERO
+## Le chemin du pillard dessine sur le sol (RaidRoute.cheapest), `{}` = rien.
+var _route := {}
+var _route_view: Node2D
+## LA REPETITION (TESTER) : un Kuro qui parcourt le chemin, sans serveur.
+var _ghost: HomeRabbit
+const ROUTE_COLOR := Color("#ffb03a")
+const ROUTE_HIT := Color("#ff4a3a")
 
 
 func _ready() -> void:
@@ -457,6 +469,8 @@ func _on_incoming() -> void:
 	var raid_id := String(inc.get("raidId", ""))
 
 	if not _defending:
+		# UN VRAI RAID PASSE DEVANT LA REPETITION (TESTER).
+		ghost_clear()
 		# UN RAID ARRIVE PENDANT QU'ON AMENAGE : le brouillon tombe, le sol
 		# revient a celui que le pillard est en train de lire.
 		_release_hold()
@@ -590,6 +604,127 @@ func _spring_under_raider(tile: int) -> void:
 	Sound.play("explosion")
 	if _raider != null:
 		_raider.take_hit(_raider.position + Vector2(0, 12))
+
+
+# ── Le plan de defense (BURY) ────────────────────────────────────────────────
+
+## LA PLACE DU PLAN : le terrier entier entre son panneau et la rangee.
+## Vector2.ZERO la rend a la prise de pose.
+func set_plan_room(top: float, bottom: float) -> void:
+	var room := Vector2(top, bottom)
+	if room.is_equal_approx(plan_room):
+		return
+	plan_room = room
+	_cam_moved_by_player = false
+	frame_camera()
+
+
+## LE CHEMIN DU PILLARD, des pas orange de la porte au potager, les bombes
+## qu'il prend cerclees de rouge. `{}` l'efface.
+func show_route(route: Dictionary) -> void:
+	_route = route
+	if _route_view == null:
+		_route_view = Node2D.new()
+		_route_view.name = "Route"
+		_route_view.z_as_relative = false
+		_route_view.z_index = 4000
+		_route_view.draw.connect(_draw_route)
+		add_child(_route_view)
+	_route_view.queue_redraw()
+
+
+func _draw_route() -> void:
+	if _route.is_empty() or _ghost != null or _defending:
+		return
+	var pts := PackedVector2Array()
+	for t in _route.path:
+		var c := BurrowLayout.cell_of(int(t))
+		pts.append(_route_view.to_local(_terrain.to_global(_terrain.map.screen_of(c.x, c.y))))
+	if pts.size() >= 2:
+		_route_view.draw_polyline(pts, Color(0, 0, 0, 0.35), 5.0, true)
+		_route_view.draw_polyline(pts, ROUTE_COLOR, 2.5, true)
+	for i in pts.size():
+		_route_view.draw_circle(pts[i], 3.0 if i > 0 else 5.0, ROUTE_COLOR)
+	for t in _route.hits:
+		var i: int = (_route.path as Array).find(t)
+		_route_view.draw_arc(pts[i], 9.0, 0.0, TAU, 24, ROUTE_HIT, 2.5, true)
+	_route_view.draw_arc(pts[pts.size() - 1], 7.0, 0.0, TAU, 24, Color.WHITE, 2.0, true)
+
+
+## TESTER : Kuro tombe a la porte. Rien ne part au serveur, rien ne passe par
+## RaidState (son `fake` le couperait du reseau pour de bon) — ni alarme, ni
+## HUD de defense : une repetition, pas un raid.
+func ghost_start(tile: int) -> void:
+	ghost_clear()
+	_rabbit.visible = false
+	_ghost = _spawn_raider(tile, Look.DEFAULT)
+	_ghost.name = "Rehearsal"
+	_paint_kuro(_ghost)
+	if _route_view != null:
+		_route_view.queue_redraw()
+
+
+## KURO EST NOIR (assets/bunnies/bunny-black.png, la planche des bancs) :
+## les memes images, prises sur sa planche. Pas un avatar qu'on vend, d'ou
+## le passage par le sprite plutot que par Look.
+const KURO_SHEET := "res://assets/bunnies/bunny-black.png"
+
+
+func _paint_kuro(r: HomeRabbit) -> void:
+	var sprite: AnimatedSprite2D = r._sprite
+	var sheet := load(KURO_SHEET) as Texture2D
+	if sprite == null or sheet == null:
+		return
+	var frames: SpriteFrames = sprite.sprite_frames.duplicate()
+	for anim in frames.get_animation_names():
+		for i in frames.get_frame_count(anim):
+			var f := frames.get_frame_texture(anim, i) as AtlasTexture
+			if f == null:
+				continue
+			var black := AtlasTexture.new()
+			black.atlas = sheet
+			black.region = f.region
+			frames.set_frame(anim, i, black, frames.get_frame_duration(anim, i))
+	sprite.sprite_frames = frames
+
+
+## Un pas ; `hit` : il est sur une bombe, elle saute (le souffle du vrai raid,
+## sans la recharge — la bombe reste a sa place).
+func ghost_step(tile: int, hit: bool) -> void:
+	if _ghost == null:
+		return
+	_ghost.send_to(BurrowLayout.cell_of(tile))
+	Sound.play("step")
+	if not hit:
+		return
+	while _ghost != null and _ghost.hopping():
+		await get_tree().process_frame
+	if _ghost == null:
+		return
+	Blast.play(self, _terrain, BurrowLayout.cell_of(tile), true)
+	_traps.spring(tile)
+	Sound.play("explosion")
+	_ghost.take_hit(_ghost.position + Vector2(0, 12))
+
+
+## La fin : il danse sur le potager, ou il tombe a bout de forces.
+func ghost_end(reached: bool) -> void:
+	if _ghost == null:
+		return
+	if reached:
+		_ghost.celebrate()
+	else:
+		_ghost.exhaust()
+
+
+func ghost_clear() -> void:
+	if _ghost == null:
+		return
+	_ghost.queue_free()
+	_ghost = null
+	_rabbit.visible = not _defending
+	if _route_view != null:
+		_route_view.queue_redraw()
 
 
 # ── Le raid qu'on mene ───────────────────────────────────────────────────────
@@ -1357,8 +1492,10 @@ func _wanted_cam() -> BurrowCamera.Shot:
 		# LE JOUEUR GARDE LA MAIN : on ne recadre pas sous lui, on borne.
 		if _cam_moved_by_player:
 			return BurrowCamera.clamp_place(_current_shot(), map, view.x, view.y)
-		if _walling:
+		if _walling and plan_room == Vector2.ZERO:
 			return BurrowCamera.wall(map, _props.field, view.x, view.y)
+		if plan_room != Vector2.ZERO:
+			return BurrowCamera.board(map, view.x, view.y - plan_room.y, plan_room.x)
 		return BurrowCamera.place(map, view.x, view.y)
 	if _cam_moved_by_player:
 		return BurrowCamera.clamp_home(_current_shot(), _home_map(), view.x, view.y - floor_reserve)

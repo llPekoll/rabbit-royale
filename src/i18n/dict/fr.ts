@@ -850,6 +850,16 @@ export const fr: Dict = {
     cutTree: (name: string) => `${name} a abattu un de tes arbres`,
     cutPlank: (name: string) => `${name} a abattu une de tes clôtures`,
     incoming: (name) => `${name} pille ton terrier !`,
+    planBombs: (drain) => `Touche une case : une bombe. Encore : tu la reprends. Le pillard qui marche dessus perd ${drain} ⚡.`,
+    planFences: 'Touche un bord du potager : une planche. Le pillard doit faire le tour.',
+    planPick: 'Choisis bombes ou planches en bas, puis touche ton terrier.',
+    planRoute: (steps, bombs, cost, budget) => `Meilleur chemin du pillard : ${steps} pas + ${bombs} bombe${bombs === 1 || bombs === 0 ? '' : 's'} = ${cost} / ${budget} ⚡`,
+    planClosed: 'Ton potager est muré. Le dernier passage reste toujours ouvert.',
+    planHolds: "DÉFENSE SOLIDE : il n'atteint pas le potager",
+    planPasses: (left) => `IL PASSE : il lui reste ${left} ⚡ en arrivant`,
+    test: 'TESTER',
+    testReached: (left) => `KURO A ATTEINT TON POTAGER, il lui restait ${left} ⚡. Enterre des bombes sur son chemin.`,
+    testHeld: (steps, bombs) => `KURO S'EST ÉPUISÉ après ${steps} pas et ${bombs} bombe${bombs === 1 || bombs === 0 ? '' : 's'}. Défense tenue !`,
   },
 
   raidErrors: {

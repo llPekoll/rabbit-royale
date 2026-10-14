@@ -1490,6 +1490,42 @@
   },
   "incoming": {
    "$t": "{0} is raiding your burrow!"
+  },
+  "planBombs": {
+   "$t": "Tap a tile to bury a bomb, tap it again to take it back. A raider who steps on it loses {0} ⚡."
+  },
+  "planFences": "Tap an edge of the garden for a fence. The raider has to walk around it.",
+  "planPick": "Pick bombs or fences below, then tap your burrow.",
+  "planRoute": {
+   "$t": "Raider's best path: {0} steps + {1} bombs = {2} / {3} ⚡",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "Raider's best path: {0} steps + 1 bomb = {2} / {3} ⚡"
+    }
+   ]
+  },
+  "planClosed": "Your garden is walled off. The last way in always stays open.",
+  "planHolds": "SOLID: they never reach your garden",
+  "planPasses": {
+   "$t": "THEY GET THROUGH with {0} ⚡ to spare"
+  },
+  "test": "TEST",
+  "testReached": {
+   "$t": "KURO REACHED YOUR GARDEN with {0} ⚡ left. Bury bombs on the path."
+  },
+  "testHeld": {
+   "$t": "KURO RAN OUT after {0} steps and {1} bombs. Your defence holds!",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "KURO RAN OUT after {0} steps and 1 bomb. Your defence holds!"
+    }
+   ]
   }
  },
  "raidErrors": {

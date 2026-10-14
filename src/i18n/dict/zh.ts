@@ -836,6 +836,16 @@ export const zh: Dict = {
     cutTree: (name: string) => `${name} 砍倒了你的一棵树`,
     cutPlank: (name: string) => `${name} 砍倒了你的一段围栏`,
     incoming: (name) => `${name} 正在掠夺你的兔窝！`,
+    planBombs: (drain) => `点一格埋炸弹，再点一次收回。掠夺者踩上去会失去 ${drain} ⚡。`,
+    planFences: '点菜园的边放篱笆，掠夺者只能绕路。',
+    planPick: '在下方选炸弹或篱笆，再点你的兔窝。',
+    planRoute: (steps, bombs, cost, budget) => `掠夺者最佳路线：${steps} 步 + ${bombs} 颗炸弹 = ${cost} / ${budget} ⚡`,
+    planClosed: '你的菜园被围死了。最后一条通道永远开着。',
+    planHolds: '防守稳固：他们到不了菜园',
+    planPasses: (left) => `他们能过去，还剩 ${left} ⚡`,
+    test: '测试',
+    testReached: (left) => `KURO 到达了你的菜园，还剩 ${left} ⚡。在路上埋炸弹吧。`,
+    testHeld: (steps, bombs) => `KURO 走了 ${steps} 步、踩了 ${bombs} 颗炸弹后累倒了。防守成功！`,
   },
 
   raidErrors: {

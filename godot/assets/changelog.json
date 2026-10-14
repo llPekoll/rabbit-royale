@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.10",
+      "date": "2026-10-14",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "BURY shows the raider's best path through your burrow, and whether they reach your garden. Tap TEST and Kuro walks it for real, bombs and all.",
+            "fr": "ENTERRER montre le meilleur chemin du pillard dans ton terrier, et s’il atteint ton potager. Touche TESTER et Kuro le parcourt pour de vrai, bombes comprises.",
+            "zh": "埋雷现在会显示掠夺者穿过你兔窝的最佳路线，以及他们能否到达菜园。点「测试」，Kuro 会真的走一遍，炸弹也会爆。",
+            "pt-BR": "ENTERRAR mostra o melhor caminho do saqueador pela sua toca, e se ele chega à horta. Toque em TESTAR e Kuro percorre o caminho de verdade, com bombas e tudo.",
+            "vi": "CHÔN BOM giờ hiện đường đi tốt nhất của kẻ cướp qua hang bạn, và liệu chúng có tới được vườn. Chạm THỬ và Kuro sẽ đi thật một lượt, cả bom cũng nổ."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.9.1",
       "date": "2026-10-13",
       "items": [

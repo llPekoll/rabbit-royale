@@ -1026,6 +1026,18 @@ export const en = {
     cutTree: (name: string) => `${name} chopped down one of your trees`,
     cutPlank: (name: string) => `${name} chopped one of your fences`,
     incoming: (name: string) => `${name} is raiding your burrow!`,
+    /* THE DEFENCE PLAN (Godot chrome, BURY): the raider's cheapest path from
+       the gate to the garden, drawn live, and TEST walks Kuro down it. */
+    planBombs: (drain: number) => `Tap a tile to bury a bomb, tap it again to take it back. A raider who steps on it loses ${drain} ⚡.`,
+    planFences: 'Tap an edge of the garden for a fence. The raider has to walk around it.',
+    planPick: 'Pick bombs or fences below, then tap your burrow.',
+    planRoute: (steps: number, bombs: number, cost: number, budget: number) => `Raider's best path: ${steps} steps + ${bombs} bomb${bombs === 1 ? '' : 's'} = ${cost} / ${budget} ⚡`,
+    planClosed: 'Your garden is walled off. The last way in always stays open.',
+    planHolds: 'SOLID: they never reach your garden',
+    planPasses: (left: number) => `THEY GET THROUGH with ${left} ⚡ to spare`,
+    test: 'TEST',
+    testReached: (left: number) => `KURO REACHED YOUR GARDEN with ${left} ⚡ left. Bury bombs on the path.`,
+    testHeld: (steps: number, bombs: number) => `KURO RAN OUT after ${steps} steps and ${bombs} bomb${bombs === 1 ? '' : 's'}. Your defence holds!`,
   },
 
   raidErrors: {

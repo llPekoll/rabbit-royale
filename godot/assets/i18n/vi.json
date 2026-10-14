@@ -1359,6 +1359,26 @@
   },
   "incoming": {
    "$t": "{0} đang cướp hang bạn!"
+  },
+  "planBombs": {
+   "$t": "Chạm một ô để chôn bom, chạm lại để lấy lên. Kẻ cướp giẫm phải mất {0} ⚡."
+  },
+  "planFences": "Chạm một cạnh vườn để dựng hàng rào. Kẻ cướp phải đi vòng.",
+  "planPick": "Chọn bom hoặc hàng rào bên dưới, rồi chạm vào hang.",
+  "planRoute": {
+   "$t": "Đường tốt nhất của kẻ cướp: {0} bước + {1} bom = {2} / {3} ⚡"
+  },
+  "planClosed": "Vườn của bạn bị chặn kín. Lối cuối cùng luôn để mở.",
+  "planHolds": "PHÒNG THỦ VỮNG: chúng không tới được vườn",
+  "planPasses": {
+   "$t": "CHÚNG LỌT QUA, còn dư {0} ⚡"
+  },
+  "test": "THỬ",
+  "testReached": {
+   "$t": "KURO ĐÃ TỚI VƯỜN, còn {0} ⚡. Chôn bom trên đường đi."
+  },
+  "testHeld": {
+   "$t": "KURO KIỆT SỨC sau {0} bước và {1} bom. Phòng thủ vững!"
   }
  },
  "raidErrors": {

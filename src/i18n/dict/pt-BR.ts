@@ -852,6 +852,16 @@ export const ptBR: Dict = {
     cutTree: (name: string) => `${name} derrubou uma das suas árvores`,
     cutPlank: (name: string) => `${name} derrubou uma das suas cercas`,
     incoming: (name) => `${name} está saqueando sua toca!`,
+    planBombs: (drain) => `Toque numa casa para enterrar uma bomba, de novo para tirar. Quem pisar nela perde ${drain} ⚡.`,
+    planFences: 'Toque numa borda da horta para uma cerca. O saqueador tem que dar a volta.',
+    planPick: 'Escolha bombas ou cercas embaixo e toque na sua toca.',
+    planRoute: (steps, bombs, cost, budget) => `Melhor caminho do saqueador: ${steps} passos + ${bombs} bomba${bombs === 1 ? '' : 's'} = ${cost} / ${budget} ⚡`,
+    planClosed: 'Sua horta está fechada. A última passagem sempre fica aberta.',
+    planHolds: 'DEFESA SÓLIDA: ele não chega à horta',
+    planPasses: (left) => `ELE PASSA com ${left} ⚡ de sobra`,
+    test: 'TESTAR',
+    testReached: (left) => `KURO CHEGOU À SUA HORTA com ${left} ⚡ sobrando. Enterre bombas no caminho.`,
+    testHeld: (steps, bombs) => `KURO CANSOU depois de ${steps} passos e ${bombs} bomba${bombs === 1 ? '' : 's'}. Sua defesa aguentou!`,
   },
 
   raidErrors: {

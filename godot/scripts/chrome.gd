@@ -80,6 +80,10 @@ var _back: BackButton
 var _house: HousePanel
 ## SANS ILOTS : le haut du terrier (KIT 04) et la visite.
 var _hud: BurrowHud
+## LE PLAN DE DEFENSE pendant BURY (ui/bury_plan.gd) : le chemin du pillard,
+## le verdict, TESTER. Il prend la place du haut le temps du mode.
+var _plan: BuryPlan
+var _plan_testing := false
 var _tour: BurrowTour
 ## La version, en bas a droite du terrier : QUOI DE NEUF (version_tag.gd).
 var _version: VersionTag
@@ -236,6 +240,7 @@ func _mount_place() -> void:
 	_column = null
 	_loop = null
 	_hud = null
+	_plan = null
 	_tour = null
 	_kit = null
 	_measure()
@@ -425,6 +430,12 @@ func _dev_open() -> void:
 		"dig": _dig()
 		# La porte DEFEND, comme son ilot la pousse.
 		"defend": _on_door("defend")
+		# BURY puis TESTER : Kuro sur le chemin du plan (bury_plan.gd).
+		"bury-test":
+			_on_door("defend")
+			await get_tree().create_timer(1.5).timeout
+			if is_instance_valid(_plan):
+				_plan._run_test()
 		# Le volet de la maison, comme le bouton BURROW du haut l'ouvre.
 		"upgrade": _on_door("upgrade")
 		"profile": Profile.open()
@@ -654,6 +665,9 @@ func _offer_refill() -> void:
 func defend(on: bool, finished: bool = false) -> void:
 	if on:
 		close_dialog()
+		# UN VRAI RAID : le plan et sa repetition s'effacent, la defense en
+		# direct a besoin du terrier.
+		_drop_plan()
 		# LA CARTE REPLIEE : le raid se joue sur le terrier, et la carte de
 		# la bombe (« Buy a bomb ») en couvrait le milieu — l'intrus passait
 		# dessous. La rangee reste, une tape sur la bombe la rouvre.
@@ -821,9 +835,15 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 	if _version != null:
 		_version.visible = false
 	arrange_state({})
-	_kit.open(mode, expanded)
+	# AVEC LE PLAN, LA CARTE REPLIEE : elle couvrait le chemin du pillard. Une
+	# tape sur une case la rouvre. Pas de plan pendant un vrai raid
+	# (`expanded` faux, `defend`).
+	var plan := expanded and _hud != null
+	_kit.open(mode, expanded and not plan)
 	if _loop != null:
 		_loop.set_away(true)
+	if plan:
+		_mount_plan(mode)
 	_column.set_editing(true)
 	_back.show_for(mode)
 	_mount_clean()
@@ -832,6 +852,66 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 		burrow.call("set_defend_kit", true)
 		burrow.call("set_placing", mode == "placing")
 		burrow.call("set_walling", mode == "walling")
+
+
+## LE PLAN DE DEFENSE monte avec BURY : le haut du terrier s'efface, le
+## panneau prend sa place, et le terrier se cadre entier entre lui et la
+## rangee du kit (`set_plan_room`).
+func _mount_plan(mode: String) -> void:
+	_drop_plan()
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow == null or not burrow.has_method("show_route"):
+		return
+	_plan = BuryPlan.new()
+	_plan.burrow = burrow
+	# Le sol est une bande de hauteur nulle : le panneau se pose a l'ecran.
+	_plan.top_level = true
+	floor_host.add_child(_plan)
+	_plan.set_mode(mode)
+	_plan.room_changed.connect(_plan_room)
+	_plan.testing.connect(_on_plan_testing)
+	if not _kit.laid_out.is_connected(_plan_room):
+		_kit.laid_out.connect(_plan_room)
+	if is_instance_valid(_hud):
+		_hud.visible = false
+	_plan_room.call_deferred()
+
+
+func _drop_plan() -> void:
+	_plan_testing = false
+	if is_instance_valid(_plan):
+		_plan.queue_free()
+		if is_instance_valid(_hud):
+			_hud.visible = true
+			_hud.play_entrance()
+	_plan = null
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_plan_room"):
+		burrow.call("set_plan_room", 0.0, 0.0)
+	_measure()
+
+
+## Le terrier entre le bas du panneau et le haut de la rangee du kit.
+func _plan_room() -> void:
+	if not is_instance_valid(_plan) or _kit == null:
+		return
+	var view := get_viewport_rect().size
+	var tray := _kit.tray_rect()
+	var floor_top := tray.position.y if tray.has_area() else view.y - KitRow.TAB_H - 2.0 * Kit.EDGE
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow != null and burrow.has_method("set_plan_room"):
+		burrow.call("set_plan_room", _plan.bottom() + Kit.PAD_TIGHT, view.y - floor_top + Kit.PAD_TIGHT)
+	_measure()
+
+
+## TESTER : Kuro marche, la pose se suspend ; elle reprend la case choisie.
+func _on_plan_testing(on: bool) -> void:
+	_plan_testing = on
+	var burrow := Screens.at(Screens.Place.BURROW)
+	if burrow == null or not burrow.has_method("set_placing") or _mode.is_empty():
+		return
+	burrow.call("set_placing", not on and _mode == "placing")
+	burrow.call("set_walling", not on and _mode == "walling")
 
 
 ## Donne a la rangee du kit ce que l'etal vient de relire. Une METHODE et
@@ -983,6 +1063,10 @@ func _switch_mode(mode: String) -> void:
 	if _kit == null or _mode.is_empty() or _mode == mode:
 		return
 	_mode = mode
+	if _plan != null:
+		_plan.set_mode(mode)
+	if _plan_testing:
+		return
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow != null and burrow.has_method("set_placing"):
 		burrow.call("set_placing", mode == "placing")
@@ -994,6 +1078,7 @@ func _end_mode() -> void:
 		return
 	_mode = ""
 	_drop_clean()
+	_drop_plan()
 	if _version != null:
 		_version.visible = true
 	if _kit != null:
@@ -1099,9 +1184,12 @@ func _measure() -> void:
 	column.offset_bottom = -Kit.EDGE
 
 	_place_hud()
-	# Les legendes passent sous le haut du terrier, qui tient le milieu.
+	# Les legendes passent sous le haut du terrier, qui tient le milieu —
+	# ou sous le plan de defense, qui le remplace pendant BURY.
 	var toast_top := Kit.TOPBAR_H
-	if is_instance_valid(_hud):
+	if is_instance_valid(_plan):
+		toast_top = maxf(toast_top, _plan.bottom())
+	elif is_instance_valid(_hud):
 		toast_top = maxf(toast_top, _hud.position.y + _hud.size.y)
 	toasts.offset_top = toast_top + Kit.PAD_TIGHT
 	var toast_w := minf(560.0, view.x - 2.0 * (column_w + 24.0))
@@ -1171,6 +1259,11 @@ func _clear_pill() -> void:
 	var plaque := RaidHud.bottom()
 	if plaque > 0.0:
 		bottom = maxf(bottom, plaque - global_position.y)
+	# SOUS LE HAUT DU TERRIER, ou sous le plan de defense qui le remplace.
+	if is_instance_valid(_plan):
+		bottom = maxf(bottom, _plan.bottom() - global_position.y)
+	elif is_instance_valid(_hud) and _hud.visible:
+		bottom = maxf(bottom, _hud.position.y + _hud.size.y - global_position.y)
 	toasts.offset_top = bottom + Kit.PAD_TIGHT
 
 

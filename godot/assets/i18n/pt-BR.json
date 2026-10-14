@@ -1548,6 +1548,42 @@
   },
   "incoming": {
    "$t": "{0} está saqueando sua toca!"
+  },
+  "planBombs": {
+   "$t": "Toque numa casa para enterrar uma bomba, de novo para tirar. Quem pisar nela perde {0} ⚡."
+  },
+  "planFences": "Toque numa borda da horta para uma cerca. O saqueador tem que dar a volta.",
+  "planPick": "Escolha bombas ou cercas embaixo e toque na sua toca.",
+  "planRoute": {
+   "$t": "Melhor caminho do saqueador: {0} passos + {1} bombas = {2} / {3} ⚡",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "Melhor caminho do saqueador: {0} passos + 1 bomba = {2} / {3} ⚡"
+    }
+   ]
+  },
+  "planClosed": "Sua horta está fechada. A última passagem sempre fica aberta.",
+  "planHolds": "DEFESA SÓLIDA: ele não chega à horta",
+  "planPasses": {
+   "$t": "ELE PASSA com {0} ⚡ de sobra"
+  },
+  "test": "TESTAR",
+  "testReached": {
+   "$t": "KURO CHEGOU À SUA HORTA com {0} ⚡ sobrando. Enterre bombas no caminho."
+  },
+  "testHeld": {
+   "$t": "KURO CANSOU depois de {0} passos e {1} bombas. Sua defesa aguentou!",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "KURO CANSOU depois de {0} passos e 1 bomba. Sua defesa aguentou!"
+    }
+   ]
   }
  },
  "raidErrors": {

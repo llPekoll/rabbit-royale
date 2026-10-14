@@ -845,6 +845,16 @@ export const vi: Dict = {
     cutTree: (name: string) => `${name} đã chặt một cây của bạn`,
     cutPlank: (name: string) => `${name} đã chặt một hàng rào của bạn`,
     incoming: (name) => `${name} đang cướp hang bạn!`,
+    planBombs: (drain) => `Chạm một ô để chôn bom, chạm lại để lấy lên. Kẻ cướp giẫm phải mất ${drain} ⚡.`,
+    planFences: 'Chạm một cạnh vườn để dựng hàng rào. Kẻ cướp phải đi vòng.',
+    planPick: 'Chọn bom hoặc hàng rào bên dưới, rồi chạm vào hang.',
+    planRoute: (steps, bombs, cost, budget) => `Đường tốt nhất của kẻ cướp: ${steps} bước + ${bombs} bom = ${cost} / ${budget} ⚡`,
+    planClosed: 'Vườn của bạn bị chặn kín. Lối cuối cùng luôn để mở.',
+    planHolds: 'PHÒNG THỦ VỮNG: chúng không tới được vườn',
+    planPasses: (left) => `CHÚNG LỌT QUA, còn dư ${left} ⚡`,
+    test: 'THỬ',
+    testReached: (left) => `KURO ĐÃ TỚI VƯỜN, còn ${left} ⚡. Chôn bom trên đường đi.`,
+    testHeld: (steps, bombs) => `KURO KIỆT SỨC sau ${steps} bước và ${bombs} bom. Phòng thủ vững!`,
   },
 
   raidErrors: {
