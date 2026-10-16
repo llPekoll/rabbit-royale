@@ -2275,6 +2275,12 @@ func _teach(on: bool) -> void:
 ## par le seul geste qui existe deja — la traversee vers le terrier.
 func _finish_tutorial() -> void:
 	_done = true
+	# LE NIVEAU 2 TOUT DE SUITE : le serveur le donne au coffre du tuto
+	# (`tutorialDone`), mais sa reponse arrivait ~3 s apres le terrier, qui
+	# montrait SKIP TO DEFEND entre-temps. DIG + DEFEND + SKIP TO RAID des
+	# l'arrivee (2026-10-16).
+	if int(Home.player.get("level", 1)) < 2:
+		Home.player["level"] = 2
 	# Le coffre de la lecon a sa fanfare, et le lapin saute de joie
 	# (IslandScene `celebrateChest` : la musique ET `me.celebrate()`).
 	Sound.music("victory")

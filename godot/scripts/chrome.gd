@@ -1179,8 +1179,9 @@ func _on_moved(place: int) -> void:
 ## (il attend la visite suivante) :
 ##   - Shiro au premier terrier ; un compte neuf traverse ensuite vers sa
 ##     premiere ile, le tuto ;
-##   - apres le tuto : relier un wallet (une fois, un invite seulement) ;
-##   - Kuro au niveau 2 (BURY s'ouvre) ;
+##   - Kuro au niveau 2 (DEFEND s'ouvre) — d'ordinaire deja lu, sur l'ile du
+##     tuto qui coule (island.gd `_book_two_then_home`) ;
+##   - puis relier un wallet (une fois, un invite seulement) ;
 ##   - la mer a RAID_MIN (RAID et les iles a plusieurs s'ouvrent ; pas en Solo).
 ## `-- --no-intro` les coupe (captures).
 func maybe_books(delay := 2.6) -> void:
@@ -1198,10 +1199,10 @@ func maybe_books(delay := 2.6) -> void:
 	elif level >= 2 and not IntroBook.seen("kuro"):
 		book = "kuro"
 	elif _wallet_offer_due():
-		# A L'ETAPE DES RAIDS (SKIP TO RAID ou le niveau atteint), avant le
-		# livre de la mer : la ou l'on peut perdre ce qu'on a, on propose de
-		# le garder (2026-10-16, « skip to raid, et c'est la que tu proposes
-		# de login to wallet »).
+		# AU TERRIER, JUSTE APRES LE LIVRE 2 (la fin du tuto) : la barre dit
+		# DIG + DEFEND + SKIP TO RAID, et le wallet est propose (2026-10-16,
+		# « des que tu as fini le livre 2 [...] c'est le moment ou tu
+		# affiches connect wallet »).
 		await _offer_wallet()
 		maybe_books(0.4)
 		return
@@ -1224,14 +1225,13 @@ func _books_calm() -> bool:
 		and not "--no-intro" in OS.get_cmdline_user_args()
 
 
-## RELIER UN WALLET, propose une fois a l'etape des raids (d'abord apres le
-## tuto, deplace le 2026-10-16 : « skip to raid, et c'est la que tu proposes
-## de login to wallet ») — a un invite seulement, et la ou un wallet peut
-## repondre. Une fois par joueur sur cet appareil.
+## RELIER UN WALLET, propose une fois a l'arrivee au terrier apres le livre 2
+## (la fin du tuto) — a un invite seulement, et la ou un wallet peut repondre.
+## Une fois par joueur sur cet appareil.
 func _wallet_offer_due() -> bool:
 	if not bool(Session.player.get("guest", false)) or not Wallet.available():
 		return false
-	if LevelSkip.stage() < 3:
+	if LevelSkip.stage() < 2:
 		return false
 	var cfg := ConfigFile.new()
 	cfg.load(IntroBook.PATH)

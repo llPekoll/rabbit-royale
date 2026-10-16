@@ -205,8 +205,10 @@ func _read(which: String) -> void:
 	if not _seen(which):
 		return
 	var host: Node = Chrome.current if is_instance_valid(Chrome.current) else self
+	# The library stays open under the book: closing the book comes back
+	# here (2026-10-16, « tu ouvres un livre, tu le refermes, tu reviens dans
+	# le book store »). The book hides the chrome while it reads.
 	IntroBook.play_on(host, which)
-	close_requested()
 
 
 ## L'ETAPE DEJA ATTEINTE ouvre son livre, lu ici ou non : un joueur de
