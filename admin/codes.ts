@@ -3,9 +3,8 @@
  *
  * A code lives ten minutes and survives five wrong tries; asking again
  * replaces it. Kept in memory: rr-admin is one process, and a restart only
- * means asking for a new code. Only the owner and the team get a mail — any
- * other address gets the same "sent" and nothing, so the page tells no one
- * who is in.
+ * means asking for a new code. Only the owner and the team get a mail
+ * (admin/server.ts says no to any other address).
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { sendMail } from './mail';

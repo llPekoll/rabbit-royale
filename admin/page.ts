@@ -215,7 +215,7 @@ td .act { padding: 3px 8px; font-size: 12px; }
     $("code").required = sent;
     $("login-btn").textContent = sent ? "Sign in" : "Send me a code";
     $("login-note").textContent = sent
-      ? "If this email is in the team, a code is on its way. Check your inbox (and spam)."
+      ? "A code is on its way. Check your inbox (and spam)."
       : "Enter your email: we send you a 6-digit code.";
     $("code").value = "";
     (sent ? $("code") : $("email")).focus();
@@ -243,7 +243,7 @@ td .act { padding: 3px 8px; font-size: 12px; }
     start();
   }
 
-  var LOGIN_ERR = { too_many: "Too many tries. Wait a few minutes.", bad_email: "That email does not look right.", no_mail: "Mail is not set up on the server yet.", wrong_code: "Wrong or expired code." };
+  var LOGIN_ERR = { too_many: "Too many tries. Wait a few minutes.", bad_email: "That email does not look right.", no_mail: "Mail is not set up on the server yet.", wrong_code: "Wrong or expired code.", not_in_team: "This email has no access. Ask the owner to add you to the team." };
   function sendCode() {
     $("login-err").textContent = "";
     token = null;

@@ -56,19 +56,19 @@ const fail = (error: string, status: number) => Response.json({ error }, { statu
 
 /**
  * Step one: a code to the address — if it is the owner's or a member's. Any
- * other address hears the same "sent", and no mail leaves.
+ * other address is told at once that it has no access, and no mail leaves.
  */
 async function loginStart(req: Request, ip: string): Promise<Response> {
   const email = cleanEmail((await body(req)).email);
   if (!email) return fail('bad_email', 400);
   if (!spend(`start:${ip}`, 5) || !spend(`mail:${email}`, 3) || !spend('mail:all', 30)) return fail('too_many', 429);
-  if (await roleOf(email)) {
-    if (!mailConfigured()) return fail('no_mail', 503);
-    await sendCode(email);
-    console.log(`[rr-admin] code sent to ${email}`);
-  } else {
+  if (!(await roleOf(email))) {
     console.log(`[rr-admin] code refused to ${email} (not in the team)`);
+    return fail('not_in_team', 403);
   }
+  if (!mailConfigured()) return fail('no_mail', 503);
+  await sendCode(email);
+  console.log(`[rr-admin] code sent to ${email}`);
   return Response.json({ sent: true });
 }
 
