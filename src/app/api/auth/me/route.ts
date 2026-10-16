@@ -14,6 +14,7 @@ import { players } from '@/lib/db/schema';
 import { getSession, signSession } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 import { playerLook } from '@/lib/game/look';
+import { identitiesOf } from '@/lib/auth/identity';
 
 const SEEN_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -55,12 +56,21 @@ export async function GET(req: Request) {
     ? await signSession({ sub: player.id, wallet: player.wallet, name: player.name })
     : null;
 
+  const identities = await identitiesOf(player.id);
+
   // `guest` rides alongside the row rather than being derived by the client
   // from a null wallet — one field, read the same way in every screen, and the
   // server stays the thing that decides what a guest is.
   return Response.json({
     // `look`: the sheet this player's rabbit wears everywhere (look.ts).
-    player: { ...applyRegen(player), guest: !player.wallet, look: await playerLook(player) },
+    // `identities`: the Google account / email this burrow can be reopened
+    // with. A guest is a player with none of them AND no wallet.
+    player: {
+      ...applyRegen(player),
+      guest: !player.wallet && identities.length === 0,
+      identities,
+      look: await playerLook(player),
+    },
     ...(token ? { token } : {}),
   });
 }

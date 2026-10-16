@@ -1,95 +1,34 @@
 class_name LoreCodex
 extends Dialog
-## LE CODEX : le parchemin du terrier, et les chapitres derriere.
+## L'ETAGERE DES TROIS LIVRES (2026-10-15, le soir) — ce qui reste du codex.
 ##
-## Porte de lore-codex.tsx (`LoreCodex`, `ChapterTab`) et de globals.css
-## `.rr-lore-*`, en gardant ce qu'ils ont decide :
+## Les cinq chapitres a vie (« The Island That Gives »...) racontaient l'ancien
+## lore et contredisaient les livres ; le user : « supprimer le recueil, mettre
+## juste les 3 livres a la place, disponibles seulement quand on les a deja
+## vus, sinon un lock et grise ». Un livre lu se rouvre en le touchant ; un
+## livre a venir est gris, sous un cadenas, avec l'etape qui l'ouvre (BURY,
+## RAID — LevelSkip, Chrome.maybe_books).
 ##
-##   • LE PANNEAU EST LE PARCHEMIN, pas le mur ou il est epingle. Le tableau
-##     des quetes tient son bord contre d'autres panneaux ; celui-ci s'ouvre
-##     sur un terrier assombri sans rien qui lui dispute la place, et un
-##     livre d'histoire de la couleur d'un rouleau deroule vaut plus que le
-##     contraste qu'une dalle de pierre acheterait. Ici le cadre a feuilles
-##     de `Dialog` est cette feuille ; les couleurs qui restent (le disque du
-##     numeral, le filet, le sceau) sont celles de la palette de scroll.png,
-##     comme le web les a prises — jamais inventees a cote.
-##   • L'ETAGERE A GAUCHE, LA PAGE A DROITE. Le chapitre ouvert est marque sur
-##     sa tranche (un filet de 3px), pas par un bloc plein : une selection
-##     pleine sur du parchemin lit comme un surligneur, que cette feuille n'a
-##     jamais vu. Sur un ecran etroit (< 620) les deux s'empilent et
-##     l'etagere devient une bande de disques au-dessus du texte.
-##   • ON OUVRE SUR LE PLUS RECENT CHAPITRE DEBLOQUE, pas le premier. Un
-##     joueur qui revient ouvre le codex pour ce qu'il n'a pas encore lu ; le
-##     faire redescendre la liste pour le trouver est le seul echec evident
-##     de ce panneau.
-##   • UN CHAPITRE SCELLE MONTRE QUAND MEME SON SUJET ET SON PRIX. Une ligne
-##     qui dit seulement « verrouille » ne dit pas si ca vaut de creuser.
-##   • LE PIED PARLE DU COMPTEUR, pas de l'histoire — le seul endroit. Les
-##     carottes a vie ne se volent pas et ne se remettent pas a zero, donc ce
-##     progres ne peut que monter : ca vaut d'etre dit, parce que tout autre
-##     nombre de ce jeu peut tomber. UNE SEULE CHAINE, pas une phrase coupee
-##     autour d'un nombre : le compte tombe ailleurs en chinois.
-##   • LIRE UN CHAPITRE DEBLOQUE POSE UNE MARQUE. La quete « Read the
-##     stones » ecoute le chapitre II ; le codex ne garde aucune trace de
-##     lecture, donc cette marque est le seul temoin qu'un chapitre a ete
-##     regarde (`Home.mark_quest(Content.codex_mark(id))`).
-##
-## Les seuils sont ceux du chapitre (Content.LORE) ; la prose est celle de
-## la langue (I18N `lore.<id>`).
+## Garde son nom et sa porte (`LoreCodex.open`, le bouton d'histoire de la
+## barre du haut) : rien d'autre n'a a changer.
 
-## `min(760px, 100%)`, la liste a 232, et le point ou les colonnes
-## s'empilent.
-const SCROLL_W := 760.0
-const LIST_W := 232.0
-const STACK_BELOW := 620.0
-## RESSERRE des qu'il y a la place (Dialog.hug_size) : le rouleau du web,
-## 760 de large, et une hauteur FIXE — calee sur le texte, le dialogue
-## sauterait d'un chapitre a l'autre. La page defile, son bord fond.
-const HUG_H := 520.0
-## « Frais » = le dernier chapitre ouvert dans les 500 dernieres carottes,
-## a peu pres une partie au bas de l'echelle (lore-codex.tsx `fresh`). Assez
-## long pour qu'un joueur qui a creuse puis dormi le voie encore ; assez
-## court pour ne pas etre une pastille permanente.
-const FRESH_WINDOW := 500.0
+const BOOKS := ["shiro", "kuro", "sea"]
+## La couverture : la premiere image de `open` du livre peint, recadree sur
+## le livre ferme (`cover_view` du book.json).
+const COVER_DIR := "res://assets/intro/book/shiro/"
+const CARD_W := 210.0
+const GREY := Color(0.42, 0.4, 0.38, 0.85)
 
-## LA PALETTE DE SCROLL.PNG (lore-codex.tsx) — ce que le kit n'a pas deja :
-## le sceau (#975528, disques et marque lue), le parchemin eclaire
-## (#f4d593, l'encre des numeraux), le filet et le verrou (le brun sombre
-## du sprite, translucide), et les deux fonds d'une ligne de l'etagere.
-const SEAL := Color("#975528")
-const LIT := Color("#f4d593")
-const RULE := Color(96.0 / 255.0, 51.0 / 255.0, 28.0 / 255.0, 0.34)
-const LOCK := Color(96.0 / 255.0, 51.0 / 255.0, 28.0 / 255.0, 0.45)
-const ROW_HOVER := Color(151.0 / 255.0, 85.0 / 255.0, 40.0 / 255.0, 0.16)
-const ROW_ACTIVE := Color(151.0 / 255.0, 85.0 / 255.0, 40.0 / 255.0, 0.22)
-## L'encre de la pastille NEW (`.rr-new-tag` : fond --danger, encre #1a0a0a).
-const NEW_INK := Color("#1a0a0a")
-
-## Les mesures de `.rr-lore-*`.
-const BODY_GAP := 14.0
-const ROW_PAD_Y := 7.0
-const ROW_PAD_X := 8.0
-const ROW_GAP := 9.0
-const DISC := 26.0
-const SPINE := 3.0
-const PARA_SIZE := 13
-const PARA_LEAD := 9
-const FOOT_PAD := 9.0
-
-## FAUX DANS UN BANC : lire un chapitre ne poste rien.
+## FAUX DANS UN BANC : un banc ne pose rien (garde pour les bancs).
 var read_marks := true
 
-var _selected := 0
-var _stacked := false
-var _body: BoxContainer
-var _list: BoxContainer
-var _page: VBoxContainer
-var _page_scroll: ScrollContainer
-var _foot: VBoxContainer
-var _scroll_icon: TextureRect
+var _row: HBoxContainer
+## La couverture recadree, et ce que le book.json dit d'elle.
+var _crop := Rect2()
+var _quad: Array = []
 
 
-## OUVRIR LE CODEX sur le chrome.
+## OUVRIR L'ETAGERE sur le chrome.
 static func open() -> LoreCodex:
 	var codex := LoreCodex.new()
 	Chrome.current.open(codex)
@@ -97,403 +36,177 @@ static func open() -> LoreCodex:
 
 
 func _init() -> void:
-	super("", SCROLL_W, 0.0)
-	# PLEIN ECRAN, comme le profil et l'etal : sur l'ecran couche du jeu, le
-	# rouleau centre perdait ses bords au cadre et faisait defiler sa page.
+	super("", 720.0, 0.0)
 	go_fullscreen()
 
 
 func _ready() -> void:
-	# Le rouleau devant le titre (`.rr-lore-head-title img`, 26px).
-	_scroll_icon = Kit.icon(Kit.SCROLL, 26.0)
-	# LE TITRE A L'ENCRE, sans cerne ni ombre (Paul, 2026-09-23) : la
-	# creme contouree se perdait sur le parchemin, et l'or aussi.
 	ink_title()
 	var header := title_label.get_parent()
-	header.add_child(_scroll_icon)
-	header.move_child(_scroll_icon, 0)
-
-	_foot = Kit.vbox(3)
-	add_footer(_foot)
-
-	I18N.locale_changed.connect(_on_locale_changed)
-	Home.changed.connect(_on_home_changed)
-	resized.connect(_measure)
-	_measure()
-	_selected = maxi(0, Content.unlocked_count(_lifetime()) - 1)
-	_rebuild()
-	_note_read()
-
-
-func hug_size() -> Vector2:
-	return Vector2(SCROLL_W, HUG_H)
-
-
-func _lifetime() -> float:
-	return float(Home.burrow.get("lifetime", 0))
-
-
-## LA TAILLE, sur la place que le parent donne (le voile du chrome, ou une
-## cellule de banc) : `min(760px, 100%)` de large, et LA HAUTEUR DE SON TEXTE
-## sous celle de l'ecran (`.rr-lore-modal` : `max-height: 100%`). Il prenait
-## toute la hauteur quoi qu'il porte : au bureau, un chapitre court laissait
-## la moitie du parchemin vide. Au-dela de l'ecran, le corps defile.
-func _measure() -> void:
-	var room := get_parent_area_size()
-	var stacked := room.x < STACK_BELOW
-	_cap = room.y - 2.0 * Kit.EDGE
-	if fullscreen:
-		# L'ecran entier (jusqu'a un portable), quel que soit le texte : c'est
-		# le chrome qui le pose.
-		room = Dialog.screen_rect(get_viewport_rect().size, hug_size()).size
-		stacked = room.x < STACK_BELOW
-		custom_minimum_size = room
-	else:
-		custom_minimum_size = Vector2(minf(SCROLL_W, room.x - 2.0 * Kit.EDGE), minf(_cap, _natural) if _natural > 0.0 else _cap)
-	if stacked != _stacked and _body != null:
-		_stacked = stacked
-		_rebuild()
-	_stacked = stacked
-	_fit_height.call_deferred()
-
-
-var _cap := 0.0
-var _natural := 0.0
-
-
-## LA VRAIE HAUTEUR D'UNE COLONNE DE TEXTE. Un label qui passe a la ligne ne
-## la dit pas dans son minimum : on compte ses lignes a sa largeur du moment.
-func _tall(box: Container) -> float:
-	var total := 0.0
-	var shown := 0
-	for child in box.get_children():
-		var c := child as Control
-		if c == null or not c.visible:
-			continue
-		shown += 1
-		var label := c as Label
-		if label != null and label.autowrap_mode != TextServer.AUTOWRAP_OFF:
-			total += label.get_line_count() * label.get_line_height() \
-				+ maxf(0.0, label.get_line_count() - 1) * label.get_theme_constant("line_spacing")
-		else:
-			total += c.get_combined_minimum_size().y
-	return total + maxf(0, shown - 1) * box.get_theme_constant("separation")
-
-
-## La hauteur que le texte demande : ce que le cadre prend autour du corps,
-## plus le plus haut de la page et de l'etagere a leur largeur du moment.
-## Posee seulement si elle change d'un pixel, sinon chaque pose relancerait
-## une mesure.
-func _fit_height() -> void:
-	if fullscreen or _page_scroll == null or _page == null or not is_inside_tree():
-		return
-	# Pas avant que la page ait sa largeur : etroite, son texte compte des
-	# centaines de lignes.
-	if _page.size.x < 100.0:
-		return
-	# CE QUE LE CADRE PREND AUTOUR : le minimum du contenu, ou les deux
-	# defilements comptent pour zero. Stable, lui — `size` et la taille du
-	# defilement ne sont pas du meme instant pendant qu'on se pose.
-	var around := _inset.get_combined_minimum_size().y
-	var wanted := _tall(_page)
-	if not _stacked and _list != null:
-		wanted = maxf(wanted, _list.get_combined_minimum_size().y)
-	var natural := around + wanted
-	if absf(natural - _natural) < 1.0:
-		return
-	_natural = natural
-	var h := minf(_cap, _natural)
-	if absf(custom_minimum_size.y - h) >= 1.0:
-		custom_minimum_size.y = h
-
-
-func _on_locale_changed(_code: String) -> void:
+	var icon := Kit.icon(Kit.SCROLL, 26.0)
+	header.add_child(icon)
+	header.move_child(icon, 0)
 	set_title(I18N.t("codex.title"))
-	_rebuild()
+	var center := CenterContainer.new()
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(center)
+	_row = Kit.hbox(Kit.PAD * 2.0)
+	_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(_row)
+	_fill()
+	I18N.locale_changed.connect(func(_c: String) -> void: _fill())
+	Home.changed.connect(_fill)
 
 
-func _on_home_changed() -> void:
-	_rebuild()
-
-
-# ── La construction ──────────────────────────────────────────────────────────
-
-func _rebuild() -> void:
-	set_title(I18N.t("codex.title"))
-	# `set_body` libere l'ancien corps lui-meme.
-	_body = Kit.vbox(10) if _stacked else Kit.hbox(BODY_GAP)
-	set_body(_body)
-
-	# L'etagere.
-	var shelf := ScrollContainer.new()
-	shelf.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if _stacked else ScrollContainer.SCROLL_MODE_DISABLED
-	shelf.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if _stacked else ScrollContainer.SCROLL_MODE_AUTO
-	_list = Kit.hbox(6) if _stacked else Kit.vbox(2)
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	shelf.add_child(_list)
-	ScrollFade.attach(shelf)
-	TouchScroll.attach(shelf)
-	if _stacked:
-		shelf.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	else:
-		shelf.custom_minimum_size = Vector2(LIST_W, 0)
-		shelf.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_body.add_child(shelf)
-
-	# Le filet entre les deux.
-	var rule := ColorRect.new()
-	rule.color = RULE
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if _stacked:
-		rule.custom_minimum_size = Vector2(0, 2)
-		rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	else:
-		rule.custom_minimum_size = Vector2(2, 0)
-		rule.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_body.add_child(rule)
-
-	# La page.
-	_page_scroll = ScrollContainer.new()
-	_page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_page_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_page = Kit.vbox(0)
-	_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_page_scroll.add_child(_page)
-	ScrollFade.attach(_page_scroll)
-	TouchScroll.attach(_page_scroll)
-	_page.resized.connect(func() -> void: _fit_height.call_deferred())
-	_body.add_child(_page_scroll)
-
-	_fill_shelf()
-	_fill_page()
-	_fill_foot()
-
-
-func _fill_shelf() -> void:
-	for old in _list.get_children():
+func _fill() -> void:
+	if not is_inside_tree():
+		return
+	for old in _row.get_children():
 		old.queue_free()
-	var lifetime := _lifetime()
-	var open := Content.unlocked_count(lifetime)
-	# La meme regle que la pastille NEW de l'icone STORY (page.tsx
-	# `freshChapter`), pour que le chapitre promis par la pastille soit celui
-	# marque NEW sur l'etagere.
-	var fresh := open > 0 and lifetime - float(Content.LORE[open - 1]["unlockAt"]) < FRESH_WINDOW
-	for i in Content.LORE.size():
-		var chapter: Dictionary = Content.LORE[i]
-		var locked := lifetime < float(chapter["unlockAt"])
-		var words := Content.lore_chapter(chapter)
-		var tab := ChapterTab.new(i, String(chapter["numeral"]),
-			I18N.f("codex.chapterN", [i + 1]) if locked else String(words["title"]),
-			I18N.f("codex.carrotsAt", [I18N.group_digits(float(chapter["unlockAt"]))]) if locked else String(words["teaser"]),
-			locked, fresh and i == open - 1, i == _selected, _stacked)
-		tab.picked.connect(_select)
-		_list.add_child(tab)
+	var cover := _cover()
+	for which in BOOKS:
+		_row.add_child(_card(which, cover))
 
 
-func _fill_page() -> void:
-	for old in _page.get_children():
-		old.queue_free()
-	var lifetime := _lifetime()
-	var chapter: Dictionary = Content.LORE[_selected]
-	var words := Content.lore_chapter(chapter)
-	var locked := lifetime < float(chapter["unlockAt"])
-
-	var title := Kit.label(String(words["title"]), 18, Palette.INK)
+## Un livre de l'etagere : sa couverture, son titre, et — s'il n'est pas
+## encore lu — le cadenas et l'etape qui l'ouvre.
+func _card(which: String, cover: Texture2D) -> Control:
+	var look: Dictionary = IntroBook.BOOKS[which]
+	var open := IntroBook.seen(which)
+	var card := Kit.vbox(4)
+	card.custom_minimum_size = Vector2(CARD_W, 0)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP if open else Control.MOUSE_FILTER_IGNORE
+	var pic := TextureRect.new()
+	pic.texture = cover
+	var cover_h := CARD_W * (_crop.size.y / _crop.size.x if _crop.size.x > 0.0 else 0.75)
+	pic.custom_minimum_size = Vector2(CARD_W, cover_h)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_SCALE
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(pic)
+	if not _quad.is_empty():
+		pic.add_child(_face(look))
+	var title := Kit.label(I18N.t(String(look.title)), 15, Palette.INK if open else Palette.BARK)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	title.add_theme_constant_override("shadow_offset_y", 2)
 	Kit.wrapped(title)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_page.add_child(title)
-	_page.add_child(_gap(10))
-
-	if locked:
-		_page.add_child(_para(String(words["teaser"]), Palette.BARK))
-		_page.add_child(_para(I18N.f("codex.sealed",
-			[I18N.group_digits(float(chapter["unlockAt"])), I18N.group_digits(lifetime)]), Palette.BARK))
+	card.add_child(title)
+	var sub := Kit.label(I18N.t(String(look.sub)) if open else I18N.t("codex.locked." + which), 11, Palette.BARK)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	Kit.wrapped(sub)
+	card.add_child(sub)
+	I18N.apply_face([title, sub])
+	if open:
+		card.gui_input.connect(func(event: InputEvent) -> void:
+			var tap: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+				or (event is InputEventScreenTouch and event.pressed)
+			if tap:
+				close_requested()
+				IntroBook.play_on(Chrome.current, which))
+		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	else:
-		for para in words["body"]:
-			_page.add_child(_para(String(para), Palette.INK))
+		pic.modulate = GREY
+		var lock := _Lock.new()
+		lock.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pic.add_child(lock)
+	return card
 
 
-## Un paragraphe de prose : la face pixel est proportionnelle mais reste une
-## face pixel — elle veut une ligne genereuse (1.75) et une mesure courte,
-## ou l'oeil perd la ligne ou il etait. 12px sous chacun.
-func _para(text: String, ink: Color) -> Control:
-	var box := Kit.vbox(0)
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var l := Kit.note(text, ink, PARA_SIZE)
-	l.add_theme_constant_override("line_spacing", PARA_LEAD)
-	box.add_child(l)
-	box.add_child(_gap(12))
-	return box
+func _cover() -> Texture2D:
+	var tex: Texture2D = load(COVER_DIR + "open.webp") if ResourceLoader.exists(COVER_DIR + "open.webp") else null
+	if tex == null:
+		return Kit.SCROLL
+	var spec: Variant = IntroBook._read_json(COVER_DIR + "book.json")
+	var frame := Vector2(640, 431)
+	var crop := Rect2(Vector2.ZERO, frame)
+	if spec is Dictionary:
+		var fs: Array = spec.get("frame", [640, 431])
+		frame = Vector2(float(fs[0]), float(fs[1]))
+		var cv: Array = spec.get("cover_view", [])
+		crop = Rect2(float(cv[0]), float(cv[1]), float(cv[2]), float(cv[3])) if cv.size() == 4 else Rect2(Vector2.ZERO, frame)
+		var quads: Array = spec.get("cover_quads", [])
+		_quad = quads[0] if not quads.is_empty() and quads[0] is Array else []
+	_crop = crop
+	var atlas := AtlasTexture.new()
+	atlas.atlas = tex
+	atlas.region = crop
+	return atlas
 
 
-func _gap(h: float) -> Control:
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, h)
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return c
+## LA FACE DE LA COUVERTURE, comme dans le livre (IntroBook `_build_face`) :
+## le logo, le titre et sa ligne a plat, projetes sur les coins du cuir.
+func _face(look: Dictionary) -> Control:
+	var view := SubViewport.new()
+	view.transparent_bg = true
+	view.size = IntroBook.FACE_SIZE
+	view.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var fs := Vector2(IntroBook.FACE_SIZE)
+	var logo := TextureRect.new()
+	logo.texture = IntroBook.LOGO
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.size = Vector2(210, 210)
+	logo.position = Vector2((fs.x - 210) * 0.5, 46)
+	logo.self_modulate = Color(1.0, 0.93, 0.8, 0.96)
+	view.add_child(logo)
+	var title := Kit.label(I18N.t(String(look.title)), 46, look.ink)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_color_override("font_shadow_color", look.edge)
+	title.add_theme_constant_override("shadow_offset_y", 3)
+	title.position = Vector2(24, 270)
+	title.size = Vector2(fs.x - 48, 0)
+	view.add_child(title)
+	var sub := Kit.label(I18N.t(String(look.sub)), 24, Palette.PARCHMENT)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.add_theme_color_override("font_shadow_color", look.edge)
+	sub.add_theme_constant_override("shadow_offset_y", 2)
+	sub.size = Vector2(fs.x - 64, 0)
+	view.add_child(sub)
+	I18N.apply_face([title, sub])
+	(func() -> void:
+		sub.position = Vector2(32, 270 + title.get_minimum_size().y + 10)
+		view.render_target_update_mode = SubViewport.UPDATE_ONCE).call_deferred()
+	var face := TextureRect.new()
+	face.add_child(view)
+	face.texture = view.get_texture()
+	face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_SCALE
+	face.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = Shader.new()
+	mat.shader.code = IntroBook.FACE_SHADER
+	mat.set_shader_parameter("frame", _crop.size)
+	mat.set_shader_parameter("hinv", IntroBook.face_hinv(_quad, _crop.position))
+	face.material = mat
+	return face
 
 
-## LE PIED : un filet, puis la ligne « prochain chapitre dans N carottes »
-## et sa note, ou la ligne de fin en sceau.
-func _fill_foot() -> void:
-	for old in _foot.get_children():
-		old.queue_free()
-	var rule := ColorRect.new()
-	rule.color = RULE
-	rule.custom_minimum_size = Vector2(0, 2)
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_foot.add_child(rule)
-	_foot.add_child(_gap(FOOT_PAD - 3.0))
-	var next := Content.next_chapter(_lifetime())
-	if next.is_empty():
-		_foot.add_child(Kit.note(I18N.t("codex.done"), SEAL, 12))
-	else:
-		_foot.add_child(Kit.note(I18N.f("codex.nextIn", [I18N.group_digits(float(next["remaining"]))]), Palette.BARK, 12))
-		_foot.add_child(Kit.note(I18N.t("codex.lifetimeOnly"), Palette.BARK, 11))
+## LE CADENAS, dessine : un anneau et un corps, a l'encre du parchemin.
+class _Lock extends Control:
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-
-func _select(index: int) -> void:
-	if index == _selected:
-		return
-	_selected = index
-	_fill_shelf()
-	_fill_page()
-	_page_scroll.scroll_vertical = 0
-	_fit_height.call_deferred()
-	_note_read()
-
-
-## Un chapitre DEBLOQUE est sur la page : la marque part, a l'ouverture et a
-## chaque changement de chapitre.
-func _note_read() -> void:
-	if not read_marks:
-		return
-	var chapter: Dictionary = Content.LORE[_selected]
-	if _lifetime() >= float(chapter["unlockAt"]):
-		Home.mark_quest(Content.codex_mark(String(chapter["id"])))
-
-
-# ── Une ligne de l'etagere ───────────────────────────────────────────────────
-
-## UN CHAPITRE SUR L'ETAGERE : le disque du numeral, le titre, son etat. Pas
-## une carte : l'etagere est une liste sur la meme feuille que la page a
-## cote. Empilee, il ne reste que le disque.
-class ChapterTab extends PanelContainer:
-	signal picked(index: int)
-
-	var index := 0
-	var _active := false
-	var _locked := false
-	var _rest: StyleBox
-	var _hover: StyleBox
-	var _on: StyleBox
-
-	func _init(i: int, numeral: String, title: String, sub: String,
-			locked: bool, fresh: bool, active: bool, stacked: bool) -> void:
-		index = i
-		_active = active
-		_locked = locked
-		# LE DOIGT PASSE JUSQU'A L'ETAGERE (TouchScroll) : une ligne qui
-		# l'arretait des l'appui, toute l'etagere etait faite de lignes, et
-		# au Seeker on ne pouvait plus la faire defiler jusqu'aux derniers
-		# chapitres. Le choix se fait donc au relache, s'il n'a pas glisse.
-		mouse_filter = Control.MOUSE_FILTER_PASS
-		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		var pad_x := 4.0 if stacked else ROW_PAD_X
-		var pad_y := 4.0 if stacked else ROW_PAD_Y
-		_rest = _style(Color.TRANSPARENT, pad_x, pad_y)
-		_hover = _style(LOCK if locked else ROW_HOVER, pad_x, pad_y)
-		_on = _style(ROW_ACTIVE, pad_x, pad_y, true)
-		add_theme_stylebox_override("panel", _on if active else _rest)
-		mouse_entered.connect(func() -> void:
-			if not _active:
-				add_theme_stylebox_override("panel", _hover))
-		mouse_exited.connect(func() -> void:
-			if not _active:
-				add_theme_stylebox_override("panel", _rest))
-
-		var row := Kit.hbox(ROW_GAP)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(row)
-
-		# Le numeral est un libelle court sur un disque — le cas de
-		# BitmapText. Carre, comme chaque bord de l'art de ce jeu.
-		var disc := Kit.panel(_disc(LOCK if locked else SEAL))
-		disc.custom_minimum_size = Vector2(DISC, DISC)
-		disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var num := Kit.label(numeral, Kit.pixel_size(1.0), LIT)
-		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		disc.add_child(num)
-		row.add_child(disc)
-		if stacked:
-			return
-
-		var text := Kit.vbox(2)
-		text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(text)
-		var head := Kit.hbox(6)
-		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var t := Kit.label(title, 13, Palette.BARK if locked else Palette.INK)
-		if stacked:
-			# L'etagere couchee a des onglets etroits : une ligne, coupee.
-			t.clip_text = true
-			t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		else:
-			# LE TITRE PASSE A LA LIGNE, comme sur le web (« The Island That
-			# / Gives NEW ») : coupe, le premier chapitre se lisait « The
-			# Island T... » — le titre du chapitre qu'on vient d'ouvrir.
-			Kit.wrapped(t)
-		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		head.add_child(t)
-		if fresh:
-			var tag := Kit.panel(_new_tag())
-			tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			tag.add_child(Kit.label(I18N.t("codex.isNew"), 9, NEW_INK))
-			head.add_child(tag)
-		text.add_child(head)
-		# L'ACCROCHE PASSE A LA LIGNE, comme le titre : coupee, celle du
-		# premier chapitre se lisait « Why the ground is g... » (Paul,
-		# 2026-09-23). L'etagere couchee n'en a pas : ses onglets sont
-		# le disque seul.
-		var s := Kit.label(sub, 11, Palette.BARK)
-		Kit.wrapped(s)
-		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		text.add_child(s)
-
-	func _gui_input(event: InputEvent) -> void:
-		if TouchScroll.tapped(self, event):
-			picked.emit(index)
-
-	## Le fond d'une ligne ; le chapitre ouvert porte un filet de 3px sur sa
-	## tranche (`inset 3px 0 0 #975528`).
-	static func _style(bg: Color, pad_x: float, pad_y: float, spine: bool = false) -> StyleBoxFlat:
-		var s := StyleBoxFlat.new()
-		s.bg_color = bg
-		s.content_margin_left = pad_x
-		s.content_margin_right = pad_x
-		s.content_margin_top = pad_y
-		s.content_margin_bottom = pad_y
-		if spine:
-			s.border_width_left = int(SPINE)
-			s.border_color = SEAL
-		return s
-
-	static func _disc(bg: Color) -> StyleBoxFlat:
-		var s := StyleBoxFlat.new()
-		s.bg_color = bg
-		s.set_content_margin_all(0)
-		return s
-
-	static func _new_tag() -> StyleBoxFlat:
-		var s := StyleBoxFlat.new()
-		s.bg_color = Palette.BAD_ON_NIGHT
-		s.set_corner_radius_all(4)
-		s.content_margin_left = 4
-		s.content_margin_right = 4
-		s.content_margin_top = 1
-		s.content_margin_bottom = 1
-		return s
+	func _draw() -> void:
+		# Sous le titre de la couverture, pas dessus : on lit ce qu'on attend.
+		var c := Vector2(size.x * 0.5, size.y * 0.84)
+		var w := 34.0
+		var h := 28.0
+		var ink := Palette.INK
+		var gold := Palette.GOLD
+		# L'anneau : trois traits epais.
+		var top := c.y - h * 0.5
+		draw_rect(Rect2(c.x - w * 0.32, top - 18.0, 6.0, 20.0), ink)
+		draw_rect(Rect2(c.x + w * 0.32 - 6.0, top - 18.0, 6.0, 20.0), ink)
+		draw_rect(Rect2(c.x - w * 0.32, top - 22.0, w * 0.64, 6.0), ink)
+		# Le corps, cerne, et le trou de la serrure.
+		var body := Rect2(c.x - w * 0.5, top, w, h)
+		draw_rect(body.grow(3.0), ink)
+		draw_rect(body, gold)
+		draw_rect(Rect2(c.x - 3.0, c.y - 6.0, 6.0, 12.0), ink)

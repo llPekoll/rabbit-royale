@@ -77,3 +77,15 @@ export async function getSession(req: Request): Promise<SessionClaims | null> {
   const token = extractToken(req);
   return token ? verifySession(token) : null;
 }
+
+/**
+ * The `Set-Cookie` value that carries a session — the same thirty days and
+ * flags every sign-in door writes. `token: null` puts the cookie down.
+ */
+export function sessionCookie(token: string | null): string {
+  const value = token ? encodeURIComponent(token) : '';
+  const maxAge = token ? 60 * 60 * 24 * 30 : 0;
+  return `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${
+    process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  }`;
+}

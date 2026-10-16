@@ -101,14 +101,20 @@ def with_alpha(img: Image.Image, a: float) -> Image.Image:
     return out
 
 
-def end(folder: Path, seconds: float, w: int = W, h: int = W) -> None:
+def end(folder: Path, seconds: float, w: int = W, h: int = W, headline: str = "SOON ON") -> None:
     """La carte du carre 960, a l'echelle de la hauteur `h` et centree dans `w` :
-    plus large, elle garde sa composition, le noir s'etend sur les cotes."""
+    plus large, elle garde sa composition, le noir s'etend sur les cotes.
+    `headline` : ce qui coiffe « Seeker » (AVAILABLE ON pour la video de demo)."""
     k = h / W
     px = lambda v: round(v * k)
     dx = (w - px(W)) // 2  # le carre, centre dans la largeur
+    # Dans la place de l'ancien logo (96x106 double) : depuis 1f46673 la planche
+    # fait 1254 px, doublee elle couvrait toute la carte.
     logo = Image.open("godot/assets/ui/rr-logo-1x.webp").convert("RGBA")
-    logo = logo.resize((px(logo.width * 2), px(logo.height * 2)), Image.NEAREST)
+    logo = logo.crop(logo.getbbox())
+    s = min(px(212) / logo.height, px(240) / logo.width)
+    logo = logo.resize((round(logo.width * s), round(logo.height * s)),
+                       Image.NEAREST if s >= 1 else Image.LANCZOS)
     seeker = fit_h(Image.open(REFS / "solana-logo.png").convert("RGBA"), px(76))  # le mot « Seeker »
     ios = fit_h(Image.open(REFS / "indies-on-solana.png").convert("RGBA"), px(62))
     phone = Image.open(REFS / "seeker-photo.png").convert("RGBA")
@@ -134,8 +140,8 @@ def end(folder: Path, seconds: float, w: int = W, h: int = W) -> None:
         d = ImageDraw.Draw(text)
         white = (255, 255, 255, round(255 * a))
         soon = avenir(px(40), HEAVY)
-        tw = d.textlength("SOON ON", font=soon)
-        d.text(((w - tw) / 2, px(312)), "SOON ON", font=soon, fill=white)
+        tw = d.textlength(headline, font=soon)
+        d.text(((w - tw) / 2, px(312)), headline, font=soon, fill=white)
         f.alpha_composite(with_alpha(seeker, a), ((w - seeker.width) // 2, px(368)))
         by = avenir(px(24), MEDIUM)
         tw = d.textlength("by Solana Mobile", font=by)
@@ -173,4 +179,4 @@ if __name__ == "__main__":
         iris(folder, int(amount))
     else:
         size = [int(v) for v in sys.argv[4].split("x")] if len(sys.argv) > 4 else [W, W]
-        end(folder, float(amount), *size)
+        end(folder, float(amount), *size, *(sys.argv[5:6]))

@@ -247,7 +247,7 @@ func _pay_line() -> String:
 func _live_tokens() -> Array:
 	if not bool(_shop.shop.get("usdcEnabled", false)):
 		return []
-	if bool(Session.player.get("guest", false)):
+	if not Session.has_wallet():
 		return []
 	var listed: Variant = _shop.shop.get("tokens", [])
 	return listed if listed is Array else []

@@ -83,6 +83,12 @@ func signed_in() -> bool:
 	return not player.is_empty()
 
 
+## Un wallet d'ou payer. Pas la meme question que `guest` depuis Google et
+## l'email : un compte Google n'est pas un invite, et n'a pas de wallet.
+func has_wallet() -> bool:
+	return player.get("wallet") != null and not String(player["wallet"]).is_empty()
+
+
 ## A GUEST BURROW: play now, decide about a wallet later.
 ##
 ## No proof to give, so this is one POST. The session it returns is ordinary —
@@ -182,6 +188,102 @@ func _sign_challenge(address: String, signer: Callable) -> String:
 	return signature
 
 
+## GOOGLE, OU UN EMAIL (2026-10-08) : les portes de ceux qui n'ont pas de
+## wallet. Les deux rendent le MEME jeton que les autres ; `link` les attache
+## au joueur connecte (un invite qui sauve son terrier) au lieu de connecter.
+
+## Vrai pendant qu'une connexion Google attend son navigateur.
+var google_waiting := false
+var _google_cancelled := false
+
+## Combien de temps on attend le navigateur avant d'abandonner : celui du
+## serveur (HANDOFF_TTL_MS, 10 min).
+const GOOGLE_WAIT_SECONDS := 600.0
+
+
+## « CONTINUER AVEC GOOGLE », fait par le serveur (lib/auth/google.ts) : on
+## ouvre le navigateur du systeme sur l'adresse qu'il donne, puis on attend
+## sa reponse sur /api/auth/handoff, une requete tenue ~20 s, relancee jusqu'a
+## ce que le navigateur ait fini. Pas de lien profond `rabbitroyale://` : il
+## faudrait le declarer dans l'APK, et l'APK est une coque (boot.gd).
+##
+## Une requete ratee pendant l'attente (l'app passee en arriere-plan le temps
+## du navigateur, le reseau qui change) n'arrete RIEN : on redemande.
+func continue_with_google(link := false) -> bool:
+	if busy:
+		return false
+	busy = true
+	google_waiting = true
+	_google_cancelled = false
+	var start: Answer = await Net.post_json("/api/auth/google/start", {"link": link}, token if link else "")
+	if not start.ok:
+		busy = false
+		google_waiting = false
+		failed.emit(_explain(start.error()))
+		return false
+
+	var handoff := String(start.body.get("handoff", ""))
+	OS.shell_open(String(start.body.get("url", "")))
+	var until := Time.get_ticks_msec() + int(GOOGLE_WAIT_SECONDS * 1000.0)
+	var outcome: Dictionary = {}
+	while not _google_cancelled and Time.get_ticks_msec() < until:
+		var answer: Answer = await Net.get_json("/api/auth/handoff?id=" + handoff, "", 30.0)
+		if _google_cancelled:
+			break
+		if answer.status == 404 or (answer.ok and String(answer.body.get("status", "")) == "done"):
+			outcome = answer.body if answer.ok else {"error": "expired"}
+			break
+		if not answer.ok:
+			# Hors ligne un instant : on ne martele pas le serveur.
+			await get_tree().create_timer(2.0).timeout
+	busy = false
+	google_waiting = false
+
+	if _google_cancelled or outcome.is_empty():
+		return false
+	if outcome.has("error"):
+		var why := String(outcome["error"])
+		# Un relais expire n'est pas un CODE expire : la connexion a echoue.
+		failed.emit(_explain("google_failed" if why == "expired" else why, outcome))
+		return false
+	_adopt(outcome)
+	return true
+
+
+## Le joueur a presse ANNULER : la boucle s'arrete a la reponse suivante. La
+## connexion entamee dans le navigateur meurt seule (10 min, serveur).
+func cancel_google() -> void:
+	_google_cancelled = true
+
+
+## ENVOIE LE CODE A 6 CHIFFRES. Rend "" si le mail est parti, sinon le refus
+## deja dit en mots ; rien n'est emis sur `failed`, le dialogue l'affiche
+## sous le champ.
+func send_email_code(email: String, link := false) -> String:
+	var answer: Answer = await Net.post_json("/api/auth/email/start",
+		{"email": email, "link": link}, token if link else "")
+	return "" if answer.ok else _explain(answer.error())
+
+
+## LE CODE TAPE. Rend "" et adopte la session si c'est le bon, sinon le refus.
+func verify_email_code(email: String, code: String) -> String:
+	var answer: Answer = await Net.post_json("/api/auth/email/verify",
+		{"email": email, "code": code}, token)
+	if not answer.ok:
+		return _explain(answer.error(), answer.body)
+	_adopt(answer.body)
+	return ""
+
+
+## SUPPRIMER LE COMPTE (profil, deux pressions) : le serveur efface la ligne
+## et tout ce qui y pend, puis la session est oubliee ici.
+func delete_account() -> bool:
+	var answer: Answer = await Net.post_json("/api/auth/delete", {}, token)
+	if answer.ok:
+		sign_out()
+	return answer.ok
+
+
 ## RESTORE a stored session, or decide it is dead.
 ##
 ## Awaited by the doorstep before it shows anything, so a returning player never
@@ -274,6 +376,30 @@ func _explain(reason: String, body: Dictionary = {}) -> String:
 				else I18N.t("auth.walletTaken")
 		"already_linked":
 			return I18N.t("auth.alreadyLinked")
+		"provider_linked":
+			return I18N.t("auth.alreadyLinkedProvider")
+		"identity_taken":
+			var owner := String(body.get("takenBy", ""))
+			return I18N.f("auth.identityDigsFor", [owner]) if not owner.is_empty() \
+				else I18N.t("auth.identityTaken")
+		"invalid_email":
+			return I18N.t("auth.invalidEmail")
+		"too_soon":
+			return I18N.t("auth.tooSoon")
+		"mail_failed":
+			return I18N.t("auth.mailFailed")
+		"wrong_code", "invalid_code":
+			return I18N.t("auth.wrongCode")
+		"expired":
+			return I18N.t("auth.codeExpired")
+		"too_many":
+			return I18N.t("auth.tooManyTries")
+		"cancelled":
+			return I18N.t("auth.signInCancelled")
+		"google_unavailable", "email_unavailable":
+			return I18N.t("auth.unavailable")
+		"google_failed":
+			return I18N.t("auth.signInFailed")
 		_:
 			return reason
 

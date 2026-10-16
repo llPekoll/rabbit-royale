@@ -6,17 +6,15 @@ extends Node
 ##
 ## Chaque geste est un VRAI clic : la main (bench_hand.gd) glisse jusqu'au
 ## point, appuie, et un clic souris part a cet endroit dans le viewport. Le jeu
-## le recoit comme celui d'un joueur — l'accueil, la lecon, le terrier, DIG,
+## le recoit comme celui d'un joueur — l'accueil, le terrier, DIG,
 ## une ile en ligne. Le realisateur ne triche que pour CHOISIR ou taper : il lit
 ## le plateau (et, en ligne, les bombes que le serveur de scene lui donne par
 ## `oracle.ts`), jamais pour jouer a la place du jeu.
 ##
 ## Le user, 2026-09-30 : « met bien le doigt qui joue, c'est hyper important ».
 
-## Le temps entre deux gestes : un joueur qui lit, pas un bot. La lecon plus
-## lente : ses legendes doivent se lire a l'ecran.
+## Le temps entre deux gestes : un joueur qui lit, pas un bot.
 const BEAT_S := 0.35
-const LESSON_BEAT_S := 0.5
 ## Combien de bombes marquer d'une croix, et sur laquelle sauter, dans la
 ## partie en ligne : les deux gestes du jeu, une fois chacun au moins.
 const SHOW_MARKS := 3
@@ -126,7 +124,6 @@ func _cell_on_screen(island: Node2D, cell: Vector2i) -> Vector2:
 
 func _run() -> void:
 	await _doorstep()
-	await _tutorial()
 	await _to_dig()
 	await _online_run()
 	await _until(func() -> bool: return _find("burrow") != null, 40.0)
@@ -148,53 +145,7 @@ func _doorstep() -> void:
 	await _tap_control(guest)
 
 
-## LA LECON, jouee comme un joueur la joue : vers la bombe enseignee par les
-## cases que la retenue ouvre, MARK A BOMB, la croix, puis le coffre.
-func _tutorial() -> void:
-	await _until(func() -> bool:
-		var i := _island()
-		return i != null and i.get("_board") != null and bool(i.call("_is_tutorial")), 30.0)
-	_mark_time("tutorial")
-	await _wait(2.0)
-	var island: Node2D = _island()
-	var board: IslandBoard = island.get("_board")
-	var bomb := TutorialMap.bomb()
-	var chest := TutorialMap.chest()
-	var guard := 0
-	while not bool(island.get("_done")) and guard < 60:
-		guard += 1
-		var rabbit: HomeRabbit = island.get("_rabbit")
-		await _until(func() -> bool: return not rabbit.hopping(), 5.0)
-		await _wait(LESSON_BEAT_S)
-		var here := rabbit.at()
-		# LA CROIX : a cote de la bombe, pas encore marquee.
-		if not board.is_flagged(bomb) and board.is_beside(here, bomb):
-			_mark_time("mark")
-			await _tap_control(island.get("_mark"))
-			await _wait(0.45)
-			await _tap(_cell_on_screen(island, bomb))
-			await _wait(0.6)
-			continue
-		var goal := bomb if not board.is_flagged(bomb) else chest
-		var best := Vector2i(-1, -1)
-		var best_d := 1 << 30
-		for n in board._neighbours(here):
-			if not board.may_step(here, n) or n == bomb:
-				continue
-			var d: int = 0 if n == goal else board._steps_between(n, goal)
-			if d < best_d:
-				best_d = d
-				best = n
-		if best.x < 0:
-			_mark_time("stuck")
-			return
-		await _tap(_cell_on_screen(island, best))
-	_mark_time("tutorial-done")
-
-
-
-## DU TERRIER A L'ILE : l'ilot DIG est sorti de l'eau apres la lecon ; le
-## doigt tape son panneau.
+## DU TERRIER A L'ILE : le doigt tape DIG.
 func _to_dig() -> void:
 	await _until(func() -> bool: return _find("burrow") != null, 40.0)
 	_mark_time("burrow")

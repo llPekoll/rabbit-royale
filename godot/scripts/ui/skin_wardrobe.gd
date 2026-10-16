@@ -138,7 +138,9 @@ func _render() -> void:
 	var label := I18N.t("skins.equipped") if equipped else I18N.t("skins.equip")
 	if not owned:
 		label = I18N.t("skins.check") if pending else (I18N.t("skins.confirm") if _armed else I18N.t("skins.buy")) + " " + price
-	var guest := bool(Session.player.get("guest", false)) and not state._fake
+	# « Invite » ici veut dire SANS WALLET : un compte Google paie aussi peu
+	# qu'un invite tant qu'il n'en a pas connecte un.
+	var guest := not Session.has_wallet() and not state._fake
 	if guest and not owned:
 		label = I18N.t("auth.connect")
 	var stage := state.stage_text()

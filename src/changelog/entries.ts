@@ -108,6 +108,31 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-15',
+    items: [
+      {
+        kind: 'new',
+        text: {
+          en: 'Three books now tell the story and explain the game, one for each part of your burrow. Shiro\'s book opens on your first visit: the royal family, the queen who walked into the sea, how Kuro took the Crown, and how to read the numbers. Kuro\'s journal arrives when BURY opens, the book of the sea when RAID opens. Read them again with STORY on the title screen or in the codex.',
+          fr: 'Trois livres racontent maintenant l’histoire et expliquent le jeu, un pour chaque partie de ton terrier. Le livre de Shiro s’ouvre à ta première visite : la famille royale, la reine entrée dans la mer, comment Kuro a pris la Couronne, et comment lire les chiffres. Le journal de Kuro arrive quand ENTERRER s’ouvre, le livre de la mer quand PILLER s’ouvre. À relire avec HISTOIRE sur l’accueil ou dans le codex.',
+          zh: '现在有三本书讲述故事、讲解游戏，洞穴的每个部分各一本。SHIRO 之书在你第一次来时打开：王室家族、走进大海的女王、Kuro 如何夺走王冠，以及如何读数字。解锁埋雷时送来 KURO 的日记，解锁掠夺时送来大海之书。可在标题画面或图鉴中点“故事”重读。',
+          'pt-BR': 'Agora três livros contam a história e explicam o jogo, um para cada parte da sua toca. O livro de Shiro abre na sua primeira visita: a família real, a rainha que entrou no mar, como o Kuro tomou a Coroa e como ler os números. O diário do Kuro chega quando ENTERRAR abre, o livro do mar quando SAQUEAR abre. Leia de novo em HISTÓRIA na tela inicial ou no códex.',
+          vi: 'Giờ có ba cuốn sách kể câu chuyện và giải thích trò chơi, mỗi phần của hang một cuốn. Sách của Shiro mở ở lần đầu bạn đến: gia tộc hoàng gia, nữ hoàng bước xuống biển, cách Kuro giành Vương Miện, và cách đọc các con số. Nhật ký của Kuro đến khi CHÔN BOM mở, sách của biển đến khi CƯỚP mở. Đọc lại bằng CÂU CHUYỆN ở màn hình chính hoặc trong sổ tay.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'One button to start: PLAY. Your first island teaches you to dig, and you can connect a wallet right after it to keep your burrow on any phone. In a hurry? SKIP TO BURY and SKIP RAID open the rest of the burrow straight away.',
+          fr: 'Un seul bouton pour commencer : JOUER. Ta première île t’apprend à creuser, et tu peux connecter un portefeuille juste après pour garder ton terrier sur n’importe quel téléphone. Pressé ? PASSER À ENTERRER et PASSER AU PILLAGE ouvrent tout de suite le reste du terrier.',
+          zh: '只需一个按钮就能开始：开始游戏。第一座岛教你挖掘，之后可以立即连接钱包，在任何手机上保住你的洞穴。赶时间？直接解锁埋雷和直接解锁掠夺会马上打开洞穴的其余部分。',
+          'pt-BR': 'Um só botão para começar: JOGAR. Sua primeira ilha ensina a cavar, e logo depois você pode conectar uma carteira para guardar sua toca em qualquer celular. Com pressa? PULAR PARA ENTERRAR e PULAR PARA SAQUEAR abrem o resto da toca na hora.',
+          vi: 'Chỉ một nút để bắt đầu: CHƠI. Hòn đảo đầu tiên dạy bạn đào, và ngay sau đó bạn có thể kết nối ví để giữ hang trên mọi điện thoại. Vội à? MỞ CHÔN BOM và MỞ CƯỚP HANG mở ngay phần còn lại của hang.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-14',
     items: [
       {

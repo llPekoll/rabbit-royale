@@ -31,7 +31,7 @@ export const en = {
 
   /* ── The document, and the language picker on the doorstep ────────────── */
   meta: {
-    title: 'Rabbit Royale: The Cursed Crown',
+    title: 'Rabbit Royale: The Family Crown',
     description: 'Competitive minesweeper. Dig, hoard, raid, wear the crown.',
   },
   lang: {
@@ -68,6 +68,13 @@ export const en = {
     connect: 'Connect wallet',
     connecting: 'Digging in...',
     guest: 'Play as a guest',
+    play: 'PLAY',
+    haveAccount: 'I already have an account',
+    offerTitle: 'KEEP YOUR BURROW',
+    offerWhy: 'Connect your wallet: your burrow, your carrots and your level follow you on any phone. You can also do it later from your profile.',
+    offerLater: 'LATER',
+    offerLink: 'CONNECT WALLET',
+    offerDone: 'Wallet connected. Your burrow is safe.',
     waiting: 'Waiting...',
     guestNote: 'Guest burrow. Connect a wallet to keep it.',
     noWallet: 'No wallet found. Open in the Rabbit Royale app or install a Solana wallet.',
@@ -287,26 +294,79 @@ export const en = {
     regenRate: (perHour: number) => `${perHour} energy/hour`,
   },
 
-  /* ── The burrow tour (burrow_tour.gd): Shiro, calm, shows each thing once
-     after the tutorial; Kuro, restless, takes BURY and RAID. Titles in
-     capitals (the kit's atlas), the lines in sentence case. ─────────────── */
-  tour: {
-    next: (i: number, n: number) => `NEXT ${i}/${n}`,
-    gotIt: 'GOT IT',
-    carrotsTitle: 'YOUR CARROTS',
-    carrots: 'Everything you dig ends up here. The gold part is safe. The red part, a raider could take.',
-    gardenTitle: 'YOUR GARDEN',
-    garden: (perHour: number) => `It grows by itself, +${perHour} an hour. Tap HARVEST to bring the carrots in. Until then, they can be stolen.`,
-    houseTitle: 'YOUR HOUSE',
-    house: 'Spend carrots to make it bigger: more carrots an hour, and more of them safe.',
-    digTitle: 'DIG',
-    dig: 'The island is where carrots come from. Each dig costs energy, and the ring fills back up on its own.',
-    buryTitle: 'BURY',
-    bury: 'Raiders WILL come for your garden. Bury bombs on their path. Make them pay for every step!',
-    raidTitle: 'RAID',
-    raid: 'And you get to do it back. Their gardens, your carrots!',
-    questTitle: 'WHEN IN DOUBT',
-    quest: 'Follow your quest. It always knows the next step.',
+  /* ── The intro books (Godot: scenes/intro/intro_book.tscn) ────────────────
+     Why you dig, then how, the rules played by the real game. Shiro is calm
+     (ends on a full stop, never "!"), Kuro carries the noise. No tuned
+     numbers here: they move, the books do not. ASCII only in English (the
+     kit's pixel atlas). */
+  intro: {
+    skip: 'SKIP',
+    next: 'TAP TO CONTINUE',
+    play: "LET'S DIG",
+    replay: 'STORY',
+    /* THE THREE BOOKS (2026-10-15): the lore lives in them now.
+       - Shiro's (first launch): the royal family, the Crown passed down, the
+         last queen gone with the tide (we never say if she drowned), Kuro
+         taking the Crown by the island's older law, then the rules of the
+         island played on the real board. Shiro is calm.
+       - Kuro's journal (once raids open, RABBIT_LEVELS.RAID_MIN): the wound
+         first, then the raid, the fear, the regret. Shiro writes in the margin.
+       - The book of the sea (first DIG from the raid level, not in Solo): the
+         sea speaks, cold and truthful: sharing an island, push, bolt, bloop,
+         and the promise. Somebody may be writing for it. */
+    book: {
+      shiro: 'SHIRO\'S BOOK',
+      shiroSub: 'For you, who can read',
+      kuro: 'KURO\'S BOOK',
+      kuroSub: 'Do not read. Especially you, Shiro.',
+      go: 'TO THE RAIDS',
+      sea: 'THE BOOK OF THE SEA',
+      seaSub: 'Found on the beach, still wet',
+      kuroGo: 'DEFEND MY BURROW',
+      seaShort: 'SEA',
+    },
+    shiro: {
+      ch1: 'The Island That Gives',
+      ch2: 'The Queen and the Tide',
+      ch3: 'Kuro',
+      ch4: 'What the Numbers Know',
+      ch5: 'The Bomb',
+      ch6: 'The Throne',
+      island: 'Every morning, the sea brings us an island full of carrots. Our ancestors read its numbers like stars, so the island crowned them.',
+      queen: 'The Crown passed from parent to child. Our mother was the last queen. One evening she walked into the sea. Her last words: "The next king will be the one who reads."',
+      kuro: 'But the Crown goes to the richest burrow. In one night, my brother raided every burrow. Even yours.',
+      kuroSays: 'Come and take my throne, if you can.',
+      numbers: 'I will not raise a paw against my brother. But you can read. Dig a tile: a number counts the bombs around it.',
+      bomb: 'Sure it is a bomb? Mark it with an X. Kuro jumps without reading, and the island throws him back.',
+      throne: 'Open the last chest: the island returns to the sea and your loot goes home. Grow your burrow. Take the throne.',
+    },
+    kuro: {
+      ch1: 'Before',
+      ch2: 'The Raid',
+      ch3: 'Bombs',
+      ch4: 'The Axe',
+      ch5: 'Defend',
+      ch6: 'The King',
+      note: 'Found it at the castle.',
+      day1: 'Day 1. Mum walked into the sea. She said "the one who reads". She meant Shiro. I will be king anyway: you just have to be the richest.',
+      raid: 'Out on the island, nobody can rob you. In a burrow, anybody can. A raid is a walk, tile by tile, to the garden.',
+      bombs: 'In their burrow too, the numbers count the buried bombs. Step on one and BOOM. That is how they got me. Often.',
+      axe: 'My axe fells one tree or one fence per raid. The deeper you go, the more you take. The garden is the feast!',
+      defend: 'Bombs where they will walk, fences on the easy paths. Robbed? The thief stays on your list for your revenge.',
+      king: 'Day 300. I am king and I no longer sleep. A king who does not share rules over empty burrows. P.S. Far out at sea, there is a light.',
+    },
+    sea: {
+      ch1: 'Sharing',
+      ch2: 'The Push',
+      ch3: 'My Weapons',
+      ch4: 'The Promise',
+      ch5: 'Salt',
+      share: 'Today, two of you will stand on my island, further out four. A chest belongs to whoever digs it.',
+      push: 'Walk into a rabbit and it falls back one tile. Onto a bomb, or into my waves.',
+      weapons: 'My storms burst nine tiles open around a rival. My ink blinds them for a few seconds. Three of each to start.',
+      promise: 'I gave your family a crown. It was not a gift. It was a promise. I am waiting for the one who reads, far out at sea.',
+      margin: 'This book smelled of salt. The handwriting... I think I know it.',
+    },
   },
 
   /* ── Rearranging the burrow (Godot: burrow_arrange.gd) ─────────────────
@@ -898,6 +958,17 @@ export const en = {
     final: 'THE FINAL ISLANDS',
     raidsOpen: 'RAIDS ARE OPEN',
     raidLocked: (n: number) => `Raids open at level ${n}. Clear islands to get there.`,
+    /* The onboarding's shortcuts (RABBIT_LEVELS.SKIP_TO): the locked plank
+       of the burrow bar says SKIP TO BURY at level 1, SKIP RAID at level 2. */
+    skipBury: 'SKIP TO BURY',
+    skipRaid: 'SKIP RAID',
+    skipTitle: (n: number) => `START AT LEVEL ${n}?`,
+    skipWhyBury: 'BURY opens: hide bombs on the paths into your burrow before the raids start. There is no way back down.',
+    skipWhyRaid: 'Raids open, and other rabbits share your islands: bigger islands, more bombs. There is no way back down.',
+    skipYes: (n: number) => `LEVEL ${n}`,
+    skipStay: 'STAY',
+    skipped: (n: number) => `Welcome to level ${n}.`,
+    tutorialReward: (n: string) => `Tutorial done! +${n} carrots and a shield for your burrow.`,
   },
   islandPick: {
     choose: 'Choose an island',
@@ -1186,8 +1257,13 @@ export const en = {
 
   /* ── The codex ────────────────────────────────────────────────────────── */
   codex: {
-    title: 'THE CURSED CROWN',
-    aria: 'The Cursed Crown lore',
+    title: 'THE FAMILY CROWN',
+    locked: {
+      shiro: 'Your first visit to the burrow.',
+      kuro: 'Opens with BURY.',
+      sea: 'Opens with RAID.',
+    },
+    aria: 'The Family Crown lore',
     close: 'Close the codex',
     newChapter: 'NEW CHAPTER',
     complete: 'COMPLETE',
@@ -1365,7 +1441,7 @@ export const en = {
     },
     'read-the-stones': {
       title: 'Read the stones',
-      ask: (numeral: string) => `Open chapter ${numeral} of the codex.`,
+      ask: 'Read one of the books.',
       line: 'The island does not kill the unlucky. It kills the hurried,'
         + ' and it keeps a careful record of the difference.',
     },
@@ -1428,18 +1504,12 @@ export const en = {
       ],
     },
     'the-crown': {
-      title: 'The Crown Is Not a Prize',
-      teaser: 'It marks you on every map.',
+      title: 'The Family Crown',
+      teaser: 'It goes to the richest burrow.',
       body: [
-        'Whoever holds the largest season finds the crown waiting on their head one '
-        + 'morning. It cannot be removed, sold, buried, or given away. Rabbits have '
-        + 'tried all four. There is a chapter about the fourth one, and it is short.',
+        'The island crowned the first rabbit who could read its numbers. Since then the Crown has passed from parent to child, and the royal family shared: every morning a share of the island went to every burrow, and the castle light could be seen from every beach.',
 
-        'The crown is generous, which is how it works. It makes the ground richer '
-        + 'under its wearer and the chests heavier. It also puts a light on the world '
-        + 'map that every other rabbit can see from anywhere, and it never goes out. '
-        + 'The island does not reward the first rabbit. It illuminates them, and then '
-        + 'it stands back to watch what the others do about it.',
+        'But the island has a law older than the family. The Crown goes to the richest burrow, whoever owns it. The night the last queen left with the tide, Kuro read that law better than anyone. One night of raiding was enough. The Crown makes you more of what you are, and the castle light has never been so dim.',
       ],
     },
     'the-tide': {

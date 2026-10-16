@@ -221,6 +221,10 @@ var _primed := false
 var _pointed := ""
 
 
+## La fleche avant RAID : elle part avec la planche a l'etape 1 (LevelSkip).
+var _raid_arrow: Control
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -247,7 +251,8 @@ func _ready() -> void:
 		defend_mark = Kit.ICONS["bomb"]
 	if defend_mark != null:
 		(_slabs["defend"] as Slab).cover_mark(defend_mark)
-	_row.add_child(_arrow())
+	_raid_arrow = _arrow()
+	_row.add_child(_raid_arrow)
 	_slabs["raid"] = _add_slab("raid", Kit.SKULL_PLANK_RED, RAID_VERB, RAID_VERB_SHADOW)
 
 	_slabs["dig"].pressed.connect(func() -> void: _press("dig", dig_pressed))
@@ -602,9 +607,22 @@ func _relabel() -> void:
 			dial_parts.append_array(dig_parts.slice(1))
 		_dial.say(I18N.shout(I18N.t("loop.dig")), dial_parts, energy, max_energy)
 	var defend_verb := I18N.shout(I18N.t("loop.bury")) if bury else defend_word
+	var raid_verb := I18N.shout(I18N.t("loop.raid"))
+	# LES ETAPES DU TERRIER (LevelSkip) : a l'etape 1, BURY est un raccourci et
+	# RAID n'est pas encore la ; a l'etape 2, RAID est un raccourci.
+	var stage := LevelSkip.stage() if bury and not bench_mode else 3
+	if stage == 1:
+		defend_verb = I18N.shout(I18N.t("rabbitLevel.skipBury"))
+		home_parts = [I18N.f("rabbitLevel.badge", [LevelSkip.next_rung()])]
+	elif stage == 2:
+		raid_verb = I18N.shout(I18N.t("rabbitLevel.skipRaid"))
+		raid_parts = [I18N.f("rabbitLevel.badge", [LevelSkip.next_rung()])]
+		raid_lamp = true
+	raid.visible = stage != 1
+	_raid_arrow.visible = stage != 1
 	defend.say(defend_verb if not defend_verb.is_empty() else I18N.shout(I18N.t("loop.defend")), home_parts,
-		DEF_DANGER if garden > 0 else DEF_LINE, Color.TRANSPARENT)
-	raid.say(I18N.shout(I18N.t("loop.raid")), raid_parts, RAID_LAMP if raid_lamp else RAID_LINE, Color.TRANSPARENT)
+		DEF_DANGER if garden > 0 and stage != 1 else DEF_LINE, Color.TRANSPARENT)
+	raid.say(raid_verb, raid_parts, RAID_LAMP if raid_lamp else RAID_LINE, Color.TRANSPARENT)
 
 	# Le « ! » de la quete sur la planche ou elle mene ; sinon, sur RAID, le
 	# compte des portes ouvertes dans la puce sombre.
@@ -650,11 +668,10 @@ func _relabel() -> void:
 ## LA PLANCHE OU VIT LA QUETE (`loopOf`) : farm -> dig, garden/base -> defend,
 ## raid -> raid. Sans quete active, la ligne « et maintenant » pointe.
 func _quest_loop() -> String:
+	# Plus de quete (2026-10-15) : le « ! » suit seulement le prochain geste
+	# utile du terrier.
 	var door := ""
-	var active := Home.active_quest()
-	if not active.is_empty():
-		door = String(active.get("door", ""))
-	elif Home.loaded():
+	if Home.loaded():
 		var b := Home.burrow
 		var next := Content.next_action({
 			"energy": Home.live_energy()["energy"],

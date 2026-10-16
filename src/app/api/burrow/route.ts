@@ -19,6 +19,7 @@ import {
 import { refillEnergy } from '@/lib/game/grant';
 import { OUT_OF_RUN_ENERGY, RAID, upgradeCost } from '@/lib/tuning/tables';
 import { clientOverrides } from '@/lib/tuning/live';
+import { nextSkip } from '@config/tuning';
 
 /**
  * The player's row and their bag, which the burrow view needs both of.
@@ -106,7 +107,7 @@ async function spendOne(
   });
 }
 
-/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill', live? }`. */
+/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill' | 'skip_level', live? }`. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
@@ -242,6 +243,30 @@ export async function POST(req: Request) {
   }
 
   /** POURING A BOOST — one bottle out of the bag, one window onto the garden. */
+  /**
+   * SKIPPING AHEAD (2026-10-15) — the onboarding's shortcuts.
+   *
+   * SKIP TO BURY (level 1 → 2) and SKIP RAID (level 2 → 6), see nextSkip:
+   * below RAID_MIN only, tutorial island played or not. The UPDATE carries
+   * the level it read, so a double tap climbs one rung, not two.
+   */
+  if (action === 'skip_level') {
+    const to = nextSkip(player.level);
+    if (to === null) return Response.json({ error: 'skip_closed' }, { status: 403 });
+    const moved = await db.update(players)
+      .set({ level: to })
+      .where(and(eq(players.id, session.sub), eq(players.level, player.level)))
+      .returning({ level: players.level });
+    if (moved.length === 0) return Response.json({ error: 'skip_closed' }, { status: 409 });
+    const after = (await ownerView(session.sub))!;
+    return Response.json({
+      skipped: to,
+      burrow: after.view,
+      player: applyRegen(after.player),
+      quest: questBoardOf(after.player),
+    });
+  }
+
   if (action && action in BOOST_ACTION) {
     const kind = BOOST_ACTION[action];
     const rows = await db.query.inventory.findMany({

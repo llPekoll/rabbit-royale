@@ -1793,6 +1793,11 @@ var _shake_home := Vector2.ZERO
 
 ## LE LOT DU COFFRE : il monte avec son nom, comme un power-up. Les carottes
 ## s'animent deja sur la case. Seule une piece Genesis prend l'ecran.
+## VRAI : les lots de cette ile restent sur elle, jamais au chrome — l'ile
+## des livres (IntroStage) joue par-dessus un terrier bien reel.
+var own_prizes := false
+
+
 func _show_prize(prize: Dictionary) -> void:
 	if prize.is_empty():
 		return
@@ -1806,7 +1811,7 @@ func _show_prize(prize: Dictionary) -> void:
 	# (2026-09-24). Seule une piece Genesis garde la ceremonie.
 	prize = prize.duplicate()
 	prize["announced"] = false
-	var node := ChestPrize.announce(prize)
+	var node := ChestPrize.announce(prize, not own_prizes)
 	if node != null and node.get_parent() == null and _prize_host != null:
 		# Pas de chrome au-dessus (le bac a sable) : la ceremonie se pose ici,
 		# plein ecran comme `Chrome.stamp` la pose.

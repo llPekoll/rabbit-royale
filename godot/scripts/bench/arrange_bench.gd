@@ -10,6 +10,7 @@ extends Node2D
 ##   ... -- --seed=paul --size=890x400
 ##   ... -- --ground=burrow-g42    # un sol candidat (tools/burrow-ground-pick.ts)
 ##   ... -- --gifts=4        # les cadeaux de Snack Time poses (`--grab=gift` en prend un)
+##   ... -- --seed=sol:<id> --edits='{"moves":[[270,174]]}'   # le terrier d'un joueur (burrow_edits)
 ##
 ## Rien ne part au serveur : « valider » repondrait hors ligne.
 
@@ -30,6 +31,8 @@ func _ready() -> void:
 			BurrowLayout.ground_override = arg.trim_prefix("--ground=")
 		elif arg.begins_with("--gifts="):
 			Home.edits = {"gifts": int(arg.trim_prefix("--gifts="))}
+		elif arg.begins_with("--edits="):
+			Home.edits = JSON.parse_string(arg.trim_prefix("--edits="))
 		elif arg == "--drop":
 			drop = true
 		elif arg == "--hold":

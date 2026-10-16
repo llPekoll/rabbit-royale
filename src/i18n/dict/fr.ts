@@ -19,7 +19,7 @@ export const fr: Dict = {
   units: { s: 's', m: 'min', h: 'h', d: 'j' },
 
   meta: {
-    title: 'Rabbit Royale : la couronne maudite',
+    title: 'Rabbit Royale : la couronne de la famille',
     description: 'Démineur compétitif. Creuse, entasse, pille, porte la couronne.',
   },
   lang: { label: 'Langue' },
@@ -46,6 +46,13 @@ export const fr: Dict = {
     connect: 'Connecter un portefeuille',
     connecting: 'On creuse...',
     guest: 'Jouer en invité',
+    play: 'JOUER',
+    haveAccount: 'J\'ai déjà un compte',
+    offerTitle: 'GARDE TON TERRIER',
+    offerWhy: 'Connecte ton portefeuille : ton terrier, tes carottes et ton niveau te suivent sur n\'importe quel téléphone. Tu peux aussi le faire plus tard depuis ton profil.',
+    offerLater: 'PLUS TARD',
+    offerLink: 'CONNECTER',
+    offerDone: 'Portefeuille connecté. Ton terrier est à l\'abri.',
     waiting: 'Attente...',
     guestNote: 'Terrier invité. Connecte un portefeuille pour le garder.',
     noWallet: "Aucun portefeuille trouvé. Ouvre l'appli Rabbit Royale ou installe un portefeuille Solana.",
@@ -236,23 +243,64 @@ export const fr: Dict = {
     regenRate: (perHour) => `${perHour} énergie/h`,
   },
 
-  tour: {
-    next: (i, n) => `SUIVANT ${i}/${n}`,
-    gotIt: 'COMPRIS',
-    carrotsTitle: 'TES CAROTTES',
-    carrots: 'Tout ce que tu creuses arrive ici. La part dorée est à l’abri. La part rouge, un pillard peut la prendre.',
-    gardenTitle: 'TON POTAGER',
-    garden: (perHour) => `Il pousse tout seul, +${perHour} par heure. Touche RÉCOLTER pour rentrer les carottes. D’ici là, on peut te les voler.`,
-    houseTitle: 'TA MAISON',
-    house: 'Dépense des carottes pour l’agrandir : plus de carottes par heure, et plus à l’abri.',
-    digTitle: 'CREUSER',
-    dig: 'Les carottes viennent de l’île. Chaque fouille coûte de l’énergie, et l’anneau se remplit tout seul.',
-    buryTitle: 'ENTERRER',
-    bury: 'Les pillards VONT venir pour ton potager. Enterre des bombes sur leur chemin. Fais-leur payer chaque pas !',
-    raidTitle: 'PILLER',
-    raid: 'Et tu peux leur rendre la pareille. Leurs potagers, tes carottes !',
-    questTitle: 'DANS LE DOUTE',
-    quest: 'Suis ta quête. Elle connaît toujours la prochaine étape.',
+  intro: {
+    skip: 'PASSER',
+    next: 'TOUCHE POUR CONTINUER',
+    play: 'ON CREUSE',
+    replay: 'HISTOIRE',
+    book: {
+      shiro: 'LE LIVRE DE SHIRO',
+      shiroSub: 'Pour toi, qui lis',
+      kuro: 'LE LIVRE DE KURO',
+      kuroSub: 'Ne pas lire. Surtout toi, Shiro.',
+      go: 'À L\'ASSAUT',
+      sea: 'LE LIVRE DE LA MER',
+      seaSub: 'Trouvé sur la plage, encore mouillé',
+      kuroGo: 'DÉFENDRE MON TERRIER',
+      seaShort: 'MER',
+    },
+    shiro: {
+      ch1: 'L\'île qui donne',
+      ch2: 'La reine et la marée',
+      ch3: 'Kuro',
+      ch4: 'Ce que les chiffres savent',
+      ch5: 'La bombe',
+      ch6: 'Le trône',
+      island: 'Chaque matin, la mer nous apporte une île pleine de carottes. Nos ancêtres lisaient ses chiffres comme les étoiles, alors l\'île les a couronnés.',
+      queen: 'La Couronne passait de parent à enfant. Notre mère était la dernière reine. Un soir, elle est entrée dans la mer. Ses derniers mots : «\u00a0Le prochain roi sera celui qui lit.\u00a0»',
+      kuro: 'Mais la Couronne va au terrier le plus riche. En une nuit, mon frère a pillé tous les terriers. Même le tien.',
+      kuroSays: 'Viens me détrôner, si tu peux.',
+      numbers: 'Je ne lèverai pas la patte sur mon frère. Mais toi, tu lis. Creuse une case : un chiffre compte les bombes autour.',
+      bomb: 'Sûr que c\'est une bombe ? Marque-la d\'un X. Kuro, lui, saute sans lire, et l\'île le renvoie d\'où il vient.',
+      throne: 'Ouvre le dernier coffre : l\'île retourne à la mer, ton butin rentre au terrier. Fais-le grandir. Monte sur le trône.',
+    },
+    kuro: {
+      ch1: 'Avant',
+      ch2: 'Le raid',
+      ch3: 'Les bombes',
+      ch4: 'La hache',
+      ch5: 'Se défendre',
+      ch6: 'Le roi',
+      note: 'Trouvé au château.',
+      day1: 'Jour 1. Maman est entrée dans la mer. Elle a dit «\u00a0celui qui lit\u00a0». Elle pensait à Shiro. Je serai roi quand même : il suffit d\'être le plus riche.',
+      raid: 'Sur l\'île, personne ne peut te voler. Dans un terrier, tout le monde peut. Un raid, c\'est une marche case après case jusqu\'au potager.',
+      bombs: 'Chez eux aussi, les chiffres comptent les bombes enterrées. Marche dessus et BOUM. Ils m\'ont eu comme ça. Souvent.',
+      axe: 'Ma hache abat un arbre ou une clôture par raid. Plus tu vas loin, plus tu prends. Le potager, c\'est le festin !',
+      defend: 'Des bombes où ils passeront, des clôtures sur les chemins faciles. Volé ? Le voleur reste sur ta liste pour ta revanche.',
+      king: 'Jour 300. Je suis roi et je ne dors plus. Un roi qui ne partage pas règne sur des terriers vides. P.-S. Au large, il y a une lumière.',
+    },
+    sea: {
+      ch1: 'Le partage',
+      ch2: 'La poussée',
+      ch3: 'Mes armes',
+      ch4: 'La promesse',
+      ch5: 'Le sel',
+      share: 'Aujourd\'hui, vous serez deux sur mon île, plus loin quatre. Un coffre est à celui qui le creuse.',
+      push: 'Marche sur un lapin et il recule d\'une case. Sur une bombe, ou dans mes vagues.',
+      weapons: 'Mes orages ouvrent neuf cases autour d\'un rival. Mon encre l\'aveugle quelques secondes. Trois de chaque pour commencer.',
+      promise: 'J\'ai donné une couronne à votre famille. Ce n\'était pas un cadeau. C\'était une promesse. Celui qui lit, je l\'attends au large.',
+      margin: 'Ce livre sentait le sel. L\'écriture... je crois que je la connais.',
+    },
   },
 
   arrange: {
@@ -749,6 +797,15 @@ export const fr: Dict = {
     final: 'Les îles finales',
     raidsOpen: 'Les pillages sont ouverts',
     raidLocked: (n: number) => `Les pillages ouvrent au niveau ${n}. Finis des îles pour y arriver.`,
+    skipBury: 'PASSER À ENTERRER',
+    skipRaid: 'PASSER AU PILLAGE',
+    skipTitle: (n: number) => `COMMENCER AU NIVEAU ${n} ?`,
+    skipWhyBury: 'ENTERRER s\'ouvre : cache des bombes sur les chemins de ton terrier avant que les raids commencent. Pas de retour en arrière.',
+    skipWhyRaid: 'Les raids s\'ouvrent et d\'autres lapins partagent tes îles : des îles plus grandes, plus de bombes. Pas de retour en arrière.',
+    skipYes: (n: number) => `NIVEAU ${n}`,
+    skipStay: 'RESTER',
+    skipped: (n: number) => `Bienvenue au niveau ${n}.`,
+    tutorialReward: (n: string) => `Tuto réussi ! +${n} carottes et un bouclier pour ton terrier.`,
   },
   islandPick: {
     choose: 'Choisir une \u00eele',
@@ -988,8 +1045,13 @@ export const fr: Dict = {
   },
 
   codex: {
-    title: 'LA COURONNE MAUDITE',
-    aria: 'Récit de la couronne maudite',
+    title: 'LA COURONNE DE LA FAMILLE',
+    locked: {
+      shiro: 'À ta première visite au terrier.',
+      kuro: 'S’ouvre avec ENTERRER.',
+      sea: 'S’ouvre avec PILLER.',
+    },
+    aria: 'Récit de la couronne de la famille',
     close: 'Fermer le codex',
     newChapter: 'NOUVEAU CHAPITRE',
     complete: 'COMPLET',
@@ -1141,7 +1203,7 @@ export const fr: Dict = {
     },
     'read-the-stones': {
       title: 'Lire les pierres',
-      ask: (numeral) => `Ouvre le chapitre ${numeral} du codex.`,
+      ask: 'Lis un des livres.',
       line: 'L’île ne tue pas les malchanceux. Elle tue les pressés,'
         + ' et elle tient le compte exact de la différence.',
     },
@@ -1204,18 +1266,12 @@ export const fr: Dict = {
       ],
     },
     'the-crown': {
-      title: 'La couronne n’est pas un prix',
-      teaser: 'Elle te signale sur chaque carte.',
+      title: 'La Couronne de la famille',
+      teaser: 'Elle va au terrier le plus riche.',
       body: [
-        'Celui qui tient la plus grosse saison trouve un matin la couronne posée sur sa '
-        + 'tête. Impossible de l’ôter, de la vendre, de l’enterrer ou de la donner. Des '
-        + 'lapins ont essayé les quatre. Il existe un chapitre sur le quatrième, et il est court.',
+        'L’île a couronné le premier lapin qui a su lire ses chiffres. Depuis, la Couronne passe de parent à enfant, et la famille royale partageait : chaque matin, une part de l’île allait à chaque terrier, et la lumière du château se voyait de toutes les plages.',
 
-        'La couronne est généreuse, c’est ainsi qu’elle opère. Elle enrichit le sol sous '
-        + 'celui qui la porte et alourdit les coffres. Elle allume aussi sur la carte du '
-        + 'monde une lumière que tous les autres lapins voient de partout, et elle ne '
-        + 's’éteint jamais. L’île ne récompense pas le premier lapin. Elle l’éclaire, puis '
-        + 'elle recule pour voir ce que les autres en feront.',
+        'Mais l’île a une loi plus vieille que la famille. La Couronne va au terrier le plus riche, quel qu’il soit. Le soir où la dernière reine est partie avec la marée, Kuro l’a lue mieux que personne. Une nuit de pillage a suffi. La Couronne rend plus grand ce que tu es, et la lumière du château n’a jamais été aussi faible.',
       ],
     },
     'the-tide': {

@@ -237,6 +237,10 @@ func _refuse(code: String, res: Dictionary) -> void:
 			noted.emit(I18N.t("notes.noneLeft"), true)
 		"boost_capped":
 			noted.emit(I18N.t("notes.toppedUp"), true)
+		"skip_closed":
+			# La planche de saut etait perimee (une manche jouee ailleurs) :
+			# la relecture la retire, sans mot.
+			refresh()
 		_:
 			noted.emit(code, true)
 

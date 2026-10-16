@@ -729,6 +729,15 @@ func _on_run_over(r: Dictionary) -> void:
 	# Home le garde tout de suite, pour que le terrier le dise en arrivant.
 	if r.has("level"):
 		Home.player["level"] = int(r["level"])
+	# LA RECOMPENSE DU TUTO (TUTORIAL_REWARD, ce que payaient les quetes) :
+	# dite et jetee dans la pile au retour au terrier, apres le tampon.
+	var reward := int(r.get("reward", 0))
+	if reward > 0:
+		Screens.moved.connect(func(_id: Screens.Place) -> void:
+			await get_tree().create_timer(2.4).timeout
+			Home.noted.emit(I18N.f("rabbitLevel.tutorialReward", [I18N.group_digits(float(reward))]), false)
+			Home.burst.emit(reward)
+			Home.refresh(), CONNECT_ONE_SHOT)
 	Analytics.run_ended(r, digs)
 	run_ended.emit(r)
 

@@ -21,6 +21,8 @@ on:
       - drizzle/**
       - scripts/migrate.ts
       - Dockerfile.ws
+      - admin/**
+      - Dockerfile.admin
       - package.json
       - bun.lock
       - deploy/region/**
@@ -37,6 +39,8 @@ permissions:
 
 env:
   IMAGE: ghcr.io/llpekoll/rr-ws
+  # The back office's agent (admin/server.ts): its own image, beside rr-ws.
+  ADMIN_IMAGE: ghcr.io/llpekoll/rr-admin
 
 jobs:
   build:
@@ -60,6 +64,17 @@ jobs:
             ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.admin
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ADMIN_IMAGE }}:${{ github.sha }}
+            ${{ env.ADMIN_IMAGE }}:latest
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
 
   deploy:
     needs: build
@@ -99,7 +114,8 @@ jobs:
             cd /opt/rabbit
             echo '$TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin
             export RR_WS_IMAGE=${IMAGE}:${TAG}
-            docker compose pull migrate rr-ws
+            export RR_ADMIN_IMAGE=${ADMIN_IMAGE}:${TAG}
+            docker compose pull migrate rr-ws rr-admin
             docker compose up -d --remove-orphans
             docker logout ghcr.io
             docker image prune -f"

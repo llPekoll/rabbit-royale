@@ -27,7 +27,7 @@ export const vi: Dict = {
   units: { s: 's', m: 'p', h: 'h', d: 'ng' },
 
   meta: {
-    title: 'Rabbit Royale: Vương miện bị nguyền',
+    title: 'Rabbit Royale: Vương miện của gia tộc',
     description: 'Dò mìn đối kháng. Đào, tích trữ, đi cướp, đội vương miện.',
   },
   lang: { label: 'Ngôn ngữ' },
@@ -54,6 +54,13 @@ export const vi: Dict = {
     connect: 'Kết nối ví',
     connecting: 'Đang đào...',
     guest: 'Chơi với tư cách khách',
+    play: 'CHƠI',
+    haveAccount: 'Tôi đã có tài khoản',
+    offerTitle: 'GIỮ HANG CỦA BẠN',
+    offerWhy: 'Kết nối ví: hang, cà rốt và cấp độ của bạn sẽ theo bạn trên mọi điện thoại. Bạn cũng có thể làm sau trong hồ sơ.',
+    offerLater: 'ĐỂ SAU',
+    offerLink: 'KẾT NỐI',
+    offerDone: 'Đã kết nối ví. Hang của bạn an toàn.',
     waiting: 'Đang chờ...',
     guestNote: 'Hang của khách. Kết nối ví để giữ nó lại.',
     noWallet: 'Không tìm thấy ví. Mở trong app Rabbit Royale hoặc cài một ví Solana.',
@@ -244,23 +251,64 @@ export const vi: Dict = {
     regenRate: (perHour) => `${perHour} năng lượng/giờ`,
   },
 
-  tour: {
-    next: (i, n) => `TIẾP ${i}/${n}`,
-    gotIt: 'ĐÃ HIỂU',
-    carrotsTitle: 'CÀ RỐT CỦA BẠN',
-    carrots: 'Mọi thứ bạn đào được đều về đây. Phần vàng là an toàn. Phần đỏ, kẻ cướp có thể lấy.',
-    gardenTitle: 'VƯỜN CỦA BẠN',
-    garden: (perHour) => `Vườn tự lớn, +${perHour} mỗi giờ. Chạm THU HOẠCH để mang cà rốt vào. Trước đó, chúng có thể bị cướp.`,
-    houseTitle: 'NHÀ CỦA BẠN',
-    house: 'Tiêu cà rốt để mở rộng nhà: thêm cà rốt mỗi giờ, và nhiều cà rốt an toàn hơn.',
-    digTitle: 'ĐÀO',
-    dig: 'Cà rốt đến từ hòn đảo. Mỗi lần đào tốn năng lượng, và vòng năng lượng tự đầy lại.',
-    buryTitle: 'CHÔN BOM',
-    bury: 'Kẻ cướp SẼ đến vì khu vườn của bạn. Chôn bom trên đường chúng đi. Bắt chúng trả giá từng bước!',
-    raidTitle: 'CƯỚP',
-    raid: 'Và bạn cũng được cướp lại. Vườn của chúng, cà rốt của bạn!',
-    questTitle: 'KHI PHÂN VÂN',
-    quest: 'Hãy theo nhiệm vụ. Nó luôn biết bước tiếp theo.',
+  intro: {
+    skip: 'BỎ QUA',
+    next: 'CHẠM ĐỂ TIẾP TỤC',
+    play: 'ĐÀO THÔI',
+    replay: 'CÂU CHUYỆN',
+    book: {
+      shiro: 'SÁCH CỦA SHIRO',
+      shiroSub: 'Gửi bạn, người biết đọc',
+      kuro: 'SÁCH CỦA KURO',
+      kuroSub: 'Cấm đọc. Nhất là Shiro.',
+      go: 'ĐI CƯỚP',
+      sea: 'SÁCH CỦA BIỂN',
+      seaSub: 'Nhặt được trên bãi biển, vẫn còn ướt',
+      kuroGo: 'BẢO VỆ HANG',
+      seaShort: 'BIỂN',
+    },
+    shiro: {
+      ch1: 'Hòn đảo ban tặng',
+      ch2: 'Nữ hoàng và con nước',
+      ch3: 'Kuro',
+      ch4: 'Điều những con số biết',
+      ch5: 'Quả bom',
+      ch6: 'Ngai vàng',
+      island: 'Mỗi sáng, biển mang đến cho chúng ta một hòn đảo đầy cà rốt. Tổ tiên chúng ta đọc những con số của nó như đọc các vì sao, vì thế đảo đã trao vương miện cho họ.',
+      queen: 'Vương Miện truyền từ cha mẹ sang con cái. Mẹ chúng mình là nữ hoàng cuối cùng. Một buổi tối, mẹ bước xuống biển. Lời cuối của mẹ: "Vị vua tiếp theo sẽ là người biết đọc."',
+      kuro: 'Nhưng Vương Miện thuộc về hang giàu nhất. Chỉ trong một đêm, Kuro, anh em ruột của mình, đã cướp sạch mọi hang. Cả hang của bạn.',
+      kuroSays: 'Giỏi thì đến mà lật đổ ta.',
+      numbers: 'Mình sẽ không ra tay với anh em ruột của mình. Nhưng bạn biết đọc. Đào một ô: con số đếm số bom xung quanh.',
+      bomb: 'Chắc đó là bom? Đánh dấu X. Kuro thì nhảy bừa chẳng cần đọc, và hòn đảo hất cậu ấy về chỗ cũ.',
+      throne: 'Mở rương cuối cùng: đảo trở về với biển, và chiến lợi phẩm về hang. Làm hang lớn lên. Bước lên ngai vàng.',
+    },
+    kuro: {
+      ch1: 'Ngày trước',
+      ch2: 'Cướp hang',
+      ch3: 'Bom',
+      ch4: 'Cây rìu',
+      ch5: 'Phòng thủ',
+      ch6: 'Nhà vua',
+      note: 'Mình tìm thấy nó ở lâu đài.',
+      day1: 'Ngày 1. Mẹ bước xuống biển. Mẹ nói "người biết đọc". Mẹ nghĩ đến Shiro. Đằng nào ta cũng sẽ làm vua: chỉ cần giàu nhất.',
+      raid: 'Trên đảo, không ai cướp được của ngươi. Trong hang, ai cũng cướp được. Đi cướp là đi từng ô một, đến tận vườn.',
+      bombs: 'Trong hang họ, con số cũng đếm bom chôn quanh ngươi. Giẫm lên là BÙM. Ta bị như thế rồi. Nhiều lần.',
+      axe: 'Rìu của ta chặt được một cây hoặc một hàng rào mỗi lần cướp. Càng vào sâu, càng lấy được nhiều. Vườn là cả một bữa tiệc!',
+      defend: 'Bom ở chỗ họ sẽ đi qua, hàng rào trên những lối dễ đi. Bị cướp à? Tên trộm nằm lại trong danh sách của bạn, chờ bạn trả thù.',
+      king: 'Ngày 300. Ta là vua, và ta không ngủ được nữa. Một vị vua không biết chia sẻ chỉ trị vì những cái hang trống. T.B. Ngoài khơi xa có một ánh sáng.',
+    },
+    sea: {
+      ch1: 'Chia sẻ',
+      ch2: 'Cú đẩy',
+      ch3: 'Vũ khí của ta',
+      ch4: 'Lời hứa',
+      ch5: 'Vị muối',
+      share: 'Hôm nay, sẽ có hai người trên đảo của ta, xa hơn là bốn. Rương thuộc về ai đào được nó.',
+      push: 'Bước vào một con thỏ, nó sẽ lùi lại một ô. Lên một quả bom, hay xuống sóng của ta.',
+      weapons: 'Bão của ta làm chín ô quanh đối thủ bật tung. Mực của ta làm hắn không thấy gì trong vài giây. Mỗi thứ ba cái để bắt đầu.',
+      promise: 'Ta đã trao cho gia tộc các ngươi một chiếc vương miện. Đó không phải món quà. Đó là một lời hứa. Người biết đọc, ta đợi ngoài khơi xa.',
+      margin: 'Cuốn sách này có mùi muối. Nét chữ... mình nghĩ mình nhận ra nó.',
+    },
   },
 
   arrange: {
@@ -745,6 +793,15 @@ export const vi: Dict = {
     final: 'Những đảo cuối cùng',
     raidsOpen: 'Đã mở cướp',
     raidLocked: (n: number) => `Mở cướp ở cấp ${n}. Dọn đảo để lên tới đó.`,
+    skipBury: 'MỞ CHÔN BOM',
+    skipRaid: 'MỞ CƯỚP HANG',
+    skipTitle: (n: number) => `BẮT ĐẦU Ở CẤP ${n}?`,
+    skipWhyBury: 'CHÔN BOM được mở: giấu bom trên các lối vào hang của bạn trước khi các cuộc cướp bắt đầu. Không thể quay lại.',
+    skipWhyRaid: 'Cướp hang được mở và thỏ khác cùng chơi trên đảo của bạn: đảo lớn hơn, nhiều bom hơn. Không thể quay lại.',
+    skipYes: (n: number) => `CẤP ${n}`,
+    skipStay: 'Ở LẠI',
+    skipped: (n: number) => `Chào mừng tới cấp ${n}.`,
+    tutorialReward: (n: string) => `Hoàn thành hướng dẫn! +${n} cà rốt và một khiên cho hang của bạn.`,
   },
   islandPick: {
     choose: 'Chọn một hòn đảo',
@@ -982,8 +1039,13 @@ export const vi: Dict = {
   },
 
   codex: {
-    title: 'VƯƠNG MIỆN BỊ NGUYỀN',
-    aria: 'Truyện về vương miện bị nguyền',
+    title: 'VƯƠNG MIỆN CỦA GIA TỘC',
+    locked: {
+      shiro: 'Lần đầu bạn đến hang.',
+      kuro: 'Mở cùng CHÔN BOM.',
+      sea: 'Mở cùng CƯỚP.',
+    },
+    aria: 'Truyện về vương miện của gia tộc',
     close: 'Đóng sách',
     newChapter: 'CHƯƠNG MỚI',
     complete: 'HOÀN TẤT',
@@ -1133,7 +1195,7 @@ export const vi: Dict = {
     },
     'read-the-stones': {
       title: 'Đọc những hòn đá',
-      ask: (numeral) => `Mở chương ${numeral} của sách.`,
+      ask: 'Đọc một trong các cuốn sách.',
       line: 'Hòn đảo không giết kẻ xui. Nó giết kẻ vội,'
         + ' và ghi chép cẩn thận sự khác biệt.',
     },
@@ -1193,18 +1255,12 @@ export const vi: Dict = {
       ],
     },
     'the-crown': {
-      title: 'Vương miện không phải phần thưởng',
-      teaser: 'Nó đánh dấu bạn trên mọi bản đồ.',
+      title: 'Vương Miện của gia tộc',
+      teaser: 'Nó thuộc về hang giàu nhất.',
       body: [
-        'Ai giữ mùa lớn nhất sẽ thấy vương miện nằm trên đầu mình vào một buổi '
-        + 'sáng. Không thể tháo, bán, chôn hay cho đi. Lũ thỏ đã thử cả bốn cách. '
-        + 'Có một chương về cách thứ tư, và nó ngắn.',
+        'Hòn đảo đã trao vương miện cho chú thỏ đầu tiên biết đọc những con số của nó. Từ đó, Vương Miện truyền từ cha mẹ sang con cái, và gia tộc hoàng gia luôn chia sẻ: mỗi sáng, một phần của đảo đến với mọi cái hang, và ánh sáng lâu đài nhìn thấy được từ mọi bãi biển.',
 
-        'Vương miện hào phóng, đó là cách nó vận hành. Nó làm đất dưới chân người đội '
-        + 'màu mỡ hơn và rương nặng hơn. Nó cũng thắp trên bản đồ thế giới một ngọn '
-        + 'đèn mà mọi con thỏ khác nhìn thấy từ bất cứ đâu, và không bao giờ tắt. '
-        + 'Hòn đảo không thưởng cho con thỏ đứng đầu. Nó rọi sáng con thỏ ấy, rồi '
-        + 'lùi lại xem những con khác sẽ làm gì.',
+        'Nhưng hòn đảo có một luật còn cổ hơn cả gia tộc. Vương Miện thuộc về hang giàu nhất, dù đó là của ai. Đêm nữ hoàng cuối cùng ra đi cùng con nước, Kuro đã đọc luật ấy rõ hơn bất kỳ ai. Một đêm cướp bóc là đủ. Vương Miện phóng đại con người thật của bạn, và ánh sáng lâu đài chưa bao giờ yếu ớt đến thế.',
       ],
     },
     'the-tide': {

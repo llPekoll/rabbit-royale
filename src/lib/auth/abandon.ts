@@ -18,15 +18,20 @@
  *    they pressed PLAY, saw the island, and left. Both are gone by the only
  *    test that matters, which is whether any browser can still open them.
  *
- * NEVER a wallet. A guest who linked a wallet keeps `guest:` as their id (see
- * link.ts) but has a wallet on the row — that account is reachable for ever
- * and is not a guest by this module's reading. Both callers check the column,
- * not the id.
+ * NEVER a wallet, a Google account or an email. A guest who linked one keeps
+ * `guest:` as their id (see link.ts, identity.ts) but can come back through
+ * it — that account is reachable for ever and is not a guest by this module's
+ * reading. Both callers check the wallet column AND `player_identities`, not
+ * the id.
+ *
+ * A third caller deletes ANY account: `deleteAccount`, the profile's DELETE
+ * ACCOUNT, which the stores require of every app that lets you make one.
  */
-import { and, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, eq, isNull, lt, notExists, or } from 'drizzle-orm';
 import { db } from '../db';
-import { players, seasons } from '../db/schema';
+import { playerIdentities, players, seasons } from '../db/schema';
 import { isGuestId } from './guest';
+import { isGuestAccount } from './identity';
 import { redis } from '../leaderboard';
 
 /** How long a session token lives — `TTL` in jwt.ts, as milliseconds. */
@@ -39,6 +44,8 @@ export interface GuestRow {
   wallet: string | null;
   runsPlayed: number;
   lastSeenAt: Date;
+  /** Holds a Google account or an email to come back with. */
+  linked?: boolean;
 }
 
 /**
@@ -48,7 +55,7 @@ export interface GuestRow {
  * in here that deletes somebody's progress, and it has to be readable in full.
  */
 export function isOrphanGuest(row: GuestRow, now: Date = new Date()): boolean {
-  if (!isGuestId(row.id) || row.wallet !== null) return false;
+  if (!isGuestId(row.id) || row.wallet !== null || row.linked) return false;
   const idle = now.getTime() - row.lastSeenAt.getTime();
   if (idle >= SESSION_TTL_MS) return true;
   return row.runsPlayed === 0 && idle >= NEVER_PLAYED_TTL_MS;
@@ -99,7 +106,21 @@ export async function deleteGuest(id: string): Promise<AbandonResult> {
     columns: { id: true, wallet: true },
   });
   if (!row) return 'unknown_player';
-  if (row.wallet !== null) return 'not_guest';
+  if (!(await isGuestAccount(row))) return 'not_guest';
+  await deleteRows([id]);
+  return 'deleted';
+}
+
+/**
+ * DELETE ACCOUNT from the profile — any player, wallet or not.
+ *
+ * Same cascade as a guest's ABANDON: runs, raids, traps, inventory, purchases,
+ * payments, standings and the identities go with the row. A wallet that signs
+ * in again afterwards gets a brand new burrow, which is what deleting means.
+ */
+export async function deleteAccount(id: string): Promise<'deleted' | 'unknown_player'> {
+  const row = await db.query.players.findFirst({ where: eq(players.id, id), columns: { id: true } });
+  if (!row) return 'unknown_player';
   await deleteRows([id]);
   return 'deleted';
 }
@@ -127,6 +148,7 @@ export async function purgeOrphanGuests(
     .from(players)
     .where(and(
       isNull(players.wallet),
+      notExists(db.select().from(playerIdentities).where(eq(playerIdentities.playerId, players.id))),
       or(
         lt(players.lastSeenAt, new Date(now.getTime() - SESSION_TTL_MS)),
         and(eq(players.runsPlayed, 0), lt(players.lastSeenAt, new Date(now.getTime() - NEVER_PLAYED_TTL_MS))),

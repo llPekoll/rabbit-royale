@@ -25,6 +25,9 @@ const SFX := {
 	"island_sink": [preload("res://assets/sound/island_sink.mp3"), 0.40],
 	"hop": [preload("res://assets/sound/hop.mp3"), 0.30],
 	"step": [preload("res://assets/sound/step.mp3"), 0.20],
+	# La page qui tourne (IntroBook) : un souffle de papier synthetise au
+	# ffmpeg (bruit filtre 900 Hz-7,5 kHz qui fremit, puis le « flap »).
+	"page": [preload("res://assets/sound/page.mp3"), 0.35],
 	"coin": [preload("res://assets/sound/coin.mp3"), 0.11],
 	"coin_start": [preload("res://assets/sound/coin_start.mp3"), 0.22],
 	"chest_arrive": [preload("res://assets/sound/chest_arrive.mp3"), 0.40],

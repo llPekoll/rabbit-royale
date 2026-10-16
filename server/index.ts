@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { Server, type Socket } from 'socket.io';
 import { and, eq, isNull, ne, sql as raw } from 'drizzle-orm';
 
-import { BLOOP, CROWN, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, RABBIT_LEVELS, levelRow, mayFight } from '../config/tuning';
+import { BLOOP, CROWN, ERUPTION, ISLAND_TIERS, LIGHTNING, MIRAGE, MULTIPLAYER, RABBIT_LEVELS, TUTORIAL_REWARD, levelRow, mayFight } from '../config/tuning';
 // LIVE: the crossing fee, its floor and the tank's ceiling follow the `tuning`
 // table (src/lib/tuning). The run's own rules (DIG_COST, BOMB_LOSS, START) are
 // not overridable and read the file through the same view.
@@ -229,24 +229,18 @@ async function levelOf(playerId: string): Promise<number> {
 }
 
 /**
- * The first island a player ever sees — theirs alone, dealt by hand.
- *
- * The seed carries the `first:` prefix, which is what the terrain and the
- * generator read to cut it small and lay it out (see FIRST_RUN in tuning and
- * `firstIslandLayout` in island.ts). The prefix travels to the client like
- * any seed, so the coastline it draws is the same one; what is buried stays
- * behind the content seed as always.
+ * The tutorial island — the small authored one, theirs alone (back on
+ * 2026-10-15, evening: « tu arrives direct sur la croix, tout de suite apres
+ * le coffre »). The seed carries the `first:` prefix, which the terrain and
+ * the generator read to cut it small and lay it out (FIRST_RUN in tuning,
+ * `firstIslandLayout` in island.ts); the run waits until the taught bomb is
+ * marked (`teachingHold`), and its one chest ends it (`tutorialDone`).
  */
 function newFirstIsland(playerId: string): LiveIsland {
-  // Named after the PLAYER, not dealt at random. The client cuts a placeholder
-  // from `firstIslandSeed(player.id)` while it waits for this answer (see
-  // page.tsx), and with the same name on both sides the placeholder IS the
-  // island: nothing is re-cut under the player on the first screen of the
-  // game, and two asks for a first island can only ever name one.
+  // Named after the player: two asks for a first island can only name one.
   const seed = firstIslandSeed(playerId);
-  // A first island left behind by a run that never banked (the server
-  // survived, the player did not come back) is torn down rather than reused
-  // with its holes already dug. Solo, so nobody else can be standing on it.
+  // One left behind by a run that never banked is torn down, not reused with
+  // its holes already dug. Solo, so nobody else can be standing on it.
   if (store.get(seed)) store.delete(seed);
   return store.create(seed, 0, { solo: true });
 }
@@ -425,6 +419,10 @@ async function erupt(live: LiveIsland) {
         ? await levelUp(rabbit.playerId).catch((e) => { console.error('[levelUp]', e); return rabbit.level ?? 1; })
         : rabbit.level ?? 1;
       const leveledUp = level > (rabbit.level ?? 1);
+      // THE TUTORIAL CLEARED (level 1 → 2, once ever: nobody goes down).
+      if (leveledUp && level === 2) {
+        await tutorialReward(rabbit.playerId).catch((e) => console.error('[tutorialReward]', e));
+      }
       const socket = socketOf(rabbit.playerId);
       const sd = socket?.data as SocketData | undefined;
       if (!socket || !sd || sd.islandId !== live.island.id) continue;
@@ -436,6 +434,8 @@ async function erupt(live: LiveIsland) {
         cleared: true,
         level,
         leveledUp,
+        // The tutorial's reward, said so the burrow can celebrate it.
+        reward: leveledUp && level === 2 ? TUTORIAL_REWARD.CARROTS : 0,
       });
       // Not `sd.islandId = undefined`: the recap's "Again" goes through
       // `restart`, which needs the id to leave the room and say `restarting`.
@@ -455,6 +455,23 @@ async function levelUp(playerId: string): Promise<number> {
     .where(eq(players.id, playerId))
     .returning({ level: players.level });
   return row?.level ?? 1;
+}
+
+/**
+ * What the quest board used to pay, given at once for the tutorial island
+ * (config/tuning.ts TUTORIAL_REWARD) — carrots into all three counters, like
+ * a quest claim did, and the shield into the bag.
+ */
+async function tutorialReward(playerId: string): Promise<void> {
+  const carrots = TUTORIAL_REWARD.CARROTS;
+  await db.transaction(async (tx) => {
+    await tx.update(players).set({
+      stock: raw`${players.stock} + ${carrots}`,
+      seasonScore: raw`${players.seasonScore} + ${carrots}`,
+      lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
+    }).where(eq(players.id, playerId));
+    for (const it of TUTORIAL_REWARD.ITEMS) await grantItem(tx, playerId, it.kind, it.qty);
+  });
 }
 
 /** What every run_over that is NOT a clear says about the ladder: where the
@@ -924,11 +941,9 @@ io.on('connection', (socket: Socket) => {
     // up with TWO rabbits: the new one here, and the old seat ticking away
     // until the grace sweep banks it.
     //
-    // A player with NO RUNS behind them is the exception to drop-in: they get
-    // the first island (theirs alone, authored — see `newFirstIsland`) rather
-    // than the fullest one. `runsPlayed` is bumped when a run banks, so a
-    // first-timer who refreshes mid-run still finds their seat above, and one
-    // who walks home and comes straight back gets the real ladder.
+    // A FIRST-TIMER AT LEVEL 1 gets the tutorial island (theirs alone,
+    // authored — see `newFirstIsland`). One who skipped to BURY or RAID is
+    // dealt their level's island like anybody else.
     /**
      * WHICH ISLAND. A held seat first, the tutorial for a first-timer, then
      * the rabbit's LEVEL (2026-09-23): the list on DIG is gone, and the level
@@ -1016,7 +1031,7 @@ io.on('connection', (socket: Socket) => {
 
     // WHICH ISLAND, now that the crossing is paid (see `seated` above).
     const live = seated
-      ?? (player.runsPlayed === 0 ? newFirstIsland(player.id) : undefined)
+      ?? (player.runsPlayed === 0 && player.level <= 1 ? newFirstIsland(player.id) : undefined)
       ?? (solo ? newIsland(player.level, true, true) : undefined)
       ?? store.findJoinable(player.level)
       ?? newIsland(player.level);
@@ -1651,7 +1666,7 @@ io.on('connection', (socket: Socket) => {
       // came for. The cleared-island ending (`erupt`) takes the same care.
       if (!out.tutorialDone) io.to(room).emit('rabbit_died', { playerId: data.playerId });
       void bankRun(rabbit).catch((e) => console.error('[bankRun]', e));
-      socket.emit('run_over', {
+      const over = {
         carrots: rabbit.carrots,
         tilesDug: data.tilesDug ?? 0,
         bombsHit: data.bombsHit ?? 0,
@@ -1660,7 +1675,17 @@ io.on('connection', (socket: Socket) => {
         // The tutorial was finished, not survived — the recap reads it to say
         // so, and it is the same "you got to the end" shape as a cleared island.
         ...(out.tutorialDone ? { tutorialDone: true } : {}),
-      });
+      };
+      // THE TUTORIAL'S CHEST: level 1 → 2 and what the quest board used to pay.
+      if (out.tutorialDone && (rabbit.level ?? 1) <= 1) {
+        void (async () => {
+          const level = await levelUp(rabbit.playerId).catch((e) => { console.error('[levelUp]', e); return 1; });
+          if (level === 2) await tutorialReward(rabbit.playerId).catch((e) => console.error('[tutorialReward]', e));
+          socket.emit('run_over', { ...over, level, leveledUp: level > 1, reward: level === 2 ? TUTORIAL_REWARD.CARROTS : 0 });
+        })();
+      } else {
+        socket.emit('run_over', over);
+      }
     }
 
     // Eruption clock. Checked per dig because a dig is the only thing that moves it.

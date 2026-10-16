@@ -23,6 +23,9 @@ extends Node
 ## a vide.
 var HOST := ""
 
+## Le serveur de test (branche `stage`), hors des regions.
+const STAGE_HOST := "https://ws-stage.rabbit.rip"
+
 ## LES REGIONS (2026-10-02), facon LoL : chacune est un jeu ENTIER — sa base,
 ## ses comptes, ses saisons, ses raids (deploy/region). Singapour est partie
 ## d'une COPIE de l'Europe ce jour-la, avec le meme secret de session : un
@@ -64,6 +67,11 @@ static func _override() -> String:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--server="):
 			return arg.trim_prefix("--server=").trim_suffix("/")
+	# LE STAGE (2026-10-16) : la page servie par stage.rabbit.rip parle a
+	# son propre serveur, sur sa propre base (une copie de l'Europe). L'APK
+	# de stage, lui, passe `--server=` dans ses arguments.
+	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hostname", true)).begins_with("stage."):
+		return STAGE_HOST
 	return OS.get_environment("RR_SERVER").trim_suffix("/")
 
 
@@ -319,9 +327,10 @@ func busy() -> bool:
 	return _in_flight > 0
 
 
-## GET, with the session token if there is one.
-func get_json(path: String, token: String = "") -> Answer:
-	return await _send(path, HTTPClient.METHOD_GET, {}, token)
+## GET, with the session token if there is one. `timeout` only for a route
+## that holds the request open on purpose (/api/auth/handoff, ~20 s).
+func get_json(path: String, token: String = "", timeout: float = TIMEOUT_SECONDS) -> Answer:
+	return await _send(path, HTTPClient.METHOD_GET, {}, token, timeout)
 
 
 ## POST, with the session token if there is one. An empty `payload` still sends
@@ -336,9 +345,10 @@ func send_json(path: String, method: int, payload: Dictionary = {}, token: Strin
 	return await _send(path, method, payload, token)
 
 
-func _send(path: String, method: int, payload: Dictionary, token: String) -> Answer:
+func _send(path: String, method: int, payload: Dictionary, token: String,
+		timeout: float = TIMEOUT_SECONDS) -> Answer:
 	var request := HTTPRequest.new()
-	request.timeout = TIMEOUT_SECONDS
+	request.timeout = timeout
 	add_child(request)
 
 	var headers := PackedStringArray(["Content-Type: application/json"])

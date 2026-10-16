@@ -472,7 +472,7 @@ func _rebuild() -> void:
 func _live_tokens() -> Array:
 	if not bool(_state.shop.get("usdcEnabled", false)):
 		return []
-	if bool(Session.player.get("guest", false)):
+	if not Session.has_wallet():
 		return []
 	var listed: Variant = _state.shop.get("tokens", [])
 	return listed if listed is Array else []

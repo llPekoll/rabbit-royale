@@ -1,0 +1,65 @@
+/**
+ * Carrying a browser sign-in back into the game (see `authHandoffs` in the
+ * schema for why there is no deep link).
+ *
+ *   game  ── POST /api/auth/google/start ──▶ { url, handoff }
+ *   game  opens `url` in the browser, then waits on GET /api/auth/handoff
+ *   browser ── Google ──▶ /api/auth/google/callback?state=… ── writes result
+ *   game  ◀── its waiting request returns the token
+ *
+ * The game's `handoff` id and the browser's `state` are two different
+ * randoms: whoever sees the browser's URL (history, a screenshot) learns the
+ * state, which can only finish the sign-in, never collect its token.
+ */
+import { randomBytes } from 'node:crypto';
+import { eq, lt } from 'drizzle-orm';
+import { db } from '../db';
+import { authHandoffs } from '../db/schema';
+
+/** A sign-in left unfinished this long is dropped. */
+export const HANDOFF_TTL_MS = 10 * 60 * 1000;
+
+export type HandoffResult = Record<string, unknown>;
+
+export async function startHandoff(
+  mode: 'login' | 'link',
+  playerId: string | null,
+  now: Date = new Date(),
+): Promise<{ id: string; state: string }> {
+  // The sweep rides on the next start: there are few of these, and a timer
+  // would be one more thing running in the socket server.
+  await db.delete(authHandoffs).where(lt(authHandoffs.createdAt, new Date(now.getTime() - HANDOFF_TTL_MS)));
+  const id = randomBytes(24).toString('hex');
+  const state = randomBytes(24).toString('hex');
+  await db.insert(authHandoffs).values({ id, state, mode, playerId, createdAt: now });
+  return { id, state };
+}
+
+/** The sign-in a callback belongs to, if it is still waiting. */
+export async function handoffByState(state: string, now: Date = new Date()) {
+  const row = await db.query.authHandoffs.findFirst({ where: eq(authHandoffs.state, state) });
+  if (!row || row.result || now.getTime() - row.createdAt.getTime() > HANDOFF_TTL_MS) return null;
+  return row;
+}
+
+export async function finishHandoff(id: string, result: HandoffResult): Promise<void> {
+  await db.update(authHandoffs).set({ result }).where(eq(authHandoffs.id, id));
+}
+
+/**
+ * The outcome, read ONCE: the row (and the token in it) is deleted as it is
+ * handed over. `null` while the browser is still on its way.
+ */
+export async function takeHandoff(id: string, now: Date = new Date()): Promise<HandoffResult | null> {
+  const row = await db.query.authHandoffs.findFirst({ where: eq(authHandoffs.id, id) });
+  if (!row) return { error: 'expired' };
+  if (row.result) {
+    await db.delete(authHandoffs).where(eq(authHandoffs.id, id));
+    return row.result as HandoffResult;
+  }
+  if (now.getTime() - row.createdAt.getTime() > HANDOFF_TTL_MS) {
+    await db.delete(authHandoffs).where(eq(authHandoffs.id, id));
+    return { error: 'expired' };
+  }
+  return null;
+}

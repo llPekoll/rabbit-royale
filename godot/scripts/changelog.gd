@@ -87,7 +87,7 @@ static func unseen() -> Array:
 	var mark := seen()
 	if mark < 0:
 		# Premier lancement avec le changelog : voir la doc en tete.
-		if Island.tutorial_pending():
+		if int(Session.player.get("runsPlayed", 0)) == 0:
 			mark_seen()
 			return []
 		return all.slice(0, 1)

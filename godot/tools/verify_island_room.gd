@@ -168,20 +168,14 @@ func _run() -> void:
 	island._aimed_tap(hidden, Vector2.ZERO)
 	_check("la visee retombe apres la tape", state.aiming == "")
 
-	# LA PREMIERE ILE DU SERVEUR : un compte sans manche y est assis. Elle se
-	# pose en ligne — avant, l'instantane etait jete et l'ile restait morte.
+	# DE RETOUR SUR MON LAPIN (plus d'ile du tuto depuis le 2026-10-15).
 	state.spectating = ""
 	state._fake_me = "me"
-	var spawn_i: int = island._board.index_of(TutorialMap.spawn())
-	_ev("island", {"seed": "first:me", "tier": "meadow", "first": true, "revealed": [{"tile": spawn_i, "content": "empty", "adjacent": 0}],
-		"chests": [{"tile": island._board.index_of(TutorialMap.chest()), "tier": "bronze"}], "hinted": [],
-		"flagged": [], "warnStage": 0, "dugFraction": 0.0, "chestsTaken": 0, "chestsTotal": 1,
-		"rabbits": [{"playerId": "me", "name": "Moi", "tile": spawn_i, "energy": 300, "carrots": 0, "alive": true, "stunMs": 0}], "sheep": []})
+	_ev("island", {"seed": SEED, "tier": "meadow", "revealed": [], "chests": [], "hinted": [],
+		"flagged": [], "warnStage": 0, "dugFraction": 0.0, "chestsTaken": 0, "chestsTotal": 3,
+		"rabbits": rabbits, "sheep": []})
 	await _wait(0.3)
-	_check("premiere ile : en ligne", island._remote and island._seed == "first:me")
-	_check("premiere ile : pas la lecon hors ligne", not island._is_tutorial())
-	_check("premiere ile : le coffre est pose", island._board.content.get(TutorialMap.chest()) == IslandBoard.Content.CHEST)
-	_check("premiere ile : lapin sur S", island._rabbit.at() == TutorialMap.spawn())
+	_check("mon lapin : en ligne", island._remote and not island._watching())
 
 	# L'ILE VIDEE : plus de carte (2026-09-23). Le lapin saute, on rentre au
 	# terrier, le niveau suit dans Home et l'ile finie est oubliee.
