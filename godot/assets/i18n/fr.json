@@ -41,6 +41,7 @@
   "offerLater": "PLUS TARD",
   "offerLink": "CONNECTER",
   "offerDone": "Portefeuille connecté. Ton terrier est à l'abri.",
+  "offerNoWallet": "Pas de portefeuille Solana dans ce navigateur. Installes-en un (Phantom, Solflare, Backpack, Jupiter…) ou ouvre Rabbit Royale sur ton téléphone.",
   "waiting": "Attente...",
   "guestNote": "Terrier invité. Connecte un portefeuille pour le garder.",
   "noWallet": "Aucun portefeuille trouvé. Ouvre l'appli Rabbit Royale ou installe un portefeuille Solana.",

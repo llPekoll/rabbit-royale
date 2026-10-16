@@ -1222,10 +1222,13 @@ func _books_calm() -> bool:
 
 
 ## RELIER UN WALLET, propose une fois a l'arrivee au terrier apres le livre 2
-## (la fin du tuto) — a un invite seulement, et la ou un wallet peut repondre.
-## Une fois par joueur sur cet appareil.
+## (la fin du tuto) — a un invite seulement. Une fois par joueur sur cet
+## appareil. Sans wallet pour repondre (un navigateur de bureau sans
+## extension), la proposition vient quand meme ; CONNECT WALLET dit alors
+## qu'il en faut un, sans en pousser aucun (2026-10-16, « mets juste connect
+## wallet, car tu peux avoir Solflare, Backpack et Jup »).
 func _wallet_offer_due() -> bool:
-	if not bool(Session.player.get("guest", false)) or not Wallet.available():
+	if not bool(Session.player.get("guest", false)):
 		return false
 	if Island.tutorial_pending():
 		return false
@@ -1246,6 +1249,9 @@ func _offer_wallet() -> void:
 	var dialog := Dialog.new(I18N.t("auth.offerTitle"), 460.0)
 	var why := Kit.wrapped(Kit.label(I18N.t("auth.offerWhy"), 13, Palette.INK))
 	dialog.body.add_child(why)
+	var none := Kit.wrapped(Kit.label(I18N.t("auth.offerNoWallet"), 12, Palette.BARK))
+	none.visible = false
+	dialog.body.add_child(none)
 	var row := Kit.hbox(Kit.PAD)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	dialog.body.add_child(row)
@@ -1254,6 +1260,11 @@ func _offer_wallet() -> void:
 	row.add_child(later)
 	var link := Kit.button(I18N.t("auth.offerLink"), "gold", 170.0, 40.0)
 	link.pressed.connect(func() -> void:
+		# Demande au moment du clic : une extension s'injecte parfois tard.
+		if not Wallet.available():
+			none.visible = true
+			Sound.deny()
+			return
 		link.disabled = true
 		var address := await Wallet.address()
 		if not address.is_empty():
@@ -1263,7 +1274,7 @@ func _offer_wallet() -> void:
 		Analytics.track("wallet_offer", {"linked": not bool(Session.player.get("guest", true))})
 		dialog.close_requested())
 	row.add_child(link)
-	I18N.apply_face([why, later, link])
+	I18N.apply_face([why, none, later, link])
 	open(dialog)
 	await dialog.closed
 

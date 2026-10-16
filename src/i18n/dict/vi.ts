@@ -61,6 +61,7 @@ export const vi: Dict = {
     offerLater: 'ĐỂ SAU',
     offerLink: 'KẾT NỐI',
     offerDone: 'Đã kết nối ví. Hang của bạn an toàn.',
+    offerNoWallet: 'Trình duyệt này chưa có ví Solana. Hãy cài một ví (Phantom, Solflare, Backpack, Jupiter…) hoặc mở Rabbit Royale trên điện thoại.',
     waiting: 'Đang chờ...',
     guestNote: 'Hang của khách. Kết nối ví để giữ nó lại.',
     noWallet: 'Không tìm thấy ví. Mở trong app Rabbit Royale hoặc cài một ví Solana.',

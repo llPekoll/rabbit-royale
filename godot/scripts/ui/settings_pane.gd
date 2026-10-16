@@ -40,7 +40,7 @@ func _init(k: float = 0.7) -> void:
 	_icon("icon-note", 35, 70, 46, 46)
 	_words["ambience"] = _say(28, 103, 70, 500, 46)
 	var music := _picture("scene-music", 18, 118, 453, 168)
-	music.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	music.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_panel("console", 476, 82, 691, 196)
 	_icon("icon-note-small", 546, 92, 34, 38)
 	_words["music"] = _say(25, 590, 92, 200, 38)

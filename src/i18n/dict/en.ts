@@ -75,6 +75,9 @@ export const en = {
     offerLater: 'LATER',
     offerLink: 'CONNECT WALLET',
     offerDone: 'Wallet connected. Your burrow is safe.',
+    /* No wallet can answer here (a desktop browser without an extension):
+       the offer still shows, and CONNECT WALLET says this instead. */
+    offerNoWallet: 'No Solana wallet in this browser. Install one (Phantom, Solflare, Backpack, Jupiter…) or open Rabbit Royale on your phone.',
     waiting: 'Waiting...',
     guestNote: 'Guest burrow. Connect a wallet to keep it.',
     noWallet: 'No wallet found. Open in the Rabbit Royale app or install a Solana wallet.',

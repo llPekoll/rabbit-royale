@@ -57,6 +57,7 @@ export const ptBR: Dict = {
     offerLater: 'DEPOIS',
     offerLink: 'CONECTAR',
     offerDone: 'Carteira conectada. Sua toca está segura.',
+    offerNoWallet: 'Nenhuma carteira Solana neste navegador. Instale uma (Phantom, Solflare, Backpack, Jupiter…) ou abra o Rabbit Royale no seu celular.',
     waiting: 'Aguardando...',
     guestNote: 'Toca de convidado. Conecte uma carteira para mantê-la.',
     noWallet: 'Nenhuma carteira encontrada. Abra no app Rabbit Royale ou instale uma carteira Solana.',
