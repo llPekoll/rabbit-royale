@@ -1,34 +1,31 @@
 class_name LoreCodex
 extends Dialog
-## L'ETAGERE DES TROIS LIVRES (2026-10-15, le soir) — ce qui reste du codex.
-##
-## Les cinq chapitres a vie (« The Island That Gives »...) racontaient l'ancien
-## lore et contredisaient les livres ; le user : « supprimer le recueil, mettre
-## juste les 3 livres a la place, disponibles seulement quand on les a deja
-## vus, sinon un lock et grise ». Un livre lu se rouvre en le touchant ; un
-## livre a venir est gris, sous un cadenas, avec l'etape qui l'ouvre (BURY,
-## RAID — LevelSkip, Chrome.maybe_books).
-##
-## Garde son nom et sa porte (`LoreCodex.open`, le bouton d'histoire de la
-## barre du haut) : rien d'autre n'a a changer.
+## The three storybooks, in a woodland library matching the shop.
+## Dialog keeps the Chrome/close/Escape contract; the library supplies its art.
 
 const BOOKS := ["shiro", "kuro", "sea"]
-## La couverture : la premiere image de `open` du livre peint, recadree sur
-## le livre ferme (`cover_view` du book.json).
 const COVER_DIR := "res://assets/intro/book/shiro/"
-const CARD_W := 210.0
-const GREY := Color(0.42, 0.4, 0.38, 0.85)
+const DESIGN := Vector2(1280, 720)
+const CARD_W := 332.0
+const BACKDROP := preload("res://assets/ui/story-library/library-backdrop.png")
+const LOCK := preload("res://assets/ui/story-library/brass-lock.png")
+const SEALED_SHADER := """
+shader_type canvas_item;
+void fragment() {
+	vec4 c = texture(TEXTURE, UV) * COLOR;
+	float grey = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+	COLOR = vec4(mix(vec3(grey), c.rgb, 0.18) * 0.72, c.a);
+}
+"""
 
-## FAUX DANS UN BANC : un banc ne pose rien (garde pour les bancs).
+## Kept for existing offline benches; this screen writes no read marks.
 var read_marks := true
-
-var _row: HBoxContainer
-## La couverture recadree, et ce que le book.json dit d'elle.
+var _board: Control
+var _queued := false
 var _crop := Rect2()
 var _quad: Array = []
 
 
-## OUVRIR L'ETAGERE sur le chrome.
 static func open() -> LoreCodex:
 	var codex := LoreCodex.new()
 	Chrome.current.open(codex)
@@ -36,83 +33,172 @@ static func open() -> LoreCodex:
 
 
 func _init() -> void:
-	super("", 720.0, 0.0)
+	super("", 0.0, 0.0)
 	go_fullscreen()
+	_frame.hide()
+	_inset.hide()
+	close_button.hide()
+	clip_contents = true
 
 
 func _ready() -> void:
-	ink_title()
-	var header := title_label.get_parent()
-	var icon := Kit.icon(Kit.SCROLL, 26.0)
-	header.add_child(icon)
-	header.move_child(icon, 0)
-	set_title(I18N.t("codex.title"))
-	var center := CenterContainer.new()
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(center)
-	_row = Kit.hbox(Kit.PAD * 2.0)
-	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_child(_row)
+	var bg := ForestShopStyle.picture(BACKDROP, false)
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	Kit.fill(bg)
+	add_child(bg)
+	_board = Control.new()
+	_board.name = "Library"
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_board.size = DESIGN
+	add_child(_board)
+	resized.connect(_layout)
 	_fill()
-	I18N.locale_changed.connect(func(_c: String) -> void: _fill())
-	Home.changed.connect(_fill)
+	_layout()
+	I18N.locale_changed.connect(func(_c: String) -> void: _queue_fill())
+	Home.changed.connect(_queue_fill)
+	get_window().focus_entered.connect(_queue_fill)
+
+
+func _layout() -> void:
+	if _board == null:
+		return
+	var k := minf(size.x / DESIGN.x, size.y / DESIGN.y)
+	_board.scale = Vector2.ONE * k
+	_board.position = ((size - DESIGN * k) * 0.5).floor()
+
+
+func _queue_fill() -> void:
+	if _queued:
+		return
+	_queued = true
+	_fill.call_deferred()
+
+
+func _seen(which: String) -> bool:
+	return IntroBook.seen(which) or _reached(which)
+
+
+func _put(node: Control, rect: Rect2, parent: Control = null) -> Control:
+	node.position = rect.position
+	node.size = rect.size
+	(parent if parent != null else _board).add_child(node)
+	return node
+
+
+func _words(value: String, rect: Rect2, px: int, color: Color = ForestShopStyle.CREAM, parent: Control = null, wrap := false) -> Label:
+	var label := ForestShopStyle.words(value, px, color)
+	if wrap:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	else:
+		var font := label.get_theme_font("font")
+		while px > 12 and font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > rect.size.x:
+			px -= 1
+		label.add_theme_font_size_override("font_size", px)
+	_put(label, rect, parent)
+	return label
 
 
 func _fill() -> void:
+	_queued = false
 	if not is_inside_tree():
 		return
-	for old in _row.get_children():
+	var focused := ""
+	var owner := get_viewport().gui_get_focus_owner()
+	if owner != null and _board.is_ancestor_of(owner):
+		focused = String(owner.name)
+	for old in _board.get_children():
+		_board.remove_child(old)
 		old.queue_free()
+	_words(I18N.t("codex.title"), Rect2(290, 28, 700, 76), 34)
+	_words(I18N.t("codex.libraryHint"), Rect2(220, 122, 840, 36), 18)
+	var close := TextureButton.new()
+	close.name = "CloseLibrary"
+	close.texture_normal = ForestShopStyle.texture("close")
+	close.ignore_texture_size = true
+	close.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	close.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	close.tooltip_text = I18N.t("codex.close")
+	_put(close, Rect2(1176, 28, 64, 64))
+	close.pressed.connect(close_requested)
 	var cover := _cover()
-	for which in BOOKS:
-		_row.add_child(_card(which, cover))
+	var discovered := 0
+	for i in BOOKS.size():
+		var which: String = BOOKS[i]
+		_put(_card(which, cover), Rect2(130 + i * 344, 174, CARD_W, 414))
+		if _seen(which):
+			discovered += 1
+	_put(ForestShopStyle.panel("tab-off", 18), Rect2(410, 615, 460, 56))
+	_words(I18N.f("codex.discovered", [discovered, BOOKS.size()]), Rect2(432, 620, 416, 44), 20)
+	if not focused.is_empty():
+		var next := _board.find_child(focused, true, false) as Control
+		if next != null and next.focus_mode != Control.FOCUS_NONE:
+			next.grab_focus()
 
 
-## Un livre de l'etagere : sa couverture, son titre, et — s'il n'est pas
-## encore lu — le cadenas et l'etape qui l'ouvre.
 func _card(which: String, cover: Texture2D) -> Control:
 	var look: Dictionary = IntroBook.BOOKS[which]
-	var open := IntroBook.seen(which)
-	var card := Kit.vbox(4)
-	card.custom_minimum_size = Vector2(CARD_W, 0)
-	card.mouse_filter = Control.MOUSE_FILTER_STOP if open else Control.MOUSE_FILTER_IGNORE
-	var pic := TextureRect.new()
-	pic.texture = cover
-	var cover_h := CARD_W * (_crop.size.y / _crop.size.x if _crop.size.x > 0.0 else 0.75)
-	pic.custom_minimum_size = Vector2(CARD_W, cover_h)
-	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	pic.stretch_mode = TextureRect.STRETCH_SCALE
+	var open := _seen(which)
+	var card := Button.new()
+	card.name = "Book_" + which
+	card.disabled = not open
+	card.focus_mode = Control.FOCUS_ALL if open else Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if open else Control.CURSOR_ARROW
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		card.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	var focus := StyleBoxFlat.new()
+	focus.bg_color = Color.TRANSPARENT
+	focus.border_color = ForestShopStyle.CREAM
+	focus.set_border_width_all(3)
+	card.add_theme_stylebox_override("focus", focus)
+	_put(ForestShopStyle.panel("panel", 28), Rect2(0, 0, CARD_W, 414), card)
+	_put(ForestShopStyle.panel("nameplate", 16), Rect2(10, 12, CARD_W - 20, 64), card)
+	_words(I18N.t(String(look.title)), Rect2(28, 17, CARD_W - 56, 54), 21, ForestShopStyle.INK, card, true)
+	var pedestal := ForestShopStyle.picture(ForestShopStyle.texture("pedestal"))
+	_put(pedestal, Rect2(30, 223, CARD_W - 60, 88), card)
+	var cover_w := CARD_W - 44
+	var cover_h := cover_w * (_crop.size.y / _crop.size.x if _crop.size.x > 0.0 else 0.75)
+	var pic := ForestShopStyle.picture(cover, false)
 	pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(pic)
+	_put(pic, Rect2(22, 84, cover_w, cover_h), card)
 	if not _quad.is_empty():
 		pic.add_child(_face(look))
-	var title := Kit.label(I18N.t(String(look.title)), 15, Palette.INK if open else Palette.BARK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
-	title.add_theme_constant_override("shadow_offset_y", 2)
-	Kit.wrapped(title)
-	card.add_child(title)
-	var sub := Kit.label(I18N.t(String(look.sub)) if open else I18N.t("codex.locked." + which), 11, Palette.BARK)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	Kit.wrapped(sub)
-	card.add_child(sub)
-	I18N.apply_face([title, sub])
+	var hint := I18N.t(String(look.sub)) if open else I18N.t("codex.locked." + which)
+	_words(hint, Rect2(28, 293, CARD_W - 56, 47), 16, ForestShopStyle.CREAM, card, true)
+	card.tooltip_text = I18N.t(String(look.title)) + "\n" + hint
+	_put(ForestShopStyle.panel("action" if open else "tab-off", 18), Rect2(18, 347, CARD_W - 36, 52), card)
+	_words(I18N.t("codex.reread" if open else "codex.undiscovered"), Rect2(38, 351, CARD_W - 76, 44), 21,
+		ForestShopStyle.CREAM if open else ForestShopStyle.MUTED, card)
 	if open:
-		card.gui_input.connect(func(event: InputEvent) -> void:
-			var tap: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
-				or (event is InputEventScreenTouch and event.pressed)
-			if tap:
-				close_requested()
-				IntroBook.play_on(Chrome.current, which))
-		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		card.pressed.connect(_read.bind(which))
+		card.mouse_entered.connect(func() -> void: card.modulate = Color(1.1, 1.1, 1.1))
+		card.mouse_exited.connect(func() -> void: card.modulate = Color.WHITE)
 	else:
-		pic.modulate = GREY
-		var lock := _Lock.new()
-		lock.set_anchors_preset(Control.PRESET_FULL_RECT)
-		pic.add_child(lock)
+		var mat := ShaderMaterial.new()
+		mat.shader = Shader.new()
+		mat.shader.code = SEALED_SHADER
+		pic.material = mat
+		# The projected lettering uses its own shader; mute it separately.
+		pic.modulate = Color(0.85, 0.85, 0.85)
+		var lock := ForestShopStyle.picture(LOCK)
+		lock.name = "Lock"
+		_put(lock, Rect2((CARD_W - 72) * 0.5, 225, 72, 72), card)
 	return card
+
+
+func _read(which: String) -> void:
+	if not _seen(which):
+		return
+	var host: Node = Chrome.current if is_instance_valid(Chrome.current) else self
+	IntroBook.play_on(host, which)
+	close_requested()
+
+## L'ETAPE DEJA ATTEINTE ouvre son livre, lu ici ou non : un joueur de
+## niveau 10 sur un appareil neuf n'a rien a debloquer (LevelSkip.stage).
+func _reached(which: String) -> bool:
+	if not Home.loaded():
+		return false
+	return LevelSkip.stage() >= BOOKS.find(which) + 1
 
 
 func _cover() -> Texture2D:
@@ -186,27 +272,3 @@ func _face(look: Dictionary) -> Control:
 	mat.set_shader_parameter("hinv", IntroBook.face_hinv(_quad, _crop.position))
 	face.material = mat
 	return face
-
-
-## LE CADENAS, dessine : un anneau et un corps, a l'encre du parchemin.
-class _Lock extends Control:
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		# Sous le titre de la couverture, pas dessus : on lit ce qu'on attend.
-		var c := Vector2(size.x * 0.5, size.y * 0.84)
-		var w := 34.0
-		var h := 28.0
-		var ink := Palette.INK
-		var gold := Palette.GOLD
-		# L'anneau : trois traits epais.
-		var top := c.y - h * 0.5
-		draw_rect(Rect2(c.x - w * 0.32, top - 18.0, 6.0, 20.0), ink)
-		draw_rect(Rect2(c.x + w * 0.32 - 6.0, top - 18.0, 6.0, 20.0), ink)
-		draw_rect(Rect2(c.x - w * 0.32, top - 22.0, w * 0.64, 6.0), ink)
-		# Le corps, cerne, et le trou de la serrure.
-		var body := Rect2(c.x - w * 0.5, top, w, h)
-		draw_rect(body.grow(3.0), ink)
-		draw_rect(body, gold)
-		draw_rect(Rect2(c.x - 3.0, c.y - 6.0, 6.0, 12.0), ink)
