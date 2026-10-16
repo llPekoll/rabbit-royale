@@ -333,7 +333,8 @@ export const en = {
       ch5: 'The Bomb',
       ch6: 'The Throne',
       island: 'Every morning, the sea brings us an island full of carrots. Our ancestors read its numbers like stars, so the island crowned them.',
-      queen: 'The Crown passed from parent to child. Our mother was the last queen. One evening she walked into the sea. Her last words: "The next king will be the one who reads."',
+      crown: 'Since then, the Crown has passed from parent to child. Whoever wears it is king: the island gives them more, and its light shines on the castle. In our family, the kings shared.',
+      queen: 'Our mother was the last queen. One evening she walked into the sea. Her last words: "The next king will be the one who reads."',
       kuro: 'But the Crown goes to the richest burrow. In one night, my brother raided every burrow. Even yours.',
       kuroSays: 'Come and take my throne, if you can.',
       numbers: 'I will not raise a paw against my brother. But you can read. Dig a tile: a number counts the bombs around it.',
@@ -1257,6 +1258,10 @@ export const en = {
 
   /* ── The codex ────────────────────────────────────────────────────────── */
   codex: {
+    libraryHint: 'Revisit the stories you have discovered.',
+    reread: 'READ AGAIN',
+    undiscovered: 'UNDISCOVERED',
+    discovered: (read: number, total: number) => `${read} / ${total} books discovered`,
     title: 'THE FAMILY CROWN',
     locked: {
       shiro: 'Your first visit to the burrow.',

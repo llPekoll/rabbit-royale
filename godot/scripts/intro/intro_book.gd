@@ -72,6 +72,9 @@ const FINAL_DIR := "res://assets/intro/shots/"
 const SHIRO_PAGES: Array[Dictionary] = [
 	{"cover": true},
 	{"chapter": "ch1", "lines": ["island"], "live": "rise_carrot"},
+	# La Couronne et le chateau AVANT la reine (2026-10-16, le user : « c'est
+	# trop brut quand on arrive a la mer ») : la page coupee du script valide.
+	{"lines": ["crown"], "final": "castle", "art": "wide", "crown": true},
 	{"chapter": "ch2", "lines": ["queen"], "final": "tide", "art": "wide", "sea": true},
 	{"chapter": "ch3", "lines": ["kuro", "kuroSays"], "final": "crown", "art": "burrow", "night": true,
 		"bust": "kuro-smirk", "crown": true, "who": {"kuroSays": "KURO"}},
@@ -126,6 +129,13 @@ const SEA := Color(0.5, 0.78, 0.86)
 ## Largeur / hauteur du livre ouvert (dessine ; le livre peint a la sienne).
 const RATIO := 2.25
 const TURN_S := 0.22
+## Le fondu au noir a l'entree et a la sortie du livre.
+const FADE_S := 0.45
+## LA TAILLE MAX DU LIVRE SUR UN GRAND ECRAN, en part de la hauteur : le jeu
+## est etire depuis 890x400, donc un navigateur plein ecran le voyait aussi
+## gros qu'un telephone (2026-10-16, « full screen c'est trop gros, fais une
+## taille max »). Le telephone, lui, le garde en grand.
+const DESK_SEEN := 0.72
 ## Le SubViewport de l'ile rend a ce multiple du cadre : net, et le chrome de
 ## l'ile (MARK A BOMB) a l'echelle d'une vignette.
 const LIVE_DENSITY := 1.6
@@ -229,6 +239,10 @@ var _hint: Label
 ## OU J'EN SUIS : un carre par double page, en bas — dores ceux qu'on a lus.
 var _progress: Control
 var _curtain: ColorRect
+## Le livre se ferme : le chrome ne se cache plus.
+var _closing := false
+## Le fondu d'entree est passe : le livre est a l'ecran.
+var _entered := false
 
 ## LE LIVRE PEINT : vide = dessine ici. Sinon `frame` (Vector2), `open` et
 ## `turn` ({tex, frames, fps, cols}), `left` / `right` / `title` / `view`
@@ -338,6 +352,17 @@ func _ready() -> void:
 	if get_tree().current_scene == self:
 		DevShot.arm(self)
 	Analytics.track("intro_book_begin", {"book": book})
+	# L'ENTREE EN FONDU (2026-10-16, « rajoute une petite transition ») : ce
+	# qu'il y avait dessous passe au noir, puis le livre sort du noir — plus
+	# de coupure seche de l'accueil (ou du terrier) au rideau.
+	if get_tree().current_scene != self:
+		visible = false
+		var veil := _veil(0.0)
+		await veil.ready
+		await create_tween().tween_property(veil, "color:a", 1.0, FADE_S).finished
+		visible = true
+		veil.queue_free()
+	_entered = true
 	await get_tree().process_frame
 	_measure()
 	create_tween().tween_property(_curtain, "color:a", 0.0, 0.6)
@@ -499,8 +524,34 @@ static func face_hinv(q: Array, origin: Vector2) -> Basis:
 
 
 func _exit_tree() -> void:
+	_show_chrome()
+
+
+## LE VOILE DES FONDUS, un noir a cote du livre (meme couche, dessus) :
+## fondre le livre lui-meme laissait voir l'ile du fond a travers l'accueil.
+func _veil(alpha: float) -> ColorRect:
+	var veil := ColorRect.new()
+	veil.color = Color(0, 0, 0, alpha)
+	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	veil.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Differe : pendant le `_ready` du livre, sa couche est encore occupee a
+	# l'ajouter, et un `add_child` direct y echoue.
+	get_parent().add_child.call_deferred(veil)
+	return veil
+
+
+func _hide_chrome() -> void:
+	while not _entered and is_inside_tree():
+		await get_tree().process_frame
+	if is_inside_tree() and not _closing and Chrome.current != null and Chrome.current.visible:
+		Chrome.current.visible = false
+		_hid_chrome = true
+
+
+func _show_chrome() -> void:
 	if _hid_chrome and Chrome.current != null and is_instance_valid(Chrome.current):
 		Chrome.current.visible = true
+	_hid_chrome = false
 
 
 ## LE FOND DE PRES : le plan large montre l'ile entiere au milieu, donc
@@ -633,9 +684,9 @@ func _build() -> void:
 	if Screens.in_world():
 		# Le terrier reste derriere le voile, mais pas ses quetes ni ses
 		# boutons : l'oeil reste sur le livre. Rendu a la fermeture.
-		if Chrome.current != null and Chrome.current.visible:
-			Chrome.current.visible = false
-			_hid_chrome = true
+		# Cache sous le noir de l'entree (`_hide_chrome`), pas avant : le
+		# fondu ne doit pas le voir disparaitre d'un coup.
+		_hide_chrome.call_deferred()
 	else:
 		_backdrop_view = SubViewport.new()
 		_backdrop_view.transparent_bg = false
@@ -878,6 +929,13 @@ func _build() -> void:
 	I18N.apply_face([_chapter, _text, _folio_l, _folio_r, _cover_title, _cover_sub, _hint, _skip, _play])
 
 
+## La hauteur visible permise : tout l'ecran sur un telephone, `DESK_SEEN`
+## ailleurs.
+static func _max_seen_h(view: Vector2) -> float:
+	var phone := OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	return view.y if phone else view.y * DESK_SEEN
+
+
 func _measure() -> void:
 	if not is_inside_tree():
 		return
@@ -889,7 +947,7 @@ func _measure() -> void:
 	var ratio := RATIO
 	if painted:
 		ratio = _sheet.frame.x / _sheet.frame.y
-	var w := minf(view.x - 24.0, (view.y - 46.0) * ratio)
+	var w := minf(view.x - 24.0, (minf(view.y, _max_seen_h(view) + 46.0) - 46.0) * ratio)
 	var h := w / ratio
 	_book.size = Vector2(w, h)
 	_book.position = Vector2((view.x - w) * 0.5, (view.y - h) * 0.5 - 6.0)
@@ -904,7 +962,7 @@ func _measure() -> void:
 		# Les fleches sont a cote du livre (pas dessous) : la hauteur ne garde
 		# que la ligne d'aide, la largeur leur fait place.
 		var aside := (_prev.custom_minimum_size.x + 12.0 + Kit.EDGE) * 2.0
-		var kv := minf((view.x - aside) / v.size.x, (view.y - 34.0) / v.size.y)
+		var kv := minf((view.x - aside) / v.size.x, minf(view.y - 34.0, _max_seen_h(view)) / v.size.y)
 		w = _sheet.frame.x * kv
 		h = _sheet.frame.y * kv
 		_book.size = Vector2(w, h)
@@ -1362,6 +1420,7 @@ func _capture_if_asked(i: int) -> void:
 func _finish(skipped: bool) -> void:
 	if not is_inside_tree():
 		return
+	_closing = true
 	_stage.cut()
 	Analytics.track("intro_book_end", {"book": book, "skipped": skipped, "page": _at})
 	mark_seen(book)
@@ -1372,10 +1431,18 @@ func _finish(skipped: bool) -> void:
 	var t := create_tween()
 	t.tween_property(_curtain, "color:a", 1.0, 0.4)
 	await t.finished
+	_show_chrome()
 	finished.emit()
 	if get_tree().current_scene == self:
 		get_tree().quit()
 		return
+	# LA SORTIE EN FONDU : le noir s'efface sur ce qui suit (le lieu que
+	# `finished` vient de lancer pose son rideau sous ce noir-ci).
+	await get_tree().create_timer(0.15).timeout
+	visible = false
+	var veil := _veil(1.0)
+	await create_tween().tween_property(veil, "color:a", 0.0, FADE_S).finished
+	veil.queue_free()
 	# Sa couche part avec lui (`play_on`).
 	if get_parent() is CanvasLayer and get_parent().name.begins_with("IntroBook"):
 		get_parent().queue_free()

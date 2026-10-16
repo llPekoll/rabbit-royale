@@ -271,7 +271,8 @@ export const ptBR: Dict = {
       ch5: 'A bomba',
       ch6: 'O trono',
       island: 'Toda manhã, o mar nos traz uma ilha cheia de cenouras. Nossos ancestrais liam os números dela como estrelas, e por isso a ilha os coroou.',
-      queen: 'A Coroa passava de pais para filhos. Nossa mãe foi a última rainha. Uma noite, ela entrou no mar. Suas últimas palavras: "O próximo rei será aquele que lê."',
+      crown: 'Desde então, a Coroa passa de pais para filhos. Quem a usa é rei: a ilha lhe dá mais, e sua luz brilha sobre o castelo. Na nossa família, os reis dividiam.',
+      queen: 'Nossa mãe foi a última rainha. Uma noite, ela entrou no mar. Suas últimas palavras: "O próximo rei será aquele que lê."',
       kuro: 'Mas a Coroa vai para a toca mais rica. Em uma noite, meu irmão saqueou todas as tocas. Até a sua.',
       kuroSays: 'Venha me destronar, se puder.',
       numbers: 'Não vou levantar a pata contra o meu irmão. Mas você sabe ler. Cave uma casa: o número conta as bombas em volta.',
@@ -1047,6 +1048,10 @@ export const ptBR: Dict = {
   },
 
   codex: {
+    libraryHint: 'Releia as histórias que você descobriu.',
+    reread: 'RELER',
+    undiscovered: 'A DESCOBRIR',
+    discovered: (read, total) => `${read} / ${total} livros descobertos`,
     title: 'A COROA DA FAMÍLIA',
     locked: {
       shiro: 'Na sua primeira visita à toca.',

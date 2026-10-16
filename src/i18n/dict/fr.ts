@@ -267,7 +267,8 @@ export const fr: Dict = {
       ch5: 'La bombe',
       ch6: 'Le trône',
       island: 'Chaque matin, la mer nous apporte une île pleine de carottes. Nos ancêtres lisaient ses chiffres comme les étoiles, alors l\'île les a couronnés.',
-      queen: 'La Couronne passait de parent à enfant. Notre mère était la dernière reine. Un soir, elle est entrée dans la mer. Ses derniers mots : «\u00a0Le prochain roi sera celui qui lit.\u00a0»',
+      crown: 'Depuis, la Couronne passe de parent à enfant. Qui la porte est roi : l\'île lui donne davantage, et sa lumière brille sur le château. Dans notre famille, les rois partageaient.',
+      queen: 'Notre mère était la dernière reine. Un soir, elle est entrée dans la mer. Ses derniers mots : «\u00a0Le prochain roi sera celui qui lit.\u00a0»',
       kuro: 'Mais la Couronne va au terrier le plus riche. En une nuit, mon frère a pillé tous les terriers. Même le tien.',
       kuroSays: 'Viens me détrôner, si tu peux.',
       numbers: 'Je ne lèverai pas la patte sur mon frère. Mais toi, tu lis. Creuse une case : un chiffre compte les bombes autour.',
@@ -1045,6 +1046,10 @@ export const fr: Dict = {
   },
 
   codex: {
+    libraryHint: 'Retrouve les histoires que tu as découvertes.',
+    reread: 'RELIRE',
+    undiscovered: 'À DÉCOUVRIR',
+    discovered: (read, total) => `${read} / ${total} livres découverts`,
     title: 'LA COURONNE DE LA FAMILLE',
     locked: {
       shiro: 'À ta première visite au terrier.',

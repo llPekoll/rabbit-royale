@@ -267,10 +267,13 @@ func _board() -> IslandBoard:
 	return island.local_run.board
 
 
-## Le milieu d'une case dans le viewport (trailer_bench `_cell_on_screen`).
+## Le milieu d'une case dans le viewport (trailer_bench `_cell_on_screen`),
+## SUR LE DESSUS DE SA MOTTE : une case pas encore creusee est levee
+## (`TileView.RAISED_RISE`), et un contour pose au niveau du sol tombait sous
+## elle, decale vers le bas (2026-10-16, « il faut les relever un peu »).
 func on_screen(cell: Vector2i) -> Vector2:
 	var map := island._terrain.map
-	var local: Vector2 = map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h())
+	var local: Vector2 = map.screen_of(cell.x, cell.y) + Vector2(0, Iso.half_h() - island._terrain.rise_at(cell))
 	return island.get_global_transform_with_canvas() * local
 
 

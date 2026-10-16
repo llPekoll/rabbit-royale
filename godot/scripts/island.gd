@@ -2310,6 +2310,16 @@ func _end_run(result: Dictionary) -> void:
 			await get_tree().create_timer(SINK_MS / 1000.0).timeout
 			if not _still_ending():
 				return
+		# LE TUTO FINI, LE LIVRE 2 AVANT LE TERRIER (2026-10-16, le user :
+		# « des que tu as fini le tuto 1, transition, book 2, apres tu arrives
+		# sur le burrow et on demande de connecter le wallet ») : le journal
+		# de Kuro s'ouvre sur l'ile qui vient de couler ; le terrier, puis le
+		# wallet (Chrome.maybe_books), viennent a sa fermeture.
+		if lesson and not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
+			var book := IntroBook.play_on(self, "kuro")
+			await book.finished
+			if not _still_ending():
+				return
 	else:
 		# A SEC (`exhaustRabbit`) : l'ile ne coule pas — elle n'est pas finie,
 		# c'est le joueur qui n'a plus de quoi y marcher. Il tombe et s'endort

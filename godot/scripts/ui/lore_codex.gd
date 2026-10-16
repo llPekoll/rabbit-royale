@@ -12,7 +12,7 @@ const LOCK := preload("res://assets/ui/story-library/brass-lock.png")
 const SEALED_SHADER := """
 shader_type canvas_item;
 void fragment() {
-	vec4 c = texture(TEXTURE, UV) * COLOR;
+	vec4 c = COLOR;
 	float grey = dot(c.rgb, vec3(0.299, 0.587, 0.114));
 	COLOR = vec4(mix(vec3(grey), c.rgb, 0.18) * 0.72, c.a);
 }
@@ -88,13 +88,17 @@ func _put(node: Control, rect: Rect2, parent: Control = null) -> Control:
 
 func _words(value: String, rect: Rect2, px: int, color: Color = ForestShopStyle.CREAM, parent: Control = null, wrap := false) -> Label:
 	var label := ForestShopStyle.words(value, px, color)
+	var font := ThemeDB.get_project_theme().default_font
 	if wrap:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		label.add_theme_constant_override("line_spacing", 0)
+		while px > 12 and font.get_multiline_string_size(value, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, px).y > rect.size.y:
+			px -= 1
 	else:
-		var font := label.get_theme_font("font")
 		while px > 12 and font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > rect.size.x:
 			px -= 1
-		label.add_theme_font_size_override("font_size", px)
+	label.add_theme_font_size_override("font_size", px)
 	_put(label, rect, parent)
 	return label
 
@@ -119,6 +123,8 @@ func _fill() -> void:
 	close.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	close.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	close.tooltip_text = I18N.t("codex.close")
+	close.focus_entered.connect(func() -> void: close.modulate = Color(1.25, 1.25, 1.25))
+	close.focus_exited.connect(func() -> void: close.modulate = Color.WHITE)
 	_put(close, Rect2(1176, 28, 64, 64))
 	close.pressed.connect(close_requested)
 	var cover := _cover()
@@ -182,7 +188,16 @@ func _card(which: String, cover: Texture2D) -> Control:
 		pic.modulate = Color(0.85, 0.85, 0.85)
 		var lock := ForestShopStyle.picture(LOCK)
 		lock.name = "Lock"
-		_put(lock, Rect2((CARD_W - 72) * 0.5, 225, 72, 72), card)
+		# Project the leather cover's actual midpoint, excluding the pages.
+		var center := pic.position + pic.size * 0.5
+		if _quad.size() == 8 and _crop.size.x > 0.0 and _crop.size.y > 0.0:
+			var point := IntroBook.face_hinv(_quad, _crop.position).inverse() * Vector3(0.5, 0.5, 1.0)
+			center = pic.position + Vector2(point.x, point.y) / point.z / _crop.size * pic.size
+		# A dark, opaque backing separates the brass from the cover lettering.
+		var plate := _LockPlate.new()
+		plate.name = "LockPlate"
+		_put(plate, Rect2(center - Vector2(48, 48), Vector2(96, 96)), card)
+		_put(lock, Rect2(center - Vector2(42, 42), Vector2(84, 84)), card)
 	return card
 
 
@@ -192,6 +207,7 @@ func _read(which: String) -> void:
 	var host: Node = Chrome.current if is_instance_valid(Chrome.current) else self
 	IntroBook.play_on(host, which)
 	close_requested()
+
 
 ## L'ETAPE DEJA ATTEINTE ouvre son livre, lu ici ou non : un joueur de
 ## niveau 10 sur un appareil neuf n'a rien a debloquer (LevelSkip.stage).
@@ -272,3 +288,27 @@ func _face(look: Dictionary) -> Control:
 	mat.set_shader_parameter("hinv", IntroBook.face_hinv(_quad, _crop.position))
 	face.material = mat
 	return face
+
+
+## A small chamfered metal badge: solid contrast, with the lock kept upright.
+class _LockPlate extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _octagon(inset: float, shift := Vector2.ZERO) -> PackedVector2Array:
+		var box := Rect2(Vector2.ONE * inset + shift, size - Vector2.ONE * inset * 2.0)
+		var a := box.position
+		var b := box.end
+		var cut := 16.0
+		return PackedVector2Array([
+			Vector2(a.x + cut, a.y), Vector2(b.x - cut, a.y),
+			Vector2(b.x, a.y + cut), Vector2(b.x, b.y - cut),
+			Vector2(b.x - cut, b.y), Vector2(a.x + cut, b.y),
+			Vector2(a.x, b.y - cut), Vector2(a.x, a.y + cut),
+		])
+
+	func _draw() -> void:
+		draw_colored_polygon(_octagon(-2.0, Vector2(0, 4)), Color(0.04, 0.025, 0.015, 0.7))
+		draw_colored_polygon(_octagon(0.0), Color("#17110e"))
+		draw_colored_polygon(_octagon(3.0), Color("#ead0a0"))
+		draw_colored_polygon(_octagon(5.0), Color("#261c16"))

@@ -1195,12 +1195,14 @@ func maybe_books(delay := 2.6) -> void:
 	var book := ""
 	if not IntroBook.seen("shiro"):
 		book = "shiro"
+	elif level >= 2 and not IntroBook.seen("kuro"):
+		book = "kuro"
 	elif _wallet_offer_due():
+		# Apres le livre 2 (lu a la fin du tuto, island.gd `_end_run`) : le
+		# terrier d'abord, puis le wallet.
 		await _offer_wallet()
 		maybe_books(0.4)
 		return
-	elif level >= 2 and not IntroBook.seen("kuro"):
-		book = "kuro"
 	elif level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) and not PlaySettings.solo_on() and not IntroBook.seen("sea"):
 		book = "sea"
 	if book.is_empty():

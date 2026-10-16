@@ -769,7 +769,8 @@ func _enter(fresh := false) -> void:
 	if first and not IntroBook.seen("shiro") and not "--no-intro" in OS.get_cmdline_user_args():
 		_story.disabled = true
 		var book := IntroBook.play_on(self, "shiro")
-		await get_tree().create_timer(0.5).timeout
+		# L'accueil s'efface sous le fondu au noir du livre, pas avant.
+		await get_tree().create_timer(IntroBook.FADE_S + 0.1).timeout
 		visible = false
 		await book.finished
 	Screens.build_world()

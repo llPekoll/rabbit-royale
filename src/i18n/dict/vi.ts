@@ -275,7 +275,8 @@ export const vi: Dict = {
       ch5: 'Quả bom',
       ch6: 'Ngai vàng',
       island: 'Mỗi sáng, biển mang đến cho chúng ta một hòn đảo đầy cà rốt. Tổ tiên chúng ta đọc những con số của nó như đọc các vì sao, vì thế đảo đã trao vương miện cho họ.',
-      queen: 'Vương Miện truyền từ cha mẹ sang con cái. Mẹ chúng mình là nữ hoàng cuối cùng. Một buổi tối, mẹ bước xuống biển. Lời cuối của mẹ: "Vị vua tiếp theo sẽ là người biết đọc."',
+      crown: 'Từ đó, Vương Miện truyền từ cha mẹ sang con cái. Ai đội nó sẽ là vua: hòn đảo ban cho nhiều hơn, và ánh sáng của nó chiếu rọi lâu đài. Trong gia đình mình, các vị vua luôn sẻ chia.',
+      queen: 'Mẹ chúng mình là nữ hoàng cuối cùng. Một buổi tối, mẹ bước xuống biển. Lời cuối của mẹ: "Vị vua tiếp theo sẽ là người biết đọc."',
       kuro: 'Nhưng Vương Miện thuộc về hang giàu nhất. Chỉ trong một đêm, Kuro, anh em ruột của mình, đã cướp sạch mọi hang. Cả hang của bạn.',
       kuroSays: 'Giỏi thì đến mà lật đổ ta.',
       numbers: 'Mình sẽ không ra tay với anh em ruột của mình. Nhưng bạn biết đọc. Đào một ô: con số đếm số bom xung quanh.',
@@ -1039,6 +1040,10 @@ export const vi: Dict = {
   },
 
   codex: {
+    libraryHint: 'Đọc lại những câu chuyện bạn đã khám phá.',
+    reread: 'ĐỌC LẠI',
+    undiscovered: 'CHƯA KHÁM PHÁ',
+    discovered: (read, total) => `Đã khám phá ${read} / ${total} cuốn sách`,
     title: 'VƯƠNG MIỆN CỦA GIA TỘC',
     locked: {
       shiro: 'Lần đầu bạn đến hang.',
