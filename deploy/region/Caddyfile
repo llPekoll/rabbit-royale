@@ -2,8 +2,9 @@
 # reverse_proxy as is — socket.io's upgrade needs nothing more.
 {$WS_DOMAIN} {
 	encode gzip
-	# The back office's agent (rr-admin): only admin.rabbit.rip calls it,
-	# with a one-minute token (admin/session.ts). Everything else is the game.
+	# The back office's agent (rr-admin), from its own repo
+	# (rabbit-royale-admin, compose project rabbit-admin on this network):
+	# only admin.rabbit.rip calls it. Everything else is the game.
 	handle /admin-agent/* {
 		reverse_proxy rr-admin:3020
 	}

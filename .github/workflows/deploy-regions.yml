@@ -99,8 +99,8 @@ jobs:
             cd /opt/rabbit
             echo '$TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin
             export RR_WS_IMAGE=${IMAGE}:${TAG}
-            # rr-admin (the back office's agent) has its own deploy,
-            # deploy-admin-agents.yml: left as it runs.
+            # The back office's agent is not the game's: its own repo
+            # (rabbit-royale-admin) runs it as compose project rabbit-admin.
             docker compose pull migrate rr-ws
             docker compose up -d --remove-orphans
             # The Caddyfile is a mounted file: a running Caddy reads it again

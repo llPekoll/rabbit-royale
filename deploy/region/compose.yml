@@ -58,21 +58,6 @@ services:
       redis:
         condition: service_started
 
-  # THE BACK OFFICE's agent (admin/server.ts), apart from rr-ws: it reads
-  # this region's database, read-only, for admin.rabbit.rip — which asks it
-  # through Caddy (/admin-agent/*) with a token derived from the game's
-  # JWT_SIGNING_SECRET, already in .env. No site here, no domain, no port.
-  rr-admin:
-    image: ${RR_ADMIN_IMAGE:-ghcr.io/llpekoll/rr-admin:latest}
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgres://rabbit:${POSTGRES_PASSWORD}@postgres:5432/rabbit
-      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-}
-      WS_DOMAIN: ${WS_DOMAIN}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
