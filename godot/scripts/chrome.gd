@@ -319,7 +319,7 @@ func _mount_place() -> void:
 
 
 ## LA BARRE AU SOL ET LE HAUT DU TERRIER, quand les ilots sont eteints.
-## DIG sur le cadran d'energie, BURY ▸ RAID sur leurs planches ; au-dessus,
+## DIG sur le cadran d'energie, DEFEND ▸ RAID sur leurs planches ; au-dessus,
 ## BURROW · les carottes et leur coffre · HARVEST. Chacun entre a son tour
 ## (UiEntrance) ; la camera cadre l'ile au-dessus de la barre.
 func _mount_floor() -> void:
@@ -547,14 +547,10 @@ func _on_door(door: String) -> void:
 		"dig":
 			_dig()
 		"defend":
-			# ETAPE 1 : la planche dit SKIP TO BURY (LevelSkip).
-			if LevelSkip.stage() == 1:
-				LevelSkip.ask()
-				return
 			Analytics.track("defend_open")
 			_start_mode("placing")
 		"raid":
-			# ETAPE 2 : la planche dit SKIP RAID.
+			# SOUS RAID_MIN : la planche dit SKIP TO RAID (LevelSkip).
 			if LevelSkip.stage() == 2:
 				LevelSkip.ask()
 				return
@@ -1231,7 +1227,7 @@ func _books_calm() -> bool:
 func _wallet_offer_due() -> bool:
 	if not bool(Session.player.get("guest", false)) or not Wallet.available():
 		return false
-	if LevelSkip.stage() < 2:
+	if Island.tutorial_pending():
 		return false
 	var cfg := ConfigFile.new()
 	cfg.load(IntroBook.PATH)

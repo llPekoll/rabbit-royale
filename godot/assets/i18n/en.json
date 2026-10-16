@@ -1343,12 +1343,10 @@
   "raidLocked": {
    "$t": "Raids open at level {0}. Clear islands to get there."
   },
-  "skipBury": "SKIP TO DEFEND",
   "skipRaid": "SKIP TO RAID",
   "skipTitle": {
    "$t": "START AT LEVEL {0}?"
   },
-  "skipWhyBury": "DEFEND opens: hide bombs on the paths into your burrow before the raids start. There is no way back down.",
   "skipWhyRaid": "Raids open, and other rabbits share your islands: bigger islands, more bombs. There is no way back down.",
   "skipYes": {
    "$t": "LEVEL {0}"

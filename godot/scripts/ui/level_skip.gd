@@ -1,27 +1,24 @@
 class_name LevelSkip
 extends RefCounted
-## LES TROIS ETAPES DU TERRIER ET LEURS RACCOURCIS (2026-10-15, le soir).
+## LES ETAPES DU TERRIER ET LEUR RACCOURCI (2026-10-15, le soir ; une seule
+## etape avant les raids depuis le 2026-10-16).
 ##
-## Le user : « au lieu de BURY tu as un bouton SKIP TO BURY [...] et tu as
-## SKIP RAID pour avoir acces a RAID direct ». Le terrier s'ouvre en trois
-## etapes, chacune avec son livre (Chrome.maybe_books) :
+## Le terrier s'ouvre apres le livre de Shiro, le tuto et le journal de Kuro
+## (Chrome.maybe_books) :
 ##
-##   1. niveau 1 — DIG seul (le livre de Shiro, la premiere ile est le tuto) ;
-##      a la place de BURY : SKIP TO BURY (→ niveau 2).
-##   2. niveau 2 — DIG + BURY (le journal de Kuro) ; a la place de RAID :
-##      SKIP RAID (→ niveau 6, les iles a plusieurs).
-##   3. RAID_MIN et plus — DIG + BURY + RAID (le livre de la mer).
+##   2. sous RAID_MIN — DIG + DEFEND ; a la place de RAID : SKIP TO RAID
+##      (→ niveau 6, les iles a plusieurs).
+##   3. RAID_MIN et plus — DIG + DEFEND + RAID (le livre de la mer).
 ##
-## Le saut est `skip_level` (le serveur, `nextSkip` : RABBIT_LEVELS.SKIP_TO
-## sous RAID_MIN). Il se confirme : on ne redescend pas.
+## L'etape 1 (DIG seul + SKIP TO DEFEND) est retiree : le user, « degage-le
+## completement du code ». Le saut est `skip_level` (le serveur, `nextSkip` :
+## RABBIT_LEVELS.SKIP_TO sous RAID_MIN). Il se confirme : on ne redescend pas.
 
 
-## L'ETAPE du joueur : 1, 2 ou 3.
+## L'ETAPE du joueur : 2 ou 3.
 static func stage() -> int:
 	var level := int(Home.player.get("level", 1))
-	if level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3):
-		return 3
-	return 2 if level >= 2 else 1
+	return 3 if level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) else 2
 
 
 ## Ou mene le saut de ce joueur, ou 0 (comme `nextSkip` au serveur).
@@ -43,8 +40,7 @@ static func ask() -> void:
 	if to <= 0 or Chrome.current == null:
 		return
 	var dialog := Dialog.new(I18N.f("rabbitLevel.skipTitle", [to]), 460.0)
-	var why := Kit.wrapped(Kit.label(I18N.t("rabbitLevel.skipWhyBury" if stage() == 1 else "rabbitLevel.skipWhyRaid"),
-		13, Palette.INK))
+	var why := Kit.wrapped(Kit.label(I18N.t("rabbitLevel.skipWhyRaid"), 13, Palette.INK))
 	dialog.body.add_child(why)
 	var row := Kit.hbox(Kit.PAD)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER

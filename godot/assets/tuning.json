@@ -648,7 +648,6 @@
   "RAID_MIN": 3,
   "POOL_FROM": 7,
   "SKIP_TO": [
-   2,
    6
   ],
   "LADDER": [

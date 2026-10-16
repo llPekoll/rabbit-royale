@@ -960,12 +960,10 @@ export const en = {
     final: 'THE FINAL ISLANDS',
     raidsOpen: 'RAIDS ARE OPEN',
     raidLocked: (n: number) => `Raids open at level ${n}. Clear islands to get there.`,
-    /* The onboarding's shortcuts (RABBIT_LEVELS.SKIP_TO): the locked plank
-       of the burrow bar says SKIP TO BURY at level 1, SKIP RAID at level 2. */
-    skipBury: 'SKIP TO DEFEND',
+    /* The onboarding's shortcut (RABBIT_LEVELS.SKIP_TO): below RAID_MIN the
+       RAID plank of the burrow bar says SKIP TO RAID. */
     skipRaid: 'SKIP TO RAID',
     skipTitle: (n: number) => `START AT LEVEL ${n}?`,
-    skipWhyBury: 'DEFEND opens: hide bombs on the paths into your burrow before the raids start. There is no way back down.',
     skipWhyRaid: 'Raids open, and other rabbits share your islands: bigger islands, more bombs. There is no way back down.',
     skipYes: (n: number) => `LEVEL ${n}`,
     skipStay: 'STAY',

@@ -571,15 +571,14 @@ export const RABBIT_LEVELS = {
    */
   POOL_FROM: 7,
   /**
-   * THE SKIPS OF THE ONBOARDING (2026-10-15, evening). The burrow opens in
-   * three stages, each with its book: DIG alone at level 1 (Shiro's book, the
-   * first island is the tutorial), DIG + BURY at level 2 (Kuro's journal),
-   * DIG + BURY + RAID from RAID_MIN (the book of the sea). The locked plank
-   * shows a skip instead: SKIP TO BURY (1 → 2) and SKIP RAID (2 → 6, straight
-   * to islands played together). Below RAID_MIN only, whatever runs were
-   * banked: the tutorial island no longer closes them.
+   * THE SKIP OF THE ONBOARDING (2026-10-15, evening; one skip since
+   * 2026-10-16). The burrow opens with DIG + DEFEND (the tutorial island and
+   * Kuro's journal come first), then RAID from RAID_MIN (the book of the
+   * sea). Below RAID_MIN the RAID plank shows SKIP TO RAID instead (→ 6,
+   * straight to islands played together). SKIP TO DEFEND (1 → 2) is gone:
+   * « dégage-le complètement ».
    */
-  SKIP_TO: [2, 6],
+  SKIP_TO: [6],
   LADDER: [
     { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
     { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
@@ -730,7 +729,7 @@ export function levelRow(level: number): LevelRow {
 
 /**
  * Where the skip of `level` leads (RABBIT_LEVELS.SKIP_TO), or null: SKIP TO
- * BURY at level 1 (→ 2), SKIP RAID at level 2 (→ 6), nothing from RAID_MIN.
+ * RAID below RAID_MIN (→ 6), nothing from there.
  */
 export function nextSkip(level: number): number | null {
   if (level >= RABBIT_LEVELS.RAID_MIN) return null;

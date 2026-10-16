@@ -1368,12 +1368,10 @@
   "raidLocked": {
    "$t": "Ataques abrem no nível {0}. Termine ilhas para chegar lá."
   },
-  "skipBury": "PULAR PARA DEFENDER",
   "skipRaid": "PULAR PARA SAQUEAR",
   "skipTitle": {
    "$t": "COMEÇAR NO NÍVEL {0}?"
   },
-  "skipWhyBury": "DEFENDER abre: esconda bombas nos caminhos da sua toca antes dos saques começarem. Não dá para voltar.",
   "skipWhyRaid": "Os saques abrem e outros coelhos dividem suas ilhas: ilhas maiores, mais bombas. Não dá para voltar.",
   "skipYes": {
    "$t": "NÍVEL {0}"

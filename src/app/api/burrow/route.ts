@@ -244,10 +244,10 @@ export async function POST(req: Request) {
 
   /** POURING A BOOST — one bottle out of the bag, one window onto the garden. */
   /**
-   * SKIPPING AHEAD (2026-10-15) — the onboarding's shortcuts.
+   * SKIPPING AHEAD (2026-10-15) — the onboarding's shortcut.
    *
-   * SKIP TO BURY (level 1 → 2) and SKIP RAID (level 2 → 6), see nextSkip:
-   * below RAID_MIN only, tutorial island played or not. The UPDATE carries
+   * SKIP TO RAID (→ 6), see nextSkip: below RAID_MIN only, tutorial island
+   * played or not. The UPDATE carries
    * the level it read, so a double tap climbs one rung, not two.
    */
   if (action === 'skip_level') {
