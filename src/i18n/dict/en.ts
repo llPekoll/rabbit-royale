@@ -241,9 +241,10 @@ export const en = {
     burrowsOpen: (n: number) => `${n} burrow${n === 1 ? '' : 's'} open`,
     bombsInBag: (n: number) => `${n} bomb${n === 1 ? '' : 's'} in the bag`,
     allShielded: 'every burrow is shielded',
-    /* The middle verb of the floor bar (2026-10-13): you dig up on the
-       islands, you bury at home. DEFEND stays the name of the live defence. */
-    bury: 'BURY',
+    /* The middle verb of the floor bar (2026-10-13), DEFEND since 2026-10-16
+       (« bury qu'on va rappeler defend, ça colle plus »): the same word as
+       the live defence. The key keeps its old name. */
+    bury: 'DEFEND',
     atRisk: (n: string) => `+${n} at risk`,
   },
 
@@ -961,10 +962,10 @@ export const en = {
     raidLocked: (n: number) => `Raids open at level ${n}. Clear islands to get there.`,
     /* The onboarding's shortcuts (RABBIT_LEVELS.SKIP_TO): the locked plank
        of the burrow bar says SKIP TO BURY at level 1, SKIP RAID at level 2. */
-    skipBury: 'SKIP TO BURY',
+    skipBury: 'SKIP TO DEFEND',
     skipRaid: 'SKIP RAID',
     skipTitle: (n: number) => `START AT LEVEL ${n}?`,
-    skipWhyBury: 'BURY opens: hide bombs on the paths into your burrow before the raids start. There is no way back down.',
+    skipWhyBury: 'DEFEND opens: hide bombs on the paths into your burrow before the raids start. There is no way back down.',
     skipWhyRaid: 'Raids open, and other rabbits share your islands: bigger islands, more bombs. There is no way back down.',
     skipYes: (n: number) => `LEVEL ${n}`,
     skipStay: 'STAY',

@@ -278,7 +278,7 @@
    ]
   },
   "allShielded": "tous les terriers sont protégés",
-  "bury": "ENTERRER",
+  "bury": "DÉFENDRE",
   "atRisk": {
    "$t": "+{0} en danger"
   }
@@ -1405,12 +1405,12 @@
   "raidLocked": {
    "$t": "Les pillages ouvrent au niveau {0}. Finis des îles pour y arriver."
   },
-  "skipBury": "PASSER À ENTERRER",
+  "skipBury": "PASSER À DÉFENDRE",
   "skipRaid": "PASSER AU PILLAGE",
   "skipTitle": {
    "$t": "COMMENCER AU NIVEAU {0} ?"
   },
-  "skipWhyBury": "ENTERRER s'ouvre : cache des bombes sur les chemins de ton terrier avant que les raids commencent. Pas de retour en arrière.",
+  "skipWhyBury": "DÉFENDRE s'ouvre : cache des bombes sur les chemins de ton terrier avant que les raids commencent. Pas de retour en arrière.",
   "skipWhyRaid": "Les raids s'ouvrent et d'autres lapins partagent tes îles : des îles plus grandes, plus de bombes. Pas de retour en arrière.",
   "skipYes": {
    "$t": "NIVEAU {0}"

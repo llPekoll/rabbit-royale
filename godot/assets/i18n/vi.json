@@ -236,7 +236,7 @@
    "$t": "{0} bom trong túi"
   },
   "allShielded": "mọi hang đều có khiên",
-  "bury": "CHÔN BOM",
+  "bury": "PHÒNG THỦ",
   "atRisk": {
    "$t": "+{0} có thể mất"
   }
@@ -1249,12 +1249,12 @@
   "raidLocked": {
    "$t": "Mở cướp ở cấp {0}. Dọn đảo để lên tới đó."
   },
-  "skipBury": "MỞ CHÔN BOM",
+  "skipBury": "MỞ PHÒNG THỦ",
   "skipRaid": "MỞ CƯỚP HANG",
   "skipTitle": {
    "$t": "BẮT ĐẦU Ở CẤP {0}?"
   },
-  "skipWhyBury": "CHÔN BOM được mở: giấu bom trên các lối vào hang của bạn trước khi các cuộc cướp bắt đầu. Không thể quay lại.",
+  "skipWhyBury": "PHÒNG THỦ được mở: giấu bom trên các lối vào hang của bạn trước khi các cuộc cướp bắt đầu. Không thể quay lại.",
   "skipWhyRaid": "Cướp hang được mở và thỏ khác cùng chơi trên đảo của bạn: đảo lớn hơn, nhiều bom hơn. Không thể quay lại.",
   "skipYes": {
    "$t": "CẤP {0}"

@@ -2274,7 +2274,19 @@ func _sink_tutorial() -> void:
 			# RIEN A DEFAIRE : cette ile meurt a la traversee, et la prochaine
 			# est construite neuve — sur sa graine ordinaire, la lecon etant
 			# notee finie (`_remember_finished`).
-			Screens.cross(Screens.Place.BURROW))
+			_book_two_then_home())
+
+
+## LE LIVRE 2 AVANT LE TERRIER (2026-10-16, « il doit venir juste apres le
+## tuto, on ne voit pas le burrow ») : le journal de Kuro s'ouvre sur l'ile
+## qui vient de couler, et sa fermeture mene au terrier — ou DEFEND attend, puis
+## le wallet (Chrome.maybe_books).
+func _book_two_then_home() -> void:
+	if not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
+		var book := IntroBook.play_on(self, "kuro")
+		await book.finished
+	if is_inside_tree() and Screens.in_world() and Screens.place == Screens.Place.ISLAND:
+		Screens.cross(Screens.Place.BURROW)
 
 
 ## LA MANCHE EN LIGNE EST FINIE — comme le tutoriel, sans mort (2026-09-23).
