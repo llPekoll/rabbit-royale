@@ -283,25 +283,21 @@ static func play_on(host: Node, which := "shiro") -> IntroBook:
 	return b
 
 
-## DEJA LU ? Shiro : par appareil (`[intro] seen`, la case de la premiere
-## version). Kuro et la mer : par appareil ET par joueur — un deuxieme compte
-## sur le meme telephone les recoit.
+## DEJA LU ? Par appareil ET par joueur, les trois livres : un deuxieme compte
+## sur le meme telephone les recoit. Shiro etait par appareil seulement
+## (`[intro] seen`) — un nouveau compte PLAY sur un navigateur qui l'avait deja
+## lu n'avait plus le livre 1 (2026-10-16).
 static func seen(which: String) -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
 		return false
-	if which == "shiro":
-		return bool(cfg.get_value("intro", "seen", false))
 	return bool(cfg.get_value(which, _reader(), false))
 
 
 static func mark_seen(which: String) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PATH)
-	if which == "shiro":
-		cfg.set_value("intro", "seen", true)
-	else:
-		cfg.set_value(which, _reader(), true)
+	cfg.set_value(which, _reader(), true)
 	cfg.save(PATH)
 
 

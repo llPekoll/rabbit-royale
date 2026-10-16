@@ -638,7 +638,7 @@ func _on_connect() -> void:
 func _play_intro() -> void:
 	_story.disabled = true
 	var book := IntroBook.play_on(self, "shiro")
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(IntroBook.FADE_S + 0.1).timeout
 	visible = false
 	await book.finished
 	visible = true
