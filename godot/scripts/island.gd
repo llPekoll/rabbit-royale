@@ -1030,6 +1030,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var view := get_viewport_rect().size
 		set_place_cam(BurrowCamera.zoom_at(_current_shot(), f, event.position, _terrain.map, view.x, view.y))
 		return
+	# LE CLIC DROIT POSE LE X, comme au demineur (2026-10-16) : sur la case
+	# visee, sans passer par MARK A BOMB. Il creusait avant, comme un clic.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		get_viewport().set_input_as_handled()
+		if not event.pressed:
+			_right_mark(_cell_at(event.position))
+		return
 	if event is InputEventMouseButton:
 		if event.pressed:
 			_on_press(event.position)
@@ -1038,6 +1045,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion:
 		if _pressing and not _pinch.active():
 			_on_move(event.position)
+
+
+## LE X AU CLIC DROIT : la meme route qu'un X arme au bouton, sur la case
+## visee — le tuto, la manche hors ligne, ou le serveur.
+func _right_mark(cell: Vector2i) -> void:
+	if cell.x < 0 or _board == null or _done or _watching():
+		return
+	if not _markable(_me_cell(), cell):
+		_ring.pulse()
+		Sound.deny()
+		return
+	if _is_tutorial():
+		_set_armed(true)
+		_tutorial_tap(cell)
+		tile_tapped.emit(cell)
+	elif local_run != null:
+		_set_armed(true)
+		_local_tap(cell)
+	elif _remote and RunState.current.aiming.is_empty():
+		RunState.current.set_flag_mode(true, 1)
+		_remote_tap(cell)
 
 
 func _arm_key(event: InputEvent) -> bool:

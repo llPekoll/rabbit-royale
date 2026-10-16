@@ -1198,8 +1198,10 @@ func maybe_books(delay := 2.6) -> void:
 	elif level >= 2 and not IntroBook.seen("kuro"):
 		book = "kuro"
 	elif _wallet_offer_due():
-		# Apres le livre 2 (lu a la fin du tuto, island.gd `_end_run`) : le
-		# terrier d'abord, puis le wallet.
+		# A L'ETAPE DES RAIDS (SKIP TO RAID ou le niveau atteint), avant le
+		# livre de la mer : la ou l'on peut perdre ce qu'on a, on propose de
+		# le garder (2026-10-16, « skip to raid, et c'est la que tu proposes
+		# de login to wallet »).
 		await _offer_wallet()
 		maybe_books(0.4)
 		return
@@ -1222,13 +1224,14 @@ func _books_calm() -> bool:
 		and not "--no-intro" in OS.get_cmdline_user_args()
 
 
-## RELIER UN WALLET, propose une fois apres le tuto (le user : « des que tu as
-## fini le tuto tu proposes de connecter le wallet ») — a un invite seulement,
-## et la ou un wallet peut repondre. Une fois par joueur sur cet appareil.
+## RELIER UN WALLET, propose une fois a l'etape des raids (d'abord apres le
+## tuto, deplace le 2026-10-16 : « skip to raid, et c'est la que tu proposes
+## de login to wallet ») — a un invite seulement, et la ou un wallet peut
+## repondre. Une fois par joueur sur cet appareil.
 func _wallet_offer_due() -> bool:
 	if not bool(Session.player.get("guest", false)) or not Wallet.available():
 		return false
-	if int(Home.burrow.get("runs", 0)) < 1:
+	if LevelSkip.stage() < 3:
 		return false
 	var cfg := ConfigFile.new()
 	cfg.load(IntroBook.PATH)

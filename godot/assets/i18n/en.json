@@ -1344,7 +1344,7 @@
    "$t": "Raids open at level {0}. Clear islands to get there."
   },
   "skipBury": "SKIP TO DEFEND",
-  "skipRaid": "SKIP RAID",
+  "skipRaid": "SKIP TO RAID",
   "skipTitle": {
    "$t": "START AT LEVEL {0}?"
   },
