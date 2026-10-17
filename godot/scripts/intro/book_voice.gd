@@ -144,7 +144,17 @@ func _download(path: String) -> PackedByteArray:
 	request.queue_free()
 	if result[0] != HTTPRequest.RESULT_SUCCESS or result[1] != 200:
 		return PackedByteArray()
-	return result[3]
+	# UN 200 N'EST PAS UNE VOIX : un fichier absent, nginx rend la page du jeu
+	# (HTML, 200). Gardee en cache, elle ferait taire la ligne pour toujours.
+	return result[3] if _is_mp3(result[3]) else PackedByteArray()
+
+
+## Une etiquette ID3 (ce qu'ecrit ffmpeg) ou une trame MP3 nue.
+static func _is_mp3(bytes: PackedByteArray) -> bool:
+	if bytes.size() < 4:
+		return false
+	return bytes.slice(0, 3).get_string_from_ascii() == "ID3" \
+		or (bytes[0] == 0xFF and (bytes[1] & 0xE0) == 0xE0)
 
 
 ## Sur le web, la meme origine que la page (stage.rabbit.rip lit les siennes,
