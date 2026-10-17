@@ -269,25 +269,29 @@ export async function POST(req: Request) {
   }
 
   /**
-   * NO TUTORIAL (2026-10-17) — under SKIP in the queen's book: straight into
-   * the game AT RAID_MIN, raids open ("no tuto, tu vas direct au lvl 3 et tu
-   * peux raid"), with the tutorial's reward: skipping must not leave a player
-   * broke. Level 1 only, and the UPDATE carries it, so a double tap (or a
-   * tutorial chest racing it) pays once.
+   * STRAIGHT TO THE RAIDS (2026-10-17) — under SKIP in the first two books:
+   * NO TUTORIAL in the queen's book (level 1), SKIP TO LEVEL 3 in Kuro's,
+   * which opens right after the tutorial (level 2). Both land AT RAID_MIN,
+   * raids open ("no tuto, tu vas direct au lvl 3 et tu peux raid"). From
+   * level 1 it pays the tutorial's reward, so skipping does not leave a
+   * player broke; from level 2 the tutorial's chest already paid it. The
+   * UPDATE carries the level it read, so a double tap (or a tutorial chest
+   * racing it) moves and pays once.
    */
   if (action === 'skip_tutorial') {
-    if (player.level !== 1) return Response.json({ error: 'skip_closed' }, { status: 403 });
     const to = RABBIT_LEVELS.RAID_MIN;
+    if (player.level >= to) return Response.json({ error: 'skip_closed' }, { status: 403 });
     const moved = await db.update(players)
       .set({ level: to })
-      .where(and(eq(players.id, session.sub), eq(players.level, 1)))
+      .where(and(eq(players.id, session.sub), eq(players.level, player.level)))
       .returning({ level: players.level });
     if (moved.length === 0) return Response.json({ error: 'skip_closed' }, { status: 409 });
-    await tutorialReward(session.sub);
+    const lesson = player.level <= 1;
+    if (lesson) await tutorialReward(session.sub);
     const after = (await ownerView(session.sub))!;
     return Response.json({
       skipped: to,
-      reward: TUTORIAL_REWARD.CARROTS,
+      reward: lesson ? TUTORIAL_REWARD.CARROTS : 0,
       burrow: after.view,
       player: applyRegen(after.player),
       quest: questBoardOf(after.player),

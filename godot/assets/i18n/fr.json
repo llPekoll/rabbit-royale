@@ -349,6 +349,9 @@
   "replay": "HISTOIRE",
   "choice": {
    "game": "SANS TUTO",
+   "toLevel": {
+    "$t": "PASSER AU NIVEAU {0}"
+   },
    "gift": {
     "$t": "Bienvenue dans le jeu ! +{0} carottes et un bouclier pour ton terrier."
    }

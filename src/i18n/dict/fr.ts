@@ -251,6 +251,7 @@ export const fr: Dict = {
     replay: 'HISTOIRE',
     choice: {
       game: 'SANS TUTO',
+      toLevel: (n) => `PASSER AU NIVEAU ${n}`,
       gift: (n) => `Bienvenue dans le jeu ! +${n} carottes et un bouclier pour ton terrier.`,
     },
     book: {

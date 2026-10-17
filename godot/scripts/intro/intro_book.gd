@@ -245,7 +245,9 @@ var _play: PlankButton
 ## TUTO met au niveau des raids (RAID_MIN) tout de suite, avec la recompense
 ## du tuto (`skip_tutorial`, /api/burrow), pour qui sait deja jouer au
 ## demineur (« tu vas direct au lvl 3 et tu peux raid »).
-## Seulement a qui n'a pas fait la lecon (`_offers_choice`).
+## Seulement a qui n'a pas fait la lecon (`_offers_choice`). Le livre de Kuro,
+## qui s'ouvre juste apres le tuto (niveau 2), porte le meme saut : PASSER AU
+## NIVEAU 3 (« on peut le mettre la aussi »).
 var _to_game: PlankButton
 var _hint: Label
 ## OU J'EN SUIS : un carre par double page, en bas — dores ceux qu'on a lus.
@@ -923,7 +925,7 @@ func _build() -> void:
 	_play.pressed.connect(_on_play)
 	_play.visible = false
 	add_child(_play)
-	_to_game = Kit.button(I18N.t("intro.choice.game"), "wood", 140.0, 32.0)
+	_to_game = Kit.button(_door_label(), "wood", 212.0, 32.0)
 	_to_game.pressed.connect(_skip_lesson)
 	_to_game.visible = false
 	add_child(_to_game)
@@ -1458,16 +1460,33 @@ func _capture_if_asked(i: int) -> void:
 ## montre aussi, pour qu'on y voie ce que voit un nouveau joueur — sans
 ## compte, une porte ferme le livre.
 func _offers_choice() -> bool:
-	if book != "shiro" or not is_inside_tree():
+	if book not in ["shiro", "kuro"] or not is_inside_tree():
 		return false
 	if get_tree().current_scene == self:
 		return true
-	return Session.signed_in() and Island.tutorial_pending() and int(Home.player.get("level", 1)) <= 1
+	if not Session.signed_in():
+		return false
+	var level := int(Home.player.get("level", 1))
+	if book == "kuro":
+		return level < _raid_level()
+	return Island.tutorial_pending() and level <= 1
+
+
+static func _raid_level() -> int:
+	return Tuning.i("RABBIT_LEVELS.RAID_MIN", 3)
+
+
+## SANS TUTO chez la reine ; chez Kuro, le tuto est fait : PASSER AU NIVEAU 3.
+func _door_label() -> String:
+	if book == "kuro":
+		return I18N.f("intro.choice.toLevel", [_raid_level()])
+	return I18N.t("intro.choice.game")
 
 
 func _on_play() -> void:
 	if _offers_choice():
-		Analytics.track("intro_choice", {"choice": "tutorial", "from": "end"})
+		Analytics.track("intro_choice", {"book": book, "choice": "tutorial" if book == "shiro" else "level2",
+			"from": "end"})
 	_finish(false)
 
 
@@ -1482,7 +1501,8 @@ func _show_doors() -> void:
 ## PASSER : le livre se ferme ; au nouveau joueur, c'est le choix du tuto.
 func _on_skip() -> void:
 	if _offers_choice():
-		Analytics.track("intro_choice", {"choice": "tutorial", "from": "skip"})
+		Analytics.track("intro_choice", {"book": book, "choice": "tutorial" if book == "shiro" else "level2",
+			"from": "skip"})
 	_finish(true)
 
 
@@ -1496,7 +1516,7 @@ func _skip_lesson() -> void:
 	_skip.disabled = true
 	var res: Dictionary = await Home.act("skip_tutorial")
 	var got := int(res.get("skipped", 0))
-	Analytics.track("intro_choice", {"choice": "game", "from": "skip", "ok": got > 0})
+	Analytics.track("intro_choice", {"book": book, "choice": "game", "from": "skip", "ok": got > 0})
 	if got <= 0:
 		_finish(true)
 		return

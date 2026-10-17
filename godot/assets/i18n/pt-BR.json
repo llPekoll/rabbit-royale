@@ -331,6 +331,9 @@
   "replay": "HISTÓRIA",
   "choice": {
    "game": "SEM TUTORIAL",
+   "toLevel": {
+    "$t": "PULAR PARA O NÍVEL {0}"
+   },
    "gift": {
     "$t": "Bem-vindo ao jogo! +{0} cenouras e um escudo para a sua toca."
    }

@@ -2335,8 +2335,8 @@ func _sink_tutorial() -> void:
 
 ## LE LIVRE 2 AVANT LE TERRIER (2026-10-16, « il doit venir juste apres le
 ## tuto, on ne voit pas le burrow ») : le journal de Kuro s'ouvre sur l'ile
-## qui vient de couler, et sa fermeture mene au terrier — ou DEFEND attend, puis
-## le wallet (Chrome.maybe_books).
+## qui vient de couler, et sa fermeture mene au terrier — ou DEFEND attend (le
+## wallet, lui, attend le niveau 3 : Chrome.maybe_books).
 func _book_two_then_home() -> void:
 	if not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
 		var book := IntroBook.play_on(self, "kuro")
@@ -2381,8 +2381,8 @@ func _end_run(result: Dictionary) -> void:
 		# LE TUTO FINI, LE LIVRE 2 AVANT LE TERRIER (2026-10-16, le user :
 		# « des que tu as fini le tuto 1, transition, book 2, apres tu arrives
 		# sur le burrow et on demande de connecter le wallet ») : le journal
-		# de Kuro s'ouvre sur l'ile qui vient de couler ; le terrier, puis le
-		# wallet (Chrome.maybe_books), viennent a sa fermeture.
+		# de Kuro s'ouvre sur l'ile qui vient de couler ; le terrier vient a
+		# sa fermeture (le wallet attend le niveau 3 depuis le 2026-10-17).
 		if lesson and not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
 			var book := IntroBook.play_on(self, "kuro")
 			await book.finished

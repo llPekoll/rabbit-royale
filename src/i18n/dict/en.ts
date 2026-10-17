@@ -310,9 +310,11 @@ export const en = {
     replay: 'STORY',
     /* NO TUTORIAL under SKIP in the queen's book (2026-10-17): straight into
        the game at the raid level (RAID_MIN) with the tutorial's reward
-       (`gift`); SKIP still leads to the tutorial island. */
+       (`gift`); SKIP still leads to the tutorial island. `toLevel`: the same
+       jump under SKIP in Kuro's book, right after the tutorial. */
     choice: {
       game: 'NO TUTORIAL',
+      toLevel: (n: number) => `SKIP TO LEVEL ${n}`,
       gift: (n: string) => `Welcome to the game! +${n} carrots and a shield for your burrow.`,
     },
     /* THE THREE BOOKS (2026-10-15): the lore lives in them now.

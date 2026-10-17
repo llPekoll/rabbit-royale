@@ -331,6 +331,9 @@
   "replay": "STORY",
   "choice": {
    "game": "NO TUTORIAL",
+   "toLevel": {
+    "$t": "SKIP TO LEVEL {0}"
+   },
    "gift": {
     "$t": "Welcome to the game! +{0} carrots and a shield for your burrow."
    }

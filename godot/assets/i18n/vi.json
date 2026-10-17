@@ -307,6 +307,9 @@
   "replay": "CÂU CHUYỆN",
   "choice": {
    "game": "BỎ HƯỚNG DẪN",
+   "toLevel": {
+    "$t": "LÊN THẲNG CẤP {0}"
+   },
    "gift": {
     "$t": "Chào mừng vào game! +{0} cà rốt và một tấm khiên cho hang của bạn."
    }

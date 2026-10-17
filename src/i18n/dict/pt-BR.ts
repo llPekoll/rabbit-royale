@@ -255,6 +255,7 @@ export const ptBR: Dict = {
     replay: 'HISTÓRIA',
     choice: {
       game: 'SEM TUTORIAL',
+      toLevel: (n) => `PULAR PARA O NÍVEL ${n}`,
       gift: (n) => `Bem-vindo ao jogo! +${n} cenouras e um escudo para a sua toca.`,
     },
     book: {

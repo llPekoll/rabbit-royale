@@ -259,6 +259,7 @@ export const vi: Dict = {
     replay: 'CÂU CHUYỆN',
     choice: {
       game: 'BỎ HƯỚNG DẪN',
+      toLevel: (n) => `LÊN THẲNG CẤP ${n}`,
       gift: (n) => `Chào mừng vào game! +${n} cà rốt và một tấm khiên cho hang của bạn.`,
     },
     book: {

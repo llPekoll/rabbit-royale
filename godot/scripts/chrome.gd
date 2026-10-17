@@ -1197,10 +1197,9 @@ func maybe_books(delay := 2.6) -> void:
 	elif level >= 2 and not IntroBook.seen("kuro") and not _skipped_before(1):
 		book = "kuro"
 	elif _wallet_offer_due():
-		# AU TERRIER, JUSTE APRES LE LIVRE 2 (la fin du tuto) : la barre dit
-		# DIG + DEFEND + SKIP TO RAID, et le wallet est propose (2026-10-16,
-		# « des que tu as fini le livre 2 [...] c'est le moment ou tu
-		# affiches connect wallet »).
+		# AU TERRIER, A L'ARRIVEE AU NIVEAU 3 (2026-10-17, « il faudra proposer
+		# le connect wallet au niveau 3 ») — d'abord juste apres le livre 2,
+		# la fin du tuto (2026-10-16). Avant le livre de la mer.
 		await _offer_wallet()
 		maybe_books(0.4)
 		return
@@ -1229,8 +1228,8 @@ func _books_calm() -> bool:
 		and not "--no-intro" in OS.get_cmdline_user_args()
 
 
-## RELIER UN WALLET, propose une fois a l'arrivee au terrier apres le livre 2
-## (la fin du tuto) — a un invite seulement. Une fois par joueur sur cet
+## RELIER UN WALLET, propose une fois a l'arrivee au terrier au niveau 3 (les
+## raids ; avant : apres le livre 2) — a un invite seulement. Une fois par joueur sur cet
 ## appareil. Sans wallet pour repondre (un navigateur de bureau sans
 ## extension), la proposition vient quand meme ; CONNECT WALLET dit alors
 ## qu'il en faut un, sans en pousser aucun (2026-10-16, « mets juste connect
@@ -1238,10 +1237,8 @@ func _books_calm() -> bool:
 func _wallet_offer_due() -> bool:
 	if not bool(Session.player.get("guest", false)):
 		return false
-	if Island.tutorial_pending():
-		return false
-	# Sans tuto : le wallet attend sa premiere ile, comme Kuro.
-	if _skipped_before(1):
+	# Au niveau des raids, sans tuto compris (il y arrive d'un coup).
+	if int(Home.player.get("level", 1)) < Tuning.i("RABBIT_LEVELS.RAID_MIN", 3):
 		return false
 	var cfg := ConfigFile.new()
 	cfg.load(IntroBook.PATH)

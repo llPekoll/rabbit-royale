@@ -257,6 +257,7 @@ export const zh: Dict = {
     replay: '故事',
     choice: {
       game: '跳过教程',
+      toLevel: (n) => `直接到第 ${n} 级`,
       gift: (n) => `欢迎来到游戏！+${n} 胡萝卜和一面护盾，送给你的洞穴。`,
     },
     book: {
