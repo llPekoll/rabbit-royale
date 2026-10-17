@@ -108,6 +108,21 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-17',
+    items: [
+      {
+        kind: 'fix',
+        text: {
+          en: 'Paying in the shop no longer says it failed when your payment is just a few seconds slow to land: we wait for it and your item arrives right away.',
+          fr: 'Payer à la boutique ne dit plus que ça a échoué quand ton paiement met quelques secondes à arriver : on l’attend et ton objet arrive tout de suite.',
+          zh: '在商店付款时，如果交易只是晚几秒到账，不会再显示失败：我们会等它到账，物品立即送达。',
+          'pt-BR': 'Pagar na loja não diz mais que falhou quando o pagamento demora alguns segundos para chegar: esperamos por ele e seu item chega na hora.',
+          vi: 'Thanh toán trong cửa hàng không còn báo thất bại khi giao dịch chỉ chậm vài giây: chúng tôi chờ nó và vật phẩm đến ngay.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-14',
     items: [
       {
