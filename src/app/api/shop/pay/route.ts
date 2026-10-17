@@ -237,6 +237,10 @@ export async function POST(req: Request) {
   });
 }
 
+/** Pauses between reads of a transaction not landed yet: 6 s in all, plus four
+ *  RPC round trips, inside the client's 10 s (net.gd TIMEOUT_SECONDS). */
+const CONFIRM_WAITS_MS = [1000, 2000, 3000];
+
 /** `{ paymentId, signature }` → verify on chain and credit the item. */
 export async function PATCH(req: Request) {
   const session = await getSession(req);
@@ -298,18 +302,28 @@ export async function PATCH(req: Request) {
   // a lamport transfer be checked against token balances (and pass by finding
   // nothing to contradict it).
   const paidToken: PayTokenId = isPayTokenId(intent.token) ? intent.token : 'usdc';
-  // ONE read. The wallet hands back the signature only once it has sent the
-  // transaction (the Seeker's arrives well after it landed), so this is the
-  // moment to look. Not there yet → 202, and the webhook or the claim on the
-  // next shop opening credits it. Alchemy has no signatureSubscribe to wait on.
-  const check = await verifyPayment({
+  // The wallet hands back the signature once it has SENT the transaction, not
+  // once it landed: a browser wallet's often arrives a few seconds early, and a
+  // single read then told a player who had paid that it failed (Flary on SG,
+  // 2026-10-17: read at once, landed 10 s after the quote). So a few short
+  // waits while it is `not_found`, nothing else — a handful of reads per
+  // payment, never per screen. Alchemy has no signatureSubscribe to wait on.
+  // The waits stay under the client's 10 s timeout; still nothing → 202, and
+  // the webhook or the claim on the next shop opening credits it.
+  const quote = {
     signature,
     treasury: treasuryAddress()!,
     mint: mintFor(paidToken),
     amount: intent.amount,
     reference: intent.reference,
     expiresAt: intent.expiresAt,
-  });
+  };
+  let check = await verifyPayment(quote);
+  for (const waitMs of CONFIRM_WAITS_MS) {
+    if (check.ok || check.reason !== 'not_found') break;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    check = await verifyPayment(quote);
+  }
 
   if (!check.ok) {
     // Past the deadline and nothing that landed in time: the quote is over.
