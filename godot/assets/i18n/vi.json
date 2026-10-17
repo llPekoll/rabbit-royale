@@ -305,11 +305,17 @@
   "next": "CHẠM ĐỂ TIẾP TỤC",
   "play": "ĐÀO THÔI",
   "replay": "CÂU CHUYỆN",
+  "choice": {
+   "game": "BỎ HƯỚNG DẪN",
+   "gift": {
+    "$t": "Chào mừng vào game! +{0} cà rốt và một tấm khiên cho hang của bạn."
+   }
+  },
   "book": {
-   "shiro": "SÁCH CỦA SHIRO",
+   "shiro": "SÁCH CỦA NỮ HOÀNG",
    "shiroSub": "Gửi bạn, người biết đọc",
    "kuro": "SÁCH CỦA KURO",
-   "kuroSub": "Cấm đọc. Nhất là Shiro.",
+   "kuroSub": "Đừng cho Kuro xem.",
    "go": "ĐI CƯỚP",
    "sea": "SÁCH CỦA BIỂN",
    "seaSub": "Nhặt được trên bãi biển, vẫn còn ướt",
@@ -323,13 +329,13 @@
    "ch4": "Điều những con số biết",
    "ch5": "Quả bom",
    "ch6": "Ngai vàng",
-   "island": "Mỗi sáng, biển mang đến cho chúng ta một hòn đảo đầy cà rốt. Tổ tiên chúng ta đọc những con số của nó như đọc các vì sao, vì thế đảo đã trao vương miện cho họ.",
-   "crown": "Từ đó, Vương Miện truyền từ cha mẹ sang con cái. Ai đội nó sẽ là vua: hòn đảo ban cho nhiều hơn, và ánh sáng của nó chiếu rọi lâu đài. Trong gia đình mình, các vị vua luôn sẻ chia.",
-   "queen": "Mẹ chúng mình là nữ hoàng cuối cùng. Một buổi tối, mẹ bước xuống biển. Lời cuối của mẹ: \"Vị vua tiếp theo sẽ là người biết đọc.\"",
-   "kuro": "Nhưng Vương Miện thuộc về hang giàu nhất. Chỉ trong một đêm, Kuro, anh em ruột của mình, đã cướp sạch mọi hang. Cả hang của bạn.",
-   "kuroSays": "Giỏi thì đến mà lật đổ ta.",
-   "numbers": "Mình sẽ không ra tay với anh em ruột của mình. Nhưng bạn biết đọc. Đào một ô: con số đếm số bom xung quanh.",
-   "bomb": "Chắc đó là bom? Đánh dấu X. Kuro thì nhảy bừa chẳng cần đọc, và hòn đảo hất cậu ấy về chỗ cũ.",
+   "island": "Mỗi sáng, biển mang đến một hòn đảo đầy cà rốt. Gia đình ta đọc những con số của nó như đọc sao trời, nên đảo đã trao vương miện cho ta.",
+   "crown": "Từ đó, Vương Miện truyền từ cha mẹ sang con. Ai đội nó là vua, và lâu đài rực sáng. Nhà ta luôn sẻ chia.",
+   "queen": "Ta là nữ hoàng cuối cùng. Một buổi tối, ta bước xuống biển. Ta nói với hai con trai: \"Vị vua tiếp theo sẽ là người biết đọc.\"",
+   "kuro": "Nhưng Vương Miện thuộc về kẻ giàu nhất. Chỉ trong một đêm, Kuro cướp sạch mọi hang. Cả hang của con.",
+   "kuroSays": "Nó cười: \"Giỏi thì đến mà lấy.\"",
+   "numbers": "Shiro sẽ không đánh anh mình. Nhưng con, dòng máu của ta, biết đọc. Đào đi: mỗi con số đếm số bom xung quanh.",
+   "bomb": "Chắc đó là bom? Đánh dấu X. Kuro nhảy bừa chẳng đọc, và đảo hất nó về chỗ cũ. Nó chưa bao giờ chịu nghe.",
    "throne": "Mở rương cuối cùng: đảo trở về với biển, và chiến lợi phẩm về hang. Làm hang lớn lên. Bước lên ngai vàng."
   },
   "kuro": {
@@ -339,25 +345,25 @@
    "ch4": "Cây rìu",
    "ch5": "Phòng thủ",
    "ch6": "Nhà vua",
-   "note": "Mình tìm thấy nó ở lâu đài.",
-   "day1": "Ngày 1. Mẹ bước xuống biển. Mẹ nói \"người biết đọc\". Mẹ nghĩ đến Shiro. Đằng nào ta cũng sẽ làm vua: chỉ cần giàu nhất.",
-   "raid": "Trên đảo, không ai cướp được của ngươi. Trong hang, ai cũng cướp được. Đi cướp là đi từng ô một, đến tận vườn.",
-   "bombs": "Trong hang họ, con số cũng đếm bom chôn quanh ngươi. Giẫm lên là BÙM. Ta bị như thế rồi. Nhiều lần.",
-   "axe": "Rìu của ta chặt được một cây hoặc một hàng rào mỗi lần cướp. Càng vào sâu, càng lấy được nhiều. Vườn là cả một bữa tiệc!",
-   "defend": "Bom ở chỗ họ sẽ đi qua, hàng rào trên những lối dễ đi. Bị cướp à? Tên trộm nằm lại trong danh sách của bạn, chờ bạn trả thù.",
-   "king": "Ngày 300. Ta là vua, và ta không ngủ được nữa. Một vị vua không biết chia sẻ chỉ trị vì những cái hang trống. T.B. Ngoài khơi xa có một ánh sáng."
+   "note": "Kuro, con trai cả của ta.",
+   "day1": "Nó tưởng ta nói về Shiro. Vậy nó sẽ làm vua theo cách khác: giàu nhất.",
+   "raid": "Trên đảo, không ai cướp được của con. Trong hang thì ai cũng cướp được. Cuộc cướp của Kuro: đi từng ô một, đến tận vườn.",
+   "bombs": "Trong hang cũng vậy, con số đếm bom chôn. Giẫm lên là BÙM. Kuro của ta đã bị như thế. Nhiều lần.",
+   "axe": "Rìu của nó chặt một cây hoặc một hàng rào mỗi lần cướp. Càng vào sâu, càng lấy nhiều. Vườn là bữa tiệc của nó.",
+   "defend": "Vậy nghe này: bom ở chỗ chúng sẽ đi, hàng rào trên lối dễ đi. Bị cướp à? Tên trộm nằm lại trong danh sách của con, chờ con trả thù.",
+   "king": "Kuro giờ là vua, và nó không ngủ được nữa. Vua không biết chia sẻ chỉ trị vì hư không. Đêm đêm, nó nhìn ra biển. Nó đã thấy ánh sáng của ta."
   },
   "sea": {
    "ch1": "Chia sẻ",
    "ch2": "Cú đẩy",
-   "ch3": "Vũ khí của ta",
+   "ch3": "Bão và mực",
    "ch4": "Lời hứa",
    "ch5": "Vị muối",
-   "share": "Hôm nay, sẽ có hai người trên đảo của ta, xa hơn là bốn. Rương thuộc về ai đào được nó.",
-   "push": "Bước vào một con thỏ, nó sẽ lùi lại một ô. Lên một quả bom, hay xuống sóng của ta.",
-   "weapons": "Bão của ta làm chín ô quanh đối thủ bật tung. Mực của ta làm hắn không thấy gì trong vài giây. Mỗi thứ ba cái để bắt đầu.",
-   "promise": "Ta đã trao cho gia tộc các ngươi một chiếc vương miện. Đó không phải món quà. Đó là một lời hứa. Người biết đọc, ta đợi ngoài khơi xa.",
-   "margin": "Cuốn sách này có mùi muối. Nét chữ... mình nghĩ mình nhận ra nó."
+   "share": "Giờ con không đào một mình nữa: hai người một đảo, xa hơn là bốn. Rương thuộc về ai đào được nó.",
+   "push": "Bước vào một con thỏ, nó lùi lại một ô: lên một quả bom, hay xuống sóng. Hai con trai ta đã học điều đó bằng nước mắt.",
+   "weapons": "Cơn bão làm chín ô quanh đối thủ bật tung. Mực làm nó không thấy gì trong vài giây. Con bắt đầu với mỗi thứ ba cái.",
+   "promise": "Biển đã trao cho gia đình ta một vương miện. Đó không phải món quà: đó là lời hứa. Ngoài khơi xa, ta giữ nó cho người biết đọc.",
+   "margin": "Shiro nhặt được cuốn sách này trên bãi biển, vẫn còn ướt. Nó nhận ra nét chữ. Hãy nói với nó rằng nước không lạnh."
   }
  },
  "arrange": {

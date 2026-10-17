@@ -73,6 +73,9 @@ class _Marks extends Node2D:
 		draw_polyline(pts, tint, 3.5)
 
 
+## La secousse de l'ile qui coule, dans la vignette du livre (`play_eruption`).
+const SINK_SHAKE := 0.35
+
 func _ready() -> void:
 	island = ISLAND.instantiate()
 	island.own_mark = false
@@ -631,7 +634,9 @@ func _chest(tok: int) -> void:
 	if not await _wait(0.9, tok):
 		return
 	var ms := 3600
-	island.play_eruption(ms)
+	# UN TIERS DE LA SECOUSSE DU JEU (2026-10-17, « le dernier shake cam est
+	# un peu trop violent ») : la vignette est petite, le coup est le meme.
+	island.play_eruption(ms, true, SINK_SHAKE)
 	if island._sink_sky != null:
 		island._sink_sky.visible = true
 		island._sink_sky.play(ms)

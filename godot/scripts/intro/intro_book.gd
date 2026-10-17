@@ -32,6 +32,7 @@ extends Control
 ##     (tourne seul : 5 s par page apres la fin de son geste — pour filmer)
 ##   godot --path godot scenes/intro/intro_book.tscn -- --book-at=3:1.5,8:4 --book-out=/tmp/b
 ##   godot --path godot -- --open=book-sea --book-end=6   (le ferme apres 6 s)
+##   godot --path godot -- --book-choice=game   (SANS TUTO seul, en jeu)
 
 signal finished
 
@@ -77,22 +78,23 @@ const SHIRO_PAGES: Array[Dictionary] = [
 	{"lines": ["crown"], "final": "castle", "art": "wide", "crown": true},
 	{"chapter": "ch2", "lines": ["queen"], "final": "tide", "art": "wide", "sea": true},
 	{"chapter": "ch3", "lines": ["kuro", "kuroSays"], "final": "crown", "art": "burrow", "night": true,
-		"bust": "kuro-smirk", "crown": true, "who": {"kuroSays": "KURO"}},
+		"bust": "kuro-smirk", "crown": true},
 	{"chapter": "ch4", "lines": ["numbers"], "live": "numbers"},
 	{"chapter": "ch5", "lines": ["bomb"], "live": "mark_bomb"},
 	{"chapter": "ch6", "lines": ["throne"], "live": "chest", "play": true},
 ]
-## LE JOURNAL DE KURO : la blessure, le raid fier, la defense, le regret.
-## Shiro ecrit dans la marge (`who`).
+## LE LIVRE DE KURO : la blessure, le raid fier, la defense, le regret.
+## MAMAN RACONTE LES TROIS LIVRES (2026-10-17, le user : « il faut tout
+## reecrire du point de vue de la mere ») : sa voix les lit (BookVoice), donc
+## plus personne d'autre ne parle — `who` n'a plus de ligne.
 const KURO_PAGES: Array[Dictionary] = [
 	{"cover": true},
 	{"chapter": "ch1", "lines": ["note", "day1"], "final": "day1", "art": "wide", "sea": true,
-		"bust": "kuro-scheming", "who": {"note": "SHIRO"}},
+		"bust": "kuro-scheming"},
 	{"chapter": "ch2", "lines": ["raid"], "final": "raid-walk", "art": "shared", "night": true, "bust": "kuro-scheming"},
 	{"chapter": "ch3", "lines": ["bombs"], "live": "kuro_bomb"},
 	{"chapter": "ch4", "lines": ["axe"], "final": "raid-axe", "art": "burrow", "bust": "kuro-smirk"},
-	{"chapter": "ch5", "lines": ["defend"], "final": "bury", "art": "burrow", "bust": "shiro-focused", "side": "left",
-		"who": {"defend": "SHIRO"}},
+	{"chapter": "ch5", "lines": ["defend"], "final": "bury", "art": "burrow", "bust": "shiro-focused", "side": "left"},
 	{"chapter": "ch6", "lines": ["king"], "final": "far-light", "art": "wide", "sea": true, "play": true},
 ]
 ## LE LIVRE DE LA MER : c'est elle qui parle, froide et vraie — le multi
@@ -105,7 +107,7 @@ const SEA_PAGES: Array[Dictionary] = [
 	{"chapter": "ch3", "lines": ["weapons"], "live": "bolt_bloop"},
 	{"chapter": "ch4", "lines": ["promise"], "final": "promise", "art": "wide", "sea": true, "crown": true},
 	{"chapter": "ch5", "lines": ["margin"], "final": "salt", "art": "wide", "sea": true, "bust": "shiro-focused",
-		"side": "left", "who": {"margin": "SHIRO"}, "play": true},
+		"side": "left", "play": true},
 ]
 ## LES COUVERTURES ET LEURS CUIRS. `pic` : le buste sur la couverture (la mer
 ## n'a pas de visage : la couronne qu'elle a pretee).
@@ -192,6 +194,8 @@ var _at := -1
 var _turning := false
 var _stage: IntroStage
 var _live_view: SubViewport
+## LA VOIX DE MAMAN : chaque page lit ses lignes (BookVoice).
+var _voice: BookVoice
 
 var _desk: ColorRect
 ## LE FOND : la vraie ile en plan large, ses rais et ses ombres de nuages,
@@ -235,6 +239,14 @@ var _prev: PlankButton
 var _next: PlankButton
 var _skip: PlankButton
 var _play: PlankButton
+## SANS TUTO, SOUS PASSER (2026-10-17) : la plupart passent l'histoire sans
+## voir la derniere page (le user : « pas ici, plus au niveau du skip », puis
+## « tu mets skip et no tuto »). PASSER mene au tuto, comme toujours ; SANS
+## TUTO met au niveau des raids (RAID_MIN) tout de suite, avec la recompense
+## du tuto (`skip_tutorial`, /api/burrow), pour qui sait deja jouer au
+## demineur (« tu vas direct au lvl 3 et tu peux raid »).
+## Seulement a qui n'a pas fait la lecon (`_offers_choice`).
+var _to_game: PlankButton
 var _hint: Label
 ## OU J'EN SUIS : un carre par double page, en bas — dores ceux qu'on a lus.
 var _progress: Control
@@ -344,6 +356,9 @@ func _ready() -> void:
 	from = clampi(from, 0, _pages.size() - 1)
 	_sheet = _load_sheet(art_dir)
 	_build()
+	_voice = BookVoice.new()
+	add_child(_voice)
+	_voice.prefetch(_voice_keys())
 	get_viewport().size_changed.connect(_measure)
 	if get_tree().current_scene == self:
 		DevShot.arm(self)
@@ -359,6 +374,13 @@ func _ready() -> void:
 		visible = true
 		veil.queue_free()
 	_entered = true
+	if _offers_choice():
+		_show_doors()
+	# `--book-choice=game|tuto` : appuie seul sur une porte — pour tester.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--book-choice=") and _offers_choice():
+			get_tree().create_timer(2.0).timeout.connect(
+				_skip_lesson if arg.ends_with("game") else _on_skip)
 	await get_tree().process_frame
 	_measure()
 	create_tween().tween_property(_curtain, "color:a", 0.0, 0.6)
@@ -895,12 +917,16 @@ func _build() -> void:
 	_next.pressed.connect(func() -> void: _turn(1))
 	add_child(_next)
 	_skip = Kit.button(I18N.t("intro.skip"), "wood", 108.0, 32.0)
-	_skip.pressed.connect(_finish.bind(true))
+	_skip.pressed.connect(_on_skip)
 	add_child(_skip)
 	_play = Kit.button(I18N.t(look.play), "gold", 180.0, 42.0)
-	_play.pressed.connect(_finish.bind(false))
+	_play.pressed.connect(_on_play)
 	_play.visible = false
 	add_child(_play)
+	_to_game = Kit.button(I18N.t("intro.choice.game"), "wood", 140.0, 32.0)
+	_to_game.pressed.connect(_skip_lesson)
+	_to_game.visible = false
+	add_child(_to_game)
 	_hint = _ink(11, Palette.CHALK_DIM)
 	_hint.text = I18N.t("intro.next")
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -922,7 +948,7 @@ func _build() -> void:
 
 	_cover_title.text = I18N.t(look.title)
 	_cover_sub.text = I18N.t(look.sub)
-	I18N.apply_face([_chapter, _text, _folio_l, _folio_r, _cover_title, _cover_sub, _hint, _skip, _play])
+	I18N.apply_face([_chapter, _text, _folio_l, _folio_r, _cover_title, _cover_sub, _hint, _skip, _play, _to_game])
 
 
 ## La hauteur visible permise : tout l'ecran sur un telephone, `DESK_SEEN`
@@ -1097,6 +1123,9 @@ func _measure() -> void:
 		_next.position = Vector2(seen.end.x - _next.size.x - 4.0, under - _next.size.y * 0.5)
 	_skip.size = _skip.custom_minimum_size
 	_skip.position = Vector2(view.x - _skip.size.x - Kit.EDGE, Kit.EDGE * 0.5)
+	# SANS TUTO pend sous PASSER, aligne a droite.
+	_to_game.size = _to_game.custom_minimum_size
+	_to_game.position = Vector2(view.x - _to_game.size.x - Kit.EDGE, _skip.position.y + _skip.size.y + 6.0)
 	_play.size = _play.custom_minimum_size
 	_play.position = _book.position + _right.position + Vector2((rp.x - _play.size.x) * 0.5, rp.y - _play.size.y - 26.0)
 	_hint.position = Vector2(0, view.y - 18.0)
@@ -1141,6 +1170,7 @@ func _show(i: int, dir: int) -> void:
 	_at = i
 	var spread: Dictionary = _pages[i]
 	Analytics.track("intro_book_page", {"book": book, "page": i})
+	_voice.stop()
 	_stage.cut()
 	_live_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_play.visible = false
@@ -1350,6 +1380,15 @@ func _fit_text() -> void:
 	_text.size.y = _text_room
 
 
+## Les lignes lues a voix haute : celles de `spread`, ou de tout le livre.
+func _voice_keys(spread := {}) -> Array[String]:
+	var keys: Array[String] = []
+	for page: Dictionary in ([spread] if not spread.is_empty() else _pages):
+		for id in page.get("lines", []):
+			keys.append(_key(String(id)))
+	return keys
+
+
 ## Une cle sans point est celle du livre ouvert.
 func _key(id: String) -> String:
 	return id if "." in id else "intro.%s.%s" % [book, id]
@@ -1365,6 +1404,7 @@ func _after_cover(i: int) -> void:
 
 func _after_turn(spread: Dictionary) -> void:
 	_capture_if_asked(_at)
+	_voice.say(_voice_keys(spread))
 	if spread.get("play", false):
 		_play.visible = true
 		_play.modulate.a = 0.0
@@ -1413,11 +1453,71 @@ func _capture_if_asked(i: int) -> void:
 				get_tree().quit())
 
 
+## LE CHOIX N'EST OFFERT que dans le livre de la reine, en jeu, a un joueur
+## qui n'a pas encore fait la lecon. Le livre ouvert seul (sa scene) les
+## montre aussi, pour qu'on y voie ce que voit un nouveau joueur — sans
+## compte, une porte ferme le livre.
+func _offers_choice() -> bool:
+	if book != "shiro" or not is_inside_tree():
+		return false
+	if get_tree().current_scene == self:
+		return true
+	return Session.signed_in() and Island.tutorial_pending() and int(Home.player.get("level", 1)) <= 1
+
+
+func _on_play() -> void:
+	if _offers_choice():
+		Analytics.track("intro_choice", {"choice": "tutorial", "from": "end"})
+	_finish(false)
+
+
+## SANS TUTO sous PASSER, des que le livre est la.
+func _show_doors() -> void:
+	_to_game.visible = true
+	_to_game.modulate.a = 0.0
+	create_tween().tween_property(_to_game, "modulate:a", 1.0, 0.3)
+	_measure()
+
+
+## PASSER : le livre se ferme ; au nouveau joueur, c'est le choix du tuto.
+func _on_skip() -> void:
+	if _offers_choice():
+		Analytics.track("intro_choice", {"choice": "tutorial", "from": "skip"})
+	_finish(true)
+
+
+## SANS TUTO : niveau des raids et la recompense du tuto, puis le terrier. Un
+## refus du serveur (niveau 1 deja passe, hors ligne) ferme le livre comme
+## PASSER : le tuto suit.
+func _skip_lesson() -> void:
+	if _closing or _to_game.disabled:
+		return
+	_to_game.disabled = true
+	_skip.disabled = true
+	var res: Dictionary = await Home.act("skip_tutorial")
+	var got := int(res.get("skipped", 0))
+	Analytics.track("intro_choice", {"choice": "game", "from": "skip", "ok": got > 0})
+	if got <= 0:
+		_finish(true)
+		return
+	Island.skip_tutorial(true)
+	var reward := int(res.get("reward", 0))
+	finished.connect(func() -> void:
+		if Chrome.current == null:
+			return
+		LevelUpStamp.announce_rabbit(got)
+		if reward > 0:
+			Chrome.current.toast(I18N.f("intro.choice.gift", [I18N.group_digits(float(reward))])),
+		CONNECT_ONE_SHOT)
+	_finish(true)
+
+
 func _finish(skipped: bool) -> void:
 	if not is_inside_tree():
 		return
 	_closing = true
 	_stage.cut()
+	_voice.stop()
 	Analytics.track("intro_book_end", {"book": book, "skipped": skipped, "page": _at})
 	mark_seen(book)
 	# « Read the stones » (la quete du tableau) : un livre lu, quel qu'il soit.

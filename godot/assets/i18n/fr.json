@@ -347,11 +347,17 @@
   "next": "TOUCHE POUR CONTINUER",
   "play": "ON CREUSE",
   "replay": "HISTOIRE",
+  "choice": {
+   "game": "SANS TUTO",
+   "gift": {
+    "$t": "Bienvenue dans le jeu ! +{0} carottes et un bouclier pour ton terrier."
+   }
+  },
   "book": {
-   "shiro": "LE LIVRE DE SHIRO",
+   "shiro": "LE LIVRE DE LA REINE",
    "shiroSub": "Pour toi, qui lis",
    "kuro": "LE LIVRE DE KURO",
-   "kuroSub": "Ne pas lire. Surtout toi, Shiro.",
+   "kuroSub": "Ne pas le montrer à Kuro.",
    "go": "À L'ASSAUT",
    "sea": "LE LIVRE DE LA MER",
    "seaSub": "Trouvé sur la plage, encore mouillé",
@@ -365,13 +371,13 @@
    "ch4": "Ce que les chiffres savent",
    "ch5": "La bombe",
    "ch6": "Le trône",
-   "island": "Chaque matin, la mer nous apporte une île pleine de carottes. Nos ancêtres lisaient ses chiffres comme les étoiles, alors l'île les a couronnés.",
-   "crown": "Depuis, la Couronne passe de parent à enfant. Qui la porte est roi : l'île lui donne davantage, et sa lumière brille sur le château. Dans notre famille, les rois partageaient.",
-   "queen": "Notre mère était la dernière reine. Un soir, elle est entrée dans la mer. Ses derniers mots : « Le prochain roi sera celui qui lit. »",
-   "kuro": "Mais la Couronne va au terrier le plus riche. En une nuit, mon frère a pillé tous les terriers. Même le tien.",
-   "kuroSays": "Viens me détrôner, si tu peux.",
-   "numbers": "Je ne lèverai pas la patte sur mon frère. Mais toi, tu lis. Creuse une case : un chiffre compte les bombes autour.",
-   "bomb": "Sûr que c'est une bombe ? Marque-la d'un X. Kuro, lui, saute sans lire, et l'île le renvoie d'où il vient.",
+   "island": "Chaque matin, la mer apporte une île pleine de carottes. Nous lisions ses chiffres comme les étoiles : l'île nous a couronnés.",
+   "crown": "Depuis, la Couronne passe de parent à enfant. Qui la porte est roi, et le château brille. Nous avons toujours partagé.",
+   "queen": "J'étais la dernière reine. Un soir, je suis entrée dans la mer. J'ai dit : « Le prochain roi sera celui qui lit. »",
+   "kuro": "La Couronne va au plus riche. En une nuit, Kuro a pillé tous les terriers. Même le tien.",
+   "kuroSays": "Il riait : « Viens la prendre. »",
+   "numbers": "Shiro ne frappera pas son frère. Mais toi, de notre sang, tu lis. Creuse : un chiffre compte les bombes autour.",
+   "bomb": "Sûr que c'est une bombe ? Marque-la d'un X. Kuro saute sans lire, et l'île le renvoie. Il n'a jamais écouté.",
    "throne": "Ouvre le dernier coffre : l'île retourne à la mer, ton butin rentre au terrier. Fais-le grandir. Monte sur le trône."
   },
   "kuro": {
@@ -381,25 +387,25 @@
    "ch4": "La hache",
    "ch5": "Se défendre",
    "ch6": "Le roi",
-   "note": "Trouvé au château.",
-   "day1": "Jour 1. Maman est entrée dans la mer. Elle a dit « celui qui lit ». Elle pensait à Shiro. Je serai roi quand même : il suffit d'être le plus riche.",
-   "raid": "Sur l'île, personne ne peut te voler. Dans un terrier, tout le monde peut. Un raid, c'est une marche case après case jusqu'au potager.",
-   "bombs": "Chez eux aussi, les chiffres comptent les bombes enterrées. Marche dessus et BOUM. Ils m'ont eu comme ça. Souvent.",
-   "axe": "Ma hache abat un arbre ou une clôture par raid. Plus tu vas loin, plus tu prends. Le potager, c'est le festin !",
-   "defend": "Des bombes où ils passeront, des clôtures sur les chemins faciles. Volé ? Le voleur reste sur ta liste pour ta revanche.",
-   "king": "Jour 300. Je suis roi et je ne dors plus. Un roi qui ne partage pas règne sur des terriers vides. P.-S. Au large, il y a une lumière."
+   "note": "Kuro, mon aîné.",
+   "day1": "Il a cru que je parlais de Shiro. Alors il serait roi autrement : le plus riche.",
+   "raid": "Sur l'île, personne ne te vole. Dans un terrier, si. Le raid de Kuro : une marche, case après case, jusqu'au potager.",
+   "bombs": "Chez eux aussi, les chiffres comptent les bombes enterrées. Marche dessus : BOUM. C'est ainsi qu'on a eu mon Kuro. Souvent.",
+   "axe": "Sa hache abat un arbre ou une clôture par raid. Plus il va loin, plus il prend. Le potager, c'est son festin.",
+   "defend": "Alors écoute : des bombes où ils passeront, des clôtures sur les chemins faciles. Volé ? Le voleur reste sur ta liste.",
+   "king": "Kuro est roi, et il ne dort plus. Un roi qui ne partage pas règne sur du vide. La nuit, il regarde le large. Il a vu ma lumière."
   },
   "sea": {
    "ch1": "Le partage",
    "ch2": "La poussée",
-   "ch3": "Mes armes",
+   "ch3": "L'orage et l'encre",
    "ch4": "La promesse",
    "ch5": "Le sel",
-   "share": "Aujourd'hui, vous serez deux sur mon île, plus loin quatre. Un coffre est à celui qui le creuse.",
-   "push": "Marche sur un lapin et il recule d'une case. Sur une bombe, ou dans mes vagues.",
-   "weapons": "Mes orages ouvrent neuf cases autour d'un rival. Mon encre l'aveugle quelques secondes. Trois de chaque pour commencer.",
-   "promise": "J'ai donné une couronne à votre famille. Ce n'était pas un cadeau. C'était une promesse. Celui qui lit, je l'attends au large.",
-   "margin": "Ce livre sentait le sel. L'écriture... je crois que je la connais."
+   "share": "Désormais, tu ne creuses plus seul : deux sur une île, plus loin quatre. Un coffre est à celui qui le creuse.",
+   "push": "Marche sur un lapin et il recule d'une case : sur une bombe, ou dans les vagues. Mes fils l'ont appris à leurs dépens.",
+   "weapons": "L'orage ouvre neuf cases autour d'un rival. L'encre l'aveugle quelques secondes. Tu commences avec trois de chaque.",
+   "promise": "La mer a donné une couronne à notre famille. Pas un cadeau : une promesse. Au large, je la garde pour celui qui lit.",
+   "margin": "Shiro a trouvé ce livre sur la plage, encore mouillé. Il connaît cette écriture. Dis-lui que l'eau n'est pas froide."
   }
  },
  "arrange": {

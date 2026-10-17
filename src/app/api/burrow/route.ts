@@ -19,7 +19,8 @@ import {
 import { refillEnergy } from '@/lib/game/grant';
 import { OUT_OF_RUN_ENERGY, RAID, upgradeCost } from '@/lib/tuning/tables';
 import { clientOverrides } from '@/lib/tuning/live';
-import { nextSkip } from '@config/tuning';
+import { RABBIT_LEVELS, TUTORIAL_REWARD, nextSkip } from '@config/tuning';
+import { tutorialReward } from '@/lib/game/tutorial-reward';
 
 /**
  * The player's row and their bag, which the burrow view needs both of.
@@ -107,7 +108,7 @@ async function spendOne(
   });
 }
 
-/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill' | 'skip_level', live? }`. */
+/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill' | 'skip_level' | 'skip_tutorial', live? }`. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
@@ -261,6 +262,32 @@ export async function POST(req: Request) {
     const after = (await ownerView(session.sub))!;
     return Response.json({
       skipped: to,
+      burrow: after.view,
+      player: applyRegen(after.player),
+      quest: questBoardOf(after.player),
+    });
+  }
+
+  /**
+   * NO TUTORIAL (2026-10-17) — under SKIP in the queen's book: straight into
+   * the game AT RAID_MIN, raids open ("no tuto, tu vas direct au lvl 3 et tu
+   * peux raid"), with the tutorial's reward: skipping must not leave a player
+   * broke. Level 1 only, and the UPDATE carries it, so a double tap (or a
+   * tutorial chest racing it) pays once.
+   */
+  if (action === 'skip_tutorial') {
+    if (player.level !== 1) return Response.json({ error: 'skip_closed' }, { status: 403 });
+    const to = RABBIT_LEVELS.RAID_MIN;
+    const moved = await db.update(players)
+      .set({ level: to })
+      .where(and(eq(players.id, session.sub), eq(players.level, 1)))
+      .returning({ level: players.level });
+    if (moved.length === 0) return Response.json({ error: 'skip_closed' }, { status: 409 });
+    await tutorialReward(session.sub);
+    const after = (await ownerView(session.sub))!;
+    return Response.json({
+      skipped: to,
+      reward: TUTORIAL_REWARD.CARROTS,
       burrow: after.view,
       player: applyRegen(after.player),
       quest: questBoardOf(after.player),

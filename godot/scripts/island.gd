@@ -234,7 +234,9 @@ const HEAVE_STEP := 0.05
 var _eruption: Tween
 
 
-func play_eruption(duration_ms: int, heave: bool = true) -> void:
+## `shake` : la part de la secousse (1 = celle du jeu). Le livre la joue dans
+## un petit cadre, ou les memes pixels d'ecran secouent beaucoup plus fort.
+func play_eruption(duration_ms: int, heave: bool = true, shake: float = 1.0) -> void:
 	var s := maxf(1.0, float(duration_ms)) / 1000.0
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
@@ -245,7 +247,7 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 		_eruption.kill()
 	var at := _current_shot().at
 	var k := scale.x
-	var kick := SHAKE_PX * 2.0 / k
+	var kick := SHAKE_PX * 2.0 * shake / k
 
 	_eruption = create_tween()
 	if not heave:
@@ -2049,6 +2051,26 @@ static func tutorial_pending() -> bool:
 
 static func _player_id() -> String:
 	return String(Session.player.get("id", "guest"))
+
+
+## LA LECON PASSEE SANS ETRE JOUEE (un saut de niveau, ou SANS TUTO sous
+## PASSER dans le livre de la reine) : l'ile du tuto ne revient plus.
+## `skipped` marque SANS TUTO : les livres qui suivent la lecon attendent les
+## premieres iles (Chrome.maybe_books), sinon ils tombent coup sur coup.
+static func skip_tutorial(skipped := false) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(TUTORIAL_PATH)
+	cfg.set_value("tutorial", _player_id(), true)
+	if skipped:
+		cfg.set_value("skipped", _player_id(), true)
+	cfg.save(TUTORIAL_PATH)
+
+
+static func tutorial_skipped() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(TUTORIAL_PATH) != OK:
+		return false
+	return bool(cfg.get_value("skipped", _player_id(), false))
 
 
 func _remember_finished() -> void:

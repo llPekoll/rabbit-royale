@@ -48,6 +48,8 @@ const MUSIC := {
 
 ## `MUSIC_MIX` : la musique sous les effets.
 const MUSIC_MIX := 0.3
+## La musique sous la voix de Maman (`duck`).
+const DUCK := 0.35
 
 ## Combien d'un meme effet peuvent se chevaucher : la cascade d'explosions
 ## d'une mort en joue une dizaine.
@@ -62,6 +64,7 @@ static var _players := {}
 static var _ambient: AudioStreamPlayer
 static var _music: AudioStreamPlayer
 static var _deny: AudioStreamPlayer
+static var _ducked := false
 
 
 ## La racine s'y prete une fois ; l'ambiance demarre aussitot. Sur le web elle
@@ -102,6 +105,7 @@ static func _release() -> void:
 	_ambient = null
 	_music = null
 	_deny = null
+	_ducked = false
 
 
 ## Un effet. Rien sans racine (un banc), rien pour une cle inconnue.
@@ -142,6 +146,17 @@ static func stop_music() -> void:
 	_music.stream = null
 	if not _ambient.playing:
 		_ambient.play()
+
+
+## SOUS UNE VOIX (BookVoice), la musique descend, puis remonte.
+static func duck(on: bool) -> void:
+	if _host == null or not is_instance_valid(_host) or _ducked == on:
+		return
+	_ducked = on
+	var to := linear_to_db(MUSIC_MIX * (DUCK if on else 1.0))
+	var t := _host.create_tween().set_parallel()
+	for p: AudioStreamPlayer in [_ambient, _music]:
+		t.tween_property(p, "volume_db", to, 0.4 if on else 1.2)
 
 
 static func _player(bus: String, stream: AudioStream, level: float) -> AudioStreamPlayer:

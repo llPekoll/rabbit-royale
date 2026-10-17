@@ -42,6 +42,7 @@ import { racesNow } from '../src/lib/game/season-pass';
 import { equippedSkinOf, lookOf } from '../src/lib/game/look';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
+import { tutorialReward } from '../src/lib/game/tutorial-reward';
 import { snackBonus } from '../src/lib/game/snackState';
 import { refreshTuning } from '../src/lib/tuning/live';
 import type { ItemKind } from '../src/lib/game/inventory';
@@ -455,23 +456,6 @@ async function levelUp(playerId: string): Promise<number> {
     .where(eq(players.id, playerId))
     .returning({ level: players.level });
   return row?.level ?? 1;
-}
-
-/**
- * What the quest board used to pay, given at once for the tutorial island
- * (config/tuning.ts TUTORIAL_REWARD) — carrots into all three counters, like
- * a quest claim did, and the shield into the bag.
- */
-async function tutorialReward(playerId: string): Promise<void> {
-  const carrots = TUTORIAL_REWARD.CARROTS;
-  await db.transaction(async (tx) => {
-    await tx.update(players).set({
-      stock: raw`${players.stock} + ${carrots}`,
-      seasonScore: raw`${players.seasonScore} + ${carrots}`,
-      lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots}`,
-    }).where(eq(players.id, playerId));
-    for (const it of TUTORIAL_REWARD.ITEMS) await grantItem(tx, playerId, it.kind, it.qty);
-  });
 }
 
 /** What every run_over that is NOT a clear says about the ladder: where the

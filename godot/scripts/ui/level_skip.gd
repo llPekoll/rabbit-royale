@@ -64,10 +64,7 @@ static func skip(to: int) -> void:
 	Analytics.track("level_skip", {"to": to, "ok": got > 0})
 	if got > 0:
 		# Sauter, c'est passer le tuto : l'ile du tuto ne revient plus.
-		var cfg := ConfigFile.new()
-		cfg.load(Island.TUTORIAL_PATH)
-		cfg.set_value("tutorial", String(Session.player.get("id", "guest")), true)
-		cfg.save(Island.TUTORIAL_PATH)
+		Island.skip_tutorial()
 	if got > 0 and Chrome.current != null:
 		LevelUpStamp.announce_rabbit(got)
 		Chrome.current.toast(I18N.f("rabbitLevel.skipped", [got]))

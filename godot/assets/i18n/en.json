@@ -329,11 +329,17 @@
   "next": "TAP TO CONTINUE",
   "play": "LET'S DIG",
   "replay": "STORY",
+  "choice": {
+   "game": "NO TUTORIAL",
+   "gift": {
+    "$t": "Welcome to the game! +{0} carrots and a shield for your burrow."
+   }
+  },
   "book": {
-   "shiro": "SHIRO'S BOOK",
+   "shiro": "THE QUEEN'S BOOK",
    "shiroSub": "For you, who can read",
    "kuro": "KURO'S BOOK",
-   "kuroSub": "Do not read. Especially you, Shiro.",
+   "kuroSub": "Do not show it to Kuro.",
    "go": "TO THE RAIDS",
    "sea": "THE BOOK OF THE SEA",
    "seaSub": "Found on the beach, still wet",
@@ -347,13 +353,13 @@
    "ch4": "What the Numbers Know",
    "ch5": "The Bomb",
    "ch6": "The Throne",
-   "island": "Every morning, the sea brings us an island full of carrots. Our ancestors read its numbers like stars, so the island crowned them.",
-   "crown": "Since then, the Crown has passed from parent to child. Whoever wears it is king: the island gives them more, and its light shines on the castle. In our family, the kings shared.",
-   "queen": "Our mother was the last queen. One evening she walked into the sea. Her last words: \"The next king will be the one who reads.\"",
-   "kuro": "But the Crown goes to the richest burrow. In one night, my brother raided every burrow. Even yours.",
-   "kuroSays": "Come and take my throne, if you can.",
-   "numbers": "I will not raise a paw against my brother. But you can read. Dig a tile: a number counts the bombs around it.",
-   "bomb": "Sure it is a bomb? Mark it with an X. Kuro jumps without reading, and the island throws him back.",
+   "island": "Every morning, the sea brings an island full of carrots. Our family read its numbers like stars, so the island crowned us.",
+   "crown": "Since then, the Crown passes from parent to child. Whoever wears it is king, and the castle shines. We always shared.",
+   "queen": "I was the last queen. One evening, I walked into the sea. To my two sons I said: \"The next king will be the one who reads.\"",
+   "kuro": "But the Crown goes to the richest. In one night, Kuro raided every burrow. Even yours.",
+   "kuroSays": "He laughed: \"Come and take it.\"",
+   "numbers": "Shiro will not strike his brother. But you, of our blood, can read. Dig: each number counts the bombs around it.",
+   "bomb": "Sure it is a bomb? Mark it with an X. Kuro jumps without reading, and the island throws him back. He never listened.",
    "throne": "Open the last chest: the island returns to the sea and your loot goes home. Grow your burrow. Take the throne."
   },
   "kuro": {
@@ -363,25 +369,25 @@
    "ch4": "The Axe",
    "ch5": "Defend",
    "ch6": "The King",
-   "note": "Found it at the castle.",
-   "day1": "Day 1. Mum walked into the sea. She said \"the one who reads\". She meant Shiro. I will be king anyway: you just have to be the richest.",
-   "raid": "Out on the island, nobody can rob you. In a burrow, anybody can. A raid is a walk, tile by tile, to the garden.",
-   "bombs": "In their burrow too, the numbers count the buried bombs. Step on one and BOOM. That is how they got me. Often.",
-   "axe": "My axe fells one tree or one fence per raid. The deeper you go, the more you take. The garden is the feast!",
-   "defend": "Bombs where they will walk, fences on the easy paths. Robbed? The thief stays on your list for your revenge.",
-   "king": "Day 300. I am king and I no longer sleep. A king who does not share rules over empty burrows. P.S. Far out at sea, there is a light."
+   "note": "Kuro, my eldest.",
+   "day1": "He thought I meant Shiro. So he would be king another way: the richest.",
+   "raid": "On the island, nobody can rob you. In a burrow, anybody can. Kuro made a habit of the raid: a walk, tile by tile, to the garden.",
+   "bombs": "In a burrow too, the numbers count the buried bombs. Step on one and BOOM. That is how they caught my Kuro. Often.",
+   "axe": "His axe fells one tree or one fence per raid. The deeper he goes, the more he takes. The garden is his feast.",
+   "defend": "So listen: bombs where they will walk, fences on the easy paths. Robbed? The thief stays on your list, for your revenge.",
+   "king": "Kuro is king, and he no longer sleeps. A king who does not share rules over nothing. At night he watches the sea. He saw my light."
   },
   "sea": {
    "ch1": "Sharing",
    "ch2": "The Push",
-   "ch3": "My Weapons",
+   "ch3": "Storm and Ink",
    "ch4": "The Promise",
    "ch5": "Salt",
-   "share": "Today, two of you will stand on my island, further out four. A chest belongs to whoever digs it.",
-   "push": "Walk into a rabbit and it falls back one tile. Onto a bomb, or into my waves.",
-   "weapons": "My storms burst nine tiles open around a rival. My ink blinds them for a few seconds. Three of each to start.",
-   "promise": "I gave your family a crown. It was not a gift. It was a promise. I am waiting for the one who reads, far out at sea.",
-   "margin": "This book smelled of salt. The handwriting... I think I know it."
+   "share": "Now you will not dig alone: two on one island, further out four. A chest belongs to whoever digs it.",
+   "push": "Walk into a rabbit and it falls back one tile: onto a bomb, or into the waves. My sons learned that the hard way.",
+   "weapons": "The storm bursts nine tiles open around a rival. The ink blinds them for a few seconds. You start with three of each.",
+   "promise": "The sea gave our family a crown. It was not a gift. It was a promise. Far out at sea, I am keeping it for the one who reads.",
+   "margin": "Shiro found this book on the beach, still wet. He knows the handwriting. Tell him the water is not cold."
   }
  },
  "arrange": {

@@ -1192,7 +1192,9 @@ func maybe_books(delay := 2.6) -> void:
 	var book := ""
 	if not IntroBook.seen("shiro"):
 		book = "shiro"
-	elif level >= 2 and not IntroBook.seen("kuro"):
+	# SANS TUTO (niveau 3 d'un coup) : les livres s'etalent sur les premieres
+	# iles — Kuro apres la premiere, la mer apres la deuxieme (2026-10-17).
+	elif level >= 2 and not IntroBook.seen("kuro") and not _skipped_before(1):
 		book = "kuro"
 	elif _wallet_offer_due():
 		# AU TERRIER, JUSTE APRES LE LIVRE 2 (la fin du tuto) : la barre dit
@@ -1202,7 +1204,8 @@ func maybe_books(delay := 2.6) -> void:
 		await _offer_wallet()
 		maybe_books(0.4)
 		return
-	elif level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) and not PlaySettings.solo_on() and not IntroBook.seen("sea"):
+	elif level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) and not PlaySettings.solo_on() and not IntroBook.seen("sea") \
+			and not _skipped_before(2):
 		book = "sea"
 	if book.is_empty():
 		# LE TUTO PAS ENCORE FAIT (l'app fermee avant le coffre) : on y retourne.
@@ -1212,6 +1215,11 @@ func maybe_books(delay := 2.6) -> void:
 	_book = IntroBook.play_on(self, book)
 	await _book.finished
 	maybe_books(0.6)
+
+
+## SANS TUTO, et moins de `runs` iles jouees : ce qui suit la lecon attend.
+func _skipped_before(runs: int) -> bool:
+	return Island.tutorial_skipped() and SnackState.runs_played() < runs
 
 
 func _books_calm() -> bool:
@@ -1231,6 +1239,9 @@ func _wallet_offer_due() -> bool:
 	if not bool(Session.player.get("guest", false)):
 		return false
 	if Island.tutorial_pending():
+		return false
+	# Sans tuto : le wallet attend sa premiere ile, comme Kuro.
+	if _skipped_before(1):
 		return false
 	var cfg := ConfigFile.new()
 	cfg.load(IntroBook.PATH)
