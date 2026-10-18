@@ -77,6 +77,10 @@ export class Player {
   asked = '';
   /** Un jeton deja fait (le joueur arrive au terrier) ; sinon l'accueil, en invite. */
   token = '';
+  /** Arguments du jeu en plus, apres `--` (`--rec=`, ...). */
+  userArgs: string[] = [];
+  /** L'heure murale (ms) du lancement de sa fenetre. */
+  launchedAt = 0;
   constructor(public tag: string, public win: Window) {
     this.bus = `${OUT}${tag}`;
     mkdirSync(this.bus, { recursive: true });
@@ -94,7 +98,9 @@ export class Player {
       '--resolution', `${this.win.w}x${this.win.h}`, ...extra,
       'scenes/demo/duo_player.tscn', '--',
       `--server=${BASE}`, `--token=${this.token || `e2e-${this.tag}-bogus`}`, `--bus=${this.bus}`, `--tag=${this.tag}`,
+      ...this.userArgs,
     ], { stdio: ['ignore', log, log] });
+    this.launchedAt = Date.now();
   }
 
   /** Un ordre ; rend l'ack quand le joueur a fini. */
@@ -271,6 +277,10 @@ export interface Bench {
   sections?: () => Record<string, string[]>;
   /** Arguments Godot en plus (`--max-fps`, ...). */
   godotArgs?: string[];
+  /** Les ms entre deux fenetres (1200). */
+  stagger?: number;
+  /** Les fenetres s'ouvrent pendant le scenario (le scenario attend chaque `launchedAt`). */
+  launchDuringScenario?: boolean;
 }
 
 export async function runBench(b: Bench) {
@@ -302,16 +312,20 @@ export async function runBench(b: Bench) {
       process.exit(130);
     });
   }
-  for (const p of b.players) {
-    p.launch(b.godotArgs);
-    await sleep(1200);
-  }
-  await sleep(5000);
-  rmSync(override, { force: true }); // lu au demarrage ; ne pas le laisser trainer
+  const launching = (async () => {
+    for (const p of b.players) {
+      p.launch(b.godotArgs);
+      await sleep(b.stagger ?? 1200);
+    }
+    await sleep(5000);
+    rmSync(override, { force: true }); // lu au demarrage ; ne pas le laisser trainer
+  })();
+  if (!b.launchDuringScenario) await launching;
   void oracleLoop(b.players);
   void energyLoop(b.players);
   try {
     await b.scenario();
+    await launching;
   } catch (e) {
     failed = e;
     console.error(e);

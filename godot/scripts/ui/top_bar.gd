@@ -301,20 +301,14 @@ func reflect_place() -> void:
 
 
 ## CE QUE LES ICONES ANNONCENT (page.tsx) : sur la boutique, les pieges en
-## poche — un nombre qui se tient, en puce discrete ; sur l'histoire, « NEW »
-## en rouge tant qu'un chapitre vient de s'ouvrir, c'est-a-dire dans les 500
-## carottes qui suivent son seuil (la regle du codex).
-const FRESH_CHAPTER := 500.0
-
-
+## poche — un nombre qui se tient, en puce discrete. Plus rien sur l'histoire :
+## les chapitres a vie sont partis (2026-10-15), chaque livre s'ouvre de
+## lui-meme a son etape (Chrome.maybe_books).
 func _reflect_news() -> void:
 	var traps: Dictionary = ShopState.shared().shop.get("traps", {}) if ShopState.shared().shop.get("traps") is Dictionary else {}
 	var held := int(traps.get("held", 0))
 	shop_button.set_badge(str(held) if held > 0 else "")
-	var lifetime := float(Home.burrow.get("lifetime", 0))
-	var open := Content.unlocked_count(lifetime)
-	var fresh := open > 0 and lifetime - float(Content.LORE[open - 1]["unlockAt"]) < FRESH_CHAPTER
-	story_button.set_badge("NEW" if fresh else "", true)
+	story_button.set_badge("", true)
 
 
 ## L'ARRIVEE EN CASCADE (UiEntrance), de gauche a droite, un pas d'ecart.

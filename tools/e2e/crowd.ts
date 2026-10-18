@@ -1,7 +1,10 @@
 /**
  * LE BANC A CINQ — les iles partagees se remplissent-elles comme il faut ?
  *
- *   bun run tools/e2e/crowd.ts [--from 6] [--minutes 30] [--stop-after <phase>]
+ *   bun run tools/e2e/crowd.ts [--count 5] [--from 6] [--to 10] [--minutes 30]
+ *   bun run tools/e2e/crowd.ts --count 9 --from 7 --gap 2 --once
+ *       (9 lapins au niveau 7, un depart toutes les 2 s : 3 iles, dont 2
+ *        pleines, attendues — verifie et note au rapport)
  *
  * Cinq vrais clients Godot (3 + 2 fenetres), cinq lapins qui partent du
  * niveau 6 (`--from`). Places par ile (RABBIT_LEVELS, 2026-10-02) : seul aux
@@ -29,10 +32,18 @@ import { RABBIT_LEVELS } from '../../config/tuning';
 import { BASE, Player, arg, ask, assist, clock, dig, home, phase, remark, runBench, sleep } from './bench';
 
 const FROM = arg('--from', 6);
+/** Le niveau ou l'on s'arrete ; au 10 (le dernier), on continue d'y creuser. */
+const TO = Math.min(10, arg('--to', 10));
 const MINUTES = arg('--minutes', 30);
-const NAMES = ['Shiro', 'Kuro', 'Mochi', 'Pepper', 'Clover'];
-const TAGS = ['A', 'B', 'C', 'D', 'E'];
-// 3 fenetres en haut, 2 en bas, au format du Seeker couche (890x400).
+/** Combien de lapins (une fenetre chacun, 3 par rangee, jusqu'a 9). */
+const COUNT = Math.max(2, Math.min(9, arg('--count', 5)));
+/** Les secondes entre deux departs d'une traversee commune. */
+const GAP_S = arg('--gap', 1.2);
+/** `--once` : une seule traversee commune, verifiee, puis chacun finit son ile. */
+const ONCE = process.argv.includes('--once');
+const NAMES = ['Shiro', 'Kuro', 'Mochi', 'Pepper', 'Clover', 'Nori', 'Biscuit', 'Tofu', 'Maple'];
+const TAGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].slice(0, COUNT);
+// 3 fenetres par rangee, au format du Seeker couche (890x400).
 const W = 636;
 const H = 286;
 const seatsOf = (level: number) => RABBIT_LEVELS.LADDER[Math.max(1, Math.min(10, level)) - 1]?.seats ?? 1;
@@ -160,52 +171,91 @@ async function prepare() {
       await db.transaction((tx) => grantItem(tx as any, g.player.id, kind, 5));
     }
   }
-  assist(`5 comptes faits au niveau ${FROM} (tuto saute), 3 M carottes, 5 eclairs et 5 bloops chacun`);
+  assist(`${COUNT} comptes faits au niveau ${FROM} (tuto saute), 3 M carottes, 5 eclairs et 5 bloops chacun`);
 }
 
 // ── Le scenario ──────────────────────────────────────────────────────────────
 async function together(label: string, ps = crowd) {
   remark(`${label} : ${ps.map((p) => `${p.tag} niv. ${p.level}`).join(', ')}`);
   return Promise.all(ps.map(async (p, i) => {
-    await sleep(i * 1200);
+    await sleep(i * GAP_S * 1000);
     return dig(p, { fight: true, marks: 1 });
   }));
 }
 
+/**
+ * LA REPARTITION ATTENDUE d'une traversee commune : des iles pleines, et ce
+ * qui reste sur une derniere. Relevee quand tous sont assis (ou 90 s).
+ */
+async function checkSplit(level: number) {
+  for (let i = 0; i < 180 && !crowd.every((p) => p.state?.onIsland); i++) await sleep(500);
+  await sleep(2500);
+  const seats = seatsOf(level);
+  const bySeed = new Map<string, string[]>();
+  for (const p of crowd) {
+    const s = p.state;
+    if (!s?.onIsland || !s.seed) continue;
+    bySeed.set(s.seed, [...(bySeed.get(s.seed) ?? []), p.tag]);
+  }
+  const sizes = [...bySeed.values()].map((v) => v.length).sort((a, b) => b - a);
+  const wantIslands = Math.ceil(COUNT / seats);
+  const wantFull = Math.floor(COUNT / seats);
+  const full = sizes.filter((n) => n === seats).length;
+  const seen = [...bySeed.entries()].map(([seed, tags]) => `${seed.slice(0, 12)} ${tags.join('+')} (${tags.length}/${seats})`).join(' · ');
+  const verdict = `attendu ${wantIslands} iles dont ${wantFull} pleines — vu ${bySeed.size} iles dont ${full} pleines [${sizes.join(', ')}]`;
+  if (bySeed.size === wantIslands && full === wantFull && sizes.reduce((a, b) => a + b, 0) === COUNT) {
+    remark(`✔ REPARTITION : ${verdict} — ${seen}`);
+  } else {
+    finding(`REPARTITION : ${verdict} — ${seen}`);
+  }
+}
+
 async function scenario() {
-  phase('1. Cinq sessions reprises, au terrier');
+  phase(`1. ${COUNT} sessions reprises, au terrier`);
   const ok = await Promise.all(crowd.map((p) => p.cmd('onboard', {}, 120)));
   if (ok.some((o) => !o.ok)) throw new Error('un joueur n\'arrive pas au terrier');
   void censusLoop();
 
-  phase(`2. Niveau ${FROM} : les cinq traversent en meme temps (${seatsOf(FROM)} places par ile)`);
+  if (ONCE) {
+    phase(`2. Niveau ${FROM} : ${COUNT} lapins traversent a ${GAP_S} s d'ecart (${seatsOf(FROM)} places par ile)`);
+    const runs = together('traversee commune');
+    await checkSplit(FROM);
+    phase('3. Chacun finit son ile');
+    await runs;
+    for (const p of crowd) leftAlone(p);
+    return;
+  }
+
+  phase(`2. Niveau ${FROM} : les ${COUNT} traversent en meme temps (${seatsOf(FROM)} places par ile)`);
   await together('traversee commune');
 
-  phase('3. Chacun a son rythme jusqu\'au niveau 10 — les iles se remplissent au fil des retours');
+  phase(`3. Chacun a son rythme jusqu'au niveau ${TO} — les iles se remplissent au fil des retours`);
   const deadline = Date.now() + MINUTES * 60_000;
   // Arrive au 10, on continue de creuser : les autres le rejoignent un a un,
-  // et l'ile a quatre places se remplit sous nos yeux.
+  // et l'ile a quatre places se remplit sous nos yeux. Sous le 10, on attend
+  // les autres au niveau vise (creuser encore le ferait monter plus haut).
   await Promise.all(crowd.map(async (p) => {
     let n = 0;
-    while (!crowd.every((q) => q.level >= 10) && Date.now() < deadline) {
+    while (!crowd.every((q) => q.level >= TO) && Date.now() < deadline) {
+      if (TO < 10 && p.level >= TO) { await sleep(2000); continue; }
       await home(p);
       if (++n % 3 === 0) await p.cmd('shop', { buy: { lightning: 2, bloop: 2 } }, 200);
       await dig(p, { fight: true, marks: 1 });
     }
   }));
 
-  phase('4. Niveau 10 : les cinq traversent en meme temps (4 places par ile)');
+  phase(`4. Niveau ${TO} : les ${COUNT} traversent en meme temps (${seatsOf(TO)} places par ile)`);
   await Promise.all(crowd.map((p) => home(p)));
-  if (crowd.every((p) => p.level >= 10)) {
+  if (crowd.every((p) => p.level === TO)) {
     await together('derniere traversee commune');
   } else {
-    remark(`pas tous au niveau 10 dans le temps donne : ${crowd.map((p) => `${p.tag} ${p.level}`).join(', ')}`);
+    remark(`pas tous au niveau ${TO} dans le temps donne : ${crowd.map((p) => `${p.tag} ${p.level}`).join(', ')}`);
   }
   for (const p of crowd) leftAlone(p);
 }
 
 await runBench({
-  title: 'Banc a cinq — les iles partagees',
+  title: `Banc a ${COUNT} — les iles partagees`,
   players: crowd,
   prepare,
   scenario,

@@ -18,7 +18,7 @@ func _ready() -> void:
 	Kit.fill(bg)
 	add_child(bg)
 
-	# `-- --only=season|profile|history|lang|codex` : UN dialogue, a sa taille
+	# `-- --only=season|profile|history|lang|codex|email|email-code` : UN dialogue, a sa taille
 	# de jeu, place comme le chrome le place (plein ecran, ou centre sous le
 	# debord du [x]) — pour juger une mise en page, pas un inventaire.
 	for arg in OS.get_cmdline_user_args():
@@ -157,11 +157,37 @@ func _only(which: String) -> void:
 			board.show_rows(_fake_entries(), {"rank": 5, "score": 4210, "toPass": 640},
 				{"endsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 12 * 86400)})
 			d = board
-		"profile", "history":
+		"profile", "history", "settings":
+			# `settings` : l'onglet des reglages. `--ticket` (solo grise),
+			# `--solo` (allume), `--low` (niveau 1, pas de ligne solo),
+			# `--pretty`, `--off` : rien n'est sauve.
+			var args := OS.get_cmdline_user_args()
+			Home.player = {"avatar": "orange", "level": 1 if "--low" in args else 6, "solo": "--solo" in args}
+			if "--off" in args:
+				AudioSettings.restore()
+				AudioSettings.music_muted = true
+			if "--pretty" in args:
+				PlaySettings.restore()
+				PlaySettings.pretty = true
+			if "--ticket" in args:
+				PassState.shared().fake({"on": true, "mine": {"holder": true}})
 			var profile := Profile.new()
-			profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
+			# `--account` : un compte Google (portes de retour, SUPPRIMER LE
+			# COMPTE) au lieu d'un invite.
+			if "--account" in args:
+				profile.show_player({"id": "acct:bench", "name": "Thistle", "wallet": null, "guest": false,
+					"avatar": "orange", "identities": [{"provider": "google", "email": "thistle@gmail.com"}]})
+			else:
+				profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
 			profile.show_history(_fake_history())
 			d = profile
+		"email", "email-code":
+			var mail := EmailDialog.new()
+			if which == "email-code":
+				mail.ready.connect(func() -> void:
+					mail._email = "thistle@gmail.com"
+					mail._show_code())
+			d = mail
 		"codex":
 			Home.burrow = {"lifetime": 2350.0, "level": 3}
 			var codex := LoreCodex.new()
@@ -189,6 +215,8 @@ func _only(which: String) -> void:
 	add_child(d)
 	if which == "history":
 		(d as Profile)._show_tab(Profile.Tab.HISTORY)
+	if which == "settings":
+		(d as Profile)._show_tab(Profile.Tab.SETTINGS)
 	for i in 3:
 		await get_tree().process_frame
 		_place(d)
@@ -270,7 +298,7 @@ func _place(d: Dialog) -> void:
 		# Le tableau s'ouvre en panneau a droite (`placement == "board"`).
 		var board_top := clampf(view.y * 0.13, 52.0, 100.0)
 		var board_bottom := clampf(view.y * 0.08, 12.0, 60.0)
-		var board_w := minf(maxf(view.x * 0.26, 220.0), view.x * 0.86)
+		var board_w := minf(clampf(view.x * 0.3, Chrome.BOARD_MIN, Chrome.BOARD_MAX), view.x * 0.86)
 		d.custom_minimum_size = Vector2(board_w, 0.0)
 		d.size = Vector2(board_w, view.y - board_top - board_bottom)
 		d.position = Vector2(view.x - Kit.EDGE - board_w, board_top)

@@ -43,7 +43,18 @@ export async function createGuestPlayer(now: Date = new Date()): Promise<{
 }> {
   // The uuid is the whole identity: nothing about the device is collected, so
   // there is no fingerprint to leak and no way to correlate two guests.
-  const id = `guest:${randomUUID()}`;
+  return mintPlayer(`guest:${randomUUID()}`, now);
+}
+
+/**
+ * Insert a brand new player row and their starting kit — the guest door's
+ * body, shared with the Google / email door (identity.ts), which mints the
+ * same burrow under an `acct:` id.
+ */
+export async function mintPlayer(id: string, now: Date = new Date()): Promise<{
+  id: string;
+  name: string;
+}> {
   const name = randomRabbitName(id);
 
   const { RAID, OUT_OF_RUN_ENERGY, TRAPS } = await import('../tuning/tables');

@@ -18,7 +18,6 @@ extends Node
 ## Un geste qui n'aboutit pas laisse une capture <seq>-<quoi>.png dans le bus.
 
 const BEAT_S := 0.22
-const LESSON_BEAT_S := 0.4
 
 var _hand: BenchHand
 var _main: Node
@@ -41,6 +40,10 @@ func _ready() -> void:
 			_bus = arg.trim_prefix("--bus=")
 		elif arg.begins_with("--tag="):
 			_tag = arg.trim_prefix("--tag=")
+		elif arg.begins_with("--rec="):
+			_rec = arg.trim_prefix("--rec=")
+		elif arg.begins_with("--rec-fps="):
+			_rec_fps = float(arg.trim_prefix("--rec-fps="))
 	_rng.seed = hash(_tag) ^ Time.get_ticks_usec()
 	_main = preload("res://scenes/main.tscn").instantiate()
 	add_child(_main)
@@ -58,6 +61,79 @@ func _ready() -> void:
 	live.timeout.connect(func() -> void: _snap_to(_bus + "/live.png"))
 	add_child(live)
 	_serve.call_deferred()
+	_start_film.call_deferred()
+
+
+# ── Le film ─────────────────────────────────────────────────────────────────
+#
+# `--rec=<dossier>` : la fenetre s'enregistre elle-meme, image par image, en
+# JPG nommes par l'heure MURALE en ms — le montage recale les fenetres entre
+# elles a la milliseconde (tools/e2e/film_cut.py). La capture d'ecran du Mac
+# n'en a pas besoin. Et dans le bus, events.jsonl : ce que le serveur dit
+# (arrivees, eclairs, poussees, eruption...) a la meme horloge.
+
+var _rec := ""
+var _rec_fps := 20.0
+const FILM_EVENTS := ["island", "rabbit_joined", "rabbit_left", "lightning_struck", "rabbit_struck",
+	"rabbit_pushed", "rabbit_inked", "bomb_hit", "eruption", "run_over", "rabbit_died", "bomb_flagged"]
+
+
+static func _wall_ms() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)
+
+
+func _start_film() -> void:
+	GameSocket.event.connect(_film_event)
+	if _rec.is_empty():
+		return
+	DirAccess.make_dir_recursive_absolute(_rec)
+	var t := Timer.new()
+	t.wait_time = 1.0 / maxf(1.0, _rec_fps)
+	t.autostart = true
+	t.timeout.connect(_film_frame)
+	add_child(t)
+
+
+func _film_frame() -> void:
+	var img := get_viewport().get_texture().get_image()
+	if img == null:
+		return
+	var path := "%s/%013d.jpg" % [_rec, _wall_ms()]
+	WorkerThreadPool.add_task(func() -> void: img.save_jpg(path, 0.85))
+
+
+## Un moment pour le montage : `{t, tag, ev, ...}` sur une ligne.
+func _film_mark(ev: String, extra: Dictionary = {}) -> void:
+	if _bus.is_empty():
+		return
+	var line := {"t": _wall_ms(), "tag": _tag, "ev": ev}
+	line.merge(extra)
+	var f := FileAccess.open(_bus + "/events.jsonl", FileAccess.READ_WRITE)
+	if f == null:
+		f = FileAccess.open(_bus + "/events.jsonl", FileAccess.WRITE)
+	if f == null:
+		return
+	f.seek_end()
+	f.store_line(JSON.stringify(line))
+	f.close()
+
+
+func _film_event(name: String, data: Variant) -> void:
+	if not FILM_EVENTS.has(name):
+		return
+	var d: Dictionary = data if data is Dictionary else {}
+	match name:
+		"island":
+			_film_mark("island", {"seed": String(d.get("seed", "")), "rabbits": (d.get("rabbits", []) as Array).size()})
+		"run_over":
+			_film_mark("run_over", {"cleared": d.get("cleared", false), "leveledUp": d.get("leveledUp", false),
+				"killedBy": d.get("killedBy", {})})
+		_:
+			var keep := {}
+			for k in ["playerId", "by", "castBy", "pushedBy", "drowned", "target", "name"]:
+				if d.has(k):
+					keep[k] = d[k]
+			_film_mark(name, keep)
 
 
 func _say(what: String) -> void:
@@ -417,7 +493,7 @@ func _tap_sign(door: String, limit: float = 30.0) -> bool:
 	return true
 
 
-# ── L'accueil et la lecon ───────────────────────────────────────────────────
+# ── L'accueil ───────────────────────────────────────────────────
 
 func _onboard() -> bool:
 	await _until(func() -> bool: return _find("title") != null or Screens.in_world(), 40.0)
@@ -452,55 +528,12 @@ func _onboard() -> bool:
 			return false
 	_result["playerId"] = String(Session.player.get("id", ""))
 	_write_state()
-	# LA LECON, si elle est due.
+	# PLUS DE LECON (2026-10-15) : un nouveau venu arrive droit au terrier.
 	await _until(func() -> bool: return Screens.in_world() and not Screens.crossing, 30.0)
-	var island := _island()
-	if island != null and await _until(func() -> bool:
-			var i := _island()
-			return i != null and i.get("_board") != null and bool(i.call("_is_tutorial")), 15.0):
-		if not await _tutorial():
-			return false
 	if not await _until(_at_burrow, 60.0):
-		_note("pas de terrier apres la lecon")
+		_note("pas de terrier apres l'accueil")
 		return false
 	return await _settle()
-
-
-func _tutorial() -> bool:
-	_note("lecon")
-	await _wait(1.5)
-	var island: Node2D = _island()
-	var board: IslandBoard = island.get("_board")
-	var bomb := TutorialMap.bomb()
-	var chest := TutorialMap.chest()
-	var guard := 0
-	while is_instance_valid(island) and not bool(island.get("_done")) and guard < 80:
-		guard += 1
-		var rabbit: HomeRabbit = island.get("_rabbit")
-		await _until(func() -> bool: return not rabbit.hopping(), 5.0)
-		await _wait(LESSON_BEAT_S)
-		var here := rabbit.at()
-		if not board.is_flagged(bomb) and board.is_beside(here, bomb):
-			await _tap_control(island.get("_mark"))
-			await _wait(0.45)
-			await _tap(_cell_on_island(island, bomb))
-			await _wait(0.6)
-			continue
-		var goal := bomb if not board.is_flagged(bomb) else chest
-		var best := Vector2i(-1, -1)
-		var best_d := 1 << 30
-		for n in board._neighbours(here):
-			if not board.may_step(here, n) or n == bomb:
-				continue
-			var d: int = 0 if n == goal else board._steps_between(n, goal)
-			if d < best_d:
-				best_d = d
-				best = n
-		if best.x < 0:
-			_note("lecon : bloque en %s" % str(here))
-			return false
-		await _tap(_cell_on_island(island, best))
-	return true
 
 
 # ── Creuser ─────────────────────────────────────────────────────────────────
@@ -1324,7 +1357,7 @@ func _wander(a: Dictionary) -> bool:
 	# LA BARRE DU HAUT : profil (ses onglets), saison, histoire, son.
 	var bar := _find("ui/top_bar")
 	if bar != null:
-		for what in ["chip", "season_button", "story_button"]:
+		for what in ["me_button", "season_button", "story_button"]:
 			if not await _settle():
 				ok = false
 				break
@@ -1336,7 +1369,7 @@ func _wander(a: Dictionary) -> bool:
 			var opened := await _until(func() -> bool: return Chrome.current.dialog_open(), 4.0)
 			_note("barre : %s %s" % [what, "ouvert" if opened else "NE S'OUVRE PAS"])
 			await _wait(1.2)
-			if what == "chip" and opened:
+			if what == "me_button" and opened:
 				var prof := _find("ui/profile")
 				if prof != null:
 					for tab: Button in prof.get("_tabs"):

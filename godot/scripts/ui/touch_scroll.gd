@@ -88,7 +88,11 @@ func _open_tree(node: Node) -> void:
 func _open(ctl: Control) -> void:
 	if not is_instance_valid(ctl) or ctl.mouse_filter != Control.MOUSE_FILTER_STOP:
 		return
-	if ctl.has_meta(KEEP) or ctl is LineEdit or ctl is TextEdit or ctl is ScrollContainer \
+	# `is_class("TextEdit")`, pas `is TextEdit` : la classe est retiree du
+	# moteur web (godot/web/engine.gdbuild) et le seul NOM du type faisait
+	# echouer ce script au chargement — et avec lui tout ce qui s'en sert
+	# (PlankButton, les interrupteurs Musique / Effets du profil).
+	if ctl.has_meta(KEEP) or ctl is LineEdit or ctl.is_class("TextEdit") or ctl is ScrollContainer \
 			or (ctl is Range and not ctl is ProgressBar):
 		return
 	ctl.mouse_filter = Control.MOUSE_FILTER_PASS

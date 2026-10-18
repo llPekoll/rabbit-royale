@@ -570,6 +570,15 @@ export const RABBIT_LEVELS = {
    * them an island of their own: nobody ever found the one left half-dug.
    */
   POOL_FROM: 7,
+  /**
+   * THE SKIP OF THE ONBOARDING (2026-10-15, evening; one skip since
+   * 2026-10-16). The burrow opens with DIG + DEFEND (the tutorial island and
+   * Kuro's journal come first), then RAID from RAID_MIN (the book of the
+   * sea). Below RAID_MIN the RAID plank shows SKIP TO RAID instead (→ 6,
+   * straight to islands played together). SKIP TO DEFEND (1 → 2) is gone:
+   * « dégage-le complètement ».
+   */
+  SKIP_TO: [6],
   LADDER: [
     { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
     { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
@@ -716,6 +725,15 @@ export const BIG_ISLANDS = {
 export function levelRow(level: number): LevelRow {
   const n = Math.min(RABBIT_LEVELS.MAX, Math.max(1, Math.floor(Number.isFinite(level) ? level : 1)));
   return RABBIT_LEVELS.LADDER[n - 1];
+}
+
+/**
+ * Where the skip of `level` leads (RABBIT_LEVELS.SKIP_TO), or null: SKIP TO
+ * RAID below RAID_MIN (→ 6), nothing from there.
+ */
+export function nextSkip(level: number): number | null {
+  if (level >= RABBIT_LEVELS.RAID_MIN) return null;
+  return RABBIT_LEVELS.SKIP_TO.find((to) => to > level) ?? null;
 }
 
 /**
@@ -2071,6 +2089,18 @@ export const QUESTS = {
     'open-a-chest': { kind: 'shield', qty: 1 },
     'knock-on-a-door': { kind: 'trap', qty: 1 },
   },
+} as const;
+
+/**
+ * THE TUTORIAL'S REWARD (2026-10-15). The quest board left the burrow — the
+ * three books and the burrow's stages teach what it taught — and what its
+ * quests paid is given at once to a rabbit who clears its first island
+ * (level 1 → 2), so the early economy does not move: the carrots of every
+ * quest (QUESTS.CARROTS, 875) and the shield of `open-a-chest`.
+ */
+export const TUTORIAL_REWARD = {
+  CARROTS: Object.values(QUESTS.CARROTS).reduce((a, b) => a + b, 0),
+  ITEMS: [{ kind: 'shield', qty: 1 }],
 } as const;
 
 /**

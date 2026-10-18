@@ -56,7 +56,7 @@ shoot() { # name frames scene args...
 }
 
 TB=scenes/demo/trailer_bench.tscn
-all="pvp-duel pvp-zap pvp-lightning pvp-bloop pvp-shove pvp-bombshove pvp-drown solo-dig solo-explosions solo-chest raid-attack raid-defend"
+all="pvp-duel pvp-zap pvp-lightning pvp-bloop pvp-shove pvp-bombshove pvp-drown pvp-dodge solo-dig solo-explosions solo-chest raid-attack raid-defend"
 for b in ${@:-$all}; do
   case $b in
     pvp-duel)        shoot $b 440 $TB --clean --names --hand --seed="$SEED" --beat=duel ;;
@@ -66,9 +66,15 @@ for b in ${@:-$all}; do
     pvp-shove)       shoot $b 170 $TB --clean --names --hand --seed="$SEED" --beat=shove ;;
     pvp-bombshove)   shoot $b 200 $TB --clean --names --hand --seed="$SEED" --beat=bombshove ;;
     pvp-drown)       shoot $b 250 $TB --clean --names --hand --seed="$SEED" --beat=drown ;;
+    pvp-dodge)       shoot $b 330 $TB --clean --names --seed="$SEED" --beat=dodge ;;
     solo-dig)        shoot $b 1200 $TB --clean --seed="$SEED" --auto=60 --auto-every=0.3 --hand ;;
     solo-explosions) shoot $b 1200 $TB --clean --seed=${BOMB_SEED:-mines} --auto=80 --auto-every=0.3 --hunt --hand ;;
     solo-chest)      shoot $b 170 $TB --clean --hand --seed="$SEED" --beat=chest ;;
+    ui-snack)        shoot $b 240 scenes/bench/dialogs_bench.tscn --only=snack-claim ;;
+    ui-pass)         shoot $b 180 scenes/bench/dialogs_bench.tscn --only=pass ;;
+    ui-shop)         shoot $b 240 scenes/bench/shop_bench.tscn --only=shop --rails ;;
+    ui-skins)        shoot $b 420 scenes/bench/skin_bench.tscn --reveal-loop ;;
+    ui-arrange)      shoot $b 240 scenes/bench/arrange_bench.tscn --grab=tree --drop ;;
     raid-attack)     shoot $b 540 scenes/demo/raid_film_bench.tscn --side=attack ;;
     raid-defend)     shoot $b 540 scenes/demo/raid_film_bench.tscn --side=defend ;;
     *) echo "beat inconnu : $b" >&2; exit 1 ;;

@@ -128,7 +128,7 @@ export async function POST(req: Request) {
  * opened on lifetime carrots — the same rule the codex itself draws by.
  */
 function markAllowed(mark: string, lifetimeCarrots: number): boolean {
-  if (mark === QUEST_MARK.LEADERBOARD) return true;
+  if (mark === QUEST_MARK.LEADERBOARD || mark === QUEST_MARK.BOOK) return true;
   if (mark.startsWith(QUEST_MARK.CODEX_PREFIX)) {
     const id = mark.slice(QUEST_MARK.CODEX_PREFIX.length);
     const chapter = LORE.find((c) => c.id === id);

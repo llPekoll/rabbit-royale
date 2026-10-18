@@ -118,8 +118,11 @@ var _connect_hint: Label
 var _connect_error: Label
 var _leave_button: Button
 var _leave_label: Label
+var _delete_button: Button
+var _delete_label: Label
 var _saving := false
 var _confirming_abandon := false
+var _confirming_delete := false
 var _connecting := false
 
 ## L'historique tel que /api/player/history le rend, ou vide ; `_history_failed`
@@ -141,6 +144,10 @@ var _name_re := RegEx.new()
 ## Un banc : pas de reseau.
 var _offline := false
 
+
+## GOOGLE ET E-MAIL : prets dans le code, pas encore branches (les cles du
+## serveur manquent). A passer a vrai avec WEB2_DOORS de title.gd.
+const WEB2_DOORS := false
 
 func _init() -> void:
 	super("")
@@ -315,7 +322,7 @@ func _show_tab(which: Tab) -> void:
 	_fit_board()
 	# Les commandes de l'ancienne page sont libres ; une requete qui finit
 	# apres ne doit pas les toucher.
-	for v in ["_name_edit", "_save_button", "_connect_button", "_connect_hint", "_connect_error", "_leave_button", "_leave_label", "_error", "_warn", "_guest_pill", "_rabbit_grid", "_portrait", "_scroll", "_page_title"]:
+	for v in ["_name_edit", "_save_button", "_connect_button", "_connect_hint", "_connect_error", "_leave_button", "_leave_label", "_delete_button", "_delete_label", "_error", "_warn", "_guest_pill", "_rabbit_grid", "_portrait", "_scroll", "_page_title"]:
 		set(v, null)
 	_dots.clear()
 	for child in _board.get_children():
@@ -505,24 +512,51 @@ func _build_profile() -> void:
 	_connect_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_connect_hint.clip_text = false
 	_connect_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	# WEB3 SEULEMENT pour l'instant (2026-10-08) : la maquette montre
-	# Google, E-mail et Wallet ; seul le wallet est branche, au milieu.
+	# GOOGLE, E-MAIL, WALLET (2026-10-08) : les portes qui manquent encore a
+	# ce compte, cote a cote au pas de la maquette (149 de large) et centrees
+	# dans la section. Une porte deja liee se dit dans le texte au-dessus.
 	var wallet := String(_player["wallet"]) if _player.get("wallet") != null else ""
-	if guest:
-		_connect_hint.text = I18N.t("profile.saveBurrowHint")
-	elif not wallet.is_empty():
-		_connect_hint.text = wallet.substr(0, 4) + "…" + wallet.right(4)
-	if wallet.is_empty():
-		_connect_button = _provider("wallet", 880.0, 517.0, 260.0)
-		_connect_button.pressed.connect(_on_connect_wallet)
+	var linked := {}
+	var said: Array[String] = []
+	if not wallet.is_empty():
+		linked["wallet"] = true
+		said.append(wallet.substr(0, 4) + "…" + wallet.right(4))
+	for idn in _player.get("identities", []):
+		var kind := String(idn.get("provider", ""))
+		linked[kind] = true
+		var mail := String(idn["email"]) if idn.get("email") != null else ""
+		said.append(I18N.t("auth." + kind) + (" · " + mail if not mail.is_empty() else ""))
+	_connect_hint.text = I18N.t("auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
+	# Google et l'e-mail attendent leurs cles (comme l'accueil, Title
+	# WEB2_DOORS) : seul le wallet se relie pour l'instant.
+	var doors := ["google", "email", "wallet"] if WEB2_DOORS else ["wallet"]
+	var missing := doors.filter(func(k: String) -> bool: return not linked.has(k))
+	var x := 756.0 + (507.0 - (missing.size() * 149.0 + (missing.size() - 1) * 14.0)) * 0.5
+	for kind in missing:
+		var b := _provider(kind, x, 517.0)
+		x += 149.0 + 14.0
+		match kind:
+			"wallet":
+				_connect_button = b
+				b.pressed.connect(_on_connect_wallet)
+			"google":
+				b.pressed.connect(_on_link_google)
+			"email":
+				b.pressed.connect(func() -> void: EmailDialog.open(true))
 	_connect_error = _say("", 772, 482, 480, 24, 15, CampStyle.BAD)
 	_connect_error.visible = false
 	_refresh_connect()
 
-	# Le depart, au pied : abandonner (invite) ou se deconnecter.
-	_leave_button = _link("LeaveBurrow", 772, 597, 476, 28, true)
+	# Le depart, au pied : abandonner (invite) ou se deconnecter. Un compte
+	# lie partage la ligne avec SUPPRIMER LE COMPTE (exige par les stores) ;
+	# un invite n'en a pas besoin, ABANDONNER supprime deja tout.
+	_leave_button = _link("LeaveBurrow", 772, 597, 476 if guest else 230, 28, guest)
 	_leave_label = _leave_button.get_node("Words")
 	_leave_button.pressed.connect(_on_leave)
+	if not guest:
+		_delete_button = _link("DeleteAccount", 1018, 597, 230, 28)
+		_delete_label = _delete_button.get_node("Words")
+		_delete_button.pressed.connect(_on_delete_account)
 	_refresh_leave()
 
 
@@ -696,6 +730,10 @@ func _refresh_leave() -> void:
 	_leave_label.text = words
 	_leave_label.add_theme_color_override("font_color", CampStyle.COPPER if _confirming_abandon else CampStyle.DANGER)
 	_center_link(_leave_button)
+	if is_instance_valid(_delete_button):
+		_delete_label.text = I18N.t("profile.deleteConfirm" if _confirming_delete else "profile.deleteAccount")
+		_delete_label.add_theme_color_override("font_color", CampStyle.COPPER if _confirming_delete else CampStyle.DANGER)
+		_center_link(_delete_button)
 
 
 # ── L'onglet Historique ──────────────────────────────────────────────────────
@@ -936,6 +974,7 @@ func show_player(player: Dictionary) -> void:
 	_avatar = player.get("avatar", Home.player.get("avatar", null))
 	_picked = null
 	_confirming_abandon = false
+	_confirming_delete = false
 	if is_inside_tree():
 		_show_tab(_tab)
 
@@ -1159,6 +1198,42 @@ func _say_connect(message: String) -> void:
 		return
 	_connect_error.text = message
 	_connect_error.visible = not message.is_empty()
+
+
+## UN INVITE SAUVE SON TERRIER PAR GOOGLE : le navigateur, puis l'attente
+## (Session.continue_with_google). Fermer sur le succes, comme le wallet.
+func _on_link_google() -> void:
+	if Session.busy:
+		return
+	_say_connect(I18N.t("auth.googleWaiting"))
+	var ok := await Session.continue_with_google(true)
+	if not is_inside_tree():
+		return
+	if ok:
+		closed.emit()
+	elif is_instance_valid(_connect_error) and _connect_error.text == I18N.t("auth.googleWaiting"):
+		_say_connect("")
+
+
+## SUPPRIMER LE COMPTE, en deux pressions. Le serveur efface tout, puis
+## retour a l'accueil comme une deconnexion.
+func _on_delete_account() -> void:
+	if not _confirming_delete:
+		_confirming_delete = true
+		_refresh_leave()
+		return
+	if _offline:
+		return
+	_delete_button.disabled = true
+	var ok := await Session.delete_account()
+	if not is_inside_tree():
+		return
+	if not ok:
+		_delete_button.disabled = false
+		_say_connect(I18N.t("err_offline"))
+		return
+	closed.emit()
+	Screens.show_doorstep()
 
 
 ## DECONNECTER, ou ABANDONNER en deux pressions. Le DELETE est attendu AVANT

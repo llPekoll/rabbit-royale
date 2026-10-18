@@ -155,6 +155,10 @@ func _only(which: String) -> void:
 	match which:
 		"shop":
 			dialog = Shop.new()
+			# `--rails` : les rails d'argent allumes, et l'etal qui passe de
+			# l'un a l'autre — la video de demo.
+			if "--rails" in OS.get_cmdline_user_args():
+				_live_rails(dialog as Shop)
 		"popup":
 			dialog = EnergyPopup.new()
 		_:
@@ -183,3 +187,17 @@ func _only(which: String) -> void:
 		place.call()
 		dialog.minimum_size_changed.connect(place)
 		get_viewport().size_changed.connect(place)).call_deferred()
+
+
+## Les trois rails comme pour un joueur au portefeuille branche : la carotte
+## trois secondes, puis USDC, SOL, SKR — au rythme de la replique qui les cite.
+func _live_rails(shop: Shop) -> void:
+	var state := ShopState.shared()
+	state.shop["usdcEnabled"] = true
+	state.shop["tokens"] = ["skr", "usdc", "sol"]
+	state.shop["rates"] = {"sol": 142.5, "skr": 0.031, "usdc": 1.0}
+	(func() -> void:
+		await get_tree().create_timer(2.6).timeout
+		for rail in ["usdc", "sol", "skr"]:
+			await get_tree().create_timer(0.75).timeout
+			shop._pick_rail(rail)).call()

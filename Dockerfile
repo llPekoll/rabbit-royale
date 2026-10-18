@@ -68,6 +68,13 @@ RUN mkdir -p dist/web/play \
 # sont copies a la main. Le worker DOIT etre sous /play/ pour avoir la portee
 # /play/ (un worker ne peut pas viser plus haut que son dossier sans en-tete).
 RUN cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web/play/
+# LA VOIX DE MAMAN (2026-10-17), HORS DU PACK : un `.gdignore` la tient hors
+# de l'export, et le jeu ne telecharge que la langue du joueur, a l'ouverture
+# d'un livre (godot/scripts/intro/book_voice.gd). Le web ET l'Android la
+# lisent ici, sous /play/voice/<locale>/.
+RUN mkdir -p dist/web/play/voice \
+  && cp -R godot/assets/intro/voice/. dist/web/play/voice/ \
+  && rm -f dist/web/play/voice/.gdignore
 # LE JEU ANDROID, TELECHARGE PAR L'APP ELLE-MEME (2026-10-03). L'APK n'est
 # qu'une coque : au lancement elle lit manifest.json et charge le pack s'il a
 # change (godot/scripts/boot.gd). Un push ici corrige donc aussi les

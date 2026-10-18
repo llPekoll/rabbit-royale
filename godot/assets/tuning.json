@@ -647,6 +647,9 @@
   "MAX": 10,
   "RAID_MIN": 3,
   "POOL_FROM": 7,
+  "SKIP_TO": [
+   6
+  ],
   "LADDER": [
    {
     "level": 1,
@@ -1025,6 +1028,15 @@
   "CARROT_COST": 150,
   "REARM_MS": 10800000,
   "REARM_STAGGER_MS": 1800000
+ },
+ "TUTORIAL_REWARD": {
+  "CARROTS": 875,
+  "ITEMS": [
+   {
+    "kind": "shield",
+    "qty": 1
+   }
+  ]
  },
  "USDC": {
   "DECIMALS": 6,

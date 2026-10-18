@@ -281,7 +281,7 @@ func _refresh() -> void:
 	# `payments && usdcEnabled && !guest` — les deux repondent a des questions
 	# differentes et seule la seconde engage).
 	var money := held <= 0 and not item.is_empty() and bool(_state.shop.get("usdcEnabled", false)) \
-		and not bool(Session.player.get("guest", false)) and Wallet.available()
+		and Session.has_wallet() and Wallet.available()
 	_buy_money.visible = money
 	if money:
 		_buy_money.relabel("$%.2f" % float(item.get("usdc", 0.0)))

@@ -23,7 +23,7 @@ export const ptBR: Dict = {
   units: { s: 's', m: 'min', h: 'h', d: 'd' },
 
   meta: {
-    title: 'Rabbit Royale: A Coroa Amaldiçoada',
+    title: 'Rabbit Royale: A Coroa da Família',
     description: 'Campo minado competitivo. Cave, acumule, saqueie, use a coroa.',
   },
   lang: { label: 'Idioma' },
@@ -50,6 +50,14 @@ export const ptBR: Dict = {
     connect: 'Conectar carteira',
     connecting: 'Cavando...',
     guest: 'Jogar como convidado',
+    play: 'JOGAR',
+    haveAccount: 'Já tenho uma conta',
+    offerTitle: 'GUARDE SUA TOCA',
+    offerWhy: 'Conecte sua carteira: sua toca, suas cenouras e seu nível te seguem em qualquer celular. Você também pode fazer isso depois pelo perfil.',
+    offerLater: 'DEPOIS',
+    offerLink: 'CONECTAR',
+    offerDone: 'Carteira conectada. Sua toca está segura.',
+    offerNoWallet: 'Nenhuma carteira Solana neste navegador. Instale uma (Phantom, Solflare, Backpack, Jupiter…) ou abra o Rabbit Royale no seu celular.',
     waiting: 'Aguardando...',
     guestNote: 'Toca de convidado. Conecte uma carteira para mantê-la.',
     noWallet: 'Nenhuma carteira encontrada. Abra no app Rabbit Royale ou instale uma carteira Solana.',
@@ -204,7 +212,7 @@ export const ptBR: Dict = {
     burrowsOpen: (n) => `${n} toca${n === 1 ? '' : 's'} abert${n === 1 ? 'a' : 'as'}`,
     bombsInBag: (n) => `${n} bomba${n === 1 ? '' : 's'} na bolsa`,
     allShielded: 'todas as tocas com escudo',
-    bury: 'ENTERRAR',
+    bury: 'DEFENDER',
     atRisk: (n) => `+${n} em risco`,
   },
 
@@ -240,23 +248,70 @@ export const ptBR: Dict = {
     regenRate: (perHour) => `${perHour} de energia/h`,
   },
 
-  tour: {
-    next: (i, n) => `PRÓXIMO ${i}/${n}`,
-    gotIt: 'ENTENDI',
-    carrotsTitle: 'SUAS CENOURAS',
-    carrots: 'Tudo o que você cava vem parar aqui. A parte dourada está a salvo. A parte vermelha, um saqueador pode levar.',
-    gardenTitle: 'SUA HORTA',
-    garden: (perHour) => `Ela cresce sozinha, +${perHour} por hora. Toque em COLHER para guardar as cenouras. Até lá, podem roubá-las.`,
-    houseTitle: 'SUA CASA',
-    house: 'Gaste cenouras para aumentá-la: mais cenouras por hora, e mais delas a salvo.',
-    digTitle: 'CAVAR',
-    dig: 'As cenouras vêm da ilha. Cada escavação gasta energia, e o anel se enche sozinho.',
-    buryTitle: 'ENTERRAR',
-    bury: 'Os saqueadores VÃO vir atrás da sua horta. Enterre bombas no caminho deles. Faça-os pagar cada passo!',
-    raidTitle: 'SAQUEAR',
-    raid: 'E você pode dar o troco. As hortas deles, as suas cenouras!',
-    questTitle: 'NA DÚVIDA',
-    quest: 'Siga sua missão. Ela sempre sabe o próximo passo.',
+  intro: {
+    skip: 'PULAR',
+    next: 'TOQUE PARA CONTINUAR',
+    play: 'BORA CAVAR',
+    replay: 'HISTÓRIA',
+    choice: {
+      game: 'SEM TUTORIAL',
+      toLevel: (n) => `PULAR PARA O NÍVEL ${n}`,
+      gift: (n) => `Bem-vindo ao jogo! +${n} cenouras e um escudo para a sua toca.`,
+    },
+    book: {
+      shiro: 'O LIVRO DA RAINHA',
+      shiroSub: 'Para você, que sabe ler',
+      kuro: 'O LIVRO DE KURO',
+      kuroSub: 'Não mostre ao Kuro.',
+      go: 'SAQUEAR',
+      sea: 'O LIVRO DO MAR',
+      seaSub: 'Achado na praia, ainda molhado',
+      kuroGo: 'DEFENDER MINHA TOCA',
+      seaShort: 'MAR',
+    },
+    shiro: {
+      ch1: 'A ilha que dá',
+      ch2: 'A rainha e a maré',
+      ch3: 'Kuro',
+      ch4: 'O que os números sabem',
+      ch5: 'A bomba',
+      ch6: 'O trono',
+      island: 'Toda manhã, o mar traz uma ilha cheia de cenouras. Nossa família lia seus números como estrelas, e a ilha nos coroou.',
+      crown: 'Desde então, a Coroa passa de pais para filhos. Quem a usa é rei, e o castelo brilha. Nós sempre dividimos.',
+      queen: 'Eu fui a última rainha. Uma noite, entrei no mar. Aos meus dois filhos eu disse: "O próximo rei será aquele que lê."',
+      kuro: 'Mas a Coroa vai para o mais rico. Em uma noite, Kuro saqueou todas as tocas. Até a sua.',
+      kuroSays: 'Ele riu: "Venha pegá-la."',
+      numbers: 'Shiro não vai bater no irmão. Mas você, do nosso sangue, sabe ler. Cave: cada número conta as bombas em volta.',
+      bomb: 'Tem certeza que é bomba? Marque com um X. Kuro pula sem ler, e a ilha o manda de volta. Ele nunca escutou.',
+      throne: 'Abra o último baú: a ilha volta para o mar, e o seu saque vai para a toca. Faça ela crescer. Suba ao trono.',
+    },
+    kuro: {
+      ch1: 'Antes',
+      ch2: 'O saque',
+      ch3: 'As bombas',
+      ch4: 'O machado',
+      ch5: 'Defender-se',
+      ch6: 'O rei',
+      note: 'Kuro, meu mais velho.',
+      day1: 'Ele achou que eu falava do Shiro. Então seria rei de outro jeito: o mais rico.',
+      raid: 'Na ilha, ninguém te rouba. Numa toca, todo mundo pode. O saque do Kuro: uma caminhada, casa por casa, até a horta.',
+      bombs: 'Na toca também, os números contam as bombas enterradas. Pise numa e BUM. Foi assim que pegaram o meu Kuro. Muitas vezes.',
+      axe: 'O machado dele derruba uma árvore ou uma cerca por saque. Quanto mais longe ele vai, mais leva. A horta é o banquete dele.',
+      defend: 'Então escute: bombas onde eles vão passar, cercas nos caminhos fáceis. Foi roubado? O ladrão fica na sua lista, para a sua vingança.',
+      king: 'Kuro é rei, e não dorme mais. Um rei que não divide reina sobre o nada. À noite, ele olha o mar. Ele viu a minha luz.',
+    },
+    sea: {
+      ch1: 'A partilha',
+      ch2: 'O empurrão',
+      ch3: 'A tempestade e a tinta',
+      ch4: 'A promessa',
+      ch5: 'O sal',
+      share: 'Agora você não cava mais sozinho: dois numa ilha, mais longe quatro. Um baú é de quem o cava.',
+      push: 'Ande sobre um coelho e ele recua uma casa: sobre uma bomba, ou para as ondas. Meus filhos aprenderam isso do jeito difícil.',
+      weapons: 'A tempestade abre nove casas em volta de um rival. A tinta o cega por alguns segundos. Você começa com três de cada.',
+      promise: 'O mar deu uma coroa à nossa família. Não era um presente: era uma promessa. Ao longe, eu a guardo para aquele que lê.',
+      margin: 'Shiro achou este livro na praia, ainda molhado. Ele conhece esta letra. Diga a ele que a água não está fria.',
+    },
   },
 
   arrange: {
@@ -751,6 +806,13 @@ export const ptBR: Dict = {
     final: 'As ilhas finais',
     raidsOpen: 'Os ataques estão abertos',
     raidLocked: (n: number) => `Ataques abrem no nível ${n}. Termine ilhas para chegar lá.`,
+    skipRaid: 'PULAR PARA SAQUEAR',
+    skipTitle: (n: number) => `COMEÇAR NO NÍVEL ${n}?`,
+    skipWhyRaid: 'Os saques abrem e outros coelhos dividem suas ilhas: ilhas maiores, mais bombas. Não dá para voltar.',
+    skipYes: (n: number) => `NÍVEL ${n}`,
+    skipStay: 'FICAR',
+    skipped: (n: number) => `Bem-vindo ao nível ${n}.`,
+    tutorialReward: (n: string) => `Tutorial concluído! +${n} cenouras e um escudo para sua toca.`,
   },
   islandPick: {
     choose: 'Escolher uma ilha',
@@ -990,8 +1052,17 @@ export const ptBR: Dict = {
   },
 
   codex: {
-    title: 'A COROA AMALDIÇOADA',
-    aria: 'História da coroa amaldiçoada',
+    libraryHint: 'Releia as histórias que você descobriu.',
+    reread: 'RELER',
+    undiscovered: 'A DESCOBRIR',
+    discovered: (read, total) => `${read} / ${total} livros descobertos`,
+    title: 'A COROA DA FAMÍLIA',
+    locked: {
+      shiro: 'Na sua primeira visita à toca.',
+      kuro: 'Abre com ENTERRAR.',
+      sea: 'Abre com SAQUEAR.',
+    },
+    aria: 'História da coroa da família',
     close: 'Fechar o códice',
     newChapter: 'CAPÍTULO NOVO',
     complete: 'COMPLETO',
@@ -1143,7 +1214,7 @@ export const ptBR: Dict = {
     },
     'read-the-stones': {
       title: 'Ler as pedras',
-      ask: (numeral) => `Abra o capítulo ${numeral} do códice.`,
+      ask: 'Leia um dos livros.',
       line: 'A ilha não mata os azarados. Ela mata os apressados,'
         + ' e guarda um registro cuidadoso da diferença.',
     },
@@ -1204,18 +1275,12 @@ export const ptBR: Dict = {
       ],
     },
     'the-crown': {
-      title: 'A coroa não é um prêmio',
-      teaser: 'Ela marca você em todo mapa.',
+      title: 'A Coroa da família',
+      teaser: 'Ela vai para a toca mais rica.',
       body: [
-        'Quem segura a maior temporada acorda uma manhã com a coroa esperando na cabeça. '
-        + 'Não dá para tirar, vender, enterrar nem dar de presente. Coelhos tentaram as '
-        + 'quatro. Existe um capítulo sobre a quarta, e ele é curto.',
+        'A ilha coroou o primeiro coelho que soube ler seus números. Desde então, a Coroa passa de pais para filhos, e a família real dividia: toda manhã, uma parte da ilha ia para cada toca, e a luz do castelo era vista de todas as praias.',
 
-        'A coroa é generosa, e é assim que ela funciona. Ela deixa o chão mais rico sob '
-        + 'quem a usa e os baús mais pesados. Ela também acende no mapa do mundo uma luz '
-        + 'que todo outro coelho enxerga de qualquer lugar, e que nunca se apaga. A ilha '
-        + 'não premia o primeiro coelho. Ela o ilumina, e então dá um passo atrás para ver '
-        + 'o que os outros vão fazer a respeito.',
+        'Mas a ilha tem uma lei mais antiga que a família. A Coroa vai para a toca mais rica, seja de quem for. Na noite em que a última rainha partiu com a maré, o Kuro leu essa lei melhor do que ninguém. Uma noite de saques bastou. A Coroa faz de você mais do que você já é, e a luz do castelo nunca esteve tão fraca.',
       ],
     },
     'the-tide': {

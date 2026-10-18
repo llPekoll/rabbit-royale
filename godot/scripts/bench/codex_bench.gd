@@ -27,6 +27,13 @@ func _ready() -> void:
 	add_child(bg)
 
 	Home.burrow = {"lifetime": FAKE_LIFETIME, "level": FAKE_LEVEL}
+	# Le niveau du LAPIN ouvre les livres de l'etagere (`--level=2` : Shiro
+	# et Kuro ouverts, la mer sous cadenas).
+	var rabbit := FAKE_LEVEL
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--level="):
+			rabbit = int(arg.trim_prefix("--level="))
+	Home.player = {"level": rabbit}
 
 	var view := get_viewport_rect().size
 	var half := Vector2(view.x * 0.5, view.y * 0.5)

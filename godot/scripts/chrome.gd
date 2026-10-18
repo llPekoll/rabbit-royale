@@ -54,8 +54,7 @@ const SCRIM_BLUR := preload("res://shaders/scrim_blur.gdshader")
 const COLUMN_MAX := 360.0
 ## LES ILOTS OU LES PLANCHES (2026-10-13, « en fait les planches c'est
 ## mieux ») : DIG, BURY, RAID en barre au sol (loop_bar.gd), la maison et le
-## potager en boutons du haut du terrier (burrow_hud.gd), la visite de Shiro
-## et Kuro a la premiere arrivee (burrow_tour.gd). Le code des ilots
+## potager en boutons du haut du terrier (burrow_hud.gd). Le code des ilots
 ## (burrow_landmarks.gd) reste entier : vrai, il revient tel quel. Une
 ## variable et pas une constante : le banc (burrow_ux_bench) rallume les
 ## ilots pour les comparer.
@@ -87,7 +86,6 @@ var _plan: BuryPlan
 var _plan_testing := false
 ## Un raid subi est en cours chez nous (`defend`).
 var _defending := false
-var _tour: BurrowTour
 ## La version, en bas a droite du terrier : QUOI DE NEUF (version_tag.gd).
 var _version: VersionTag
 ## Le mode du terrier en cours ("placing", "walling"), vide sinon.
@@ -105,6 +103,8 @@ const CLEAN_H := 44.0
 ## LE PLATEAU MONTRE UN RAID (burrow.gd `show_raid`) — pas « RaidState en a
 ## un » : entre les deux, il y a le rideau, et le chrome tourne au noir.
 var _raid_shown := false
+## LE LIVRE OUVERT SUR LE TERRIER (`maybe_books`), un a la fois.
+var _book: IntroBook
 ## Pour la pastille, qui montre la jauge du raid tant que le plateau est la.
 signal _raid_changed
 
@@ -245,7 +245,6 @@ func _mount_place() -> void:
 	_hud = null
 	_plan = null
 	_defending = false
-	_tour = null
 	_kit = null
 	_measure()
 	_back = null
@@ -310,19 +309,17 @@ func _mount_place() -> void:
 	# Le HUD de defense (un raid en cours chez soi) se montre seul.
 	floor_host.add_child(preload("res://scenes/ui/defend_hud.tscn").instantiate())
 
-	# LA VERSION, en bas a droite — sa tape ouvre QUOI DE NEUF. Pas pendant le
-	# tuto : un joueur qui decouvre le jeu n'a rien manque (changelog.gd).
-	if not Island.tutorial_pending():
-		_version = VersionTag.new(Changelog.latest(), Changelog.should_announce())
-		_version.top_level = true
-		floor_host.add_child(_version)
-		_version.tapped.connect(_open_whats_new)
-		if _version.unseen:
-			_announce_whats_new()
+	# LA VERSION, en bas a droite — sa tape ouvre QUOI DE NEUF.
+	_version = VersionTag.new(Changelog.latest(), Changelog.should_announce())
+	_version.top_level = true
+	floor_host.add_child(_version)
+	_version.tapped.connect(_open_whats_new)
+	if _version.unseen:
+		_announce_whats_new()
 
 
 ## LA BARRE AU SOL ET LE HAUT DU TERRIER, quand les ilots sont eteints.
-## DIG sur le cadran d'energie, BURY ▸ RAID sur leurs planches ; au-dessus,
+## DIG sur le cadran d'energie, DEFEND ▸ RAID sur leurs planches ; au-dessus,
 ## BURROW · les carottes et leur coffre · HARVEST. Chacun entre a son tour
 ## (UiEntrance) ; la camera cadre l'ile au-dessus de la barre.
 func _mount_floor() -> void:
@@ -353,8 +350,6 @@ func _mount_floor() -> void:
 	if burrow != null and burrow.has_method("set_floor_reserve"):
 		burrow.call("set_floor_reserve", _loop.height() + Kit.EDGE + Kit.PAD_TIGHT)
 
-	if not BurrowTour.seen() and not Island.tutorial_pending():
-		Screens.on_reveal(_start_tour)
 	_measure()
 
 
@@ -377,42 +372,6 @@ func hud_carrot() -> Vector2:
 	if is_instance_valid(_hud) and _hud.is_visible_in_tree():
 		return _hud.carrot_target()
 	return Vector2(INF, INF)
-
-
-## LA VISITE, une fois par joueur : les sept choses de l'ecran, dans l'ordre
-## ou on s'en sert.
-func _start_tour() -> void:
-	if is_instance_valid(_tour) or not is_instance_valid(_hud) or _raid_shown or BurrowTour.seen():
-		return
-	var hud := _hud
-	var loop := _loop
-	var col := _column
-	var part := func(name: String) -> Rect2:
-		if not is_instance_valid(hud) or not hud.is_visible_in_tree():
-			return Rect2()
-		var r := hud.rest_rect(name)
-		return Rect2(hud.global_position + r.position, r.size)
-	var slab := func(kind: String) -> Rect2:
-		if not is_instance_valid(loop) or not loop.is_visible_in_tree():
-			return Rect2()
-		if kind == "dig":
-			return loop._dial.dial.get_global_rect() if loop._dial != null else Rect2()
-		var s: Control = loop._slabs.get(kind)
-		return s.get_global_rect() if s != null and s.is_visible_in_tree() else Rect2()
-	var quest := func() -> Rect2:
-		return col.quest_rect() if is_instance_valid(col) else Rect2()
-	var yield_h := int(Home.burrow.get("yieldPerHour", 0))
-	_tour = BurrowTour.new()
-	_tour.steps.assign([
-		{"rect": part.bind("middle"), "who": "SHIRO", "title": I18N.t("tour.carrotsTitle"), "why": I18N.t("tour.carrots")},
-		{"rect": part.bind("harvest"), "who": "SHIRO", "title": I18N.t("tour.gardenTitle"), "why": I18N.f("tour.garden", [yield_h])},
-		{"rect": part.bind("house"), "who": "SHIRO", "title": I18N.t("tour.houseTitle"), "why": I18N.t("tour.house")},
-		{"rect": slab.bind("dig"), "who": "SHIRO", "title": I18N.t("tour.digTitle"), "why": I18N.t("tour.dig")},
-		{"rect": slab.bind("defend"), "who": "KURO", "title": I18N.t("tour.buryTitle"), "why": I18N.t("tour.bury")},
-		{"rect": slab.bind("raid"), "who": "KURO", "title": I18N.t("tour.raidTitle"), "why": I18N.t("tour.raid")},
-		{"rect": quest, "who": "SHIRO", "title": I18N.t("tour.questTitle"), "why": I18N.t("tour.quest")},
-	])
-	floor_host.add_child(_tour)
 
 
 ## `-- --open=<surface>` : ouvre une surface une fois le terrier lu, pour
@@ -445,6 +404,17 @@ func _dev_open() -> void:
 		# Traverser vers l'ile, comme la planche DIG (`_dig`) — pour capturer
 		# une ile servie par le serveur sans main.
 		"dig": _dig()
+		# SKIP TO BURY / SKIP RAID : la confirmation (`skip`), ou le saut fait
+		# (`skip-go`) — pour capturer les deux sans main.
+		"skip":
+			LevelSkip.ask()
+		"skip-go":
+			if LevelSkip.next_rung() > 0:
+				LevelSkip.skip(LevelSkip.next_rung())
+		# Les livres par-dessus le terrier (les boutons du codex).
+		"book": IntroBook.play_on(self, "shiro")
+		"book-kuro": IntroBook.play_on(self, "kuro")
+		"book-sea": IntroBook.play_on(self, "sea")
 		# La porte DEFEND, comme son ilot la pousse.
 		"defend": _on_door("defend")
 		# La planche RAID : sa liste de terriers (tools/scenarios/raid-lab.ts).
@@ -580,6 +550,10 @@ func _on_door(door: String) -> void:
 			Analytics.track("defend_open")
 			_start_mode("placing")
 		"raid":
+			# SOUS RAID_MIN : la planche dit SKIP TO RAID (LevelSkip).
+			if LevelSkip.stage() == 2:
+				LevelSkip.ask()
+				return
 			# PAS DE RAID AVANT RABBIT_LEVELS.RAID_MIN (3), dans les deux sens :
 			# le serveur refuse de toute facon ; ici on dit pourquoi.
 			Net.trace("porte RAID : niveau=%s" % str(Home.player.get("level")))
@@ -619,9 +593,7 @@ func _on_door(door: String) -> void:
 
 
 ## DIG. Pas de liste : le SERVEUR choisit l'ile au niveau du lapin (1 a 10,
-## 2026-10-02 — seul aux niveaux 1-2, a deux du 3 au 5, jusqu'a quatre des le 6). Le
-## tutoriel reste a part : son plateau est dessine, et il traverse sans siege
-## hors ligne.
+## 2026-10-02 — seul aux niveaux 1-2, a deux du 3 au 5, jusqu'a quatre des le 6).
 ##
 ## LE `join` EST ICI depuis que l'ile lit la socket (2026-09-23) : c'est
 ## l'instantane du serveur (`island`) qui pose le plateau — coffres, chiffres,
@@ -649,6 +621,8 @@ func _dig() -> void:
 			return
 	RunState.current.join(null)
 	Screens.cross(Screens.Place.ISLAND)
+
+
 
 
 ## A SEC EN PLEINE RUN : le recap « GET MORE ENERGY » propose le plein, en
@@ -1192,6 +1166,129 @@ func _on_moved(place: int) -> void:
 	close_dialog()
 	_end_mode()
 	_mount_place()
+	if place == Screens.Place.BURROW:
+		maybe_books()
+
+
+## LES LIVRES DU TERRIER, un par etape (LevelSkip), chacun une fois, apres
+## le tampon du niveau et jamais par-dessus un raid, un mode ou un dialogue
+## (il attend la visite suivante) :
+##   - Shiro au premier terrier ; un compte neuf traverse ensuite vers sa
+##     premiere ile, le tuto ;
+##   - Kuro au niveau 2 (DEFEND s'ouvre) — d'ordinaire deja lu, sur l'ile du
+##     tuto qui coule (island.gd `_book_two_then_home`) ;
+##   - puis relier un wallet (une fois, un invite seulement ; WALLET_OFFER) ;
+##   - la mer a RAID_MIN (RAID et les iles a plusieurs s'ouvrent ; pas en Solo).
+## `-- --no-intro` les coupe (captures).
+func maybe_books(delay := 2.6) -> void:
+	await get_tree().create_timer(delay).timeout
+	for i in range(20):
+		if Home.loaded():
+			break
+		await get_tree().create_timer(0.5).timeout
+	if not _books_calm():
+		return
+	var level := int(Home.player.get("level", 1))
+	var book := ""
+	if not IntroBook.seen("shiro"):
+		book = "shiro"
+	# SANS TUTO (niveau 3 d'un coup) : les livres s'etalent sur les premieres
+	# iles — Kuro apres la premiere, la mer apres la deuxieme (2026-10-17).
+	elif level >= 2 and not IntroBook.seen("kuro") and not _skipped_before(1):
+		book = "kuro"
+	elif _wallet_offer_due():
+		# AU TERRIER, A L'ARRIVEE AU NIVEAU 3 (2026-10-17, « il faudra proposer
+		# le connect wallet au niveau 3 ») — d'abord juste apres le livre 2,
+		# la fin du tuto (2026-10-16). Avant le livre de la mer.
+		await _offer_wallet()
+		maybe_books(0.4)
+		return
+	elif level >= Tuning.i("RABBIT_LEVELS.RAID_MIN", 3) and not PlaySettings.solo_on() and not IntroBook.seen("sea") \
+			and not _skipped_before(2):
+		book = "sea"
+	if book.is_empty():
+		# LE TUTO PAS ENCORE FAIT (l'app fermee avant le coffre) : on y retourne.
+		if Island.tutorial_pending():
+			go("dig")
+		return
+	_book = IntroBook.play_on(self, book)
+	await _book.finished
+	maybe_books(0.6)
+
+
+## SANS TUTO, et moins de `runs` iles jouees : ce qui suit la lecon attend.
+func _skipped_before(runs: int) -> bool:
+	return Island.tutorial_skipped() and SnackState.runs_played() < runs
+
+
+func _books_calm() -> bool:
+	return is_inside_tree() and not is_instance_valid(_book) and Home.loaded() \
+		and Screens.in_world() and Screens.place == Screens.Place.BURROW \
+		and not _raid_shown and _mode.is_empty() and not is_instance_valid(_dialog) \
+		and not "--no-intro" in OS.get_cmdline_user_args()
+
+
+## ETEINTE pour la prod (2026-10-18, « pas la proposition de connect wallet,
+## plus tard ») : le wallet se relie depuis l'accueil et le profil, comme avant.
+const WALLET_OFFER := false
+
+## RELIER UN WALLET, propose une fois a l'arrivee au terrier au niveau 3 (les
+## raids ; avant : apres le livre 2) — a un invite seulement. Une fois par joueur sur cet
+## appareil. Sans wallet pour repondre (un navigateur de bureau sans
+## extension), la proposition vient quand meme ; CONNECT WALLET dit alors
+## qu'il en faut un, sans en pousser aucun (2026-10-16, « mets juste connect
+## wallet, car tu peux avoir Solflare, Backpack et Jup »).
+func _wallet_offer_due() -> bool:
+	if not WALLET_OFFER or not bool(Session.player.get("guest", false)):
+		return false
+	# Au niveau des raids, sans tuto compris (il y arrive d'un coup).
+	if int(Home.player.get("level", 1)) < Tuning.i("RABBIT_LEVELS.RAID_MIN", 3):
+		return false
+	var cfg := ConfigFile.new()
+	cfg.load(IntroBook.PATH)
+	return not bool(cfg.get_value("wallet", _wallet_key(), false))
+
+
+func _wallet_key() -> String:
+	return "p_" + str(Session.player.get("id", "anon"))
+
+
+func _offer_wallet() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(IntroBook.PATH)
+	cfg.set_value("wallet", _wallet_key(), true)
+	cfg.save(IntroBook.PATH)
+	var dialog := Dialog.new(I18N.t("auth.offerTitle"), 460.0)
+	var why := Kit.wrapped(Kit.label(I18N.t("auth.offerWhy"), 13, Palette.INK))
+	dialog.body.add_child(why)
+	var none := Kit.wrapped(Kit.label(I18N.t("auth.offerNoWallet"), 12, Palette.BARK))
+	none.visible = false
+	dialog.body.add_child(none)
+	var row := Kit.hbox(Kit.PAD)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	dialog.body.add_child(row)
+	var later := Kit.button(I18N.t("auth.offerLater"), "wood", 130.0, 40.0)
+	later.pressed.connect(dialog.close_requested)
+	row.add_child(later)
+	var link := Kit.button(I18N.t("auth.offerLink"), "gold", 170.0, 40.0)
+	link.pressed.connect(func() -> void:
+		# Demande au moment du clic : une extension s'injecte parfois tard.
+		if not Wallet.available():
+			none.visible = true
+			Sound.deny()
+			return
+		link.disabled = true
+		var address := await Wallet.address()
+		if not address.is_empty():
+			var signer := func(message: String) -> String: return await Wallet.sign(message)
+			if await Session.link_wallet(address, signer):
+				toast(I18N.t("auth.offerDone"))
+		Analytics.track("wallet_offer", {"linked": not bool(Session.player.get("guest", true))})
+		dialog.close_requested())
+	row.add_child(link)
+	I18N.apply_face([why, none, later, link])
+	open(dialog)
+	await dialog.closed
 
 
 ## LA MISE EN PAGE (globals.css) : la barre du haut est une bande epinglee
@@ -1448,6 +1545,10 @@ func _sync_top() -> void:
 		_plan.visible = calm
 	if is_instance_valid(_hud):
 		_hud.visible = calm and not is_instance_valid(_plan) and not _defending
+	# L'etiquette de version (coin bas-droit) passait aussi sur le pied des
+	# menus — le bouton KURO du codex au Seeker couche.
+	if _version != null:
+		_version.visible = calm and _mode.is_empty()
 
 
 func dialog_open() -> bool:

@@ -19,6 +19,8 @@ import {
 import { refillEnergy } from '@/lib/game/grant';
 import { OUT_OF_RUN_ENERGY, RAID, upgradeCost } from '@/lib/tuning/tables';
 import { clientOverrides } from '@/lib/tuning/live';
+import { RABBIT_LEVELS, TUTORIAL_REWARD, nextSkip } from '@config/tuning';
+import { tutorialReward } from '@/lib/game/tutorial-reward';
 
 /**
  * The player's row and their bag, which the burrow view needs both of.
@@ -106,7 +108,7 @@ async function spendOne(
   });
 }
 
-/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill', live? }`. */
+/** `{ action: 'upgrade' | 'harvest' | 'water' | 'fertilise' | 'shield' | 'refill' | 'skip_level' | 'skip_tutorial', live? }`. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
@@ -242,6 +244,60 @@ export async function POST(req: Request) {
   }
 
   /** POURING A BOOST — one bottle out of the bag, one window onto the garden. */
+  /**
+   * SKIPPING AHEAD (2026-10-15) — the onboarding's shortcut.
+   *
+   * SKIP TO RAID (→ 6), see nextSkip: below RAID_MIN only, tutorial island
+   * played or not. The UPDATE carries
+   * the level it read, so a double tap climbs one rung, not two.
+   */
+  if (action === 'skip_level') {
+    const to = nextSkip(player.level);
+    if (to === null) return Response.json({ error: 'skip_closed' }, { status: 403 });
+    const moved = await db.update(players)
+      .set({ level: to })
+      .where(and(eq(players.id, session.sub), eq(players.level, player.level)))
+      .returning({ level: players.level });
+    if (moved.length === 0) return Response.json({ error: 'skip_closed' }, { status: 409 });
+    const after = (await ownerView(session.sub))!;
+    return Response.json({
+      skipped: to,
+      burrow: after.view,
+      player: applyRegen(after.player),
+      quest: questBoardOf(after.player),
+    });
+  }
+
+  /**
+   * STRAIGHT TO THE RAIDS (2026-10-17) — under SKIP in the first two books:
+   * NO TUTORIAL in the queen's book (level 1), SKIP TO LEVEL 3 in Kuro's,
+   * which opens right after the tutorial (level 2). Both land AT RAID_MIN,
+   * raids open ("no tuto, tu vas direct au lvl 3 et tu peux raid"). From
+   * level 1 it pays the tutorial's reward, so skipping does not leave a
+   * player broke; from level 2 the tutorial's chest already paid it. The
+   * UPDATE carries the level it read, so a double tap (or a tutorial chest
+   * racing it) moves and pays once.
+   */
+  if (action === 'skip_tutorial') {
+    const to = RABBIT_LEVELS.RAID_MIN;
+    if (player.level >= to) return Response.json({ error: 'skip_closed' }, { status: 403 });
+    const moved = await db.update(players)
+      .set({ level: to })
+      .where(and(eq(players.id, session.sub), eq(players.level, player.level)))
+      .returning({ level: players.level });
+    if (moved.length === 0) return Response.json({ error: 'skip_closed' }, { status: 409 });
+    const lesson = player.level <= 1;
+    if (lesson) await tutorialReward(session.sub);
+    const after = (await ownerView(session.sub))!;
+    return Response.json({
+      skipped: to,
+      reward: lesson ? TUTORIAL_REWARD.CARROTS : 0,
+      burrow: after.view,
+      player: applyRegen(after.player),
+      quest: questBoardOf(after.player),
+    });
+  }
+
   if (action && action in BOOST_ACTION) {
     const kind = BOOST_ACTION[action];
     const rows = await db.query.inventory.findMany({

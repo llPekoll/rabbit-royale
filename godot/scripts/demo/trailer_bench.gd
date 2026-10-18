@@ -31,6 +31,8 @@ func _ready() -> void:
 	var beat: String = args.get("beat", "")
 	await get_tree().create_timer(0.8).timeout
 	if _flag("names"):
+		# Shiro est blanc — le lapin du bac a sable prend le brun par defaut.
+		_island._rabbit.wear("white")
 		_island._rabbit.set_plate("Shiro", true)
 		_lift_plate(_island._rabbit, 13.0)
 		_arm_up()
@@ -53,6 +55,8 @@ func _ready() -> void:
 			await _shove(true)
 		"duel":
 			await _duel()
+		"dodge":
+			await _dodge()
 
 
 ## Un drapeau sans `=` : `_args` ne garde que `--cle=valeur` (et deux noms).
@@ -350,6 +354,72 @@ func _duel() -> void:
 	_island._on_pushed({"playerId": RIVAL, "from": _board().index_of(shore),
 		"sea": _board().index_of(s.to), "to": _board().index_of(_middle_from(shore, s.dir)),
 		"drowned": true, "stunMs": 1800, "pushedBy": "me"})
+
+
+## L'ESQUIVE (l'ouverture de la video de demo) : Shiro regarde la mer, au bord.
+## Kuro arrive dans son dos et saute pour le pousser ; Shiro fait un pas de
+## cote, en arriere, Kuro se pose seul au bord — et Shiro le pousse, en biais,
+## a la mer.
+func _dodge() -> void:
+	var board := _board()
+	# Des cases nues : un coffre cachait Shiro.
+	var ok := func(c: Vector2i) -> bool:
+		return board.content.has(c) and board.content[c] in [IslandBoard.Content.EMPTY, IslandBoard.Content.CARROT]
+	var sea := func(c: Vector2i) -> bool:
+		return not board.map.is_land(c.x, c.y)
+	var start: Vector2i = _island.local_run.at
+	var best := {}
+	for c: Vector2i in board.content:
+		for dir in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
+			if not sea.call(c + dir) or not ok.call(c):
+				continue
+			var mid: Vector2i = c - dir
+			if not ok.call(mid) or not ok.call(mid - dir) or not ok.call(mid - dir * 2):
+				continue
+			for perp in [Vector2i(dir.y, dir.x), Vector2i(-dir.y, -dir.x)]:
+				var side: Vector2i = mid + perp
+				# Pousse de `side` vers `c` : il part vers c + (c - side).
+				if not ok.call(side) or not sea.call(c + (c - side)):
+					continue
+				var d: float = Vector2(c - start).length()
+				if best.is_empty() or d < float(best.d):
+					best = {"c": c, "dir": dir, "mid": mid, "side": side, "d": d}
+	if best.is_empty():
+		push_warning("[trailer] pas de rivage pour l'esquive")
+		return
+	var shore: Vector2i = best.c
+	var dir: Vector2i = best.dir
+	var mid: Vector2i = best.mid
+	_put_me(shore)
+	# Il regarde la mer.
+	var sprite: AnimatedSprite2D = _island._rabbit.get("_sprite")
+	sprite.flip_h = _cell_on_screen(shore + dir).x < _cell_on_screen(shore).x
+	# Kuro arrive de loin, a pas de loup, sans tomber du ciel.
+	_island._add_rival({"playerId": RIVAL, "tile": board.index_of(mid - dir * 2), "alive": true}, false)
+	var r: IslandRabbit = _island._rivals.get(RIVAL)
+	r.set_plate("Kuro", false)
+	_paint_kuro(r)
+	await _wait(1.6)
+	r.send_to(mid - dir)
+	await _wait(0.9)
+	r.send_to(mid)
+	await _wait(0.7)
+	# Il s'elance — Shiro est deja de cote.
+	_island._rabbit.send_to(best.side)
+	_island.local_run.at = best.side
+	Sound.play("hop")
+	await _wait(0.08)
+	r.send_to(shore)
+	Sound.play("hop", 0.8)
+	await _wait(0.9)
+	# Au bord, seul. Shiro le pousse.
+	_island._refresh_ring()
+	await _hop_to(shore)
+	await _wait(0.12)
+	var away: Vector2i = shore + (shore - best.side)
+	_island._on_pushed({"playerId": RIVAL, "from": board.index_of(shore), "sea": board.index_of(away),
+		"to": board.index_of(_middle_from(shore, dir)), "drowned": true, "stunMs": 2600,
+		"pushedBy": "me"})
 
 
 ## `--hunt` : LE PILOTE QUI CHERCHE LES BOMBES. Il marche vers la bombe pas

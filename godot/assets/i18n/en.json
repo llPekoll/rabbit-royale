@@ -6,7 +6,7 @@
   "d": "d"
  },
  "meta": {
-  "title": "Rabbit Royale: The Cursed Crown",
+  "title": "Rabbit Royale: The Family Crown",
   "description": "Competitive minesweeper. Dig, hoard, raid, wear the crown."
  },
  "lang": {
@@ -34,6 +34,14 @@
   "connect": "Connect wallet",
   "connecting": "Digging in...",
   "guest": "Play as a guest",
+  "play": "PLAY",
+  "haveAccount": "I already have an account",
+  "offerTitle": "KEEP YOUR BURROW",
+  "offerWhy": "Connect your wallet: your burrow, your carrots and your level follow you on any phone. You can also do it later from your profile.",
+  "offerLater": "LATER",
+  "offerLink": "CONNECT WALLET",
+  "offerDone": "Wallet connected. Your burrow is safe.",
+  "offerNoWallet": "No Solana wallet in this browser. Install one (Phantom, Solflare, Backpack, Jupiter…) or open Rabbit Royale on your phone.",
   "waiting": "Waiting...",
   "guestNote": "Guest burrow. Connect a wallet to keep it.",
   "noWallet": "No wallet found. Open in the Rabbit Royale app or install a Solana wallet.",
@@ -253,7 +261,7 @@
    ]
   },
   "allShielded": "every burrow is shielded",
-  "bury": "BURY",
+  "bury": "DEFEND",
   "atRisk": {
    "$t": "+{0} at risk"
   }
@@ -316,27 +324,74 @@
    "$t": "{0} energy/hour"
   }
  },
- "tour": {
-  "next": {
-   "$t": "NEXT {0}/{1}"
+ "intro": {
+  "skip": "SKIP",
+  "next": "TAP TO CONTINUE",
+  "play": "LET'S DIG",
+  "replay": "STORY",
+  "choice": {
+   "game": "NO TUTORIAL",
+   "toLevel": {
+    "$t": "SKIP TO LEVEL {0}"
+   },
+   "gift": {
+    "$t": "Welcome to the game! +{0} carrots and a shield for your burrow."
+   }
   },
-  "gotIt": "GOT IT",
-  "carrotsTitle": "YOUR CARROTS",
-  "carrots": "Everything you dig ends up here. The gold part is safe. The red part, a raider could take.",
-  "gardenTitle": "YOUR GARDEN",
-  "garden": {
-   "$t": "It grows by itself, +{0} an hour. Tap HARVEST to bring the carrots in. Until then, they can be stolen."
+  "book": {
+   "shiro": "THE QUEEN'S BOOK",
+   "shiroSub": "For you, who can read",
+   "kuro": "KURO'S BOOK",
+   "kuroSub": "Do not show it to Kuro.",
+   "go": "TO THE RAIDS",
+   "sea": "THE BOOK OF THE SEA",
+   "seaSub": "Found on the beach, still wet",
+   "kuroGo": "DEFEND MY BURROW",
+   "seaShort": "SEA"
   },
-  "houseTitle": "YOUR HOUSE",
-  "house": "Spend carrots to make it bigger: more carrots an hour, and more of them safe.",
-  "digTitle": "DIG",
-  "dig": "The island is where carrots come from. Each dig costs energy, and the ring fills back up on its own.",
-  "buryTitle": "BURY",
-  "bury": "Raiders WILL come for your garden. Bury bombs on their path. Make them pay for every step!",
-  "raidTitle": "RAID",
-  "raid": "And you get to do it back. Their gardens, your carrots!",
-  "questTitle": "WHEN IN DOUBT",
-  "quest": "Follow your quest. It always knows the next step."
+  "shiro": {
+   "ch1": "The Island That Gives",
+   "ch2": "The Queen and the Tide",
+   "ch3": "Kuro",
+   "ch4": "What the Numbers Know",
+   "ch5": "The Bomb",
+   "ch6": "The Throne",
+   "island": "Every morning, the sea brings an island full of carrots. Our family read its numbers like stars, so the island crowned us.",
+   "crown": "Since then, the Crown passes from parent to child. Whoever wears it is king, and the castle shines. We always shared.",
+   "queen": "I was the last queen. One evening, I walked into the sea. To my two sons I said: \"The next king will be the one who reads.\"",
+   "kuro": "But the Crown goes to the richest. In one night, Kuro raided every burrow. Even yours.",
+   "kuroSays": "He laughed: \"Come and take it.\"",
+   "numbers": "Shiro will not strike his brother. But you, of our blood, can read. Dig: each number counts the bombs around it.",
+   "bomb": "Sure it is a bomb? Mark it with an X. Kuro jumps without reading, and the island throws him back. He never listened.",
+   "throne": "Open the last chest: the island returns to the sea and your loot goes home. Grow your burrow. Take the throne."
+  },
+  "kuro": {
+   "ch1": "Before",
+   "ch2": "The Raid",
+   "ch3": "Bombs",
+   "ch4": "The Axe",
+   "ch5": "Defend",
+   "ch6": "The King",
+   "note": "Kuro, my eldest.",
+   "day1": "He thought I meant Shiro. So he would be king another way: the richest.",
+   "raid": "On the island, nobody can rob you. In a burrow, anybody can. Kuro made a habit of the raid: a walk, tile by tile, to the garden.",
+   "bombs": "In a burrow too, the numbers count the buried bombs. Step on one and BOOM. That is how they caught my Kuro. Often.",
+   "axe": "His axe fells one tree or one fence per raid. The deeper he goes, the more he takes. The garden is his feast.",
+   "defend": "So listen: bombs where they will walk, fences on the easy paths. Robbed? The thief stays on your list, for your revenge.",
+   "king": "Kuro is king, and he no longer sleeps. A king who does not share rules over nothing. At night he watches the sea. He saw my light."
+  },
+  "sea": {
+   "ch1": "Sharing",
+   "ch2": "The Push",
+   "ch3": "Storm and Ink",
+   "ch4": "The Promise",
+   "ch5": "Salt",
+   "share": "Now you will not dig alone: two on one island, further out four. A chest belongs to whoever digs it.",
+   "push": "Walk into a rabbit and it falls back one tile: onto a bomb, or into the waves. My sons learned that the hard way.",
+   "weapons": "The storm bursts nine tiles open around a rival. The ink blinds them for a few seconds. You start with three of each.",
+   "promise": "The sea gave our family a crown. It was not a gift. It was a promise. Far out at sea, I am keeping it for the one who reads.",
+   "margin": "Shiro found this book on the beach, still wet. He knows the handwriting. Tell him the water is not cold."
+  }
  },
  "arrange": {
   "tip": "Tap a tree, your house or your garden to move it.",
@@ -1297,6 +1352,21 @@
   "raidsOpen": "RAIDS ARE OPEN",
   "raidLocked": {
    "$t": "Raids open at level {0}. Clear islands to get there."
+  },
+  "skipRaid": "SKIP TO RAID",
+  "skipTitle": {
+   "$t": "START AT LEVEL {0}?"
+  },
+  "skipWhyRaid": "Raids open, and other rabbits share your islands: bigger islands, more bombs. There is no way back down.",
+  "skipYes": {
+   "$t": "LEVEL {0}"
+  },
+  "skipStay": "STAY",
+  "skipped": {
+   "$t": "Welcome to level {0}."
+  },
+  "tutorialReward": {
+   "$t": "Tutorial done! +{0} carrots and a shield for your burrow."
   }
  },
  "islandPick": {
@@ -1663,8 +1733,19 @@
   "yellow": "Yellow"
  },
  "codex": {
-  "title": "THE CURSED CROWN",
-  "aria": "The Cursed Crown lore",
+  "libraryHint": "Revisit the stories you have discovered.",
+  "reread": "READ AGAIN",
+  "undiscovered": "UNDISCOVERED",
+  "discovered": {
+   "$t": "{0} / {1} books discovered"
+  },
+  "title": "THE FAMILY CROWN",
+  "locked": {
+   "shiro": "Your first visit to the burrow.",
+   "kuro": "Opens with BURY.",
+   "sea": "Opens with RAID."
+  },
+  "aria": "The Family Crown lore",
   "close": "Close the codex",
   "newChapter": "NEW CHAPTER",
   "complete": "COMPLETE",
@@ -1835,9 +1916,7 @@
   },
   "read-the-stones": {
    "title": "Read the stones",
-   "ask": {
-    "$t": "Open chapter {0} of the codex."
-   },
+   "ask": "Read one of the books.",
    "line": "The island does not kill the unlucky. It kills the hurried, and it keeps a careful record of the difference."
   },
   "hold-the-door": {
@@ -1883,11 +1962,11 @@
    ]
   },
   "the-crown": {
-   "title": "The Crown Is Not a Prize",
-   "teaser": "It marks you on every map.",
+   "title": "The Family Crown",
+   "teaser": "It goes to the richest burrow.",
    "body": [
-    "Whoever holds the largest season finds the crown waiting on their head one morning. It cannot be removed, sold, buried, or given away. Rabbits have tried all four. There is a chapter about the fourth one, and it is short.",
-    "The crown is generous, which is how it works. It makes the ground richer under its wearer and the chests heavier. It also puts a light on the world map that every other rabbit can see from anywhere, and it never goes out. The island does not reward the first rabbit. It illuminates them, and then it stands back to watch what the others do about it."
+    "The island crowned the first rabbit who could read its numbers. Since then the Crown has passed from parent to child, and the royal family shared: every morning a share of the island went to every burrow, and the castle light could be seen from every beach.",
+    "But the island has a law older than the family. The Crown goes to the richest burrow, whoever owns it. The night the last queen left with the tide, Kuro read that law better than anyone. One night of raiding was enough. The Crown makes you more of what you are, and the castle light has never been so dim."
    ]
   },
   "the-tide": {

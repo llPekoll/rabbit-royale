@@ -156,7 +156,9 @@ var _sequence: Tween
 ## {kind, amount (ou qty), nft, announced, at}. Rend le noeud pose sur le
 ## chrome — la ceremonie, ou le vol d'un lot non annonce — ou null quand il
 ## n'y a rien a montrer (une sorte inconnue sans piece).
-static func announce(prize: Dictionary) -> Control:
+## `mount` faux : le lot n'est pas pose au chrome — l'appelant l'heberge
+## (l'ile des livres, IntroStage, qui joue par-dessus un vrai terrier).
+static func announce(prize: Dictionary, mount := true) -> Control:
 	var kind := String(prize.get("kind", ""))
 	var amount := int(prize.get("amount", prize.get("qty", 1)))
 	var nft := bool(prize.get("nft", false))
@@ -191,7 +193,8 @@ static func announce(prize: Dictionary) -> Control:
 			it.stamp_text = drop_name
 			it.caption_text = ("+%d %s" % [amount, drop_name]).strip_edges()
 		node = it
-	ScreenStamp.mount(node)
+	if mount:
+		ScreenStamp.mount(node)
 	return node
 
 

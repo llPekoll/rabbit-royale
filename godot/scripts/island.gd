@@ -234,7 +234,9 @@ const HEAVE_STEP := 0.05
 var _eruption: Tween
 
 
-func play_eruption(duration_ms: int, heave: bool = true) -> void:
+## `shake` : la part de la secousse (1 = celle du jeu). Le livre la joue dans
+## un petit cadre, ou les memes pixels d'ecran secouent beaucoup plus fort.
+func play_eruption(duration_ms: int, heave: bool = true, shake: float = 1.0) -> void:
 	var s := maxf(1.0, float(duration_ms)) / 1000.0
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
@@ -245,7 +247,7 @@ func play_eruption(duration_ms: int, heave: bool = true) -> void:
 		_eruption.kill()
 	var at := _current_shot().at
 	var k := scale.x
-	var kick := SHAKE_PX * 2.0 / k
+	var kick := SHAKE_PX * 2.0 * shake / k
 
 	_eruption = create_tween()
 	if not heave:
@@ -1030,6 +1032,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var view := get_viewport_rect().size
 		set_place_cam(BurrowCamera.zoom_at(_current_shot(), f, event.position, _terrain.map, view.x, view.y))
 		return
+	# LE CLIC DROIT POSE LE X, comme au demineur (2026-10-16) : sur la case
+	# visee, sans passer par MARK A BOMB. Il creusait avant, comme un clic.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		get_viewport().set_input_as_handled()
+		if not event.pressed:
+			_right_mark(_cell_at(event.position))
+		return
 	if event is InputEventMouseButton:
 		if event.pressed:
 			_on_press(event.position)
@@ -1038,6 +1047,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion:
 		if _pressing and not _pinch.active():
 			_on_move(event.position)
+
+
+## LE X AU CLIC DROIT : la meme route qu'un X arme au bouton, sur la case
+## visee — le tuto, la manche hors ligne, ou le serveur.
+func _right_mark(cell: Vector2i) -> void:
+	if cell.x < 0 or _board == null or _done or _watching():
+		return
+	if not _markable(_me_cell(), cell):
+		_ring.pulse()
+		Sound.deny()
+		return
+	if _is_tutorial():
+		_set_armed(true)
+		_tutorial_tap(cell)
+		tile_tapped.emit(cell)
+	elif local_run != null:
+		_set_armed(true)
+		_local_tap(cell)
+	elif _remote and RunState.current.aiming.is_empty():
+		RunState.current.set_flag_mode(true, 1)
+		_remote_tap(cell)
 
 
 func _arm_key(event: InputEvent) -> bool:
@@ -1793,6 +1823,11 @@ var _shake_home := Vector2.ZERO
 
 ## LE LOT DU COFFRE : il monte avec son nom, comme un power-up. Les carottes
 ## s'animent deja sur la case. Seule une piece Genesis prend l'ecran.
+## VRAI : les lots de cette ile restent sur elle, jamais au chrome — l'ile
+## des livres (IntroStage) joue par-dessus un terrier bien reel.
+var own_prizes := false
+
+
 func _show_prize(prize: Dictionary) -> void:
 	if prize.is_empty():
 		return
@@ -1806,7 +1841,7 @@ func _show_prize(prize: Dictionary) -> void:
 	# (2026-09-24). Seule une piece Genesis garde la ceremonie.
 	prize = prize.duplicate()
 	prize["announced"] = false
-	var node := ChestPrize.announce(prize)
+	var node := ChestPrize.announce(prize, not own_prizes)
 	if node != null and node.get_parent() == null and _prize_host != null:
 		# Pas de chrome au-dessus (le bac a sable) : la ceremonie se pose ici,
 		# plein ecran comme `Chrome.stamp` la pose.
@@ -2016,6 +2051,26 @@ static func tutorial_pending() -> bool:
 
 static func _player_id() -> String:
 	return String(Session.player.get("id", "guest"))
+
+
+## LA LECON PASSEE SANS ETRE JOUEE (un saut de niveau, ou SANS TUTO sous
+## PASSER dans le livre de la reine) : l'ile du tuto ne revient plus.
+## `skipped` marque SANS TUTO : les livres qui suivent la lecon attendent les
+## premieres iles (Chrome.maybe_books), sinon ils tombent coup sur coup.
+static func skip_tutorial(skipped := false) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(TUTORIAL_PATH)
+	cfg.set_value("tutorial", _player_id(), true)
+	if skipped:
+		cfg.set_value("skipped", _player_id(), true)
+	cfg.save(TUTORIAL_PATH)
+
+
+static func tutorial_skipped() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(TUTORIAL_PATH) != OK:
+		return false
+	return bool(cfg.get_value("skipped", _player_id(), false))
 
 
 func _remember_finished() -> void:
@@ -2242,6 +2297,12 @@ func _teach(on: bool) -> void:
 ## par le seul geste qui existe deja — la traversee vers le terrier.
 func _finish_tutorial() -> void:
 	_done = true
+	# LE NIVEAU 2 TOUT DE SUITE : le serveur le donne au coffre du tuto
+	# (`tutorialDone`), mais sa reponse arrivait ~3 s apres le terrier, qui
+	# montrait SKIP TO DEFEND entre-temps. DIG + DEFEND + SKIP TO RAID des
+	# l'arrivee (2026-10-16).
+	if int(Home.player.get("level", 1)) < 2:
+		Home.player["level"] = 2
 	# Le coffre de la lecon a sa fanfare, et le lapin saute de joie
 	# (IslandScene `celebrateChest` : la musique ET `me.celebrate()`).
 	Sound.music("victory")
@@ -2269,7 +2330,19 @@ func _sink_tutorial() -> void:
 			# RIEN A DEFAIRE : cette ile meurt a la traversee, et la prochaine
 			# est construite neuve — sur sa graine ordinaire, la lecon etant
 			# notee finie (`_remember_finished`).
-			Screens.cross(Screens.Place.BURROW))
+			_book_two_then_home())
+
+
+## LE LIVRE 2 AVANT LE TERRIER (2026-10-16, « il doit venir juste apres le
+## tuto, on ne voit pas le burrow ») : le journal de Kuro s'ouvre sur l'ile
+## qui vient de couler, et sa fermeture mene au terrier — ou DEFEND attend (le
+## wallet, lui, attend le niveau 3 : Chrome.maybe_books).
+func _book_two_then_home() -> void:
+	if not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
+		var book := IntroBook.play_on(self, "kuro")
+		await book.finished
+	if is_inside_tree() and Screens.in_world() and Screens.place == Screens.Place.ISLAND:
+		Screens.cross(Screens.Place.BURROW)
 
 
 ## LA MANCHE EN LIGNE EST FINIE — comme le tutoriel, sans mort (2026-09-23).
@@ -2303,6 +2376,16 @@ func _end_run(result: Dictionary) -> void:
 			if _sink_sky != null:
 				_sink_sky.play(SINK_MS)
 			await get_tree().create_timer(SINK_MS / 1000.0).timeout
+			if not _still_ending():
+				return
+		# LE TUTO FINI, LE LIVRE 2 AVANT LE TERRIER (2026-10-16, le user :
+		# « des que tu as fini le tuto 1, transition, book 2, apres tu arrives
+		# sur le burrow et on demande de connecter le wallet ») : le journal
+		# de Kuro s'ouvre sur l'ile qui vient de couler ; le terrier vient a
+		# sa fermeture (le wallet attend le niveau 3 depuis le 2026-10-17).
+		if lesson and not IntroBook.seen("kuro") and not "--no-intro" in OS.get_cmdline_user_args():
+			var book := IntroBook.play_on(self, "kuro")
+			await book.finished
 			if not _still_ending():
 				return
 	else:

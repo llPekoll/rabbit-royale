@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LES CHIFFRES DU PLATEAU, quatre styles sur la vraie ile. Voir
+; scripts/bench/digits_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/bench/digits_bench.gd" id="1_digits"]
+
+[node name="DigitsBench" type="Node2D"]
+script = ExtResource("1_digits")

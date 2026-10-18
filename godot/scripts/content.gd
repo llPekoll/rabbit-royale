@@ -20,6 +20,8 @@ const LORE := [
 ## config/quests.ts — les marques que le client pose lui-meme.
 const MARK_LEADERBOARD := "leaderboard"
 const MARK_CODEX_PREFIX := "codex:"
+## Un des trois livres lu (IntroBook) : « Read the stones » se termine.
+const MARK_BOOK := "book"
 
 
 static func codex_mark(chapter_id: String) -> String:
@@ -69,7 +71,7 @@ static func quest_text(quest: Dictionary) -> Dictionary:
 		"read-the-stones":
 			return {
 				"title": I18N.t(base + "title"),
-				"ask": I18N.f(base + "ask", [LORE[1]["numeral"]]),
+				"ask": I18N.t(base + "ask"),
 				"line": I18N.t(base + "line"),
 			}
 		"hold-the-door":

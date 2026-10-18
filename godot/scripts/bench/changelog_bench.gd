@@ -132,12 +132,15 @@ func _open(everything: bool) -> void:
 ## Un clic de souris sur la version, par l'entree du jeu : ce que le doigt fait.
 func _tap_tag() -> void:
 	var at := _tag.get_global_rect().get_center()
+	# L'entree arrive en pixels de FENETRE : a une autre taille que le
+	# canevas, le point se met a l'echelle.
+	var window_at := get_viewport().get_final_transform() * at
 	for pressed in [true, false]:
 		var e := InputEventMouseButton.new()
 		e.button_index = MOUSE_BUTTON_LEFT
 		e.pressed = pressed
-		e.position = at
-		e.global_position = at
+		e.position = window_at
+		e.global_position = window_at
 		Input.parse_input_event(e)
 		await get_tree().process_frame
 	await get_tree().create_timer(0.2).timeout

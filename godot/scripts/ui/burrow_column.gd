@@ -117,7 +117,10 @@ func _ready() -> void:
 	# SNACK TIME puis le CROWN RACE TICKET juste sous la quete : la ou l'oeil
 	# va deja (snack_banner.gd, pass_banner.gd). Des scripts, pas des
 	# scenes : ils se construisent seuls.
-	var scenes := [QUEST_CARD, SnackBanner, PassBanner] if quest_only else [QUEST_CARD, SnackBanner, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
+	# LE TABLEAU DES QUETES EST PARTI du terrier (2026-10-15) : les trois
+	# livres et les etapes du terrier apprennent ce qu'il apprenait, Snack
+	# Time fait revenir. Sa recompense est donnee au tuto (TUTORIAL_REWARD).
+	var scenes := [SnackBanner, PassBanner] if quest_only else [SnackBanner, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
 	for scene in scenes:
 		var card: Control = scene.instantiate() if scene is PackedScene else scene.new()
 		var slot := Control.new()
@@ -177,9 +180,7 @@ func _update_visible() -> void:
 ## LA CARTE DE LA QUETE a l'ecran (la visite du terrier la montre seule,
 ## pas toute la colonne). Vide si elle n'est pas la.
 func quest_rect() -> Rect2:
-	if not visible or _cards.is_empty() or not _cards[0].is_visible_in_tree():
-		return Rect2()
-	return _cards[0].get_global_rect()
+	return Rect2()
 
 
 func cards_rect() -> Rect2:

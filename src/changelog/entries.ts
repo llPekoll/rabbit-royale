@@ -108,6 +108,41 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-18',
+    items: [
+      {
+        kind: 'new',
+        text: {
+          en: 'Three books now tell the story and teach the game, read aloud by Mum: the Queen\'s book on your first visit, Kuro\'s journal after your first island, the book of the sea when RAID opens. Read them again from STORY.',
+          fr: 'Trois livres racontent maintenant l’histoire et apprennent le jeu, lus à voix haute par Maman : le livre de la reine à ta première visite, le journal de Kuro après ta première île, le livre de la mer quand le PILLAGE s’ouvre. À relire depuis HISTOIRE.',
+          zh: '现在有三本书讲述故事、教你玩法，由妈妈朗读：第一次来时是女王之书，第一座岛之后是 Kuro 的日记，掠夺解锁时是大海之书。可在“故事”中重读。',
+          'pt-BR': 'Agora três livros contam a história e ensinam o jogo, lidos em voz alta pela Mamãe: o livro da rainha na sua primeira visita, o diário do Kuro depois da sua primeira ilha, o livro do mar quando SAQUEAR abre. Leia de novo em HISTÓRIA.',
+          vi: 'Giờ có ba cuốn sách kể câu chuyện và dạy cách chơi, do Mẹ đọc to: sách của nữ hoàng ở lần đầu bạn đến, nhật ký của Kuro sau hòn đảo đầu tiên, sách của biển khi CƯỚP mở. Đọc lại trong CÂU CHUYỆN.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'Already know the game? NO TUTORIAL under the first book takes you straight to level 3, raids open, with 875 carrots and a shield.',
+          fr: 'Tu connais déjà le jeu ? SANS TUTO sous le premier livre t’emmène direct au niveau 3, pillages ouverts, avec 875 carottes et un bouclier.',
+          zh: '已经会玩了？第一本书下方的“跳过教程”直接带你到第 3 级，开放掠夺，并送 875 根胡萝卜和一个护盾。',
+          'pt-BR': 'Já conhece o jogo? SEM TUTORIAL embaixo do primeiro livro te leva direto ao nível 3, com saques liberados, 875 cenouras e um escudo.',
+          vi: 'Đã biết chơi rồi? BỎ HƯỚNG DẪN dưới cuốn sách đầu tiên đưa bạn thẳng lên cấp 3, mở cướp hang, kèm 875 cà rốt và một khiên.',
+        },
+      },
+      {
+        kind: 'tune',
+        text: {
+          en: 'The quest board is gone from the burrow: everything it paid (875 carrots and a shield) is yours as soon as you finish your first island.',
+          fr: 'Le tableau des quêtes quitte le terrier : tout ce qu’il payait (875 carottes et un bouclier) est à toi dès ta première île finie.',
+          zh: '任务板从洞穴中移除：它原本发放的奖励（875 根胡萝卜和一个护盾）在你完成第一座岛后立即到手。',
+          'pt-BR': 'O quadro de missões saiu da toca: tudo o que ele pagava (875 cenouras e um escudo) é seu assim que você termina sua primeira ilha.',
+          vi: 'Bảng nhiệm vụ đã rời khỏi hang: mọi phần thưởng của nó (875 cà rốt và một khiên) về tay bạn ngay khi xong hòn đảo đầu tiên.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-17',
     items: [
       {

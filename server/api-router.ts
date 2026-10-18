@@ -41,7 +41,13 @@ type ModuleRoute = {
 const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/auth/abandon': () => import('../src/app/api/auth/abandon/route'),
   '/api/auth/challenge': () => import('../src/app/api/auth/challenge/route'),
+  '/api/auth/delete': () => import('../src/app/api/auth/delete/route'),
+  '/api/auth/email/start': () => import('../src/app/api/auth/email/start/route'),
+  '/api/auth/email/verify': () => import('../src/app/api/auth/email/verify/route'),
+  '/api/auth/google/callback': () => import('../src/app/api/auth/google/callback/route'),
+  '/api/auth/google/start': () => import('../src/app/api/auth/google/start/route'),
   '/api/auth/guest': () => import('../src/app/api/auth/guest/route'),
+  '/api/auth/handoff': () => import('../src/app/api/auth/handoff/route'),
   '/api/auth/link': () => import('../src/app/api/auth/link/route'),
   '/api/auth/logout': () => import('../src/app/api/auth/logout/route'),
   '/api/auth/me': () => import('../src/app/api/auth/me/route'),

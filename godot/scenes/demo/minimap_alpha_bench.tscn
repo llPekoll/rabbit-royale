@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+; LA MINI-CARTE SEULE SUR FOND TRANSPARENT, pour le marketing.
+; Voir scripts/demo/minimap_alpha_bench.gd.
+
+[ext_resource type="Script" path="res://scripts/demo/minimap_alpha_bench.gd" id="1_mm"]
+
+[node name="MinimapAlphaBench" type="Node2D"]
+script = ExtResource("1_mm")

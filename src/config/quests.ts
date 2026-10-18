@@ -64,6 +64,9 @@ export const QUEST_MARK = {
   /** `codex:<chapter id>` — that chapter was opened in the codex. Accepted by
    *  the server only once the chapter is actually unlocked. */
   CODEX_PREFIX: 'codex:',
+  /** One of the three books was read (IntroBook, 2026-10-15): the codex's
+   *  chapters are gone, the books are the story now. */
+  BOOK: 'book',
 } as const;
 
 export function codexMark(chapterId: string): string {
@@ -184,7 +187,8 @@ export const QUESTS_ARC: readonly Quest[] = [
     id: 'read-the-stones',
     door: 'story',
     goal: 1,
-    progress: (f) => has(f, codexMark(NUMBERS_CHAPTER.id)),
+    // A book read, or — before the books — chapter II of the old codex.
+    progress: (f) => has(f, QUEST_MARK.BOOK) || has(f, codexMark(NUMBERS_CHAPTER.id)),
     reward: { carrots: QUESTS.CARROTS['read-the-stones'] },
   },
   {

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+; LA VIDEO DE LA HACHE — le vrai jeu joue par un doigt. Voir scripts/demo/axe_director.gd.
+
+[ext_resource type="Script" path="res://scripts/demo/axe_director.gd" id="1_dir"]
+
+[node name="AxeFilm" type="Node"]
+script = ExtResource("1_dir")
