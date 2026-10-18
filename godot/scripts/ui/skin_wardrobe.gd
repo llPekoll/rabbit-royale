@@ -97,9 +97,12 @@ func _render() -> void:
 		_render_ticket_skin()
 		return
 	var item := state.item(skin_key)
-	var display_name := String(SkinState.SALE_NAMES.get(skin_key, skin_key))
+	var display_name := SkinState.name_of(skin_key)
 	_right.add_child(Kit.wrapped(Kit.title(display_name, 20 if display_name.length() > 20 else 28, _ink)))
 	var description := {"solana": "description", "carrot": "carrotDescription", "solflare": "solflareDescription"}
+	if Net.WORLD == "web2":
+		# Sans « ton lapin Solana / Solflare » (SkinState.WEB2_NAMES).
+		description = {"solana": "descriptionWeb2", "carrot": "carrotDescription", "solflare": "solflareDescriptionWeb2"}
 	_right.add_child(Kit.note(I18N.t("skins." + String(description.get(skin_key, "description"))), _muted, 12))
 	_right.add_child(Kit.note(I18N.t("skins.permanent"), _muted, 11))
 	if item.is_empty():
@@ -179,6 +182,9 @@ func _render() -> void:
 		message = I18N.t("pay.noWallet")
 	if not message.is_empty():
 		_right.add_child(Kit.note(message, _bad if state.failed else _muted, 10))
+	# Rattraper un paiement crypto n'a pas de sens en web2 (aucun n'existe).
+	if Net.WORLD == "web2":
+		return
 	var collection := Kit.hbox(6)
 	_right.add_child(collection)
 	var restore := Kit.button(I18N.t("skins.check"), "wood", 0, 36)

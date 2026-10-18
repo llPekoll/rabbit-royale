@@ -91,7 +91,12 @@ func _ready() -> void:
 		if open_page:
 			OS.shell_open(VersionTag.page_url_for(version))
 		closed.emit())
-	row.add_child(all)
+	# La page du changelog raconte aussi le wallet et l'USDC : pas pour le
+	# monde web2 (net.gd WORLD).
+	if Net.WORLD != "web2":
+		row.add_child(all)
+	else:
+		all.queue_free()
 	# Le Discord : c'est la que la mise a jour se discute (et les bugs).
 	var discord := Kit.button("DISCORD", "blue", 0.0, BUTTON_H)
 	discord.size_flags_horizontal = Control.SIZE_EXPAND_FILL

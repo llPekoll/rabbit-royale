@@ -32,7 +32,8 @@ extends Node
 ##
 ## Tout se lit dans `adb logcat -s godot`, lignes [boot].
 ##
-## Ailleurs qu'Android (web, iOS, editeur) ce noeud ne fait rien, sauf pour
+## Ailleurs qu'Android (web, iOS, editeur), et sur le build Google Play (web2),
+## ce noeud ne fait rien, sauf pour
 ## tester le circuit sur le bureau avec un manifeste local :
 ##   godot --path godot -- --ota=http://localhost:8765/manifest.json
 
@@ -124,7 +125,10 @@ func _enabled() -> bool:
 		if arg.begins_with("--ota="):
 			_manifest_url = arg.trim_prefix("--ota=")
 			return true
-	return OS.has_feature("android")
+	# LE BUILD GOOGLE PLAY (marque `web2`) NE SE MET JAMAIS A JOUR SEUL : Play
+	# interdit a une app de se mettre a jour hors de Play (« Device and Network
+	# Abuse »). Le jeu entier est dans l'AAB, et chaque version passe par Play.
+	return OS.has_feature("android") and not OS.has_feature("web2")
 
 
 func _mark_alive() -> void:

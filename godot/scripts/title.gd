@@ -41,16 +41,18 @@ const LOGO_EASE := 0.25
 
 ## La ligne qui separe le titre de la demande. `min(67vh, 100vh - 170 - 24)`.
 const ALT_H := 40.0
-## WEB3 SEULEMENT pour l'instant (2026-10-08) : les portes Google | Email
-## existent mais restent cachees, et leur rang ne prend pas de place.
-const WEB2_DOORS := false
+## LE MONDE DECIDE DES PORTES (2026-10-18, net.gd WORLD). Web3 (Seeker,
+## rabbit.rip/play) : CONNECT WALLET dore puis l'invite, sans Google | Email.
+## Web2 (Play, App Store, portails) : pas de wallet du tout — l'invite dore,
+## puis Google | Email a sa place ; la colonne garde donc sa hauteur.
+var _web2_doors := Net.WORLD == "web2"
 ## UN SEUL BOUTON, PLAY (2026-10-15, branche stage) : l'invite dore en tete, le
 ## wallet en petit « j'ai deja un compte ». ETEINT pour la prod (2026-10-18,
 ## « laisse connect wallet et play as guest comme c'est sur main ») : les deux
 ## portes d'avant, le wallet dore en haut.
 const PLAY_DOOR := false
-const ALT_ROW := (ALT_H + 8.0) if WEB2_DOORS else 0.0
-const MENU_RESERVE := 170.0 + ALT_ROW
+const ALT_ROW := ALT_H + 8.0
+const MENU_RESERVE := 170.0
 const DOORSTEP_GAP := 24.0
 
 ## Dix secondes par conseil : de quoi lire deux fois une phrase de soixante
@@ -136,8 +138,9 @@ func _ready() -> void:
 	_story.pressed.connect(_play_intro)
 	_google = _alt_door("Google")
 	_email = _alt_door("Email")
-	_google.visible = WEB2_DOORS
-	_email.visible = WEB2_DOORS
+	_google.visible = _web2_doors
+	_email.visible = _web2_doors
+	_connect.visible = not _web2_doors
 	_region_title = Label.new()
 	_region_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_region_title.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -157,6 +160,10 @@ func _ready() -> void:
 		_guest.label_size = 22
 		_connect.board = PlankButton.Board.WOOD
 		_connect.label_size = 12
+	elif _web2_doors:
+		# La taille de mot de CONNECT WALLET, dont l'invite prend la place.
+		_guest.board = PlankButton.Board.GOLD
+		_guest.label_size = _connect.label_size
 	_google.pressed.connect(_on_google)
 	_email.pressed.connect(_on_email)
 	_guest.pressed.connect(_on_guest)
@@ -357,6 +364,9 @@ func _measure() -> void:
 	# PLAY_DOOR : l'invite, d'or et en tete, le wallet en petit dessous. Sinon
 	# (la prod) : CONNECT WALLET dore, puis PLAY AS GUEST.
 	var doors := [[_guest, 64.0], [_connect, 34.0]] if PLAY_DOOR else [[_connect, 64.0], [_guest, 44.0]]
+	if _web2_doors:
+		doors = [[_guest, 64.0]]
+	var gold: PlankButton = _guest if (PLAY_DOOR or _web2_doors) else _connect
 	for entry in doors + [[_lang, 44.0]]:
 		var node: Control = entry[0]
 		var h: float = entry[1]
@@ -375,9 +385,9 @@ func _measure() -> void:
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
 		# le `margin-bottom` du web.
 		y += h + 8.0
-		if node == (_guest if PLAY_DOOR else _connect):
+		if node == gold:
 			y += 4.0
-		if node == _connect and WEB2_DOORS:
+		if node == gold and _web2_doors:
 			# Google | Email, cote a cote, la largeur des autres partagee.
 			var half := (w - 8.0) * 0.5
 			for i in 2:
@@ -834,10 +844,11 @@ func _busy(value: bool) -> void:
 
 func _set_restoring(on: bool, words := "") -> void:
 	_restoring = on
-	for door in [_connect, _guest, _lang]:
+	for door in [_guest, _lang]:
 		door.visible = not on
+	_connect.visible = not on and not _web2_doors
 	for door in [_google, _email]:
-		door.visible = WEB2_DOORS and not on
+		door.visible = _web2_doors and not on
 	_story.visible = not on
 	_apply_region()
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.

@@ -23,6 +23,7 @@ import { canDig } from './reachable';
 import { occupancyOf, planPush } from './push';
 import type { DigResult, FlagResult, HintReveal, Island, Rabbit } from './types';
 import { isLootItemKind } from './types';
+import { isWeb2 } from '../world';
 
 export type MoveRejection =
   | 'head-on'
@@ -592,7 +593,10 @@ export function resolveMove(
         // A chest with no tier (old island, hand-built fixture) falls back to
         // the flat table so it can never roll nothing at all.
         const chestTier = tile.chestTier;
-        const table = chestTier ? CHEST_LOOT_BY_TIER[chestTier] : CHEST_LOOT;
+        const tierTable = chestTier ? CHEST_LOOT_BY_TIER[chestTier] : CHEST_LOOT;
+        // The web2 world has no NFT at all (src/lib/world.ts): the flat
+        // table's piece is simply not on offer there.
+        const table = isWeb2() ? tierTable.filter((e) => e.kind !== 'nft') : tierTable;
         const roll = pickWeighted(rng, table);
         const amount = randInt(rng, roll.min, roll.max);
         if (rabbit.run) rabbit.run.chests = (rabbit.run.chests ?? 0) + 1;
@@ -604,7 +608,7 @@ export function resolveMove(
         // The Genesis piece is a SEPARATE roll on top of a crown chest's
         // guaranteed item, never instead of it: folding it into the table would
         // make the best outcome cost the player the item they were promised.
-        if (chestTier === 'crown' && rng() < CHEST_NFT_ODDS.inCrown) {
+        if (chestTier === 'crown' && !isWeb2() && rng() < CHEST_NFT_ODDS.inCrown) {
           rabbit.run?.nfts.push(to);
           dig.nft = true;
         }

@@ -4,6 +4,9 @@ extends Node
 signal changed
 static var current: SkinState
 const SALE_NAMES := {"solana": "Solana", "carrot": "Carrot", "solflare": "Flary"}
+## LE MONDE WEB2 (Play, App Store, portails) : memes dessins, noms sans marque
+## crypto — Play interdit de « promote or glamorize » la crypto.
+const WEB2_NAMES := {"solana": "Violet", "carrot": "Carrot", "solflare": "Eclipse"}
 
 var catalog: Dictionary = {}
 var busy := false
@@ -13,6 +16,12 @@ var failed := false
 var _fake := false
 var _seq := 0
 var _pay := Shop.UsdcPay.new()
+
+
+## Le nom d'un skin en vente, celui du monde de ce build.
+static func name_of(key: String, fallback := "") -> String:
+	var names: Dictionary = WEB2_NAMES if Net.WORLD == "web2" else SALE_NAMES
+	return String(names.get(key, fallback if not fallback.is_empty() else key))
 
 
 static func shared() -> SkinState:
@@ -127,7 +136,7 @@ func buy(key: String, rail: String) -> void:
 
 ## LA FETE D'UN SKIN qui vient d'etre a soi (purchase_reveal.gd).
 static func celebrate(key: String) -> void:
-	PurchaseReveal.announce_skin(key, String(SALE_NAMES.get(key, I18N.t("pass.skin"))))
+	PurchaseReveal.announce_skin(key, name_of(key, I18N.t("pass.skin")))
 
 
 func equip(key: Variant) -> void:

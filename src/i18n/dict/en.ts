@@ -111,6 +111,7 @@ export const en = {
     unavailable: 'Not available yet.',
     signInCancelled: 'Sign-in cancelled.',
     saveBurrow: 'Keep this burrow: connect Google, an email or a wallet.',
+    saveBurrowWeb2: 'Keep this burrow: connect Google or an email.',
     signedInWith: 'Signed in with',
     /** The region picker on the doorstep: each region is its own world. */
     region: { label: 'Server', finding: 'Finding the closest server...', eu: 'Europe', sg: 'Asia', us: 'Americas' },
@@ -647,6 +648,7 @@ export const en = {
         carrots: 'Carrots', water: 'Watering can', fertiliser: 'Fertiliser', lightning: 'Lightning',
         shield: 'Shield', energy: 'Full tank', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
         skin_solana: 'Solana skin', skin_carrot: 'Carrot skin', skin_solflare: 'Flary skin',
+        skin_solana_web2: 'Violet skin', skin_solflare_web2: 'Eclipse skin',
       },
     },
   },
@@ -1171,9 +1173,11 @@ export const en = {
   skins: {
     carrotDescription: "Orange coat. Green ears. Fresh from the garden.",
     solflareDescription: "Night-black coat. Sun-yellow ears. Your Solflare rabbit.",
+    solflareDescriptionWeb2: "Night-black coat. Sun-yellow ears.",
     ticketOnly: "This one can't be bought: it only comes with the Crown Race Ticket.",
     title: "Skins",
     description: "Electric violet. Mint ears. Your Solana rabbit.",
+    descriptionWeb2: "Electric violet. Mint ears.",
     permanent: "One purchase. Yours forever.",
     cosmetic: "Appearance only",
     owned: "Owned",

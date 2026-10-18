@@ -55,7 +55,7 @@ const WEB2_REGIONS: Array[Dictionary] = [
 ]
 ## Le monde de CE build. Lu avant `_init` (initialiseur de membre) : `_host`
 ## en a besoin.
-var WORLD := "web2" if OS.has_feature("web2") else "web3"
+var WORLD := _world()
 var REGIONS: Array[Dictionary] = WEB2_REGIONS if WORLD == "web2" else WEB3_REGIONS
 const REGION_PATH := "user://region.cfg"
 ## Une region qui ne repond pas en ce temps-la est hors course a la sonde.
@@ -402,3 +402,11 @@ func _send(path: String, method: int, payload: Dictionary, token: String,
 	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())
 	var dict: Dictionary = parsed if parsed is Dictionary else {}
 	return Answer.new(code, dict)
+
+
+## La marque du build, ou `--world=web2` sur le bureau pour essayer le monde
+## web2 sans exporter (avec `--server=https://ws2.rabbit.rip`).
+static func _world() -> String:
+	if OS.has_feature("web2") or "--world=web2" in OS.get_cmdline_user_args():
+		return "web2"
+	return "web3"

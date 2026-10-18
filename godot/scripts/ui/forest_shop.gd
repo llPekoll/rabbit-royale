@@ -39,6 +39,10 @@ const MONEY := ["usdc", "sol", "skr"]
 
 ## Lu par le chrome (`_center_dialog`) : la boutique prend la vue.
 var fullscreen := true
+## LE MONDE WEB2 (net.gd WORLD) : tout se paie en carottes. Ni rails USDC /
+## SOL / SKR, ni onglet SKINS (ils se vendent en crypto ; les achats integres
+## viendront avec Play et l'App Store), ni rattrapage de paiement.
+var _web2 := Net.WORLD == "web2"
 ## BANC SEULEMENT : les achats sont faits sur place et fetes, rien ne part.
 var demo := false
 
@@ -121,7 +125,8 @@ func _ready() -> void:
 		# Relire a chaque ouverture : les avoirs ont pu bouger (bombe posee,
 		# eclair lance, coffre). Le rattrapage des paiements, une fois.
 		_state.refresh()
-		_state.claim()
+		if not _web2:
+			_state.claim()
 		_skin_state.refresh()
 	_layout()
 	_render()
@@ -294,6 +299,9 @@ func _head() -> void:
 	close.pressed.connect(func() -> void: closed.emit())
 	var tabs := ["packs", "items", "skins"]
 	var names := [I18N.t("shop.tabPacks"), I18N.t("shop.tabItems"), I18N.t("shop.tabSkins")]
+	if _web2:
+		tabs.resize(2)
+		names.resize(2)
 	for i in tabs.size():
 		var key: String = tabs[i]
 		var tab := _button(I18N.shout(names[i]), Rect2(112 + i * 183, 57, 174, 56), "tab-on" if key == _page else "tab-off", 19)
@@ -303,6 +311,8 @@ func _head() -> void:
 			_armed = ""
 			_queue())
 	var rails: Array = MONEY if _page == "skins" else ["carrots"] + MONEY
+	if _web2:
+		rails = []
 	var live: Array = _skin_tokens() if _page == "skins" else ["carrots"] + _live_tokens()
 	for i in rails.size():
 		var key: String = rails[i]
@@ -370,6 +380,8 @@ func _packs() -> void:
 			_pulse(ribbon, i * 0.15)
 		_card(panel)
 	# L'appel vers les skins, sous les packs.
+	if _web2:
+		return
 	_put(ForestShopStyle.panel("tab-off", 22), Rect2(112, 479, 1060, 76))
 	_label(I18N.shout(I18N.t("shop.tabSkins")), Rect2(136, 490, 156, 52), 22)
 	# Le pas tient tous les skins entre le titre et le bouton (a 895).
@@ -385,7 +397,7 @@ func _packs() -> void:
 		cheer.tween_interval(1.2)
 		cheer.tween_callback(bunny.play.bind("idle"))
 		cheer.tween_interval(3.0 * SKINS.size() - 0.2 - i * 3.0)
-		_label(String(SkinState.SALE_NAMES.get(key, key)).to_upper(), Rect2(374 + i * step, 491, step - 64, 48), 17)
+		_label(SkinState.name_of(key).to_upper(), Rect2(374 + i * step, 491, step - 64, 48), 17)
 	var open := _button(I18N.shout(I18N.t("shop.viewSkins")), Rect2(895, 490, 246, 53), "tab-on", 17)
 	open.name = "ViewSkins"
 	_pulse(open, 1.0, 1.05)
@@ -590,7 +602,7 @@ func _skins() -> void:
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		_put(b, Rect2(112, 136 + i * (h + 9.0), 282, h))
 		_panel(Rect2(0, 0, 282, h), key == _skin, b)
-		var plate := String(SkinState.SALE_NAMES.get(key, key))
+		var plate := SkinState.name_of(key)
 		if tall:
 			_animated(key, Vector2(140, 141), 7.2, b)
 			_nameplate(plate, Rect2(37, 155, 208, 36), b)
@@ -627,7 +639,7 @@ func _skins() -> void:
 			_pose = pose
 			_queue())
 	_panel(Rect2(830, 136, 342, 417))
-	_label(String(SkinState.SALE_NAMES.get(_skin, _skin)).to_upper(), Rect2(855, 159, 294, 59), 29)
+	_label(SkinState.name_of(_skin).to_upper(), Rect2(855, 159, 294, 59), 29)
 	_label(I18N.t("skins.permanent"), Rect2(853, 229, 298, 28), 13)
 	_label(I18N.t("skins.cosmetic"), Rect2(853, 263, 298, 28), 13, ForestShopStyle.MUTED)
 	var item := _skin_state.item(_skin)
@@ -709,6 +721,8 @@ func _foot() -> void:
 	elif not _state.note.is_empty():
 		words = _state.note
 		bad = _state.refused
+	elif _web2:
+		words = ""
 	elif _state.loaded() and not bool(_state.shop.get("usdcEnabled", false)):
 		words = I18N.t("shop.cardsOff")
 	elif _state.loaded() and _live_tokens().is_empty():

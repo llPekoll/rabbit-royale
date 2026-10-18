@@ -81,6 +81,7 @@
   "unavailable": "Pas encore disponible.",
   "signInCancelled": "Connexion annulée.",
   "saveBurrow": "Garde ce terrier : connecte Google, un email ou un portefeuille.",
+  "saveBurrowWeb2": "Garde ce terrier : connecte Google ou un email.",
   "signedInWith": "Connecté avec",
   "region": {
    "label": "Serveur",
@@ -778,7 +779,9 @@
     "lucky_foot": "Lucky Foot",
     "skin_solana": "Skin Solana",
     "skin_carrot": "Skin Carotte",
-    "skin_solflare": "Skin Flary"
+    "skin_solflare": "Skin Flary",
+    "skin_solana_web2": "Skin Violet",
+    "skin_solflare_web2": "Skin Eclipse"
    }
   }
  },
@@ -1756,9 +1759,11 @@
  "skins": {
   "carrotDescription": "Pelage orange. Oreilles vertes. Tout droit du potager.",
   "solflareDescription": "Pelage noir nuit. Oreilles jaune soleil. Ton lapin Solflare.",
+  "solflareDescriptionWeb2": "Pelage noir nuit. Oreilles jaune soleil.",
   "ticketOnly": "Celui-là ne s’achète pas : il vient seulement avec le Crown Race Ticket.",
   "title": "Skins",
   "description": "Violet électrique. Oreilles menthe. Ton lapin Solana.",
+  "descriptionWeb2": "Violet électrique. Oreilles menthe.",
   "permanent": "Un seul achat. À toi pour toujours.",
   "cosmetic": "Apparence uniquement",
   "owned": "Possédée",

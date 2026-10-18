@@ -676,6 +676,9 @@ func _prize_texture(kind: String) -> Texture2D:
 
 
 func _prize_name(kind: String) -> String:
+	# Le monde web2 nomme ces skins sans marque crypto (SkinState.WEB2_NAMES).
+	if Net.WORLD == "web2" and kind in ["skin_solana", "skin_solflare"]:
+		kind += "_web2"
 	return I18N.t("snack.box.prize.%s" % kind)
 
 

@@ -32,9 +32,23 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	func _supports_platform(platform: EditorExportPlatform) -> bool:
 		return platform is EditorExportPlatformAndroid
 
+	## LE BUILD GOOGLE PLAY (marque `web2` du preset) N'EMBARQUE PAS LE WALLET :
+	## ni l'AAR, ni ses dependances, ni les <queries> de wallets qu'il ajoute
+	## au manifest. Le jeu ne le cherche pas non plus (wallet.gd, Net.WORLD).
+	func _web2() -> bool:
+		var preset := get_export_preset()
+		if preset == null:
+			return false
+		for feature in preset.get_custom_features().split(","):
+			if feature.strip_edges() == "web2":
+				return true
+		return false
+
 	## Chemins relatifs au dossier addons/. Le build Gradle du plugin dépose
 	## l'AAR à ces deux endroits (voir plugin-src/mwa/build.gradle.kts).
 	func _get_android_libraries(_platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+		if _web2():
+			return PackedStringArray()
 		var flavour := "debug" if debug else "release"
 		return PackedStringArray(
 			["%s/bin/%s/%s-%s.aar" % [PLUGIN_NAME, flavour, PLUGIN_NAME, flavour]]
@@ -47,6 +61,8 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	## se charge puis meurt en NoClassDefFoundError au premier appel — l'erreur
 	## classique de ce système.
 	func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
+		if _web2():
+			return PackedStringArray()
 		return PackedStringArray([
 			"com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.0.8",
 			"io.github.funkatronics:multimult:0.2.6",

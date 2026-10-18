@@ -81,6 +81,7 @@
   "unavailable": "暂未开放。",
   "signInCancelled": "已取消登录。",
   "saveBurrow": "保留这个洞穴：绑定 Google、邮箱或钱包。",
+  "saveBurrowWeb2": "保留这个洞穴：绑定 Google 或邮箱。",
   "signedInWith": "登录方式",
   "region": {
    "label": "服务器",
@@ -700,7 +701,9 @@
     "lucky_foot": "Lucky Foot",
     "skin_solana": "Solana 皮肤",
     "skin_carrot": "胡萝卜皮肤",
-    "skin_solflare": "Flary 皮肤"
+    "skin_solflare": "Flary 皮肤",
+    "skin_solana_web2": "Violet 皮肤",
+    "skin_solflare_web2": "Eclipse 皮肤"
    }
   }
  },
@@ -1392,9 +1395,11 @@
  "skins": {
   "carrotDescription": "橙色皮毛，绿色耳朵，来自菜园。",
   "solflareDescription": "夜黑皮毛，阳光黄耳朵。你的 Solflare 兔子。",
+  "solflareDescriptionWeb2": "夜黑皮毛，阳光黄耳朵。",
   "ticketOnly": "这个不能购买：只有 Crown Race Ticket 才能获得。",
   "title": "皮肤",
   "description": "电光紫，薄荷绿耳朵。你的 Solana 兔子。",
+  "descriptionWeb2": "电光紫，薄荷绿耳朵。",
   "permanent": "购买一次，永久拥有。",
   "cosmetic": "仅改变外观",
   "owned": "已拥有",

@@ -1239,7 +1239,7 @@ const WALLET_OFFER := false
 ## qu'il en faut un, sans en pousser aucun (2026-10-16, « mets juste connect
 ## wallet, car tu peux avoir Solflare, Backpack et Jup »).
 func _wallet_offer_due() -> bool:
-	if not WALLET_OFFER or not bool(Session.player.get("guest", false)):
+	if not WALLET_OFFER or Net.WORLD == "web2" or not bool(Session.player.get("guest", false)):
 		return false
 	# Au niveau des raids, sans tuto compris (il y arrive d'un coup).
 	if int(Home.player.get("level", 1)) < Tuning.i("RABBIT_LEVELS.RAID_MIN", 3):

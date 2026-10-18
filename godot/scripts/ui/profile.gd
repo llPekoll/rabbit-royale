@@ -145,9 +145,9 @@ var _name_re := RegEx.new()
 var _offline := false
 
 
-## GOOGLE ET E-MAIL : prets dans le code, pas encore branches (les cles du
-## serveur manquent). A passer a vrai avec WEB2_DOORS de title.gd.
-const WEB2_DOORS := false
+## LE MONDE DECIDE DES PORTES (net.gd WORLD, comme l'accueil) : web3 = le
+## wallet seul ; web2 = Google et e-mail, jamais de wallet.
+var _web2 := Net.WORLD == "web2"
 
 func _init() -> void:
 	super("")
@@ -526,10 +526,8 @@ func _build_profile() -> void:
 		linked[kind] = true
 		var mail := String(idn["email"]) if idn.get("email") != null else ""
 		said.append(I18N.t("auth." + kind) + (" · " + mail if not mail.is_empty() else ""))
-	_connect_hint.text = I18N.t("auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
-	# Google et l'e-mail attendent leurs cles (comme l'accueil, Title
-	# WEB2_DOORS) : seul le wallet se relie pour l'instant.
-	var doors := ["google", "email", "wallet"] if WEB2_DOORS else ["wallet"]
+	_connect_hint.text = I18N.t("auth.saveBurrowWeb2" if _web2 else "auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
+	var doors := ["google", "email"] if _web2 else ["wallet"]
 	var missing := doors.filter(func(k: String) -> bool: return not linked.has(k))
 	var x := 756.0 + (507.0 - (missing.size() * 149.0 + (missing.size() - 1) * 14.0)) * 0.5
 	for kind in missing:
@@ -634,6 +632,11 @@ func _refresh_rabbits() -> void:
 	if is_instance_valid(_portrait):
 		_portrait.texture = AvatarFace.texture(wearing)
 	var keys: Array = AvatarFace.KEYS + SkinState.SALE_NAMES.keys() + ["kuro-violet"]
+	if _web2:
+		# Rien a acheter ici en web2 (pas de crypto, pas encore d'achats
+		# integres) ni de ticket : seuls les skins deja a soi (la boite du
+		# Snack Time en donne) rejoignent les lapins gratuits.
+		keys = keys.filter(func(k: String) -> bool: return not Kit.SKINS.has(k) or (k != "kuro-violet" and skins.owns(k)))
 	for i in keys.size():
 		var key := String(keys[i])
 		var premium: bool = Kit.SKINS.has(key)
@@ -645,7 +648,7 @@ func _refresh_rabbits() -> void:
 		_put(cell, at.x, at.y, 85, 78, _rabbit_grid, Vector2(756, 187))
 		if SkinState.SALE_NAMES.has(key):
 			var item := skins.item(key)
-			cell.tooltip_text = SkinState.SALE_NAMES[key]
+			cell.tooltip_text = SkinState.name_of(key)
 			if item.has("usdCents") and locked:
 				cell.tooltip_text += " · $%.2f" % (float(item["usdCents"]) / 100.0)
 		else:
