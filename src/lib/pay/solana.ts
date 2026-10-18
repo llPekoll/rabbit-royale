@@ -34,6 +34,7 @@ import {
 } from '@solana/spl-token';
 import { USDC } from '@config/tuning';
 import { mintAddressFor, type PayTokenId } from './tokens';
+import { isWeb2 } from '../world';
 
 /**
  * The treasury and the mint come from the environment, never from source.
@@ -44,6 +45,8 @@ import { mintAddressFor, type PayTokenId } from './tokens';
  * back to a default — a default here is a wrong default.
  */
 export function treasuryAddress(): PublicKey | null {
+  // The web2 world takes no crypto at all (lib/world.ts), whatever the env says.
+  if (isWeb2()) return null;
   const raw = process.env.USDC_TREASURY_ADDRESS;
   if (!raw) return null;
   try {

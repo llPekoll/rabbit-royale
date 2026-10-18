@@ -26,6 +26,7 @@ import { db } from '../db';
 import { seasons } from '../db/schema';
 import { SEASON } from '../../../config/tuning';
 import { writePassPayouts } from './season-pass';
+import { isWeb2 } from '../world';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -71,7 +72,8 @@ export async function closeSeasonIfDue(tx: Tx, now: Date = new Date(), opts: Clo
   }).where(eq(seasons.id, open.id));
 
   // Before the wipe: the prizes are read off the scores as they stand.
-  const payouts = open.passOn ? await writePassPayouts(tx, open.id) : 0;
+  // Never a pot in the web2 world, even if a season row says otherwise.
+  const payouts = open.passOn && !isWeb2() ? await writePassPayouts(tx, open.id) : 0;
 
   await tx.execute(raw`update players set season_score = 0 where season_score <> 0`);
 

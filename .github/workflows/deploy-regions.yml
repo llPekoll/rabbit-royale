@@ -101,7 +101,7 @@ jobs:
             export RR_WS_IMAGE=${IMAGE}:${TAG}
             # The back office's agent is not the game's: its own repo
             # (rabbit-royale-admin) runs it as compose project rabbit-admin.
-            docker compose pull migrate rr-ws
+            docker compose pull migrate rr-ws migrate-web2 rr-ws-web2
             docker compose up -d --remove-orphans
             # The Caddyfile is a mounted file: a running Caddy reads it again
             # only when told (up -d leaves an unchanged service as it is).
@@ -116,8 +116,10 @@ jobs:
         run: |
           for i in $(seq 1 20); do
             if ssh -i ~/key deploy@$HOST "docker compose -f /opt/rabbit/compose.yml exec -T rr-ws wget -qO- http://127.0.0.1:3010/health" >/dev/null 2>&1; then
-              echo "healthy"; exit 0
+              if ssh -i ~/key deploy@$HOST "docker compose -f /opt/rabbit/compose.yml exec -T rr-ws-web2 wget -qO- http://127.0.0.1:3010/health" >/dev/null 2>&1; then
+                echo "healthy (web3 + web2)"; exit 0
+              fi
             fi
             sleep 3
           done
-          echo "rr-ws not healthy"; exit 1
+          echo "rr-ws or rr-ws-web2 not healthy"; exit 1

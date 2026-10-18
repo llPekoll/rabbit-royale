@@ -33,11 +33,30 @@ const STAGE_HOST := "https://ws-stage.rabbit.rip"
 ##
 ## `eu` est l'ancien et unique serveur : un jeton enregistre avant les regions
 ## est un jeton `eu`, que les autres regions peuvent essayer (session.gd).
-const REGIONS: Array[Dictionary] = [
+##
+## DEUX MONDES (2026-10-18) : le web3 (Seeker, rabbit.rip/play) et le web2
+## (Google Play, App Store, CrazyGames, itch.io) ne se croisent jamais — chaque
+## monde a ses serveurs, ses bases, ses comptes, dans les trois regions
+## (src/lib/world.ts cote serveur). Un build web2 porte la marque `web2` dans
+## les « custom features » de son preset ; SANS marque c'est le web3, donc la
+## coque Seeker deja installee n'a rien a changer.
+const WEB3_REGIONS: Array[Dictionary] = [
 	{"code": "eu", "host": "https://ws.rabbit.rip"},
 	{"code": "sg", "host": "https://ws-sg.rabbit.rip"},
 	{"code": "us", "host": "https://ws-us.rabbit.rip"},
 ]
+## Les serveurs du monde web2 : conteneurs a part sur les memes machines
+## (eu : projet Coolify rabbit-royale-web2 ; sg/us : services *-web2 de
+## deploy/region/compose.yml).
+const WEB2_REGIONS: Array[Dictionary] = [
+	{"code": "eu", "host": "https://ws2.rabbit.rip"},
+	{"code": "sg", "host": "https://ws2-sg.rabbit.rip"},
+	{"code": "us", "host": "https://ws2-us.rabbit.rip"},
+]
+## Le monde de CE build. Lu avant `_init` (initialiseur de membre) : `_host`
+## en a besoin.
+var WORLD := "web2" if OS.has_feature("web2") else "web3"
+var REGIONS: Array[Dictionary] = WEB2_REGIONS if WORLD == "web2" else WEB3_REGIONS
 const REGION_PATH := "user://region.cfg"
 ## Une region qui ne repond pas en ce temps-la est hors course a la sonde.
 const PROBE_SECONDS := 2.5

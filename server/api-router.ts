@@ -21,6 +21,7 @@
  * commits (e0a9c75, 3e83909, 4c7b0b6) restes sur ca5237c.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { isWeb2, WEB3_ONLY_ROUTES } from '../src/lib/world';
 
 /** Un module de route, tel que Next l'attend. */
 type ModuleRoute = {
@@ -132,6 +133,14 @@ export async function servirApi(
   const chemin = (req.url ?? '/').split('?')[0].replace(/\/+$/, '') || '/';
   const charger = ROUTES[chemin];
   if (!charger) return false;
+
+  // LE MONDE WEB2 n'a pas ces routes (src/lib/world.ts) : un 404, comme une
+  // route qui n'existe pas, plutot qu'un refus.
+  if (isWeb2() && WEB3_ONLY_ROUTES.has(chemin)) {
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+      .end(JSON.stringify({ error: 'not_found' }));
+    return true;
+  }
 
   const methode = (req.method ?? 'GET').toUpperCase();
 

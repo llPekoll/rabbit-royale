@@ -61,6 +61,9 @@ func _await_web() -> String:
 ## button: a control that cannot work should not be offered, and on desktop
 ## there is genuinely nothing behind it.
 func available() -> bool:
+	# Le monde web2 n'a pas de wallet (net.gd WORLD) : ni bouton, ni signature.
+	if Net.WORLD == "web2":
+		return false
 	if _web != null:
 		# Demande a chaque fois : l'extension peut s'injecter apres le boot.
 		return bool(_web.available())

@@ -12,3 +12,10 @@
 		reverse_proxy rr-ws:3010
 	}
 }
+
+# The web2 world (ws2-sg / ws2-us): its own server, nothing else behind it —
+# the back office's agent reads the web3 base only.
+{$WS2_DOMAIN} {
+	encode gzip
+	reverse_proxy rr-ws-web2:3010
+}

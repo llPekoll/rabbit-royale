@@ -15,6 +15,7 @@ import {
 } from '@/lib/game/season-pass';
 import { PASS } from '@config/tuning';
 import { looksOf } from '@/lib/game/look';
+import { isWeb2 } from '@/lib/world';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,8 @@ const dollars = (cents: number) => Math.round(cents) / 100;
 /** The whole screen for `playerId` (or for nobody). */
 export async function passState(playerId: string | null, now = Date.now()) {
   const season = await openSeason();
-  const on = !!season?.passOn;
+  // No Crown Race in the web2 world (lib/world.ts): no pot, no ticket.
+  const on = !!season?.passOn && !isWeb2();
   const pot = on ? await potCents(db, season!.id) : 0;
   const plan = on ? payoutPlan(pot, await rankedHolders(db, season!.id)) : [];
   // Every holder wears the ticket's skin: the race is drawn in it (look.ts).

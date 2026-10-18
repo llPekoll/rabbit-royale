@@ -60,6 +60,7 @@ fi
 # backup carries off the machine.
 cat > /etc/cron.d/rabbit-pgdump <<'CRON'
 17 3 * * * deploy cd /opt/rabbit && docker compose exec -T postgres pg_dump -U rabbit -Fc rabbit > backups/rabbit-$(date +\%u).dump 2>> backups/pgdump.log
+27 3 * * * deploy cd /opt/rabbit && docker compose exec -T postgres-web2 pg_dump -U rabbit -Fc rabbit > backups/rabbit-web2-$(date +\%u).dump 2>> backups/pgdump.log
 CRON
 
 echo

@@ -4,7 +4,8 @@
 # its own Redis, its own accounts, seasons and raids. Only the image is shared,
 # built once by .github/workflows/deploy-regions.yml and pulled from GHCR.
 #
-#   docker compose up -d          # Caddy + Postgres + Redis + migrate + rr-ws
+#   docker compose up -d          # Caddy + Postgres + Redis + migrate + rr-ws,
+#                                 # and the same four again for the web2 world
 #
 # Postgres and Redis publish NO port: only rr-ws reaches them, on this network.
 # Caddy takes 80/443 and fetches the certificate for $WS_DOMAIN by itself.
@@ -58,6 +59,67 @@ services:
       redis:
         condition: service_started
 
+  # ── THE WEB2 WORLD (Google Play, iOS, portals) ─────────────────────────────
+  # Same image, its OWN Postgres, Redis and JWT secret: a web3 burrow never
+  # meets a web2 one, and a token from one world opens nothing in the other.
+  # RR_WORLD=web2 switches off the wallet doors, the shop's crypto and the
+  # Crown Race (src/lib/world.ts). No Solana variable reaches it.
+  postgres-web2:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rabbit
+      POSTGRES_USER: rabbit
+      POSTGRES_PASSWORD: ${WEB2_POSTGRES_PASSWORD:?set WEB2_POSTGRES_PASSWORD in .env}
+    volumes:
+      - pg-web2:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rabbit -d rabbit"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis-web2:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - redis-web2:/data
+
+  migrate-web2:
+    image: ${RR_WS_IMAGE:-ghcr.io/llpekoll/rr-ws:latest}
+    command: ["./migrate"]
+    environment:
+      DATABASE_URL: postgres://rabbit:${WEB2_POSTGRES_PASSWORD}@postgres-web2:5432/rabbit
+    depends_on:
+      postgres-web2:
+        condition: service_healthy
+    restart: "no"
+
+  # No env_file: the region's .env carries the web3 treasury and RPC. Only
+  # what this world needs is named here.
+  rr-ws-web2:
+    image: ${RR_WS_IMAGE:-ghcr.io/llpekoll/rr-ws:latest}
+    restart: unless-stopped
+    environment:
+      RR_WORLD: web2
+      DATABASE_URL: postgres://rabbit:${WEB2_POSTGRES_PASSWORD}@postgres-web2:5432/rabbit
+      REDIS_URL: redis://redis-web2:6379
+      WS_PORT: "3010"
+      WS_DOMAIN: ${WS2_DOMAIN}
+      AUTH_ORIGIN: https://${WS2_DOMAIN}
+      JWT_SIGNING_SECRET: ${WEB2_JWT_SIGNING_SECRET:?set WEB2_JWT_SIGNING_SECRET in .env}
+      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      JENVOIE_API_KEY: ${JENVOIE_API_KEY:-}
+    depends_on:
+      migrate-web2:
+        condition: service_completed_successfully
+      redis-web2:
+        condition: service_started
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -67,13 +129,17 @@ services:
       - "443:443/udp"
     environment:
       WS_DOMAIN: ${WS_DOMAIN:?set WS_DOMAIN in .env}
+      WS2_DOMAIN: ${WS2_DOMAIN:?set WS2_DOMAIN in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy:/data
     depends_on:
       - rr-ws
+      - rr-ws-web2
 
 volumes:
   pg:
   redis:
+  pg-web2:
+  redis-web2:
   caddy:

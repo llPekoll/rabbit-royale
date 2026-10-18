@@ -8,6 +8,7 @@
  * runs anywhere and the URL is a redeploy, not a rebuild.
  */
 import { clientOverrides, refreshTuningIfStale } from '@/lib/tuning/live';
+import { isWeb2, world } from '@/lib/world';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,10 @@ export function GET() {
      * False means the money route is off, and the shop hides its USDC buttons
      * rather than offering a payment that cannot complete.
      */
-    payments: Boolean(process.env.SOLANA_RPC_URL),
+    payments: Boolean(process.env.SOLANA_RPC_URL) && !isWeb2(),
+    /** 'web2' or 'web3' (lib/world.ts) — the build already knows its world;
+     *  this lets a client check it is talking to the right servers. */
+    world: world(),
     /**
      * The `tuning` overrides in force, `{ "RAID_RUN.TOLL": 50, … }` — aliases
      * included (`ENERGY.MAX` beside `OUT_OF_RUN_ENERGY.MAX`). The client merges
