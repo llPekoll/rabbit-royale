@@ -104,6 +104,26 @@
         {
           "kind": "tune",
           "text": {
+            "en": "BURY is now DEFEND. Before level 3, the RAID plank offers SKIP TO RAID. The codex is now a shelf with the three books.",
+            "fr": "ENTERRER devient DÉFENDRE. Avant le niveau 3, la planche PILLER propose PASSER AU PILLAGE. Le codex devient une étagère avec les trois livres.",
+            "zh": "埋雷改名为防守。3 级之前，掠夺按钮提供“直接解锁掠夺”。图鉴变成了放着三本书的书架。",
+            "pt-BR": "ENTERRAR agora é DEFENDER. Antes do nível 3, a tábua SAQUEAR oferece PULAR PARA SAQUEAR. O códex virou uma estante com os três livros.",
+            "vi": "CHÔN BOM giờ là PHÒNG THỦ. Trước cấp 3, tấm ván CƯỚP có nút MỞ CƯỚP HANG. Sổ tay giờ là kệ sách với ba cuốn sách."
+          }
+        },
+        {
+          "kind": "new",
+          "text": {
+            "en": "On a computer, right-click a tile to mark it with an X, like in minesweeper.",
+            "fr": "Sur ordinateur, un clic droit sur une case la marque d’un X, comme au démineur.",
+            "zh": "在电脑上，右键点击格子即可标上 X，就像扫雷一样。",
+            "pt-BR": "No computador, clique com o botão direito numa casa para marcá-la com um X, como no campo minado.",
+            "vi": "Trên máy tính, nhấp chuột phải vào một ô để đánh dấu X, như trò dò mìn."
+          }
+        },
+        {
+          "kind": "tune",
+          "text": {
             "en": "The quest board is gone from the burrow: everything it paid (875 carrots and a shield) is yours as soon as you finish your first island.",
             "fr": "Le tableau des quêtes quitte le terrier : tout ce qu’il payait (875 carottes et un bouclier) est à toi dès ta première île finie.",
             "zh": "任务板从洞穴中移除：它原本发放的奖励（875 根胡萝卜和一个护盾）在你完成第一座岛后立即到手。",
