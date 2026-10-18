@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.12.1",
+      "date": "2026-10-18",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "The RAID list always shows its three picks (revenge, the richest, someone out digging), even when they are shielded: their card says for how long.",
+            "fr": "La liste RAID montre toujours ses trois choix (la revanche, le plus riche, celui qui creuse), même sous bouclier : leur carte dit pour combien de temps.",
+            "zh": "掠夺列表始终显示三个推荐（复仇、最富有的、外出挖掘的），即使他们有护盾：卡片会显示护盾还剩多久。",
+            "pt-BR": "A lista de SAQUE sempre mostra as três escolhas (a vingança, o mais rico, quem está cavando), mesmo com escudo: o cartão diz por quanto tempo.",
+            "vi": "Danh sách CƯỚP luôn hiện ba lựa chọn (trả thù, giàu nhất, người đang đi đào), kể cả khi có khiên: thẻ cho biết còn bao lâu."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.12",
       "date": "2026-10-18",
       "items": [

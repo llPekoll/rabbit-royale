@@ -58,6 +58,17 @@ func _ready() -> void:
 				"presence": "away", "door": "shield" if k % 4 == 0 else "open", "doorWaitMs": 0})
 		RaidState.current.fake({"targets": many})
 
+	# `--all-shielded` : tout le monde sous bouclier, la revanche comprise.
+	if "--all-shielded" in OS.get_cmdline_user_args():
+		var shut: Array = []
+		for t: Dictionary in RaidState.current.targets:
+			var c := t.duplicate()
+			c["shielded"] = true
+			c["shieldedFor"] = 6.0 * 3600000.0
+			c["door"] = "shield"
+			shut.append(c)
+		RaidState.current.fake({"targets": shut})
+
 	var panel := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--panel="):

@@ -208,8 +208,10 @@ func _rebuild() -> void:
 		_picks.add_child(Kit.note(I18N.t("raid.nobodyYet"), Palette.INK, 13))
 	else:
 		var chosen := _choose(targets)
-		# TOUT EST FERME : le dire en tete, plutot qu'une liste grise muette.
-		if not chosen.any(func(p: Dictionary) -> bool: return _open(p["target"])):
+		# TOUT EST FERME : le dire en tete, plutot qu'une liste grise muette —
+		# s'il reste de la place a cote des cartes (chacune dit deja son
+		# bouclier).
+		if chosen.size() < 3 and not chosen.any(func(p: Dictionary) -> bool: return _open(p["target"])):
 			var all_shut := Kit.note(I18N.t("raid.allShielded"), Palette.INK, 12)
 			all_shut.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			_picks.add_child(all_shut)
@@ -238,12 +240,16 @@ func _rebuild() -> void:
 
 ## LES TROIS PRISES, dans cet ordre : celui qui m'a pille (`owed`, le
 ## serveur le met deja en tete), le plus riche, le plus riche de ceux qui
-## creusent (sans garde). Les deux dernieres seulement parmi les terriers
-## qu'on peut piller maintenant ; une prise qui manque n'est pas remplacee.
+## creusent (sans garde). Les deux dernieres d'abord parmi les terriers qu'on
+## peut piller maintenant ; TOUJOURS LES TROIS (2026-10-18, « je veux voir les
+## 3 en meme temps ») : sans terrier ouvert, la carte prend un ferme, grisee
+## avec son bouclier, comme la revanche.
 func _choose(targets: Array) -> Array[Dictionary]:
-	var open: Array = targets.filter(func(t: Dictionary) -> bool: return _open(t))
-	var rich := open.duplicate()
+	var rich := targets.duplicate()
+	# Les ouverts devant, puis chacun par carottes.
 	rich.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if _open(a) != _open(b):
+			return _open(a)
 		return int(a.get("stock", 0)) > int(b.get("stock", 0)))
 	var out: Array[Dictionary] = []
 	var taken: Array = []
@@ -317,10 +323,14 @@ func _pick_card(target: Dictionary, why: String, ink: Color, state: RaidState) -
 	col.add_child(_name(target, 13))
 	col.add_child(_carrots(target, 13))
 	var buttons := Kit.hbox(4)
-	var raid := _raid_button(target, state, 0.0, 30.0)
-	raid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	buttons.add_child(raid)
-	if state.presence_of(target) == RaidState.DIGGING:
+	var digging := state.presence_of(target) == RaidState.DIGGING
+	# Un creuseur sous bouclier : REGARDER seul, le bouclier est dit au-dessus
+	# (« Shielded » ne tenait pas a cote, coupe en « hielde »).
+	if not (digging and _shield_left(target) > 0.0):
+		var raid := _raid_button(target, state, 0.0, 30.0)
+		raid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		buttons.add_child(raid)
+	if digging:
 		buttons.add_child(_watch_button(target, state, WATCH_W, 30.0))
 	col.add_child(buttons)
 	line.add_child(col)
