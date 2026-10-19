@@ -16,11 +16,27 @@ val pluginName = "RabbitFirebase"
 val pluginPackageName = "rip.rabbit.godot.firebase"
 
 /**
+ * DEUX MONDES, DEUX PROJETS FIREBASE. Le web3 (Seeker, rip.rabbit.royale) vit
+ * dans rabbitroyale-5579e ; le web2 (Google Play, pro.gravity5.rabbitroyale)
+ * dans rabbit-royale-24657, détenu par GRAVITY 5. Un AAR n'embarque qu'une
+ * configuration, il y en a donc deux, construits séparément :
+ *     android/gradlew -p godot/plugin-src :firebase:assembleDebug :firebase:assembleRelease
+ *     android/gradlew -p godot/plugin-src -Pworld=web2 :firebase:assembleDebug :firebase:assembleRelease
+ * Le second se dépose sous bin/web2/, où export_plugin.gd le prend pour un
+ * preset marqué `web2`.
+ */
+val world = (findProperty("world") as String?) ?: "web3"
+check(world == "web3" || world == "web2") { "-Pworld=$world : web3 ou web2 seulement" }
+val web2 = world == "web2"
+
+/**
  * L'applicationId du jeu (package/unique_name dans export_presets.cfg).
  * google-services.json peut décrire plusieurs apps Android d'un même projet
  * Firebase ; c'est CELLE-CI qu'on y cherche.
  */
-val gameApplicationId = "rip.rabbit.royale"
+val gameApplicationId = if (web2) "pro.gravity5.rabbitroyale" else "rip.rabbit.royale"
+val googleServicesFile = if (web2) "google-services.web2.json" else "google-services.json"
+val aarBinDir = if (web2) "bin/web2" else "bin"
 
 /**
  * FIREBASE_BOM : la SEULE version Firebase de ce module. Les artefacts sont
@@ -178,7 +194,7 @@ val googleServicesValues by tasks.registering(GoogleServicesValues::class) {
 	// Une FileCollection plutôt qu'un RegularFileProperty : elle accepte un
 	// fichier absent sans faire échouer la validation des entrées, et Gradle
 	// relance la tâche quand le fichier apparaît, change ou disparaît.
-	jsonFile.from("google-services.json")
+	jsonFile.from(googleServicesFile)
 	applicationId.set(gameApplicationId)
 	outputDir.set(layout.buildDirectory.dir("generated/res/googleServices"))
 }
@@ -269,16 +285,17 @@ androidComponents {
 
 /**
  * Même mécanique que plugin-src/mwa : l'export cherche l'AAR sous
- * addons/RabbitFirebase/bin/<debug|release>/, pas dans build/.
+ * addons/RabbitFirebase/bin/<debug|release>/ (bin/web2/… pour -Pworld=web2),
+ * pas dans build/.
  */
 val copyDebugAar by tasks.registering(Copy::class) {
 	from("build/outputs/aar/$pluginName-debug.aar")
-	into("../../addons/$pluginName/bin/debug")
+	into("../../addons/$pluginName/$aarBinDir/debug")
 }
 
 val copyReleaseAar by tasks.registering(Copy::class) {
 	from("build/outputs/aar/$pluginName-release.aar")
-	into("../../addons/$pluginName/bin/release")
+	into("../../addons/$pluginName/$aarBinDir/release")
 }
 
 afterEvaluate {

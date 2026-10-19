@@ -109,11 +109,13 @@ services:
       WS_DOMAIN: ${WS2_DOMAIN}
       AUTH_ORIGIN: https://${WS2_DOMAIN}
       JWT_SIGNING_SECRET: ${WEB2_JWT_SIGNING_SECRET:?set WEB2_JWT_SIGNING_SECRET in .env}
-      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT:-}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      JENVOIE_API_KEY: ${JENVOIE_API_KEY:-}
+      # Its own Firebase project (rabbit-royale-24657, GRAVITY 5) and its own
+      # Google client: WEB2_* in .env, never the web3 values rr-ws reads.
+      FIREBASE_SERVICE_ACCOUNT: ${WEB2_FIREBASE_SERVICE_ACCOUNT:-}
+      FIREBASE_PROJECT_ID: ${WEB2_FIREBASE_PROJECT_ID:-}
+      GOOGLE_CLIENT_ID: ${WEB2_GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${WEB2_GOOGLE_CLIENT_SECRET:-}
+      JENVOIE_API_KEY: ${WEB2_JENVOIE_API_KEY:-}
     depends_on:
       migrate-web2:
         condition: service_completed_successfully

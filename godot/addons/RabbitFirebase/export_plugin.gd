@@ -38,12 +38,25 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	func _supports_platform(platform: EditorExportPlatform) -> bool:
 		return platform is EditorExportPlatformAndroid
 
+	## LE BUILD GOOGLE PLAY (marque `web2` du preset) PARLE À UN AUTRE PROJET
+	## FIREBASE, celui de GRAVITY 5 : son AAR est construit avec -Pworld=web2
+	## et rangé sous bin/web2/ (plugin-src/firebase/build.gradle.kts).
+	func _web2() -> bool:
+		var preset := get_export_preset()
+		if preset == null:
+			return false
+		for feature in preset.get_custom_features().split(","):
+			if feature.strip_edges() == "web2":
+				return true
+		return false
+
 	## Chemins relatifs au dossier addons/. Le build Gradle du plugin dépose
-	## l'AAR à ces deux endroits.
+	## l'AAR à ces endroits.
 	func _get_android_libraries(_platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		var flavour := "debug" if debug else "release"
+		var bin := "bin/web2" if _web2() else "bin"
 		return PackedStringArray(
-			["%s/bin/%s/%s-%s.aar" % [PLUGIN_NAME, flavour, PLUGIN_NAME, flavour]]
+			["%s/%s/%s/%s-%s.aar" % [PLUGIN_NAME, bin, flavour, PLUGIN_NAME, flavour]]
 		)
 
 	## LES MÊMES DÉPENDANCES QUE build.gradle.kts, RÉPÉTÉES ICI — un AAR ne
