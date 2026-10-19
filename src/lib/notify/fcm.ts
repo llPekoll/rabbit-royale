@@ -22,6 +22,7 @@
  * logged and the token kept.
  */
 import { importPKCS8, SignJWT } from 'jose';
+import { isWeb2 } from '../world';
 
 interface ServiceAccount {
   client_email: string;
@@ -147,8 +148,12 @@ export interface OutgoingPush {
   ttlSeconds: number;
 }
 
-/** Where a web push opens. The Godot build lives under /play/. */
-export const WEB_LINK = 'https://rabbit.rip/play/';
+/**
+ * Where a web push opens. The Godot build lives under /play/ of its world's
+ * site: rabbit.rip is the web2 shop window, the web3 game moved to
+ * web3.rabbit.rip on 2026-10-19 (rabbit.rip/play/ only forwards old players).
+ */
+export const WEB_LINK = isWeb2() ? 'https://rabbit.rip/play/' : 'https://web3.rabbit.rip/play/';
 
 /** The FCM v1 `message` object. Pure, for tests. */
 export function buildFcmMessage(p: OutgoingPush) {

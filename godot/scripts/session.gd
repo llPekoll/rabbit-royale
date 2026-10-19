@@ -17,7 +17,11 @@ extends Node
 ## here rather than in the doorstep: the screen that signs in is not the screen
 ## that connects.
 
-const TOKEN_PATH := "user://session.cfg"
+## UN FICHIER PAR MONDE (2026-10-19). Le web2 a ses propres comptes, signes
+## d'un autre secret : s'il lisait le fichier du web3, ws2 refuserait le jeton
+## et `_forget` effacerait celui du joueur web3 sur cet appareil (le bureau
+## avec `--world=web2`, et rabbit.rip/play/ quand le web2 y sera).
+var _token_path := "user://session.cfg"
 
 ## Fires when the player changes — signed in, signed out, or restored. Screens
 ## follow this rather than polling, and it carries no argument: a listener asks
@@ -58,11 +62,15 @@ var borrowed_refused := false
 
 
 func _ready() -> void:
+	if Net.WORLD == "web2":
+		_token_path = "user://session-web2.cfg"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--token="):
 			token = arg.trim_prefix("--token=")
 			_from_args = true
 			return
+	if OS.has_feature("web"):
+		_import_moved_session()
 	token = _load_token()
 	Net.region_changed.connect(_on_region_changed)
 
@@ -351,9 +359,9 @@ func _forget() -> void:
 		# plutot qu'efface : une cle absente fait emprunter le jeton de
 		# l'Europe (`_load_token`), et la deconnexion se reconnecterait seule.
 		var cfg := ConfigFile.new()
-		cfg.load(TOKEN_PATH)
+		cfg.load(_token_path)
 		cfg.set_value(_section(), "token", "")
-		cfg.save(TOKEN_PATH)
+		cfg.save(_token_path)
 
 
 ## The server's refusal, in words the player can act on.
@@ -418,7 +426,7 @@ func _section() -> String:
 ## compte ne la-bas apres la copie est refuse (404) et la porte s'ouvre.
 func _load_token() -> String:
 	var cfg := ConfigFile.new()
-	if cfg.load(TOKEN_PATH) != OK:
+	if cfg.load(_token_path) != OK:
 		return ""
 	borrowed = false
 	if not cfg.has_section_key(_section(), "token") and Net.region != "" and Net.region != "eu":
@@ -432,6 +440,60 @@ func _save_token(value: String) -> void:
 	if _from_args:
 		return
 	var cfg := ConfigFile.new()
-	cfg.load(TOKEN_PATH)
+	cfg.load(_token_path)
 	cfg.set_value(_section(), "token", value)
-	cfg.save(TOKEN_PATH)
+	cfg.save(_token_path)
+
+
+## LE DEMENAGEMENT DU WEB3 (2026-10-19) : le jeu du navigateur est passe de
+## rabbit.rip/play/ a web3.rabbit.rip/play/, une autre origine, donc un autre
+## stockage. La page laissee a l'ancienne adresse (site/play/index.html) y lit
+## nos fichiers et les passe ici dans le fragment,
+## #rr_move=<base64url d'un JSON {nom: texte}>, que le navigateur n'envoie a
+## aucun serveur. Deux fichiers seulement : la session et la reponse au
+## consentement (Analytics la lit apres nous, la question ne revient pas).
+## On ne prend que les cles qu'on n'a pas : un joueur deja connecte ici le
+## reste.
+const _MOVED_FILES: Array[String] = ["session.cfg", "consent.cfg"]
+
+func _import_moved_session() -> void:
+	var frag := str(JavaScriptBridge.eval("location.hash", true))
+	if not frag.begins_with("#rr_move="):
+		return
+	# Hors de la barre d'adresse tout de suite : un jeton n'a rien a faire
+	# dans l'historique ni dans un lien copie.
+	JavaScriptBridge.eval("history.replaceState(null, '', location.pathname + location.search)", true)
+	import_moved(frag, "user://")
+
+
+## Le coeur de `_import_moved_session`, sans le navigateur : le fragment tel
+## quel, le dossier ou ecrire. Rend les fichiers repris ; public pour pouvoir
+## le verifier hors navigateur.
+func import_moved(frag: String, dir: String) -> PackedStringArray:
+	var taken := PackedStringArray()
+	var b64 := frag.trim_prefix("#rr_move=").replace("-", "+").replace("_", "/")
+	while b64.length() % 4 != 0:
+		b64 += "="
+	var files = JSON.parse_string(Marshalls.base64_to_utf8(b64))
+	if not files is Dictionary:
+		return taken
+	for fname: String in _MOVED_FILES:
+		if not files.has(fname):
+			continue
+		var moved := ConfigFile.new()
+		if moved.parse(str(files[fname])) != OK:
+			continue
+		var path := dir + fname
+		var cfg := ConfigFile.new()
+		cfg.load(path)
+		var took := false
+		for section in moved.get_sections():
+			for key in moved.get_section_keys(section):
+				if str(cfg.get_value(section, key, "")) == "":
+					cfg.set_value(section, key, moved.get_value(section, key))
+					took = true
+		if took:
+			cfg.save(path)
+			taken.append(fname)
+			print("[session] %s repris de rabbit.rip/play/" % fname)
+	return taken

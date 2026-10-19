@@ -100,13 +100,20 @@ RUN mkdir -p dist/web/play/android \
 
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
-COPY --from=build /app/dist/web /usr/share/nginx/html
+# DEUX ARBRES (2026-10-19), un par site, que nginx choisit par le nom d'hote
+# (docker/nginx.conf.template) : web3/ pour web3.rabbit.rip (l'ancien
+# rabbit.rip, jeu compris), site/ pour la vitrine de rabbit.rip.
+COPY --from=build /app/dist/web /usr/share/nginx/html/web3
 # La page d'accueil, a la racine : du HTML statique et son art, sans build.
 # Elle porte aussi les icones, le manifeste et le service worker de l'ancien
 # public/ (2026-10-01) : un joueur qui avait installe la PWA garde son sw.js
 # (reseau d'abord, rien en cache sauf la page hors ligne). Le client Pixi et
 # son art ont ete retires du repo (zip hors repo, et l'historique git).
-COPY landing /usr/share/nginx/html
+COPY landing /usr/share/nginx/html/web3
+# LA VITRINE DE RABBIT.RIP : ses pages a elle (accueil neutre, support,
+# confidentialite et conditions du web2, mentions legales, suppression de
+# compte, la page de passage de /play/). L'art, elle le lit dans web3/.
+COPY site /usr/share/nginx/html/site
 # `templates/*.template` : l'entrypoint de l'image nginx y substitue les
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
 # C'est ce qui permet de pointer l'API sans reconstruire l'image.

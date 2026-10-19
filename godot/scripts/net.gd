@@ -34,7 +34,7 @@ const STAGE_HOST := "https://ws-stage.rabbit.rip"
 ## `eu` est l'ancien et unique serveur : un jeton enregistre avant les regions
 ## est un jeton `eu`, que les autres regions peuvent essayer (session.gd).
 ##
-## DEUX MONDES (2026-10-18) : le web3 (Seeker, rabbit.rip/play) et le web2
+## DEUX MONDES (2026-10-18) : le web3 (Seeker, web3.rabbit.rip/play) et le web2
 ## (Google Play, App Store, CrazyGames, itch.io) ne se croisent jamais — chaque
 ## monde a ses serveurs, ses bases, ses comptes, dans les trois regions
 ## (src/lib/world.ts cote serveur). Un build web2 porte la marque `web2` dans

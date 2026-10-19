@@ -38,7 +38,12 @@ const PATH := "user://consent.cfg"
 ## destinataire) : une reponse d'une version anterieure ne vaut plus, la
 ## question revient.
 const VERSION := 1
-const PRIVACY_URL := "https://rabbit.rip/privacy/"
+## La politique du monde ou l'on joue (2026-10-19) : rabbit.rip est la
+## vitrine du web2, le web3 a la sienne sur web3.rabbit.rip.
+static func privacy_url() -> String:
+	if Net.WORLD == "web2":
+		return "https://rabbit.rip/privacy/"
+	return "https://web3.rabbit.rip/privacy/"
 
 ## L'EEE (les 27 + Islande, Liechtenstein, Norvege), le Royaume-Uni (UK GDPR,
 ## PECR) et la Suisse (nLPD). Plus les territoires qui portent leur propre

@@ -1,0 +1,96 @@
+<!doctype html>
+<!--
+  SUPPRESSION DE COMPTE (2026-10-19) : le lien du champ « suppression de
+  compte » de Google Play. Play veut le nom de l'app tel que sur la fiche,
+  une demande faisable SANS reinstaller l'app, et ce qui est supprime ou
+  garde. Le bouton du jeu appelle POST /api/auth/delete (lib/auth/abandon.ts
+  deleteAccount) : a relire si ce qu'il efface change.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#10222b" />
+    <title>Delete your account · Rabbit Royale</title>
+    <meta name="description" content="How to delete your Rabbit Royale account and what is deleted." />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/legal.css" />
+    <style>
+      /* Quatre liens au lieu de deux : ils passent a la ligne sur un telephone. */
+      header.top nav { flex-wrap: wrap; justify-content: flex-end; gap: 6px 18px; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a href="/"><img src="/assets/logo.png" alt="Rabbit Royale" /></a>
+      <nav>
+        <a href="/support/">Support</a>
+        <a href="/terms/">Terms</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/legal/">Legal</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Delete your Rabbit Royale account</h1>
+      <p class="updated">Last updated: October 19, 2026</p>
+
+      <p class="lead">
+        You can delete your Rabbit Royale account, published by GRAVITY 5, at any time: from the Game in a few
+        taps, or by email without installing anything.
+      </p>
+
+      <h2>From the Game</h2>
+      <ol>
+        <li>Open your burrow and tap your rabbit&rsquo;s portrait at the top right to open your <strong>Profile</strong>.</li>
+        <li>Tap <strong>Delete account</strong>.</li>
+        <li>Tap it again to confirm. Your account is deleted at once.</li>
+      </ol>
+      <p>
+        Playing as a guest? The same place shows <strong>Abandon this burrow</strong>, which deletes your guest
+        account the same way.
+      </p>
+
+      <h2>By email</h2>
+      <p>
+        Write to <a href="mailto:support@gravity5.pro?subject=Delete%20my%20Rabbit%20Royale%20account">support@gravity5.pro</a>
+        with the subject &ldquo;Delete my account&rdquo;, from the email address you sign in with (Google or
+        email), and tell us your rabbit name. If you write from another address, we may ask you to prove the
+        account is yours. We delete it within 30 days and confirm by email.
+      </p>
+
+      <h2>What is deleted</h2>
+      <ul>
+        <li>Your account and its sign-in links: your Google account ID and your email address.</li>
+        <li>Your rabbit name, avatar, burrow, island, carrots, items, quests, scores and rankings.</li>
+        <li>Your history of raids, defences and harvests, and the notification tokens of your devices.</li>
+      </ul>
+
+      <h2>What is kept, and for how long</h2>
+      <ul>
+        <li>
+          Analytics events and crash reports stay with Google Firebase, linked only to a random player ID that
+          no longer points to anyone: up to 14 months for analytics and 90 days for crash reports.
+        </li>
+        <li>Server logs are rotated within a few weeks.</li>
+        <li>
+          If you bought something in the Game, the record of that purchase is kept as long as the law requires
+          for accounting, without your game data.
+        </li>
+      </ul>
+      <p>Deleting an account cannot be undone: a deleted burrow cannot be brought back.</p>
+    </main>
+
+    <footer>
+      <span>&copy; 2026 GRAVITY 5</span>
+      <a href="/support/">Support</a>
+      <a href="/terms/">Terms of Use</a>
+      <a href="/privacy/">Privacy Policy</a>
+      <a href="/legal/">Legal notice</a>
+      <a href="/">Home</a>
+    </footer>
+  </body>
+</html>

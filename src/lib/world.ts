@@ -2,7 +2,7 @@
  * WHICH WORLD this deployment serves (2026-10-18).
  *
  * Rabbit Royale runs as two worlds that never meet: web3 (the Seeker app and
- * rabbit.rip/play — Solana wallet, crypto payments, the Crown Race) and web2
+ * web3.rabbit.rip/play — Solana wallet, crypto payments, the Crown Race) and web2
  * (Google Play, the App Store, CrazyGames, itch.io — none of that). They do not
  * share a database: each world is its own deployment, the way each region is,
  * so a player of one can never be seated, raided or ranked against a player of

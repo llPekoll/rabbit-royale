@@ -1,6 +1,28 @@
+# DEUX SITES, UN CONTENEUR (2026-10-19), choisis par le nom d'hote.
+#
+#   rabbit.rip, www.rabbit.rip  -> la VITRINE du web2 (site/) : fiches Google
+#                                  Play et App Store, pubs, presse. Rien n'y
+#                                  parle de crypto ni ne mene au web3.
+#   tout le reste               -> le site du WEB3 (landing/ + le jeu sous
+#                                  /play/) : web3.rabbit.rip, stage.rabbit.rip,
+#                                  localhost. C'est l'ancien rabbit.rip, tel quel.
+#
+# POURQUOI DEUX SITES : rabbit.rip est l'adresse des fiches Google Play et
+# App Store, de la presse et des pubs. Apple interdit hors des Etats-Unis que
+# l'app et ses metadonnees menent a un achat hors de son systeme (3.1.1(a)),
+# Google Play aussi (sa politique de paiement compte la fiche). Le web3 vend
+# en crypto : la vitrine ne le nomme ni ne le lie jamais, meme dans un
+# commentaire HTML (site/ est lu tel quel par qui ouvre le code source).
+#
+# La vitrine garde trois chemins du web3, pour les coques Seeker deja
+# installees qui les ont en dur (godot/scripts/boot.gd, book_voice.gd) :
+# /play/android/ (le pack), /play/voice/ (la voix des livres) et les
+# fichiers Firebase de /play/ (un ancien abonnement aux notifications). Le
+# reste de /play/ est une page de passage vers web3.rabbit.rip (site/play/).
+
 server {
-  listen 3010;
-  root /usr/share/nginx/html;
+  listen 3010 default_server;
+  root /usr/share/nginx/html/web3;
   index index.html;
 
   # LE CLIENT GODOT, COMPRESSE ET REVALIDE.
@@ -147,6 +169,79 @@ server {
   # Les anciens liens vers le jeu a la racine (l'ecran d'accueil des PWA
   # installees avant l'accueil garde start_url "/" jusqu'a sa mise a jour) :
   # ils tombent sur l'accueil, a un clic du jeu. Rien a rediriger.
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
+
+
+# LA VITRINE : rabbit.rip. Ses pages sont dans site/ ; l'art, les icones et
+# les styles qu'elle partage avec l'accueil du web3 sont lus dans son arbre.
+server {
+  listen 3010;
+  server_name rabbit.rip www.rabbit.rip;
+  root /usr/share/nginx/html/site;
+  index index.html;
+
+  gzip on;
+  gzip_comp_level 6;
+  gzip_min_length 1024;
+  gzip_types application/javascript text/css application/json image/svg+xml;
+
+  # Le partage avec l'accueil du web3 : l'art (/assets/), les icones, et les
+  # fichiers de l'ancienne PWA (sw.js, offline.html, manifest.json) qu'un
+  # ecran d'accueil installe redemande encore.
+  location ^~ /assets/ { root /usr/share/nginx/html/web3; }
+  location ^~ /icons/ { root /usr/share/nginx/html/web3; }
+  location ~ ^/(favicon\.ico|apple-touch-icon\.png|sw\.js|offline\.html|manifest\.json)$ {
+    root /usr/share/nginx/html/web3;
+  }
+
+  # LES COQUES SEEKER : memes fichiers et memes regles de cache que sur le
+  # site du web3 (voir le premier serveur).
+  location = /play/android/manifest.json {
+    root /usr/share/nginx/html/web3;
+    types { application/json json; }
+    add_header Cache-Control "no-cache";
+  }
+  location ~ "^/play/android/game-[0-9a-f]{64}\.pck$" {
+    root /usr/share/nginx/html/web3;
+    types { application/octet-stream pck; }
+    gzip off;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+  location ^~ /play/voice/ { root /usr/share/nginx/html/web3; }
+  location ~ ^/play/(firebase-messaging-sw|firebase-config)\.js$ {
+    root /usr/share/nginx/html/web3;
+    types { application/javascript js; }
+    add_header Cache-Control "no-cache";
+  }
+
+  # Le reste de /play/ : la page de passage, jamais en cache (elle lit la
+  # session du joueur a chaque visite).
+  location /play/ {
+    try_files /play/index.html =404;
+    add_header Cache-Control "no-cache";
+  }
+
+  # Ce qui n'appartient qu'au web3 garde ses anciens liens (deck envoye aux
+  # investisseurs, campagne theMiracle, changelog ouvert par le jeu) : ils
+  # suivent, sans que la vitrine ne les lie nulle part.
+  location ~ ^/(pitch|miracle1|miracle2|changelog)(/.*)?$ {
+    return 301 https://web3.rabbit.rip$request_uri;
+  }
+
+  # Sans barre finale, comme sur l'autre site : une page servie telle quelle
+  # resoudrait ses liens relatifs a la racine.
+  location ~ ^/(play|support|privacy|terms|legal|delete-account)$ {
+    absolute_redirect off;
+    return 301 /$1/;
+  }
+
+  location = /index.html {
+    add_header Cache-Control "no-cache";
+  }
 
   location / {
     try_files $uri $uri/ /index.html;

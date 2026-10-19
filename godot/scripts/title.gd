@@ -42,7 +42,7 @@ const LOGO_EASE := 0.25
 ## La ligne qui separe le titre de la demande. `min(67vh, 100vh - 170 - 24)`.
 const ALT_H := 40.0
 ## LE MONDE DECIDE DES PORTES (2026-10-18, net.gd WORLD). Web3 (Seeker,
-## rabbit.rip/play) : CONNECT WALLET dore puis l'invite, sans Google | Email.
+## web3.rabbit.rip/play) : CONNECT WALLET dore puis l'invite, sans Google | Email.
 ## Web2 (Play, App Store, portails) : pas de wallet du tout — l'invite dore,
 ## puis Google | Email a sa place ; la colonne garde donc sa hauteur.
 var _web2_doors := Net.WORLD == "web2"

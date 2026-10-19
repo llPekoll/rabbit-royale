@@ -71,7 +71,7 @@ func _ready() -> void:
 	policy.add_theme_font_size_override("font_size", 11)
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		policy.add_theme_color_override(state, Palette.BARK)
-	policy.pressed.connect(func() -> void: OS.shell_open(Consent.PRIVACY_URL))
+	policy.pressed.connect(func() -> void: OS.shell_open(Consent.privacy_url()))
 	body.add_child(policy)
 
 	# LES DEUX PLANCHES, JUMELLES : meme bois, meme hauteur, meme part de la
