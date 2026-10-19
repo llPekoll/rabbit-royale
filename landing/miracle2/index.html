@@ -1,0 +1,480 @@
+<!doctype html>
+<!--
+  /miracle2, la page theMiracle en style suisse / typographique international.
+  Page blanche, grille de 12 colonnes visible, texte aligne a gauche en drapeau,
+  une seule famille (Inter Tight 400/800) a des tailles tres contrastees.
+  Noir + un rose franc (#e5006d) + l'or de la course. Les grands chiffres
+  ($1, $4.99, 50%, 40/24/16) font office d'image ; les lapins sont poses
+  sur la grille comme des photos produit. Filets fins, sections numerotees,
+  ni ombre ni coin arrondi.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rabbit Royale x theMiracle</title>
+<meta name="description" content="Rabbit Royale × theMiracle: dig for a cause this October. Pink Ribbon Skin ($1, 50% to charity) and the Golden Carrot Race ($4.99 ticket: 50% to the players' pot, 25% to charity).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #000;
+  --paper: #fff;
+  --pink: #e5006d;
+  --gold: #f6b900;
+  --rule: #000;
+  --grid: rgba(229, 0, 109, .07);
+  --mute: #4a4a4a;
+  --g: 16px;           /* gutter / page margin */
+  --cols: 4;
+}
+@media (min-width: 900px) { :root { --g: 32px; --cols: 12; } }
+@media (min-width: 1300px) { :root { --g: 48px; } }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+a { color: inherit; }
+b, strong, h1, h2, h3, .n { font-weight: 800; }
+
+/* ---------- visible column grid ---------- */
+.page { position: relative; max-width: 1440px; margin: 0 auto; padding: 0 var(--g); }
+.page::before {
+  content: ""; position: absolute; inset: 0 var(--g); pointer-events: none; z-index: 0;
+  background: repeating-linear-gradient(90deg,
+    var(--grid) 0 1px, transparent 1px calc(100% / var(--cols)));
+  border-right: 1px solid var(--grid);
+}
+.page > * { position: relative; z-index: 1; }
+.grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); column-gap: 0; }
+
+/* ---------- masthead ---------- */
+.mast {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  border-bottom: 2px solid var(--ink);
+  padding: 14px 0 12px;
+  font-size: 17px; line-height: 1.2;
+}
+.mast .x { color: var(--pink); }
+.mast nav { display: none; gap: 24px; }
+.mast nav a { text-decoration: none; }
+.mast nav a:hover { color: var(--pink); }
+@media (min-width: 900px) { .mast nav { display: flex; } .mast { font-size: 18px; } }
+
+/* ---------- hero ---------- */
+.hero { padding: 18px 0 28px; }
+.hero .kick { font-size: 17px; line-height: 1.3; }
+.hero .kick b { color: var(--pink); }
+.hero h1 {
+  font-size: clamp(60px, 17.5vw, 200px);
+  line-height: .86; letter-spacing: -.045em;
+  margin: 10px 0 14px;
+}
+.hero h1 span { color: var(--pink); }
+
+.offers { border-top: 2px solid var(--ink); }
+.offer {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+  column-gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+}
+.offer .price {
+  font-weight: 800; font-size: 60px; line-height: .9; letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+}
+.offer.ribbon .price { color: var(--pink); }
+.offer.race .price { background: var(--gold); padding: 4px 6px 2px; }
+.offer .what { font-size: 17px; line-height: 1.25; }
+.offer .what b { display: block; font-size: 19px; }
+.offer .pic { width: 44px; }
+
+.cta-row { display: flex; gap: 8px; margin-top: 18px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 56px; padding: 0 14px;
+  font-weight: 800; font-size: 19px; line-height: 1; text-decoration: none;
+  background: var(--ink); color: var(--paper); border: 2px solid var(--ink);
+  border-radius: 0;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn::after { content: "→"; font-weight: 400; font-size: 22px; }
+.btn:hover, .btn:focus-visible { background: var(--pink); border-color: var(--pink); }
+.btn.pink { background: var(--pink); border-color: var(--pink); }
+.btn.pink:hover, .btn.pink:focus-visible { background: var(--ink); border-color: var(--ink); }
+.btn.line { background: var(--paper); color: var(--ink); }
+.btn.line:hover, .btn.line:focus-visible { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+.btn.gold:hover, .btn.gold:focus-visible { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.cta-row .btn { flex: 1 1 0; }
+:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+/* hero desktop: headline left, product shot right */
+.hero-art { display: none; }
+@media (min-width: 900px) {
+  .hero { padding: 32px 0 56px; }
+  .hero-top { display: grid; grid-template-columns: repeat(12, 1fr); align-items: end; }
+  .hero-top .copy { grid-column: 1 / span 8; }
+  .hero-art { display: flex; grid-column: 9 / span 4; justify-content: flex-start; align-items: flex-end; gap: 0; padding-bottom: 18px; }
+  .hero .kick { font-size: 20px; }
+  .hero h1 { font-size: clamp(96px, 11.5vw, 176px); margin: 18px 0 22px; }
+  .offers { display: grid; grid-template-columns: repeat(12, 1fr); border-bottom: 1px solid var(--rule); }
+  .offer { grid-column: span 6; border-bottom: 0; padding: 20px 24px 20px 0; column-gap: 22px; }
+  .offer.race { border-left: 1px solid var(--rule); padding-left: calc(100% / 6 * 0 + 16px); }
+  .offer .price { font-size: clamp(88px, 8.5vw, 132px); }
+  .offer .what { font-size: 20px; }
+  .offer .what b { font-size: 24px; }
+  .offer .pic { width: 84px; }
+  .cta-row { margin-top: 28px; max-width: calc(100% / 12 * 6); }
+}
+
+/* ---------- pixel rabbits (sprite crop) ---------- */
+.bun {
+  --u: 3px;                       /* one sprite pixel */
+  position: relative; display: block;
+  width: calc(var(--u) * 18); height: calc(var(--u) * 20);
+  background-repeat: no-repeat;
+  background-size: calc(var(--u) * 256) calc(var(--u) * 256);
+  background-position: calc(var(--u) * -7) calc(var(--u) * -12);
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.bun.white { background-image: url(/assets/miracle/bunny-white.png); }
+.bun.gold  { background-image: url(/assets/miracle/bunny-golden-ticket.png); }
+.bun.black { background-image: url(/assets/miracle/bunny-black.png); }
+.bun.brown { background-image: url(/assets/miracle/bunny-brown.webp); }
+.bun.orange{ background-image: url(/assets/miracle/bunny-orange.webp); }
+.bun.gray  { background-image: url(/assets/miracle/bunny-gray.webp); }
+.bun .rib { position: absolute; width: 38%; left: 52%; top: 52%; }
+.bun.has-skin .rib { display: none; }
+.offer .pic .bun { --u: calc(44px / 18); }
+@media (min-width: 900px) { .offer .pic .bun { --u: calc(84px / 18); } }
+.hero-art .bun { --u: 9px; }
+.hero-art .bun + .bun { margin-left: -12px; }
+
+/* ---------- sections ---------- */
+section.sec { border-top: 2px solid var(--ink); padding: 18px 0 48px; }
+.sec-head { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); align-items: baseline; margin-bottom: 22px; }
+.sec-head .no { grid-column: 1 / span 1; font-size: 17px; font-weight: 800; }
+.sec-head .no::before { content: "0"; }
+.sec-head h2 { grid-column: 2 / -1; font-size: 32px; line-height: 1.02; letter-spacing: -.03em; }
+@media (min-width: 900px) {
+  section.sec { padding: 24px 0 88px; }
+  .sec-head { margin-bottom: 40px; }
+  .sec-head .no { grid-column: 1 / span 2; font-size: 20px; }
+  .sec-head h2 { grid-column: 3 / -1; font-size: 56px; }
+}
+
+/* big numeral block */
+.big {
+  font-weight: 800; letter-spacing: -.06em; line-height: .82;
+  font-size: clamp(120px, 40vw, 300px);
+  font-variant-numeric: tabular-nums;
+}
+.pinkt { color: var(--pink); }
+
+.lede { font-size: 22px; line-height: 1.25; font-weight: 800; letter-spacing: -.01em; max-width: 28ch; }
+.facts { list-style: none; margin-top: 22px; border-top: 1px solid var(--rule); }
+.facts li {
+  display: grid; grid-template-columns: 40px 1fr; padding: 12px 0;
+  border-bottom: 1px solid var(--rule); font-size: 18px;
+}
+.facts li span { font-weight: 800; color: var(--pink); }
+.race-sec .facts li span { color: var(--ink); }
+
+.offer-layout { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); row-gap: 24px; }
+.offer-layout .fig { grid-column: 1 / -1; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.offer-layout .fig .bun { --u: 6px; flex: none; }
+.offer-layout .body { grid-column: 1 / -1; }
+.offer-layout .btn { margin-top: 24px; width: 100%; }
+@media (min-width: 900px) {
+  .offer-layout { column-gap: 0; }
+  .offer-layout .fig { grid-column: 1 / span 6; padding-right: 32px; }
+  .offer-layout .fig .bun { --u: 10px; }
+  .offer-layout .body { grid-column: 8 / span 5; align-self: end; }
+  .offer-layout .btn { width: auto; min-width: 320px; }
+  .lede { font-size: 30px; }
+  .facts li { font-size: 20px; grid-template-columns: calc(100% / 5) 1fr; }
+}
+
+.race-big { font-size: clamp(88px, 25vw, 260px); }
+.race-big span { background: var(--gold); padding: .04em .06em 0; display: inline-block; }
+.race-sec .fig { flex-wrap: wrap; }
+/* pot split */
+.split { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin-top: 8px; }
+.split div { padding: 10px 8px 12px 0; border-right: 1px solid var(--rule); }
+.split div + div { padding-left: 8px; }
+.split div:last-child { border-right: 0; }
+.split .n { display: block; font-size: clamp(36px, 11.5vw, 128px); line-height: .9; letter-spacing: -.05em; }
+.split .n small { font-size: .45em; letter-spacing: 0; }
+.split .r { display: block; font-size: 17px; margin-top: 6px; }
+.split div:first-child { background: var(--gold); padding-left: 8px; }
+@media (min-width: 900px) {
+  .split { grid-template-columns: repeat(12, 1fr); margin-top: 16px; }
+  .split div { grid-column: span 3; padding: 16px 16px 20px; }
+  .split .r { font-size: 20px; }
+}
+
+/* how to join */
+.steps { list-style: none; display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--rule); }
+.steps li { display: grid; grid-template-columns: 64px 1fr; padding: 16px 0; border-bottom: 1px solid var(--rule); align-items: start; }
+.steps .n { font-size: 56px; line-height: .8; letter-spacing: -.05em; color: var(--pink); }
+.steps h3 { font-size: 22px; line-height: 1.15; letter-spacing: -.01em; }
+.steps p { font-size: 18px; margin-top: 4px; }
+.wallets { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 24px; }
+.wallets .btn { width: 100%; }
+.wallets-note { font-size: 17px; margin-top: 12px; color: var(--mute); }
+@media (min-width: 900px) {
+  .steps { grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--rule); }
+  .steps li { grid-template-columns: 1fr; border-bottom: 0; padding: 20px 24px 28px 0; }
+  .steps li + li { border-left: 1px solid var(--rule); padding-left: 16px; }
+  .steps .n { font-size: 120px; margin-bottom: 18px; }
+  .steps h3 { font-size: 28px; }
+  .steps p { font-size: 20px; }
+  .wallets { grid-template-columns: repeat(12, 1fr); gap: 0; margin-top: 32px; }
+  .wallets .btn { grid-column: span 4; }
+  .wallets .btn + .btn { margin-left: 16px; }
+}
+
+/* the game */
+.game { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); row-gap: 24px; }
+.game .clip { grid-column: 1 / -1; aspect-ratio: 1; background: #000; overflow: hidden; }
+.game .clip video, .game .clip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.game .body { grid-column: 1 / -1; }
+.game .body p + p { margin-top: 12px; }
+.game .body .lede { margin-bottom: 18px; }
+.game .tags { list-style: none; border-top: 1px solid var(--rule); margin-top: 20px; }
+.game .tags li { padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 18px; display: grid; grid-template-columns: 40px 1fr; }
+.game .tags li b { color: var(--pink); }
+.game .btn { margin-top: 24px; width: 100%; }
+.cast { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.cast .bun { --u: 3px; }
+@media (min-width: 900px) {
+  .game .clip { grid-column: 1 / span 6; }
+  .game .body { grid-column: 8 / span 5; align-self: end; }
+  .game .body p, .game .tags li { font-size: 20px; }
+  .game .body p.lede { font-size: 30px; }
+  .race-sec .fig { flex-wrap: nowrap; }
+  .race-big { font-size: clamp(120px, 11vw, 190px); }
+  .game .btn { width: auto; min-width: 320px; }
+}
+
+/* footer */
+footer { border-top: 2px solid var(--ink); padding: 18px 0 32px; }
+footer .grid { row-gap: 16px; }
+footer .brand { grid-column: 1 / -1; font-size: 28px; line-height: 1; letter-spacing: -.03em; font-weight: 800; }
+footer .brand span { color: var(--pink); }
+footer ul { list-style: none; grid-column: span 2; }
+footer li { padding: 6px 0; }
+footer li a { text-decoration: none; border-bottom: 1px solid currentColor; }
+footer li a:hover { color: var(--pink); }
+footer .copy { grid-column: 1 / -1; font-size: 17px; color: var(--mute); border-top: 1px solid var(--rule); padding-top: 12px; }
+@media (min-width: 900px) {
+  footer { padding: 24px 0 40px; }
+  footer .brand { grid-column: 1 / span 6; font-size: 48px; }
+  footer ul { grid-column: span 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="mast">
+    <strong>Rabbit Royale <span class="x">×</span> theMiracle</strong>
+    <nav aria-label="Sections">
+      <a href="#ribbon">01 Ribbon</a>
+      <a href="#race">02 Race</a>
+      <a href="#join">03 Join</a>
+      <a href="#game">04 Game</a>
+    </nav>
+    <span>October</span>
+  </header>
+
+  <!-- 00 HERO -->
+  <main>
+  <section class="hero" aria-labelledby="h1">
+    <div class="hero-top">
+      <div class="copy">
+        <p class="kick"><b>Breast Cancer Awareness Month.</b> A free browser game raises money for theMiracle's charity event.</p>
+        <h1 id="h1">Dig for a<br><span>cause.</span></h1>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <i class="bun white ribbon-bun"><svg class="rib" viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#000" transform="translate(-1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 -1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#e5006d" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#ff8fc0" d="M4 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM4 8h1v1h-1zM3 9h1v1h-1z"/></svg></i>
+        <i class="bun gold"></i>
+      </div>
+    </div>
+
+    <div class="offers">
+      <a class="offer ribbon" href="#ribbon">
+        <span class="price">$1</span>
+        <span class="what"><b>Pink Ribbon skin</b>50% goes to charity.</span>
+        <span class="pic" aria-hidden="true"><i class="bun white ribbon-bun"><svg class="rib" viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#000" transform="translate(-1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 -1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#e5006d" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#ff8fc0" d="M4 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM4 8h1v1h-1zM3 9h1v1h-1z"/></svg></i></span>
+      </a>
+      <a class="offer race" href="#race">
+        <span class="price">$4.99</span>
+        <span class="what"><b>Golden Carrot Race</b>Top 10 split the pot. 25% to charity.</span>
+        <span class="pic" aria-hidden="true"><i class="bun gold"></i></span>
+      </a>
+    </div>
+
+    <div class="cta-row">
+      <a class="btn pink" href="/play/">Play free</a>
+      <a class="btn line" href="#join">How to join</a>
+    </div>
+  </section>
+
+  <!-- 01 PINK RIBBON -->
+  <section class="sec" id="ribbon" aria-labelledby="h-ribbon">
+    <div class="sec-head"><span class="no">1</span><h2 id="h-ribbon">Pink Ribbon skin</h2></div>
+    <div class="offer-layout">
+      <div class="fig">
+        <div>
+          <div class="big pinkt">$1</div>
+          <div class="big" style="font-size:clamp(72px,24vw,200px);margin-top:8px">50%</div>
+        </div>
+        <i class="bun white ribbon-bun" role="img" aria-label="White rabbit wearing a pink ribbon"><svg class="rib" viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#000" transform="translate(-1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(1 0)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 -1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#000" transform="translate(0 1)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#e5006d" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1z"/><path fill="#ff8fc0" d="M4 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM4 8h1v1h-1zM3 9h1v1h-1z"/></svg></i>
+      </div>
+      <div class="body">
+        <p class="lede">One dollar. Half of it goes to theMiracle's Breast Cancer Awareness charity event.</p>
+        <ul class="facts">
+          <li><span>A</span>50% to theMiracle's charity event, 50% to Rabbit Royale.</li>
+          <li><span>B</span>Comes with bonus carrots.</li>
+          <li><span>C</span>Yours forever, on every island and in your burrow.</li>
+          <li><span>D</span>Pay in USDC, SOL or SKR.</li>
+        </ul>
+        <a class="btn pink" href="/play/">Get the ribbon — $1</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 GOLDEN CARROT RACE -->
+  <section class="sec race-sec" id="race" aria-labelledby="h-race">
+    <div class="sec-head"><span class="no">2</span><h2 id="h-race">Golden Carrot Race</h2></div>
+    <div class="offer-layout">
+      <div class="fig">
+        <div class="big race-big"><span>$4.99</span></div>
+        <i class="bun gold" role="img" aria-label="Golden rabbit"></i>
+      </div>
+      <div class="body">
+        <p class="lede">A 30-day season. Half of every ticket goes into the players' prize pot, a quarter to theMiracle's charity event.</p>
+        <ul class="facts">
+          <li><span>A</span>50% to the prize pot: the top 10 ticket holders split it in USDC.</li>
+          <li><span>B</span>25% to theMiracle's charity event, 25% to Rabbit Royale.</li>
+          <li><span>C</span>Includes the Golden Ticket skin, yours forever.</li>
+          <li><span>D</span>Gives nothing that wins a dig or a raid. Pure skill.</li>
+        </ul>
+      </div>
+      <div class="split" role="table" aria-label="How the pot is split">
+        <div role="row"><span class="n" role="cell">40<small>%</small></span><span class="r" role="cell">1st place</span></div>
+        <div role="row"><span class="n" role="cell">24<small>%</small></span><span class="r" role="cell">2nd place</span></div>
+        <div role="row"><span class="n" role="cell">16<small>%</small></span><span class="r" role="cell">3rd place</span></div>
+        <div role="row"><span class="n" role="cell">20<small>%</small></span><span class="r" role="cell">4th–10th share</span></div>
+      </div>
+      <div class="body" style="grid-column:1/-1">
+        <a class="btn gold" href="/play/">Join the race — $4.99</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 HOW TO JOIN -->
+  <section class="sec" id="join" aria-labelledby="h-join">
+    <div class="sec-head"><span class="no">3</span><h2 id="h-join">How to join</h2></div>
+    <ol class="steps">
+      <li><span class="n">1</span><div><h3>Open in your wallet</h3><p>Use the Solflare or MetaMask browser. No download.</p></div></li>
+      <li><span class="n">2</span><div><h3>Play free</h3><p>Dig your first island right away.</p></div></li>
+      <li><span class="n">3</span><div><h3>Pick your cause</h3><p>The ribbon, the race, or both.</p></div></li>
+    </ol>
+    <div class="wallets">
+      <a class="btn" data-wallet="solflare" href="/play/" target="_blank" rel="noopener">Open in Solflare</a>
+      <a class="btn" data-wallet="metamask" href="/play/" target="_blank" rel="noopener">Open in MetaMask</a>
+    </div>
+    <p class="wallets-note">Already in a wallet browser? These buttons take you straight to the game.</p>
+  </section>
+
+  <!-- 04 THE GAME -->
+  <section class="sec" id="game" aria-labelledby="h-game">
+    <div class="sec-head"><span class="no">4</span><h2 id="h-game">The game</h2></div>
+    <div class="game">
+      <div class="clip">
+        <video id="clip" src="/assets/dig.mp4" poster="/assets/dig.webp" muted loop playsinline preload="metadata" aria-label="Gameplay: rabbits digging the same island"></video>
+      </div>
+      <div class="body">
+        <p class="lede">Competitive minesweeper meets PvP, with rabbits.</p>
+        <p>Everyone digs the same island at once. The first digger takes the carrot. While you're out, your neighbours raid your burrow.</p>
+        <ul class="tags">
+          <li><b>→</b>Dig first, take the carrot.</li>
+          <li><b>→</b>Mind the bombs.</li>
+          <li><b>→</b>Guard your burrow.</li>
+          <li><b>→</b>Free to play in the browser.</li>
+        </ul>
+        <div class="cast" aria-hidden="true">
+          <i class="bun white"></i><i class="bun black"></i><i class="bun brown"></i><i class="bun orange"></i><i class="bun gray"></i><i class="bun gold"></i>
+        </div>
+        <a class="btn" href="/play/">Play free now</a>
+      </div>
+    </div>
+  </section>
+  </main>
+
+  <footer>
+    <div class="grid">
+      <p class="brand">Rabbit Royale <span>×</span> theMiracle</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/play/">Play</a></li>
+        <li><a href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">X</a></li>
+      </ul>
+      <ul>
+        <li><a href="https://discord.gg/xCjMwUp8nK" target="_blank" rel="noopener">Discord</a></li>
+        <li><a href="/terms/">Terms</a></li>
+        <li><a href="/privacy/">Privacy</a></li>
+      </ul>
+      <p class="copy">© 2026 Rabbit Royale</p>
+    </div>
+  </footer>
+</div>
+
+
+<script>
+const here = location.origin + location.pathname;
+const inWallet = !!(window.solflare?.isSolflare || window.ethereum?.isMetaMask || window.solana);
+document.querySelectorAll('[data-wallet]').forEach((a) => {
+  if (inWallet) { a.href = '/play/'; a.removeAttribute('target'); return; }
+  a.href = a.dataset.wallet === 'solflare'
+    ? 'https://solflare.com/ul/v1/browse/' + encodeURIComponent(here) + '?ref=' + encodeURIComponent(location.origin)
+    : 'https://metamask.app.link/dapp/' + here.replace(/^https?:\/\//, '');
+});
+
+// Pink Ribbon skin: swap in the real sprite sheet once it exists.
+const skin = new Image();
+skin.onload = () => {
+  document.querySelectorAll('.ribbon-bun').forEach((el) => {
+    el.style.backgroundImage = 'url(/assets/bunny-pink-ribbon.png)';
+    el.classList.add('has-skin');
+  });
+};
+skin.src = '/assets/bunny-pink-ribbon.png';
+
+// Gameplay clip: play only when visible, never with reduced motion.
+const clip = document.getElementById('clip');
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (clip && !still && 'IntersectionObserver' in window) {
+  new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) clip.play().catch(() => {}); else clip.pause();
+  }), { threshold: .25 }).observe(clip);
+}
+</script>
+</body>
+</html>

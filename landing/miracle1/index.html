@@ -1,0 +1,1116 @@
+<!doctype html>
+<!--
+  /miracle1, la page de la campagne theMiracle (octobre 2026), version cartes a collectionner.
+  Ses images et sa police sont dans landing/assets/miracle/.
+
+  TCG-A « OPEN THE PACK » (descend de la v12, cartes a collectionner).
+  Le hero est un booster scelle « Rabbit Royale × theMiracle — October Edition ». On le dechire
+  (clic / tap / clavier, ou ouverture auto apres un temps au premier passage ; mouvement reduit = deja ouvert),
+  les deux cartes sortent face cachee, se retournent, et la Pink Ribbon fait un « rare pull » rose
+  (flash, rayons, etincelles pixel). Ensuite tout est lisible : nom, cout, ligne de type, texte, bouton d'achat,
+  et les details d'impression (symbole de set, numero de collection, rarete, illustrateur).
+  Feuille holo par rarete (arc-en-ciel + paillettes pixel pour la rose, or brosse pour la doree),
+  pilotee par --pointer-x / --pointer-y. Le pixel art du jeu reste au centre (sprites, police pixel, coins en escalier).
+
+  Systeme typo (3 roles, ceux du jeu, variables --f-* / --t-* dans :root) :
+  - AFFICHAGE  « Paytone One » (Google Fonts) : h1, titres de section, noms de carte, prix, chiffres
+    (barres de partage, parts du pot), boutons. Une seule graisse : on joue sur la taille et la couleur, en casse normale.
+    Echelle : hero 50/84/92, h2 40/56, h3 30/34, bouton 20/24 (gros 22/26), interligne 1.
+  - TEXTE  « Atkinson Hyperlegible Next » 400/600/700/800 (Google Fonts, faite pour la lisibilite) : chapo 18/20, corps 17/18, petit 15, interligne 1.5 (1.35 serre).
+  - PIXEL  « RR Pixel » = fusion-pixel-10 du jeu (/assets/miracle/) : seulement les petites etiquettes
+    (kicker, tag de section, ligne de type, numero de collection, rarete, en-tete du tableau, « Step 1 of 3 »).
+    Deux tailles : label 13/15, micro 10 (taille native, nette).
+  Espacements 4-8-12-16-24-32-48-64-96 (--s1..--s9), rayons 6/10/16, une seule puce : losange pixel (.dots).
+  Le partage de l'argent : Pink Ribbon $1 = 50 % a l'evenement caritatif de theMiracle, 50 % a Rabbit Royale ;
+  Golden Carrot Race $4.99 = 50 % au pot des joueurs (top 10 : 40/24/16/20), 25 % a theMiracle, 25 % a Rabbit Royale.
+  « Read the cards » : compact (titre + deux panneaux tiennent dans un ecran 1440x800), boutons alignes en bas,
+  une barre « ou va l'argent » qui fait 100 % de chaque cote ; sur telephone, rangee a glisser, un panneau par ecran.
+  Largeur de contenu unique : --content 1040px pour toutes les sections. « How to join » : trois etapes-cartes de meme hauteur reliees
+  par un chemin pointille, chacune avec sa vignette et son action (wallets dans l'etape 1, Play free, les offres).
+
+  References :
+  - simeydotme / pokemon-cards-css — https://github.com/simeydotme/pokemon-cards-css
+    (couches .shine / .glare, variables --pointer-x/--pointer-y/--pointer-from-center, mix-blend-mode color-dodge + overlay,
+     filtres brightness/contrast/saturate, un motif de feuille different par rarete)
+  - CSS-Tricks, « Holographic Trading Card Effect » — https://css-tricks.com/holographic-trading-card-effect/
+    (empiler gradients + blend-modes + clip-path ; regler chaque variante isolement)
+  - Pokemon TCG Pocket (ouverture de booster) — https://gamewith.net/pokemon-tcg-pocket/49002
+    (on dechire le haut du paquet, la lumiere fuit du paquet, le fond change de couleur pour un rare)
+  - Rive « Pocket-style interactive pack opening » — https://contra.com/p/q3MWgbOU-rive-pokemon-pocket-style-interactive-card-pack-opening
+    (bande de dechirure, indice de geste si l'utilisateur hesite, sunburst teinte par la rarete)
+  - Hearthstone, Open Packs — https://hearthstone.wiki.gg/wiki/Open_Packs
+    (cartes face cachee, lueur de couleur de rarete, retournement, « burst » de couleur pour la plus rare revelee en dernier)
+  - Balatro (cartes pixel qui « jiggle ») — https://godotshaders.com/shader/balatro-card-hover/ et https://godotshaders.com/shader/balatro-foil-card-effect/
+    (inclinaison vers le curseur, petite oscillation au repos, feuille animee sur cartes pixel)
+  - Anatomie d'une carte TCG — https://pregradecards.com/blog/how-to-read-a-pokemon-card-symbols-numbers-2026
+    et https://articles.starcitygames.com/?p=136862 (symbole de set, code de set, numero 001/002, symbole de rarete, ligne illustrateur)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rabbit Royale x theMiracle</title>
+<meta name="description" content="Rabbit Royale x theMiracle: dig for a cause during Breast Cancer Awareness Month. Pink Ribbon skin for $1, 50% to theMiracle's charity event. Golden Carrot Race for $4.99: 50% to the players' pot, 25% to charity.">
+<meta name="theme-color" content="#150d1f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400..800;1,400..800&family=Paytone+One&display=swap" rel="stylesheet">
+<link rel="preload" href="/assets/miracle/fusion-pixel-10-rr-latin.ttf" as="font" type="font/ttf" crossorigin>
+<style>
+@font-face { font-family: "RR Pixel"; src: url(/assets/miracle/fusion-pixel-10-rr-latin.ttf) format("truetype"); font-display: swap; }
+@property --pointer-x { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --pointer-y { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+:root {
+  --night: #150d1f;
+  --night-2: #21142f;
+  --night-3: #2d1b40;
+  --line: rgba(240, 225, 255, .14);
+  --line-2: rgba(240, 225, 255, .24);
+  --ink: #17120f;
+  --ink-soft: #4a3f36;
+  --paper: #fbf6ec;
+  --paper-2: #efe6d3;
+  --cream: #f5efe6;
+  --muted: #c9bdd6;
+  --pink: #ff5aa0;
+  --pink-light: #ffb3d1;
+  --pink-deep: #c2185b;
+  --pink-dark: #7d0d3c;
+  --gold: #f4c23a;
+  --gold-light: #ffe28a;
+  --gold-deep: #b9860f;
+  --gold-text: #8a5f00;
+  --gold-dark: #5f4204;
+
+  /* type: three roles */
+  --f-display: "Paytone One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-pix: "RR Pixel", ui-monospace, monospace;
+  --w-display: 400;
+  /* display scale (Paytone One, a single weight: size and colour do the work) */
+  --t-hero: 50px;
+  --t-h2: 40px;
+  --t-h3: 30px;
+  --t-btn: 20px;
+  --t-btn-lg: 22px;
+  --lh-display: 1;
+  --ls-display: .005em;
+  /* body scale (Atkinson Hyperlegible Next 400 / 600 / 700 / 800) */
+  --t-lead: 18px;
+  --t-body: 17px;
+  --t-small: 15px;
+  --lh-body: 1.5;
+  --lh-tight: 1.35;
+  /* pixel labels (RR Pixel, the in-game font) */
+  --t-label: 13px;
+  --t-micro: 10px;
+  --ls-pix: 0;
+
+  /* one content width for every section (rules panels stay ~50-55 characters a line) */
+  --content: 1040px;
+
+  /* spacing scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px;
+  /* radii, borders, shadows */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+  --sh-pop: 0 4px 0 rgba(0, 0, 0, .55);
+  --sh-panel: 0 18px 40px rgba(0, 0, 0, .45);
+
+  --spring: cubic-bezier(.22, 1.45, .36, 1);
+  --pxc: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+  --diamond: polygon(37.5% 0, 62.5% 0, 62.5% 12.5%, 75% 12.5%, 75% 25%, 87.5% 25%, 87.5% 37.5%, 100% 37.5%, 100% 62.5%, 87.5% 62.5%, 87.5% 75%, 75% 75%, 75% 87.5%, 62.5% 87.5%, 62.5% 100%, 37.5% 100%, 37.5% 87.5%, 25% 87.5%, 25% 75%, 12.5% 75%, 12.5% 62.5%, 0 62.5%, 0 37.5%, 12.5% 37.5%, 12.5% 25%, 25% 25%, 25% 12.5%, 37.5% 12.5%);
+  --cardback: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%232a1638'/%3E%3Crect x='7' y='3' width='2' height='2' fill='%23462560'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%233a1f52'/%3E%3Crect x='7' y='11' width='2' height='2' fill='%23462560'/%3E%3C/svg%3E");
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--night); -webkit-text-size-adjust: 100%; overflow-x: clip; }
+body {
+  font-family: var(--f-body); font-size: var(--t-body); line-height: var(--lh-body); color: var(--cream);
+  font-optical-sizing: auto; -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(90% 55% at 50% 0%, #3a1f4f 0%, transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='4' fill='%23ffffff' fill-opacity='.018'/%3E%3Crect x='4' y='4' width='4' height='4' fill='%23ffffff' fill-opacity='.018'/%3E%3C/svg%3E"),
+    var(--night);
+  overflow-x: clip;
+}
+img { display: block; max-width: 100%; }
+a { color: inherit; }
+b, strong { font-weight: 800; }
+.wrap { width: 100%; max-width: calc(var(--content) + 2 * var(--s4)); margin: 0 auto; padding: 0 var(--s4); }
+:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pix { font-family: var(--f-pix); font-weight: 400; font-size: var(--t-label); letter-spacing: var(--ls-pix); line-height: 1.2; }
+
+/* ---------- top bar ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding-top: var(--s3); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand img { width: 40px; height: 40px; }
+.brand b { font-family: var(--f-display); font-weight: var(--w-display); font-size: 21px; line-height: 1; letter-spacing: var(--ls-display); }
+.brand b span { color: var(--pink); }
+.top nav { display: none; gap: var(--s5); font-weight: 700; font-size: var(--t-small); }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: #fff; }
+
+/* ---------- hero ---------- */
+.hero { padding: 14px 0 var(--s6); position: relative; overflow-x: clip; }
+.hero-grid { display: grid; gap: 14px; }
+.kicker { font-family: var(--f-pix); font-size: var(--t-label); letter-spacing: var(--ls-pix); line-height: 1.2; color: var(--pink-light); display: flex; align-items: center; gap: var(--s2); }
+.kicker img { width: 17px; height: auto; image-rendering: pixelated; }
+.intro h1 { font-family: var(--f-display); font-weight: var(--w-display); font-size: var(--t-hero); line-height: .95; letter-spacing: var(--ls-display); margin: var(--s2) 0 var(--s2); }
+.intro h1 em { font-style: normal; color: var(--pink); }
+.intro h1 span, .intro h1 em { display: block; }
+.lede { font-size: var(--t-lead); line-height: var(--lh-tight); }
+.lede b { color: #fff; }
+.intro .offers { display: none; }
+
+/* ---------- the stage (pack + cards) ---------- */
+.stage { position: relative; margin-top: 6px; }
+.rays {
+  position: absolute; left: 50%; top: 46%; width: 760px; height: 760px; margin: -380px 0 0 -380px; z-index: 0;
+  pointer-events: none; opacity: .32; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 210, 120, .5) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%);
+  animation: spin 60s linear infinite; transition: opacity .6s, filter .6s;
+}
+.stage.rare .rays, .stage.done .rays { background: repeating-conic-gradient(from 0deg, rgba(255, 90, 160, .55) 0 6deg, transparent 6deg 18deg); }
+.stage.rare .rays { opacity: .95; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hand { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.reseal {
+  display: block; visibility: hidden; margin: var(--s4) auto 0; position: relative; z-index: 2;
+  background: none; border: 0; color: var(--muted); font-family: var(--f-body); font-weight: 700; font-size: var(--t-small); cursor: pointer;
+  padding: 6px 10px; text-decoration: underline; text-underline-offset: 3px;
+}
+.reseal:hover { color: #fff; }
+.stage.done .reseal { visibility: visible; }
+
+/* ---------- trading card ---------- */
+.card {
+  --fan: 0deg; --lift: 0px; --sx: 0px; --sy: 0px;
+  --frame: var(--pink); --frame-deep: var(--pink-deep); --frame-dark: var(--pink-dark);
+  position: relative; perspective: 1000px;
+  transform: translateY(var(--lift)) rotate(var(--fan));
+  transition: transform .75s var(--spring), opacity .35s;
+}
+.card.pink { --fan: -2deg; }
+.card.gold { --fan: 2deg; --lift: 10px; --frame: var(--gold); --frame-deep: var(--gold-deep); --frame-dark: var(--gold-dark); }
+.tilt {
+  --rx: 0deg; --ry: 0deg; --o: 0;
+  transform: rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d;
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1);
+}
+.card.active .tilt { transition: transform .08s linear; }
+.flip { position: relative; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3, 1.3, .5, 1); }
+.card.facedown .flip { transform: rotateY(180deg); }
+.face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
+.front {
+  position: relative; border-radius: 13px; padding: 6px;
+  background: linear-gradient(150deg, var(--frame) 0%, var(--frame-deep) 52%, var(--frame) 100%);
+  box-shadow: 0 0 0 2px var(--frame-dark), 0 16px 34px rgba(0, 0, 0, .55), 0 4px 0 rgba(0, 0, 0, .4);
+  overflow: hidden; isolation: isolate;
+}
+/* foil per rarity, under the paper panels: it lives on the frame and in the art window */
+.front::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-position: var(--pointer-x) var(--pointer-y);
+  mix-blend-mode: color-dodge;
+}
+.pink .front::before {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Crect x='3' y='2' width='1' height='3'/%3E%3Crect x='2' y='3' width='3' height='1'/%3E%3Crect x='15' y='13' width='1' height='1'/%3E%3Crect x='19' y='5' width='2' height='2'/%3E%3Crect x='8' y='18' width='1' height='3'/%3E%3Crect x='7' y='19' width='3' height='1'/%3E%3C/g%3E%3C/svg%3E"),
+    repeating-linear-gradient(110deg, #ff3d9a 0%, #ffd23d 4%, #3dffb4 8%, #3db4ff 12%, #b45cff 16%, #ff3d9a 20%);
+  background-size: 24px 24px, 400% 400%;
+  opacity: .55; filter: brightness(1) saturate(1.2);
+}
+.gold .front::before {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .22) 0 1px, transparent 1px 3px),
+    linear-gradient(115deg, transparent 25%, rgba(255, 250, 220, .9) 42%, rgba(255, 200, 80, .5) 50%, transparent 62%);
+  background-size: auto, 300% 300%;
+  opacity: .6;
+}
+/* glare that follows the pointer */
+.front::after {
+  content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  background: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, .08) 35%, rgba(0, 0, 0, .18) 100%);
+  mix-blend-mode: overlay; opacity: var(--o); transition: opacity .3s;
+}
+.in { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 5px; }
+
+.c-name {
+  background: var(--paper); color: var(--ink); border-radius: 8px 8px 4px 4px;
+  padding: 7px 8px 6px 10px; box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.c-name h2, .c-name h3 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 17px; line-height: 1.05; letter-spacing: var(--ls-display); text-wrap: balance; min-height: 2.1em; display: flex; align-items: center; }
+.card .btn { font-size: 16px; padding: 8px 6px 7px; gap: 5px; }
+
+.c-art {
+  position: relative; height: 104px; border-radius: 4px; overflow: hidden;
+  background: url(/assets/miracle/home-bg.webp) 66% 62% / 300% auto no-repeat, #3a8fd0;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.gold .c-art { background-position: 84% 16%; background-size: 260% auto; }
+.c-art::before { /* holo on the art */
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .4) 45%, rgba(255, 150, 220, .3) 50%, transparent 62%);
+  background-size: 260% 260%; background-position: var(--pointer-x) var(--pointer-y); mix-blend-mode: overlay;
+}
+.c-art::after { content: ""; position: absolute; inset: 0; z-index: 3; box-shadow: inset 0 0 0 2px var(--frame-dark); }
+.sprite {
+  position: absolute; left: 42%; bottom: 0; width: 96px; height: 96px; transform: translateX(-50%); z-index: 1;
+  background-image: url(/assets/miracle/bunny-white.png);
+  background-size: 1600% 1600%; background-position: 2.9167% 6.6667%;
+  image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .35));
+}
+.gold .sprite { background-image: url(/assets/miracle/bunny-golden-ticket.png); }
+.sprite svg { position: absolute; inset: 0; width: 100%; height: 100%; shape-rendering: crispEdges; }
+.sprite.has-art svg { display: none; }
+
+/* cost gem, top-right of the art, pixel-chamfered */
+.gem {
+  position: absolute; z-index: 4; top: 5px; right: 5px; min-width: 50px; height: 40px; padding: 2px 8px 0;
+  display: grid; place-items: center; font-family: var(--f-display); font-weight: var(--w-display); font-size: 24px; line-height: 1; color: #fff;
+  background: radial-gradient(circle at 35% 30%, var(--frame) 0%, var(--frame-deep) 62%, var(--frame-dark) 100%);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px), 0 6px, 3px 6px, 3px 3px, 6px 3px);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .45);
+}
+.gem::before { content: ""; position: absolute; inset: 3px; z-index: -1; border: 2px solid rgba(255, 255, 255, .55); }
+.gold .gem { color: var(--ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .55); }
+
+.c-type {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  background: var(--paper); color: var(--ink); border-radius: 4px; padding: 5px 8px 4px;
+  box-shadow: inset 0 0 0 2px var(--frame-dark);
+  font-family: var(--f-pix); font-size: var(--t-micro); letter-spacing: var(--ls-pix); line-height: 1.2; white-space: nowrap;
+}
+.c-type img { height: 14px; width: auto; image-rendering: pixelated; flex: none; }
+
+.c-text {
+  background: linear-gradient(180deg, var(--paper), var(--paper-2)); color: var(--ink); border-radius: 4px;
+  padding: 9px 10px; box-shadow: inset 0 0 0 2px var(--frame-dark);
+}
+.c-text .key { font-family: var(--f-display); font-weight: var(--w-display); font-size: 17px; line-height: 1.1; letter-spacing: var(--ls-display); }
+.pink .c-text .key b { color: var(--pink-deep); font-weight: var(--w-display); }
+.gold .c-text .key b { color: var(--gold-text); font-weight: var(--w-display); }
+.c-text .more, .c-text .wide { display: none; }
+.ability { font-size: var(--t-small); line-height: var(--lh-tight); font-weight: 600; margin-top: var(--s2); }
+.flavor { margin-top: var(--s2); padding-top: var(--s2); border-top: 1px solid rgba(23, 18, 15, .2); font-style: italic; font-weight: 600; font-size: 14px; line-height: var(--lh-tight); color: var(--ink-soft); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s1); margin-top: var(--s2); }
+.stats div { background: var(--ink); color: #fff; border-radius: 3px; text-align: center; padding: 6px 2px 5px; }
+.stats b { display: block; font-family: var(--f-display); font-weight: var(--w-display); font-size: 22px; line-height: 1; color: var(--gold); }
+.stats span { display: block; margin-top: 3px; font-family: var(--f-pix); font-size: var(--t-micro); line-height: 1.1; }
+
+/* buttons: one shape, three paints */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 48px; padding: 9px 14px 8px;
+  border-radius: var(--r-sm); text-decoration: none; text-align: center;
+  font-family: var(--f-display); font-weight: var(--w-display); font-size: var(--t-btn); letter-spacing: .01em; line-height: 1.05;
+  color: #fff; background: var(--ink); box-shadow: 0 4px 0 #000, inset 0 0 0 2px rgba(255, 255, 255, .16);
+  transition: transform .12s, box-shadow .12s, background-color .12s, filter .12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #000, inset 0 0 0 2px rgba(255, 255, 255, .3); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #000, inset 0 0 0 2px rgba(255, 255, 255, .3); }
+.btn .arrow { font-family: var(--f-body); font-weight: 800; font-size: .9em; line-height: 1; }
+.pink .btn, .btn.pink { background: var(--pink-dark); color: #fff; }
+.pink .btn:hover, .btn.pink:hover { background: #9a1150; }
+.gold .btn, .btn.gold { background: var(--ink); color: var(--gold); }
+.btn.light { background: var(--cream); color: var(--ink); box-shadow: 0 4px 0 #6e6a5e; }
+.btn.light:hover { background: #fff; box-shadow: 0 6px 0 #6e6a5e; }
+.btn.light:active { box-shadow: 0 1px 0 #6e6a5e; }
+.btn.lg { min-height: 56px; font-size: var(--t-btn-lg); }
+
+.c-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 2px 3px 0;
+  font-family: var(--f-pix); font-size: var(--t-micro); letter-spacing: var(--ls-pix); line-height: 1.2; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .55);
+}
+.gold .c-foot { color: var(--ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .4); }
+.c-foot .set { display: inline-flex; align-items: center; gap: 5px; }
+.c-foot > span { white-space: nowrap; }
+.c-foot .set i { width: 13px; height: 13px; flex: none; display: inline-block; background: var(--ink); border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); position: relative; }
+.c-foot .set i::after { content: ""; position: absolute; left: 4px; top: 2px; width: 5px; height: 9px; background: #ff8a1f; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.c-foot .illus { display: none; }
+
+/* card back */
+.back {
+  position: absolute; inset: 0; transform: rotateY(180deg); border-radius: 13px; overflow: hidden;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 90, 160, .35), transparent 55%), var(--cardback);
+  background-size: auto, 16px 16px;
+  box-shadow: 0 0 0 2px #0c0612, inset 0 0 0 6px var(--gold-deep), inset 0 0 0 8px #0c0612, 0 16px 34px rgba(0, 0, 0, .55);
+  display: grid; place-items: center;
+}
+.back img { width: 50%; max-width: 132px; image-rendering: pixelated; filter: drop-shadow(0 4px 0 rgba(0, 0, 0, .5)); }
+.back::after { content: "RR · OCT"; position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-family: var(--f-pix); font-size: var(--t-label); color: var(--gold-light); letter-spacing: .1em; }
+
+/* rare-pull glow (after the reveal) */
+.card.pink.pulled .front { box-shadow: 0 0 0 2px var(--pink-dark), 0 0 0 5px rgba(255, 90, 160, .35), 0 0 46px rgba(255, 90, 160, .55), 0 16px 34px rgba(0, 0, 0, .55); }
+.card.pink.flash .front { animation: rarepulse 1.1s ease-out; }
+@keyframes rarepulse {
+  0% { box-shadow: 0 0 0 2px var(--pink-dark), 0 0 0 0 rgba(255, 180, 215, 1), 0 0 0 rgba(255, 90, 160, 0); filter: brightness(2.2); }
+  35% { box-shadow: 0 0 0 2px var(--pink-dark), 0 0 0 14px rgba(255, 180, 215, .0), 0 0 90px rgba(255, 90, 160, .9); filter: brightness(1.15); }
+  100% { box-shadow: 0 0 0 2px var(--pink-dark), 0 0 0 5px rgba(255, 90, 160, .35), 0 0 46px rgba(255, 90, 160, .55); filter: none; }
+}
+.stamp {
+  position: absolute; z-index: 9; left: 50%; top: -30px; transform: translateX(-50%) rotate(-7deg) scale(0);
+  background: var(--pink); color: var(--ink); font-family: var(--f-pix); font-size: 20px; white-space: nowrap;
+  padding: 4px 10px 3px; box-shadow: 0 0 0 2px var(--ink), 4px 4px 0 var(--ink); pointer-events: none; opacity: 0;
+}
+.card.flash .stamp { animation: stamp 2.4s var(--spring) forwards; }
+@keyframes stamp {
+  0% { transform: translateX(-50%) rotate(-7deg) scale(0); opacity: 1; }
+  14% { transform: translateX(-50%) rotate(-7deg) scale(1.15); opacity: 1; }
+  22%, 78% { transform: translateX(-50%) rotate(-7deg) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) rotate(-7deg) translateY(-10px) scale(.9); opacity: 0; }
+}
+.spark { position: absolute; z-index: 8; width: 8px; height: 8px; background: var(--pink-light); pointer-events: none; left: 50%; top: 40%;
+  box-shadow: 0 0 0 2px rgba(255, 90, 160, .6); animation: spark .9s cubic-bezier(.1, .8, .3, 1) forwards; }
+.spark.g { background: #fff; }
+@keyframes spark { to { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; } }
+
+/* ---------- the sealed pack ---------- */
+.pack {
+  position: absolute; z-index: 5; left: 50%; top: 0; width: 214px; height: 316px; margin-left: -107px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font: inherit;
+  -webkit-tap-highlight-color: transparent; transition: transform .25s var(--spring), opacity .4s;
+}
+.pack[hidden] { display: none; }
+.pack:hover { transform: translateY(-4px) rotate(-1deg); }
+.pack:focus-visible { outline: 3px solid #fff; outline-offset: 8px; }
+.pack-shadow { position: absolute; left: 10%; right: 10%; bottom: -18px; height: 22px; background: radial-gradient(closest-side, rgba(0, 0, 0, .6), transparent); }
+.wrapper { position: absolute; inset: 0; pointer-events: none; transition: transform .55s cubic-bezier(.3, .7, .3, 1), opacity .45s; }
+.wrapper.top-piece { clip-path: var(--tear-top); }
+.wrapper.body-piece { clip-path: var(--tear-body); }
+.pack { --tear-top: polygon(0 0, 100% 0, 100% 15%, 95% 17%, 90% 14.5%, 85% 16.8%, 80% 14.8%, 75% 17.2%, 70% 15%, 65% 16.6%, 60% 14.6%, 55% 17%, 50% 15.2%, 45% 16.9%, 40% 14.7%, 35% 17.1%, 30% 15%, 25% 16.7%, 20% 14.6%, 15% 17%, 10% 15%, 5% 16.8%, 0 15%);
+  --tear-body: polygon(0 15%, 5% 16.8%, 10% 15%, 15% 17%, 20% 14.6%, 25% 16.7%, 30% 15%, 35% 17.1%, 40% 14.7%, 45% 16.9%, 50% 15.2%, 55% 17%, 60% 14.6%, 65% 16.6%, 70% 15%, 75% 17.2%, 80% 14.8%, 85% 16.8%, 90% 14.5%, 95% 17%, 100% 15%, 100% 100%, 0 100%); }
+.foil {
+  position: absolute; inset: 0;
+  /* crimped seals at top and bottom */
+  -webkit-mask: linear-gradient(#000, #000) center / 100% calc(100% - 20px) no-repeat,
+    conic-gradient(from -45deg at 50% 100%, #000 90deg, transparent 0) top left / 10px 10px repeat-x,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, transparent 0) bottom left / 10px 10px repeat-x;
+  mask: linear-gradient(#000, #000) center / 100% calc(100% - 20px) no-repeat,
+    conic-gradient(from -45deg at 50% 100%, #000 90deg, transparent 0) top left / 10px 10px repeat-x,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, transparent 0) bottom left / 10px 10px repeat-x;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .18) 0 2%, transparent 2% 5.5%, rgba(0, 0, 0, .18) 5.5% 6.5%, transparent 6.5% 93.5%, rgba(0, 0, 0, .18) 93.5% 94.5%, transparent 94.5% 98%, rgba(255, 255, 255, .18) 98%),
+    linear-gradient(160deg, #ff7ab6 0%, #c2185b 34%, #7d0d3c 56%, #e0a21f 82%, #ffe28a 100%);
+}
+.foil::before { /* holo sheen */
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, .5) 6%, rgba(255, 255, 255, 0) 12%, rgba(0, 255, 200, .25) 18%, rgba(255, 255, 255, 0) 24%);
+  background-size: 300% 300%; mix-blend-mode: overlay; animation: sheen 3.2s linear infinite;
+}
+.foil::after { /* crinkle creases */
+  content: ""; position: absolute; inset: 0; opacity: .35; mix-blend-mode: soft-light;
+  background:
+    linear-gradient(100deg, transparent 47%, rgba(255, 255, 255, .7) 48%, transparent 50%),
+    linear-gradient(80deg, transparent 20%, rgba(0, 0, 0, .5) 21%, transparent 23%),
+    linear-gradient(95deg, transparent 72%, rgba(255, 255, 255, .6) 73%, transparent 75%);
+}
+@keyframes sheen { from { background-position: 0% 0%; } to { background-position: 300% 300%; } }
+.pack-face { position: absolute; inset: 22px 12px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.pack-brand { margin-top: 42px; font-family: var(--f-display); font-weight: var(--w-display); font-size: 21px; line-height: 1; color: #fff; text-shadow: 0 2px 0 var(--pink-dark); letter-spacing: var(--ls-display); }
+.pack-brand span { color: var(--gold-light); }
+.pack-window {
+  position: relative; width: 100%; flex: 1; margin: 10px 0 8px; border-radius: 6px; overflow: hidden;
+  background: url(/assets/miracle/home-bg.webp) 36% 66% / 360% auto no-repeat; box-shadow: 0 0 0 3px #fff3, 0 0 0 5px var(--pink-dark);
+}
+.pack-window .sprite { width: 104px; height: 104px; }
+.pack-window .sprite.b2 { left: 30%; width: 72px; height: 72px; background-image: url(/assets/miracle/bunny-golden-ticket.png); }
+.pack-window .sprite.b1 { left: 64%; }
+.pack-ed { font-family: var(--f-pix); font-size: var(--t-label); letter-spacing: var(--ls-pix); color: var(--ink); background: var(--gold-light); padding: 3px 9px 2px; box-shadow: 0 0 0 2px var(--ink); }
+.pack-count { margin-top: var(--s2); font-family: var(--f-pix); font-size: var(--t-micro); letter-spacing: var(--ls-pix); color: #fff; }
+.tearline { position: absolute; left: 0; right: 0; top: 16%; height: 0; border-top: 2px dashed rgba(255, 255, 255, .85); }
+.tearline::after {
+  content: ""; position: absolute; top: -6px; left: 0; width: 34px; height: 10px; border-radius: 5px;
+  background: linear-gradient(90deg, transparent, #fff, transparent); animation: swipe 1.6s ease-in-out infinite;
+}
+@keyframes swipe { 0% { transform: translateX(0); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateX(180px); opacity: 0; } }
+.pack-hint {
+  position: absolute; left: 50%; top: calc(100% + 18px); transform: translateX(-50%); white-space: nowrap;
+  font-family: var(--f-pix); font-size: var(--t-label); letter-spacing: var(--ls-pix); color: var(--ink); background: #fff;
+  padding: 6px 12px 5px; box-shadow: 4px 4px 0 var(--pink); animation: bob 1.2s ease-in-out infinite;
+}
+@keyframes bob { 50% { transform: translateX(-50%) translateY(-4px); } }
+.slit { position: absolute; left: 0; right: 0; top: 16%; height: 4px; margin-top: -2px; background: #fff; opacity: 0; box-shadow: 0 0 18px 8px rgba(255, 220, 240, .9), 0 0 60px 20px rgba(255, 90, 160, .6); transition: opacity .2s; }
+
+/* pack states */
+.stage.sealed .card { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(.55); transition: none; }
+.stage.sealed .rays { opacity: .5; }
+.pack.idle { animation: idle 2.6s ease-in-out infinite; }
+@keyframes idle { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg) translateY(-6px); } }
+.pack.crinkle { animation: crinkle .32s linear; }
+@keyframes crinkle {
+  0% { transform: none; } 20% { transform: rotate(-3deg) scale(1.03, .98); } 40% { transform: rotate(2.5deg) scale(.98, 1.03); }
+  60% { transform: rotate(-2deg) scale(1.02); } 80% { transform: rotate(1deg); } 100% { transform: scale(1.04); }
+}
+.pack.torn .top-piece { transform: translate(70px, -150px) rotate(28deg); opacity: 0; }
+.pack.torn .slit { opacity: 1; }
+.pack.torn .pack-hint, .pack.torn .tearline { display: none; }
+.pack.drop { transform: translateY(160px) scale(.96); opacity: 0; pointer-events: none; transition: transform .6s cubic-bezier(.5, 0, .8, .4), opacity .5s .1s; }
+.stage.rising .card { opacity: 1; transform: translate(var(--sx), calc(var(--sy) - 70px)) scale(.62); transition: transform .5s cubic-bezier(.2, .9, .3, 1), opacity .25s; }
+.stage.rising .card.gold { transform: translate(var(--sx), calc(var(--sy) - 82px)) scale(.62) rotate(5deg); }
+.flashlayer { position: fixed; inset: 0; z-index: 50; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 45%, #fff 0%, rgba(255, 150, 200, .8) 40%, rgba(255, 90, 160, 0) 75%); }
+.flashlayer.go { animation: flash .6s ease-out; }
+@keyframes flash { 0% { opacity: 0; } 18% { opacity: .55; } 100% { opacity: 0; } }
+
+/* ---------- sections ---------- */
+section.block { padding: var(--s8) 0; border-top: 2px solid var(--line); }
+.sec-head { margin-bottom: var(--s6); }
+.tag { font-family: var(--f-pix); font-size: var(--t-label); letter-spacing: var(--ls-pix); line-height: 1.2; color: var(--gold); }
+.sec-head h2 { font-family: var(--f-display); font-weight: var(--w-display); font-size: var(--t-h2); line-height: var(--lh-display); letter-spacing: var(--ls-display); margin-top: var(--s2); text-wrap: balance; }
+.sec-head p { margin-top: var(--s3); color: var(--muted); max-width: 640px; }
+
+/* bullets: one pixel diamond, everywhere */
+.dots { list-style: none; display: grid; gap: var(--s2); }
+.dots li { position: relative; padding-left: 24px; line-height: var(--lh-tight); }
+.dots li::before { content: ""; position: absolute; left: 2px; top: .38em; width: 10px; height: 10px; background: var(--dot, var(--pink-deep)); clip-path: var(--diamond); }
+
+/* the rulings: compact, both panels + title fit one 1440x800 screen; on phones a swipe row, one panel per screen */
+#rules { padding: var(--s6) 0 var(--s5); }
+#rules .sec-head { margin-bottom: var(--s4); }
+#rules .sec-head h2 { margin-top: var(--s1); }
+.rulings {
+  display: flex; gap: var(--s3); overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+  margin: 0 calc(-1 * var(--s4)); padding: 4px var(--s4) var(--s5); scroll-padding: 0 var(--s4); scrollbar-width: none;
+}
+.rulings::-webkit-scrollbar { display: none; }
+.ruling { position: relative; flex: 0 0 86%; scroll-snap-align: start; filter: drop-shadow(0 10px 20px rgba(0, 0, 0, .45)); display: flex; }
+.ruling-in {
+  clip-path: var(--pxc); background: var(--paper); color: var(--ink);
+  display: flex; flex-direction: column; width: 100%;
+}
+.ruling .strip {
+  position: relative; height: 88px; overflow: hidden; flex: none;
+  background: url(/assets/miracle/home-bg.webp) 74% 62% / 240% auto no-repeat;
+  border-bottom: 4px solid var(--pink-deep);
+}
+.ruling .strip::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, .28)); }
+.ruling.gold .strip { background-position: 86% 18%; border-bottom-color: var(--gold-deep); }
+.ruling .strip .sprite { width: 88px; height: 88px; left: 50%; bottom: -4px; }
+.ruling .strip .label {
+  position: absolute; z-index: 2; left: var(--s3); top: var(--s3); font-family: var(--f-pix); font-size: var(--t-micro); letter-spacing: var(--ls-pix); line-height: 1.2;
+  background: var(--ink); color: #fff; padding: 4px 7px 3px; border-radius: 3px;
+}
+.ruling .strip .price {
+  position: absolute; z-index: 2; right: var(--s3); top: var(--s3); padding: 6px 11px 5px; border-radius: var(--r-sm);
+  font-family: var(--f-display); font-weight: var(--w-display); font-size: 26px; line-height: 1; color: #fff; background: var(--pink-dark);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .45), inset 0 0 0 2px rgba(255, 255, 255, .25);
+}
+.ruling.gold .strip .price { background: var(--gold); color: var(--ink); }
+.ruling-body { padding: 14px var(--s4) var(--s4); display: flex; flex-direction: column; gap: var(--s3); flex: 1; }
+.r-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; }
+.ruling h3 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 26px; line-height: var(--lh-display); letter-spacing: var(--ls-display); }
+.ruling .dots { font-size: 16px; gap: 6px; }
+.ruling.gold .dots { --dot: var(--gold-deep); }
+.ruling .btn { margin-top: auto; }
+.swipe-dots { display: flex; align-items: center; justify-content: center; gap: var(--s2); color: var(--muted); }
+.swipe-dots i { width: 10px; height: 10px; background: var(--line-2); clip-path: var(--diamond); transition: background-color .2s; }
+.swipe-dots i.on { background: var(--gold); }
+.swipe-dots .pix { margin-left: var(--s2); font-size: var(--t-micro); }
+
+/* the "where it goes" box, same shell on both cards: a split bar that adds up to 100 %, then its key */
+.goes { border-radius: var(--r-md); padding: var(--s3) var(--s3) 14px; background: #fff; box-shadow: inset 0 0 0 2px rgba(23, 18, 15, .1); }
+.pink .goes { background: linear-gradient(180deg, #fff, #ffeef5); box-shadow: inset 0 0 0 2px rgba(194, 24, 91, .22); }
+.gold .goes { background: linear-gradient(180deg, #fff, #fff6dc); box-shadow: inset 0 0 0 2px rgba(185, 134, 15, .25); }
+.goes .pix { display: block; color: var(--ink-soft); margin-bottom: var(--s2); font-size: var(--t-micro); }
+.split { display: flex; gap: 3px; height: 30px; }
+.split span {
+  display: grid; place-items: center; min-width: 0; border-radius: 4px; padding-top: 1px;
+  font-family: var(--f-display); font-weight: var(--w-display); font-size: 17px; line-height: 1; color: #fff;
+  background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(255, 255, 255, .16) 10px 12px);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .22), 0 2px 0 rgba(0, 0, 0, .25);
+}
+.split .s-charity { background-color: var(--pink-deep); }
+.split .s-pot { background-color: var(--gold); color: var(--ink); }
+.split .s-rr { background-color: #5b4a6b; }
+.split-key { list-style: none; display: grid; gap: 3px; margin-top: 10px; font-size: 16px; line-height: 1.3; }
+.split-key li { display: flex; gap: var(--s2); align-items: baseline; }
+.split-key b { font-weight: 800; }
+.split-key i { flex: none; width: 11px; height: 11px; border-radius: 2px; transform: translateY(1px); }
+.k-charity { background: var(--pink-deep); }
+.k-pot { background: var(--gold); box-shadow: inset 0 0 0 1px var(--gold-deep); }
+.k-rr { background: #5b4a6b; }
+.goes-cap { text-wrap: pretty; font-size: 16px; line-height: 1.3; margin: var(--s3) 0 var(--s2); padding-top: var(--s3); border-top: 1px solid rgba(23, 18, 15, .14); }
+.podium { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.podium li { background: var(--ink); color: #fff; border-radius: 4px; text-align: center; padding: 7px 2px 6px; }
+.podium li:first-child { box-shadow: inset 0 0 0 2px var(--gold); }
+.podium b { display: block; font-family: var(--f-display); font-weight: var(--w-display); font-size: 21px; line-height: 1; color: var(--gold); }
+.podium span { display: block; margin-top: 4px; font-family: var(--f-pix); font-size: var(--t-micro); line-height: 1.1; }
+
+/* how to join: three steps on a path */
+.steps { list-style: none; display: grid; gap: var(--s6); counter-reset: step; }
+.step {
+  position: relative; display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s5); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--night-3), var(--night-2));
+  box-shadow: inset 0 0 0 2px var(--line), var(--sh-panel);
+}
+.step-head { display: flex; align-items: center; gap: var(--s4); margin-bottom: var(--s1); }
+.step .n {
+  position: relative; flex: none; width: 52px; height: 70px; border-radius: 7px; display: grid; place-items: center;
+  font-family: var(--f-pix); font-size: 30px; line-height: 1; color: var(--gold-light); text-shadow: 0 3px 0 #000;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 90, 160, .3), transparent 70%), var(--cardback);
+  background-size: auto, 12px 12px;
+  box-shadow: 0 0 0 2px #0c0612, inset 0 0 0 4px var(--gold-deep), inset 0 0 0 6px #0c0612, 0 5px 0 rgba(0, 0, 0, .45);
+  transform: rotate(-4deg);
+}
+.step:nth-child(2) .n { transform: rotate(3deg); }
+.step:nth-child(3) .n { transform: rotate(-2deg); box-shadow: 0 0 0 2px #0c0612, inset 0 0 0 4px var(--pink), inset 0 0 0 6px #0c0612, 0 5px 0 rgba(0, 0, 0, .45); }
+.step-k { color: var(--muted); }
+.step h3 { font-family: var(--f-display); font-weight: var(--w-display); font-size: 28px; line-height: var(--lh-display); letter-spacing: var(--ls-display); }
+.step p { color: var(--muted); }
+/* Les trois images a la meme hauteur et sur la meme ligne : le texte prend
+   trois lignes partout sur grand ecran, les boutons tombent en bas. */
+.step-act { margin-top: auto; }
+@media (min-width: 900px) { .step > p { min-height: calc(3em * var(--lh-body)); } }
+.step-art {
+  position: relative; flex: none; height: 168px; margin-top: var(--s2); border-radius: var(--r-md); overflow: hidden;
+  background: url(/assets/miracle/home-bg.webp) 30% 64% / 520px auto no-repeat, #3a8fd0;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .35), inset 0 -40px 40px -20px rgba(0, 0, 0, .25);
+}
+.step-art .sprite { width: 104px; height: 104px; left: 50%; bottom: -2px; }
+.step-art.a2 { background-position: 62% 58%; }
+.step-art.a2 .sprite { left: 40%; }
+.step-art .carrot { position: absolute; left: 58%; bottom: 10px; width: 26px; height: auto; image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .35)); }
+.step-art.a3 { background-position: 86% 22%; }
+.step-art.a3 .sprite { left: 34%; }
+.step-art.a3 .sprite.g { left: 66%; background-image: url(/assets/miracle/bunny-golden-ticket.png); }
+.step-act { margin-top: 0; padding-top: var(--s2); display: grid; gap: var(--s3); }
+.step .btn { font-size: 20px; min-height: 52px; }
+.note { color: var(--muted); font-size: var(--t-small); line-height: var(--lh-tight); }
+/* connector: a dashed path with a pixel arrow, between the steps */
+.step:not(:last-child)::after {
+  content: ""; position: absolute; left: 50px; top: 100%; width: 16px; height: var(--s6);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10' shape-rendering='crispEdges'%3E%3Cpath fill='%23f4c23a' d='M0 0h16v2h-2v2h-2v2h-2v2H6V6H4V4H2V2H0z'/%3E%3C/svg%3E") 50% 100% / 16px 10px no-repeat,
+    repeating-linear-gradient(180deg, var(--gold) 0 4px, transparent 4px 8px) 50% 0 / 4px calc(100% - 12px) no-repeat;
+}
+
+/* the game */
+.game-grid { display: grid; gap: var(--s6); align-items: center; }
+.clip { position: relative; border-radius: var(--r-lg); padding: 7px; background: linear-gradient(150deg, #8fe3b9, #2f8f68 55%, #8fe3b9); box-shadow: 0 0 0 2px #123d2b, var(--sh-panel); }
+.clip video { width: 100%; aspect-ratio: 1; border-radius: var(--r-md); display: block; object-fit: cover; background: #0a1a14; }
+.clip .c-foot { color: #0c2a1d; text-shadow: none; padding: 7px 4px 1px; }
+.facts { font-size: var(--t-lead); --dot: var(--pink); gap: var(--s3); }
+.facts li:nth-child(even) { --dot: var(--gold); }
+.facts b { color: #fff; }
+.game-grid .btn { margin-top: var(--s6); }
+
+/* footer */
+footer.site { padding: var(--s6) 0 var(--s7); border-top: 2px solid var(--line); color: var(--muted); font-size: var(--t-small); }
+.foot-grid { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); align-items: center; justify-content: space-between; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 10px var(--s5); }
+.foot-links a { text-decoration: none; color: var(--cream); font-weight: 700; }
+.foot-links a:hover { text-decoration: underline; }
+
+/* ---------- larger screens ---------- */
+@media (min-width: 760px) {
+  :root { --t-label: 15px; --t-hero: 84px; --t-h2: 56px; --t-h3: 34px; --t-btn: 24px; --t-btn-lg: 26px; --t-lead: 20px; --t-body: 18px; }
+  .top nav { display: flex; }
+  .brand b { font-size: 24px; }
+  .lede { max-width: 620px; }
+  .hand { gap: 28px; max-width: 700px; margin: 0 auto; }
+  .card.pink { --fan: -3deg; }
+  .card.gold { --fan: 3deg; --lift: 18px; }
+  .front { padding: 9px; border-radius: 16px; }
+  .back { border-radius: 16px; }
+  .in { gap: 7px; }
+  .c-name { padding: 9px 12px 8px; }
+  .c-name h2 { font-size: 24px; white-space: nowrap; min-height: 0; display: block; }
+  .card .btn { font-size: var(--t-btn); padding: 9px 14px 8px; gap: var(--s2); }
+  .c-art { height: 170px; }
+  .sprite { width: 150px; height: 150px; }
+  .gem { min-width: 72px; height: 56px; font-size: 34px; top: 8px; right: 8px; }
+  .c-type { font-size: var(--t-label); padding: 7px 12px 6px; }
+  .c-type img { height: 18px; }
+  .c-text { padding: 12px 14px; }
+  .c-text .key { font-size: 21px; }
+  .c-text .more { display: block; }
+  .c-text .wide { display: inline; }
+  .btn { min-height: 56px; }
+  .c-foot { padding: 3px 4px 0; }
+  .c-foot .illus { display: inline; }
+  .pack { width: 260px; height: 384px; margin-left: -130px; top: 40px; }
+  .pack-brand { font-size: 27px; margin-top: 56px; }
+  .pack-count { font-size: var(--t-label); }
+  .rulings { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); align-items: stretch; overflow: visible; margin: 0; padding: 0; }
+  .ruling .strip { height: 96px; }
+  .ruling .strip .sprite { width: 100px; height: 100px; }
+  .ruling-body { padding: var(--s4) var(--s5) var(--s5); gap: var(--s3); }
+  .ruling h3 { font-size: 30px; }
+  .swipe-dots { display: none; }
+  #rules { padding: 40px 0; }
+  #rules .sec-head h2 { font-size: 48px; }
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); align-items: stretch; }
+  .step { padding: var(--s6) 20px 20px; }
+  .step h3 { font-size: 24px; white-space: nowrap; }
+  .step .btn { font-size: 17px; padding-left: 10px; padding-right: 10px; }
+  .step:not(:last-child)::after {
+    left: 100%; top: 58px; width: var(--s6); height: 16px;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23f4c23a' d='M0 0v16h2v-2h2v-2h2v-2h2V6H6V4H4V2H2V0z'/%3E%3C/svg%3E") 100% 50% / 10px 16px no-repeat,
+      repeating-linear-gradient(90deg, var(--gold) 0 4px, transparent 4px 8px) 8px 50% / calc(100% - 22px) 4px no-repeat;
+  }
+  .game-grid { grid-template-columns: 1fr 1fr; gap: var(--s8); }
+  section.block { padding: var(--s9) 0; }
+  .sec-head { margin-bottom: var(--s7); }
+}
+@media (min-width: 1140px) {
+  :root { --t-hero: 92px; }
+  .hero { padding: 30px 0 70px; }
+  .hero-grid { grid-template-columns: 380px 1fr; gap: 32px; align-items: center; }
+  .intro .offers { display: grid; gap: var(--s3); margin-top: var(--s5); list-style: none; }
+  .intro .offers li { display: grid; grid-template-columns: 96px 1fr; gap: var(--s4); align-items: center; font-size: var(--t-body); line-height: var(--lh-tight); }
+  .intro .offers b { font-family: var(--f-display); font-weight: var(--w-display); font-size: 32px; line-height: 1; text-align: center; padding: 9px 0 7px; border-radius: var(--r-sm); box-shadow: var(--sh-pop); }
+  .intro .offers strong { color: #fff; }
+  .intro .offers li:first-child b { background: var(--pink-dark); color: #fff; }
+  .intro .offers li:last-child b { background: var(--gold); color: var(--ink); }
+  .stage { margin-top: 0; }
+  .hand { max-width: 640px; gap: 28px; }
+  .rays { width: 1100px; height: 1100px; margin: -550px 0 0 -550px; }
+}
+
+/* tilt only with a real pointer; idle shimmer on touch */
+@media (hover: none), (pointer: coarse) {
+  .tilt { transform: none !important; }
+  .front::before, .c-art::before { animation: shimmer 5s ease-in-out infinite alternate; }
+}
+@keyframes shimmer { from { --pointer-x: 10%; --pointer-y: 20%; } to { --pointer-x: 90%; --pointer-y: 80%; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .tilt { transform: none !important; }
+  .front::after { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="brand" href="/" aria-label="Rabbit Royale home">
+    <img src="/assets/logo.png" alt="" width="40" height="40">
+    <b>Rabbit Royale <span>×</span> theMiracle</b>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#rules">The offers</a>
+    <a href="#join">How to join</a>
+    <a href="#game">The game</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="h1">
+  <div class="wrap hero-grid">
+    <div class="intro">
+      <p class="kicker"><img src="/assets/miracle/heart.png" alt="" width="19" height="16">October · Breast Cancer Awareness</p>
+      <h1 id="h1"><span>Dig for</span> <em>a cause</em></h1>
+      <p class="lede">Rabbit Royale and <b>theMiracle</b> team up for Breast Cancer Awareness Month. Two cards in this pack.</p>
+      <ul class="offers">
+        <li><b>$1</b><span><strong>Pink Ribbon skin.</strong> 50% goes to charity.</span></li>
+        <li><b>$4.99</b><span><strong>Golden Carrot Race.</strong> 50% to the players' pot, 25% to charity.</span></li>
+      </ul>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="rays" aria-hidden="true"></div>
+
+      <button class="pack" id="pack" type="button" hidden aria-label="Open the October pack: two cards inside">
+        <span class="pack-shadow" aria-hidden="true"></span>
+        <span class="wrapper body-piece" aria-hidden="true">
+          <span class="foil"></span>
+          <span class="pack-face">
+            <span class="pack-brand">Rabbit Royale <span>×</span><br>theMiracle</span>
+            <span class="pack-window">
+              <span class="sprite b2"></span>
+              <span class="sprite b1 ribbon-target"><svg viewBox="0 0 16 16"><g fill="#e8237a"><rect x="5" y="9" width="1" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="2"/><rect x="6" y="12" width="1" height="2"/></g><rect x="5" y="10" width="1" height="1" fill="#ffd1e4"/></svg></span>
+            </span>
+            <span class="pack-ed">October Edition</span>
+            <span class="pack-count">Two cards inside</span>
+          </span>
+        </span>
+        <span class="slit" aria-hidden="true"></span>
+        <span class="tearline" aria-hidden="true"></span>
+        <span class="pack-hint" aria-hidden="true">Tap to tear open</span>
+      </button>
+
+      <div class="hand" id="hand">
+        <!-- CARD 001 : Pink Ribbon (rare pull) -->
+        <article class="card pink" id="cardPink" aria-labelledby="c1">
+          <span class="stamp" aria-hidden="true">RARE PULL!</span>
+          <div class="tilt"><div class="flip">
+            <div class="face front"><div class="in">
+              <header class="c-name"><h2 id="c1">Pink Ribbon Skin</h2></header>
+              <div class="c-art">
+                <span class="gem" aria-label="Price: 1 dollar">$1</span>
+                <div class="sprite ribbon-target" role="img" aria-label="White rabbit wearing a pink ribbon">
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <!-- ruban rose dessine (cache si /assets/bunny-pink-ribbon.png existe) -->
+                    <g fill="#e8237a"><rect x="5" y="9" width="1" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="2"/><rect x="6" y="12" width="1" height="2"/></g>
+                    <rect x="5" y="10" width="1" height="1" fill="#ffd1e4"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="c-type"><span>Skin · Charity</span><img src="/assets/miracle/heart.png" alt="" width="19" height="16"></div>
+              <div class="c-text">
+                <p class="key"><b>50%</b> to charity</p>
+                <div class="more">
+                  <p class="ability">Half of every $1 goes to <b>theMiracle's</b> Breast Cancer Awareness charity event. Comes with <b>bonus carrots</b>.</p>
+                  <p class="flavor">Yours forever. Worn on every island and in your burrow.</p>
+                </div>
+              </div>
+              <a class="btn" href="/play/">Get it · $1 <span class="arrow" aria-hidden="true">→</span></a>
+              <footer class="c-foot"><span class="set"><i aria-hidden="true"></i>OCT 001/002 ★★</span><span class="illus">Illus. Rabbit Royale</span></footer>
+            </div></div>
+            <div class="face back" aria-hidden="true"><img src="/assets/miracle/crown.png" alt=""></div>
+          </div></div>
+        </article>
+
+        <!-- CARD 002 : Golden Carrot Race -->
+        <article class="card gold" id="cardGold" aria-labelledby="c2">
+          <div class="tilt"><div class="flip">
+            <div class="face front"><div class="in">
+              <header class="c-name"><h2 id="c2">Golden Carrot Race</h2></header>
+              <div class="c-art">
+                <span class="gem" aria-label="Price: 4.99 dollars">$4.99</span>
+                <div class="sprite" role="img" aria-label="Golden rabbit"></div>
+              </div>
+              <div class="c-type"><span>Ticket · 30 days</span><img src="/assets/miracle/crown.png" alt="" width="29" height="22"></div>
+              <div class="c-text">
+                <p class="key"><b>50%</b> to the <span class="wide">players' </span>pot<br><b>25%</b> to charity</p>
+                <div class="more">
+                  <p class="ability">The season's <b>top 10</b> split the players' pot in <b>USDC</b>:</p>
+                  <div class="stats" aria-label="Prize split">
+                    <div><b>40%</b><span>1st</span></div>
+                    <div><b>24%</b><span>2nd</span></div>
+                    <div><b>16%</b><span>3rd</span></div>
+                    <div><b>20%</b><span>4th–10th</span></div>
+                  </div>
+                  <p class="flavor">Includes the Golden Ticket skin. Nothing that wins a dig or a raid: pure skill.</p>
+                </div>
+              </div>
+              <a class="btn" href="/play/">Enter · $4.99 <span class="arrow" aria-hidden="true">→</span></a>
+              <footer class="c-foot"><span class="set"><i aria-hidden="true"></i>OCT 002/002 ★</span><span class="illus">Illus. Rabbit Royale</span></footer>
+            </div></div>
+            <div class="face back" aria-hidden="true"><img src="/assets/miracle/crown.png" alt=""></div>
+          </div></div>
+        </article>
+      </div>
+      <button class="reseal" id="reseal" type="button">↻ Reseal and open again</button>
+    </div>
+  </div>
+</section>
+
+<section id="rules" class="block" aria-labelledby="rules-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="tag">Card text, in plain words</p>
+      <h2 id="rules-h">Read the cards</h2>
+    </div>
+    <div class="rulings" id="rulings">
+      <article class="ruling pink" aria-labelledby="r1">
+        <div class="ruling-in">
+          <div class="strip">
+            <div class="sprite ribbon-target" aria-hidden="true"><svg viewBox="0 0 16 16"><g fill="#e8237a"><rect x="5" y="9" width="1" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="2"/><rect x="6" y="12" width="1" height="2"/></g><rect x="5" y="10" width="1" height="1" fill="#ffd1e4"/></svg></div>
+            <span class="label" aria-hidden="true">001/002 ★★ · Skin · Charity</span>
+            <span class="price">$1</span>
+          </div>
+          <div class="ruling-body">
+            <div class="r-head"><h3 id="r1">Pink Ribbon Skin</h3></div>
+            <div class="goes">
+              <span class="pix">Where your $1 goes</span>
+              <div class="split" role="img" aria-label="50% to theMiracle's charity event, 50% to Rabbit Royale">
+                <span class="s-charity" style="flex:50">50%</span><span class="s-rr" style="flex:50">50%</span>
+              </div>
+              <ul class="split-key">
+                <li><i class="k-charity"></i><span><b>50%</b> to theMiracle's Breast Cancer Awareness charity event</span></li>
+                <li><i class="k-rr"></i><span><b>50%</b> to Rabbit Royale</span></li>
+              </ul>
+            </div>
+            <ul class="dots">
+              <li>You get <b>bonus carrots</b> (in-game points).</li>
+              <li><b>Kept forever</b>, worn on every island and in your burrow.</li>
+              <li>Pay in <b>USDC, SOL or SKR</b>.</li>
+            </ul>
+            <a class="btn" href="/play/">Get the ribbon · $1 <span class="arrow" aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </article>
+      <article class="ruling gold" aria-labelledby="r2">
+        <div class="ruling-in">
+          <div class="strip">
+            <div class="sprite" aria-hidden="true"></div>
+            <span class="label" aria-hidden="true">002/002 ★ · Ticket · 30 days</span>
+            <span class="price">$4.99</span>
+          </div>
+          <div class="ruling-body">
+            <div class="r-head"><h3 id="r2">Golden Carrot Race</h3></div>
+            <div class="goes">
+              <span class="pix">Where your $4.99 goes</span>
+              <div class="split" role="img" aria-label="50% to the players' prize pot, 25% to theMiracle's charity event, 25% to Rabbit Royale">
+                <span class="s-pot" style="flex:50">50%</span><span class="s-charity" style="flex:25">25%</span><span class="s-rr" style="flex:25">25%</span>
+              </div>
+              <ul class="split-key">
+                <li><i class="k-pot"></i><span><b>50%</b> to the players' prize pot</span></li>
+                <li><i class="k-charity"></i><span><b>25%</b> to theMiracle's charity event</span></li>
+                <li><i class="k-rr"></i><span><b>25%</b> to Rabbit Royale</span></li>
+              </ul>
+              <p class="goes-cap">The season's <b>top 10 ticket holders</b> split the pot in USDC:</p>
+              <ol class="podium">
+                <li><b>40%</b><span>1st</span></li>
+                <li><b>24%</b><span>2nd</span></li>
+                <li><b>16%</b><span>3rd</span></li>
+                <li><b>20%</b><span>4th–10th, shared</span></li>
+              </ol>
+            </div>
+            <ul class="dots">
+              <li>One ticket = one <b>30-day season</b>, with the <b>Golden Ticket skin</b> kept forever.</li>
+              <li><b>Nothing that wins a dig or a raid.</b> Pure skill.</li>
+            </ul>
+            <a class="btn" href="/play/">Enter the race · $4.99 <span class="arrow" aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </article>
+    </div>
+    <div class="swipe-dots" aria-hidden="true"><i class="on"></i><i></i><span class="pix">Swipe for the next card</span></div>
+  </div>
+</section>
+
+<section id="join" class="block" aria-labelledby="join-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="tag">Three steps</p>
+      <h2 id="join-h">How to join</h2>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step-head"><span class="n" aria-hidden="true">1</span><span class="pix step-k" aria-hidden="true">Step 1 of 3</span></div>
+        <h3>Open in your wallet</h3>
+        <p>Open this page in the Solflare or MetaMask wallet browser. No download.</p>
+        <div class="step-art a1" aria-hidden="true"><span class="sprite"></span></div>
+        <div class="step-act">
+          <p class="note">Already inside your wallet browser? These buttons take you straight to the game.</p>
+          <a class="btn light" data-wallet="solflare" href="/play/" target="_blank" rel="noopener">Open in Solflare <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn light" data-wallet="metamask" href="/play/" target="_blank" rel="noopener">Open in MetaMask <span class="arrow" aria-hidden="true">→</span></a>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-head"><span class="n" aria-hidden="true">2</span><span class="pix step-k" aria-hidden="true">Step 2 of 3</span></div>
+        <h3>Play free</h3>
+        <p>Dig your first island. It costs nothing.</p>
+        <div class="step-art a2" aria-hidden="true"><span class="sprite"></span><img class="carrot" src="/assets/miracle/carrot-tile.png" alt="" width="13" height="29"></div>
+        <div class="step-act">
+          <a class="btn light" href="/play/">Play free <span class="arrow" aria-hidden="true">→</span></a>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-head"><span class="n" aria-hidden="true">3</span><span class="pix step-k" aria-hidden="true">Step 3 of 3</span></div>
+        <h3>Pick your cards</h3>
+        <p>The ribbon, the race, or both. Each one gives to theMiracle.</p>
+        <div class="step-art a3" aria-hidden="true"><span class="sprite ribbon-target"><svg viewBox="0 0 16 16"><g fill="#e8237a"><rect x="5" y="9" width="1" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="2"/><rect x="6" y="12" width="1" height="2"/></g><rect x="5" y="10" width="1" height="1" fill="#ffd1e4"/></svg></span><span class="sprite g"></span></div>
+        <div class="step-act">
+          <a class="btn pink" href="#rules">Pink Ribbon · $1 <span class="arrow" aria-hidden="true">↑</span></a>
+          <a class="btn gold" href="#rules">Golden Carrot Race · $4.99 <span class="arrow" aria-hidden="true">↑</span></a>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="game" class="block" aria-labelledby="game-h">
+  <div class="wrap game-grid">
+    <figure class="clip">
+      <video id="clip" src="/assets/dig.mp4" poster="/assets/dig.webp" muted loop playsinline preload="metadata" aria-label="Gameplay clip: rabbits digging the island"></video>
+      <figcaption class="c-foot"><span class="set"><i aria-hidden="true"></i>The island · live gameplay</span><span>Free to play</span></figcaption>
+    </figure>
+    <div>
+      <div class="sec-head">
+        <p class="tag">The game</p>
+        <h2 id="game-h">Minesweeper meets PvP, with rabbits</h2>
+      </div>
+      <ul class="dots facts">
+        <li><span><b>Everyone digs the same island</b> at the same time.</span></li>
+        <li><span><b>First digger takes the carrot.</b></span></li>
+        <li><span><b>Mind the bombs.</b></span></li>
+        <li><span>While you're out, <b>your neighbours raid your burrow.</b></span></li>
+      </ul>
+      <a class="btn light lg" href="/play/">Play free in your browser <span class="arrow" aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="wrap foot-grid">
+    <div class="foot-links">
+      <a href="/">Home</a>
+      <a href="https://x.com/rabbitroyaleX" target="_blank" rel="noopener">X</a>
+      <a href="https://discord.gg/xCjMwUp8nK" target="_blank" rel="noopener">Discord</a>
+      <a href="/terms/">Terms</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p>© 2026 Rabbit Royale</p>
+  </div>
+</footer>
+<div class="flashlayer" id="flash" aria-hidden="true"></div>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+const here = location.origin + location.pathname;
+const inWallet = !!(window.solflare?.isSolflare || window.ethereum?.isMetaMask || window.solana);
+document.querySelectorAll('[data-wallet]').forEach((a) => {
+  if (inWallet) { a.href = '/play/'; a.removeAttribute('target'); return; }
+  a.href = a.dataset.wallet === 'solflare'
+    ? 'https://solflare.com/ul/v1/browse/' + encodeURIComponent(here) + '?ref=' + encodeURIComponent(location.origin)
+    : 'https://metamask.app.link/dapp/' + here.replace(/^https?:\/\//, '');
+});
+
+// Vraie planche du skin ruban rose : si elle existe, elle remplace le ruban dessine partout.
+(() => {
+  const img = new Image();
+  img.onload = () => document.querySelectorAll('.ribbon-target').forEach((s) => {
+    s.style.backgroundImage = 'url(/assets/bunny-pink-ribbon.png)';
+    s.classList.add('has-art');
+  });
+  img.src = '/assets/bunny-pink-ribbon.png';
+})();
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+// « Read the cards » sur telephone : rangee a glisser, les losanges suivent le panneau visible.
+(() => {
+  const row = document.getElementById('rulings');
+  const dots = [...document.querySelectorAll('.swipe-dots i')];
+  row.addEventListener('scroll', () => {
+    const i = Math.round(row.scrollLeft / (row.scrollWidth - row.clientWidth || 1));
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+  }, { passive: true });
+})();
+
+// ---------- Ouverture du booster ----------
+const stage = document.getElementById('stage');
+const pack = document.getElementById('pack');
+const hand = document.getElementById('hand');
+const cards = [...hand.querySelectorAll('.card')];
+const pink = document.getElementById('cardPink');
+const gold = document.getElementById('cardGold');
+const flash = document.getElementById('flash');
+const live = document.getElementById('live');
+const KEY = 'rr-oct-pack-opened';
+let timers = [], opening = false;
+const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+const seen = (() => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } })();
+
+// La piece du haut du paquet = copie du corps, decoupee le long de la dechirure.
+const topPiece = pack.querySelector('.body-piece').cloneNode(true);
+topPiece.classList.replace('body-piece', 'top-piece');
+pack.insertBefore(topPiece, pack.querySelector('.slit'));
+
+function seal() {
+  timers.forEach(clearTimeout); timers = [];
+  stage.classList.remove('rising', 'rare', 'done');
+  pack.className = 'pack'; pack.hidden = false;
+  stage.style.minHeight = '';
+  // vecteur carte -> centre du paquet (positions sans transform)
+  cards.forEach((c) => { c.style.transition = 'none'; c.classList.remove('facedown', 'pulled', 'flash'); });
+  stage.classList.add('sealed');
+  const p = pack.getBoundingClientRect();
+  cards.forEach((c) => {
+    c.classList.add('facedown');
+    const prev = c.style.transform; c.style.transform = 'none';
+    const r = c.getBoundingClientRect(); c.style.transform = prev;
+    c.style.setProperty('--sx', (p.left + p.width / 2 - (r.left + r.width / 2)) + 'px');
+    c.style.setProperty('--sy', (p.top + p.height * .55 - (r.top + r.height / 2)) + 'px');
+    c.inert = true;
+  });
+  stage.style.minHeight = Math.max(hand.offsetHeight, p.height + 70) + 'px';
+  requestAnimationFrame(() => cards.forEach((c) => { c.style.transition = ''; }));
+  pack.classList.add('idle');
+  opening = false;
+}
+
+function sparks(card) {
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement('span');
+    s.className = 'spark' + (i % 3 ? '' : ' g');
+    const a = (i / 18) * Math.PI * 2 + Math.random() * .3, d = 90 + Math.random() * 90;
+    s.style.setProperty('--dx', Math.cos(a) * d + 'px');
+    s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    card.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+
+function openPack() {
+  if (opening || !stage.classList.contains('sealed')) return;
+  opening = true;
+  timers.forEach(clearTimeout); timers = [];
+  pack.classList.remove('idle');
+  pack.classList.add('crinkle');                                       // le papier se froisse
+  later(() => { pack.classList.add('torn'); }, 300);                  // on dechire le haut, la lumiere fuit
+  later(() => { stage.classList.add('rising'); pack.classList.add('drop'); }, 650); // les cartes sortent face cachee
+  later(() => { stage.classList.remove('sealed', 'rising'); }, 1150); // elles se posent en eventail
+  later(() => { gold.classList.remove('facedown'); }, 1800);          // la doree se retourne
+  later(() => {                                                       // la rose en dernier : rare pull
+    pink.classList.remove('facedown');
+    stage.classList.add('rare');
+    flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+  }, 2400);
+  later(() => { pink.classList.add('flash', 'pulled'); sparks(pink); }, 2650);
+  later(() => {
+    stage.classList.remove('rare'); stage.classList.add('done');
+    pack.hidden = true; stage.style.minHeight = '';
+    cards.forEach((c) => { c.inert = false; });
+    live.textContent = 'Pack opened: Pink Ribbon Skin, 1 dollar, and Golden Carrot Race, 4.99 dollars.';
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+    opening = false;
+  }, 4300);
+  later(() => pink.classList.remove('flash'), 5200);
+}
+
+pack.addEventListener('click', openPack);
+document.getElementById('reseal').addEventListener('click', () => {
+  seal(); later(() => pack.focus({ preventScroll: true }), 50);
+});
+
+if (!reduce && !seen) {
+  seal();
+  later(openPack, 1300); // premier passage : il s'ouvre tout seul apres un temps
+} else {
+  pink.classList.add('pulled');
+  stage.classList.add('done');
+  if (reduce) document.getElementById('reseal').remove();
+}
+
+// ---------- Holo + inclinaison au pointeur (souris uniquement) ----------
+if (!reduce && finePointer) {
+  cards.forEach((card) => {
+    const t = card.querySelector('.tilt');
+    t.addEventListener('pointermove', (e) => {
+      const r = t.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      card.classList.add('active');
+      t.style.setProperty('--pointer-x', (x * 100).toFixed(1) + '%');
+      t.style.setProperty('--pointer-y', (y * 100).toFixed(1) + '%');
+      t.style.setProperty('--ry', ((x - .5) * 16).toFixed(2) + 'deg');
+      t.style.setProperty('--rx', ((.5 - y) * 13).toFixed(2) + 'deg');
+      t.style.setProperty('--o', '1');
+    });
+    t.addEventListener('pointerleave', () => {
+      card.classList.remove('active');
+      ['--pointer-x', '--pointer-y'].forEach((p) => t.style.setProperty(p, '50%'));
+      ['--rx', '--ry'].forEach((p) => t.style.setProperty(p, '0deg'));
+      t.style.setProperty('--o', '0');
+    });
+  });
+}
+
+// Le clip joue seulement s'il est visible et si le mouvement est autorise.
+const clip = document.getElementById('clip');
+if (!reduce && 'IntersectionObserver' in window) {
+  new IntersectionObserver(([e]) => { e.isIntersecting ? clip.play().catch(() => {}) : clip.pause(); }, { threshold: .3 }).observe(clip);
+}
+</script>
+</body>
+</html>
