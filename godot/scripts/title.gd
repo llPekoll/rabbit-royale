@@ -552,7 +552,7 @@ func _on_locale_changed(_code: String) -> void:
 ## LE SELECTEUR : un chevron a chaque bout. La moitie gauche recule d'une
 ## langue, la droite avance ; la liste boucle.
 func _on_language_pressed() -> void:
-	LanguageSelect.open_on(self)
+	LanguageMenu.open_under(self, _lang)
 
 
 ## LE NOM DE LA REGION, et son ping une fois la sonde revenue. Contre un

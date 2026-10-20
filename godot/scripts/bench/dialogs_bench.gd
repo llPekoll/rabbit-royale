@@ -52,10 +52,6 @@ func _ready() -> void:
 	profile.revenge.connect(func(id: String) -> void: print("[bench] revenge ", id))
 	root.add_child(profile)
 
-	# LA LANGUE.
-	var lang := LanguageSelect.new()
-	root.add_child(lang)
-
 	# Le profil s'ouvre sur l'historique au bout d'une seconde, pour que la
 	# capture montre les deux onglets sur deux lancements (--after=0.5 pour le
 	# profil, --after=2 pour l'historique).
@@ -64,7 +60,7 @@ func _ready() -> void:
 	DevShot.arm(self)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	for d in [board, profile, lang]:
+	for d in [board, profile]:
 		print("DBG ", d, " close vis=", d.close_button.visible, " pos=", d.close_button.position, " gpos=", d.close_button.global_position, " size=", d.close_button.size, " idx=", d.close_button.get_index(), "/", d.get_child_count(), " dsize=", d.size, " modulate=", d.close_button.modulate, " parentvis=", d.close_button.get_parent().visible)
 
 
@@ -215,7 +211,10 @@ func _only(which: String) -> void:
 			d = SnackDialog.new()
 			get_tree().create_timer(1.0).timeout.connect(_fake_claim.bind(d))
 		_:
-			d = LanguageSelect.new()
+			# La langue : le menu deroulant, au coin haut-droit.
+			LanguageMenu.open_under(self)
+			DevShot.arm(self)
+			return
 	add_child(d)
 	if which == "history":
 		(d as Profile)._show_tab(Profile.Tab.HISTORY)

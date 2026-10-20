@@ -433,7 +433,7 @@ func _dev_open() -> void:
 		"codex": LoreCodex.open()
 		"energy": EnergyPanel.open()
 		"refill": EnergyPopup.open()
-		"language": LanguageSelect.open()
+		"language": LanguageMenu.open_under(self)
 		"history":
 			var profile := Profile.open()
 			profile._show_tab(Profile.Tab.HISTORY)
