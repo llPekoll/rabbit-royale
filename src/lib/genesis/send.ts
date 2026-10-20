@@ -80,6 +80,11 @@ export async function sendPending(limit = 10): Promise<SendReport> {
       }
     }
     return out;
+  } catch (e) {
+    // A sweep never takes the server down: a database not migrated yet (EU
+    // runs 0037 by hand after the deploy) or a dead RPC waits for the next one.
+    console.error('[genesis] sweep failed', String((e as Error)?.message ?? e).slice(0, 200));
+    return out;
   } finally {
     running = false;
   }
