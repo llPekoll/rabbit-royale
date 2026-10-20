@@ -528,7 +528,7 @@ export const zh: Dict = {
       prize: {
         carrots: '胡萝卜', water: '水壶', fertiliser: '肥料', lightning: '闪电',
         shield: '护盾', energy: '满能量', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Solana 皮肤', skin_carrot: '胡萝卜皮肤', skin_solflare: 'Flary 皮肤', skin_pink_october: 'Pink October 皮肤', skin_kappa: 'Kappa 皮肤',
+        skin_solana: 'Solana 皮肤', skin_carrot: '胡萝卜皮肤', skin_solflare: 'Flary 皮肤', skin_pink_october: 'Pink October 皮肤', skin_kappa: 'Teadom 皮肤',
         skin_solana_web2: 'Violet 皮肤', skin_solflare_web2: 'Eclipse 皮肤',
       },
     },

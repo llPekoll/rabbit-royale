@@ -524,7 +524,7 @@ export const es: Dict = {
       prize: {
         carrots: 'Zanahorias', water: 'Regadera', fertiliser: 'Abono', lightning: 'Rayo',
         shield: 'Escudo', energy: 'Tanque lleno', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Zanahoria', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Kappa',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Zanahoria', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Teadom',
         skin_solana_web2: 'Skin Violeta', skin_solflare_web2: 'Skin Eclipse',
       },
     },

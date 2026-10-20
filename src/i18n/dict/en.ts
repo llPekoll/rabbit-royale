@@ -650,7 +650,7 @@ export const en = {
       prize: {
         carrots: 'Carrots', water: 'Watering can', fertiliser: 'Fertiliser', lightning: 'Lightning',
         shield: 'Shield', energy: 'Full tank', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Solana skin', skin_carrot: 'Carrot skin', skin_solflare: 'Flary skin', skin_pink_october: 'Pink October skin', skin_kappa: 'Kappa skin',
+        skin_solana: 'Solana skin', skin_carrot: 'Carrot skin', skin_solflare: 'Flary skin', skin_pink_october: 'Pink October skin', skin_kappa: 'Teadom skin',
         skin_solana_web2: 'Violet skin', skin_solflare_web2: 'Eclipse skin',
       },
     },

@@ -523,7 +523,7 @@ export const it: Dict = {
       prize: {
         carrots: 'Carote', water: 'Annaffiatoio', fertiliser: 'Concime', lightning: 'Fulmine',
         shield: 'Scudo', energy: 'Pieno di energia', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carota', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Kappa',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carota', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Teadom',
         skin_solana_web2: 'Skin Viola', skin_solflare_web2: 'Skin Eclipse',
       },
     },

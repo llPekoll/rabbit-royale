@@ -13,7 +13,7 @@ export const SKINS = [
   { key: 'carrot', kind: 'skin_carrot', name: 'Carrot', usdCents: 99, onSale: true },
   { key: 'solflare', kind: 'skin_solflare', name: 'Flary', usdCents: 99, onSale: true },
   { key: 'pink-october', kind: 'skin_pink_october', name: 'Pink October', usdCents: 99, onSale: true },
-  { key: 'kappa', kind: 'skin_kappa', name: 'Kappa', usdCents: 199, onSale: true },
+  { key: 'kappa', kind: 'skin_kappa', name: 'Teadom', usdCents: 199, onSale: true },
 ] as const;
 export type SkinKind = typeof SKINS[number]['kind'];
 

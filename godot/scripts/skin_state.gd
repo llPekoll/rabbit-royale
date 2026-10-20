@@ -4,10 +4,10 @@ extends Node
 signal changed
 static var current: SkinState
 ## Le plus recent en tete (grille du profil).
-const SALE_NAMES := {"kappa": "Kappa", "pink-october": "Pink October", "solflare": "Flary", "carrot": "Carrot", "solana": "Solana"}
+const SALE_NAMES := {"kappa": "Teadom", "pink-october": "Pink October", "solflare": "Flary", "carrot": "Carrot", "solana": "Solana"}
 ## LE MONDE WEB2 (Play, App Store, portails) : memes dessins, noms sans marque
 ## crypto — Play interdit de « promote or glamorize » la crypto.
-const WEB2_NAMES := {"kappa": "Kappa", "pink-october": "Pink October", "solflare": "Eclipse", "carrot": "Carrot", "solana": "Violet"}
+const WEB2_NAMES := {"kappa": "Teadom", "pink-october": "Pink October", "solflare": "Eclipse", "carrot": "Carrot", "solana": "Violet"}
 
 var catalog: Dictionary = {}
 var busy := false

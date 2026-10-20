@@ -152,7 +152,7 @@ func _verify() -> void:
 	_check(_shop._page == "skins" and find_child("Rail_carrots", true, false) == null, "skins have money rails only")
 	_check_bounds()
 	_check(_shop._skin == "kappa", "the newest skin comes first")
-	_check(_shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("kappa"), "Kappa preview uses its own sprite sheet")
+	_check(_shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("kappa"), "Teadom preview uses its own sprite sheet")
 	await _shot("skins")
 	await _tap("Skin_pink-october")
 	_check(_shop._skin == "pink-october" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("pink-october"), "Pink October preview uses its own sprite sheet")

@@ -530,7 +530,7 @@ export const vi: Dict = {
       prize: {
         carrots: 'Cà rốt', water: 'Bình tưới', fertiliser: 'Phân bón', lightning: 'Tia sét',
         shield: 'Khiên', energy: 'Đầy năng lượng', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cà rốt', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Kappa',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cà rốt', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Teadom',
         skin_solana_web2: 'Skin Violet', skin_solflare_web2: 'Skin Eclipse',
       },
     },
