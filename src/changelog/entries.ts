@@ -136,6 +136,24 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-20',
     items: [
       {
+        kind: 'new',
+        web3: true,
+        text: {
+          en: 'New Kappa skin: a moss-green kappa in a straw hat, straight from the river. In the shop, at the top.',
+          fr: 'Nouveau skin Kappa : un kappa vert mousse au chapeau de paille, tout droit sorti de la rivière. Dans la boutique, en tête.',
+          zh: '新皮肤 Kappa：戴草帽的苔绿色河童，刚从河里出来。在商店最前面。',
+          'pt-BR': 'Nova skin Kappa: um kappa verde-musgo de chapéu de palha, direto do rio. Na loja, em primeiro lugar.',
+          vi: 'Skin mới Kappa: một kappa xanh rêu đội nón lá, vừa từ dòng sông lên. Ở đầu cửa hàng.',
+          es: 'Nuevo skin Kappa: un kappa verde musgo con sombrero de paja, recién salido del río. En la tienda, el primero.',
+          it: 'Nuova skin Kappa: un kappa verde muschio con cappello di paglia, appena uscito dal fiume. Nel negozio, in cima.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-20',
+    items: [
+      {
         kind: 'tune',
         text: {
           en: 'The home screen is tidier: the language sits at the top right, the STORY button is gone (the books are read in the game).',

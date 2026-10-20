@@ -99,10 +99,10 @@ func _render() -> void:
 	var item := state.item(skin_key)
 	var display_name := SkinState.name_of(skin_key)
 	_right.add_child(Kit.wrapped(Kit.title(display_name, 20 if display_name.length() > 20 else 28, _ink)))
-	var description := {"solana": "description", "carrot": "carrotDescription", "solflare": "solflareDescription", "pink-october": "pinkOctoberDescription"}
+	var description := {"solana": "description", "carrot": "carrotDescription", "solflare": "solflareDescription", "pink-october": "pinkOctoberDescription", "kappa": "kappaDescription"}
 	if Net.WORLD == "web2":
 		# Sans « ton lapin Solana / Solflare » (SkinState.WEB2_NAMES).
-		description = {"solana": "descriptionWeb2", "carrot": "carrotDescription", "solflare": "solflareDescriptionWeb2", "pink-october": "pinkOctoberDescription"}
+		description = {"solana": "descriptionWeb2", "carrot": "carrotDescription", "solflare": "solflareDescriptionWeb2", "pink-october": "pinkOctoberDescription", "kappa": "kappaDescription"}
 	_right.add_child(Kit.note(I18N.t("skins." + String(description.get(skin_key, "description"))), _muted, 12))
 	_right.add_child(Kit.note(I18N.t("skins.permanent"), _muted, 11))
 	if item.is_empty():

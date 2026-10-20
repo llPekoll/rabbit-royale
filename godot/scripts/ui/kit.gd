@@ -126,6 +126,7 @@ const SKINS := {
 	"carrot": preload("res://assets/bunnies/bunny-carrot.png"),
 	"solflare": preload("res://assets/bunnies/bunny-solflare.png"),
 	"pink-october": preload("res://assets/bunnies/bunny-pink-october.png"),
+	"kappa": preload("res://assets/bunnies/bunny-kappa.png"),
 }
 
 ## Les cinq lapins des avatars (lib/game/avatars.ts), par cle.

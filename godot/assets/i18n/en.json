@@ -754,6 +754,7 @@
     "skin_carrot": "Carrot skin",
     "skin_solflare": "Flary skin",
     "skin_pink_october": "Pink October skin",
+    "skin_kappa": "Kappa skin",
     "skin_solana_web2": "Violet skin",
     "skin_solflare_web2": "Eclipse skin"
    }
@@ -1645,6 +1646,7 @@
   "solflareDescription": "Night-black coat. Sun-yellow ears. Your Solflare rabbit.",
   "solflareDescriptionWeb2": "Night-black coat. Sun-yellow ears.",
   "pinkOctoberDescription": "Powder-pink coat. Pink ribbon. For Pink October.",
+  "kappaDescription": "Mossy-green shell. Straw hat. From the river.",
   "ticketOnly": "This one can't be bought: it only comes with the Crown Race Ticket.",
   "title": "Skins",
   "description": "Electric violet. Mint ears. Your Solana rabbit.",

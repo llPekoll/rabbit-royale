@@ -35,7 +35,7 @@ const LANTERN := Vector2(75, 187)
 const LANTERN_GLOW := Color("#ffc36b")
 const ARM_SECONDS := 3.0
 ## Le plus recent EN TETE : c'est le premier que le joueur voit.
-const SKINS := ["pink-october", "solflare", "carrot", "solana"]
+const SKINS := ["kappa", "pink-october", "solflare", "carrot", "solana"]
 const MONEY := ["usdc", "sol", "skr"]
 ## Au-dela, les skins defilent : la colonne de la page, le bandeau des packs.
 const COLUMN_VISIBLE := 3

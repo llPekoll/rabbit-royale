@@ -523,7 +523,7 @@ export const it: Dict = {
       prize: {
         carrots: 'Carote', water: 'Annaffiatoio', fertiliser: 'Concime', lightning: 'Fulmine',
         shield: 'Scudo', energy: 'Pieno di energia', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carota', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Carota', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Kappa',
         skin_solana_web2: 'Skin Viola', skin_solflare_web2: 'Skin Eclipse',
       },
     },
@@ -964,6 +964,7 @@ export const it: Dict = {
     solflareDescription: 'Pelo nero notte. Orecchie giallo sole. Il tuo coniglio Solflare.',
     solflareDescriptionWeb2: 'Pelo nero notte. Orecchie giallo sole.',
     pinkOctoberDescription: 'Pelo rosa cipria. Fiocco rosa. Per l’Ottobre Rosa.',
+    kappaDescription: "Guscio verde muschio. Cappello di paglia. Viene dal fiume.",
     ticketOnly: 'Questa non si compra: arriva solo con il Crown Race Ticket.',
     title: 'Skin',
     description: 'Viola elettrico. Orecchie menta. Il tuo coniglio Solana.',

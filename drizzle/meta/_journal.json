@@ -267,6 +267,13 @@
       "when": 1792498660054,
       "tag": "0037_genesis_pieces",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792510591762,
+      "tag": "0038_kappa_skin",
+      "breakpoints": true
     }
   ]
 }

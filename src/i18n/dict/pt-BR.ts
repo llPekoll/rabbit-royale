@@ -526,7 +526,7 @@ export const ptBR: Dict = {
       prize: {
         carrots: 'Cenouras', water: 'Regador', fertiliser: 'Adubo', lightning: 'Raio',
         shield: 'Escudo', energy: 'Tanque cheio', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cenoura', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cenoura', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October', skin_kappa: 'Skin Kappa',
         skin_solana_web2: 'Skin Violet', skin_solflare_web2: 'Skin Eclipse',
       },
     },
@@ -973,6 +973,7 @@ export const ptBR: Dict = {
     solflareDescription: "Pelagem preta como a noite. Orelhas amarelo-sol. Seu coelho Solflare.",
     solflareDescriptionWeb2: "Pelagem preta como a noite. Orelhas amarelo-sol.",
     pinkOctoberDescription: "Pelagem rosa-claro. Laço rosa. Pelo Outubro Rosa.",
+    kappaDescription: "Casco verde-musgo. Chapéu de palha. Veio do rio.",
     ticketOnly: "Este não pode ser comprado: só vem com o Crown Race Ticket.",
     title: "Skins",
     description: "Violeta elétrico. Orelhas menta. Seu coelho Solana.",
