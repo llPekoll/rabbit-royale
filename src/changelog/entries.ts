@@ -27,6 +27,9 @@ export type ChangeKind = 'new' | 'tune' | 'fix';
 export interface Change {
   kind: ChangeKind;
   text: Record<Locale, string>;
+  /** Web3 only (NFT, wallet, crypto): the web2 world's WHAT'S NEW never shows
+   *  it (godot/scripts/changelog.gd `releases`). */
+  web3?: true;
 }
 
 export interface Release {
@@ -129,6 +132,24 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 };
 
 export const CHANGELOG: Release[] = [
+  {
+    date: '2026-10-20',
+    items: [
+      {
+        kind: 'new',
+        web3: true,
+        text: {
+          en: 'The RR Genesis pieces you win in crown chests are now yours to see: profile, GENESIS tab. Each stays sealed until the mint.',
+          fr: 'Les pièces RR Genesis gagnées dans les coffres couronne se retrouvent maintenant dans le profil, onglet GENESIS. Chacune reste scellée jusqu’à la frappe.',
+          zh: '在皇冠宝箱中赢得的 RR Genesis 碎片现在可以在个人资料的 GENESIS 标签中查看。每块碎片在铸造前都保持封存。',
+          'pt-BR': 'As peças RR Genesis que você ganha em baús coroa agora aparecem no perfil, aba GENESIS. Cada uma fica selada até a cunhagem.',
+          vi: 'Các mảnh RR Genesis giành được từ rương vương miện giờ hiện trong hồ sơ, thẻ GENESIS. Mỗi mảnh được niêm phong cho đến khi đúc.',
+          es: 'Las piezas RR Genesis que ganas en cofres corona ya se ven en el perfil, pestaña GENESIS. Cada una sigue sellada hasta la acuñación.',
+          it: 'I pezzi RR Genesis vinti nei forzieri corona ora si vedono nel profilo, scheda GENESIS. Ognuno resta sigillato fino al conio.',
+        },
+      },
+    ],
+  },
   {
     date: '2026-10-20',
     items: [

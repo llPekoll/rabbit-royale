@@ -36,4 +36,5 @@ export const WEB3_ONLY_ROUTES: ReadonlySet<string> = new Set([
   '/api/shop/pay/failed',
   '/api/shop/claim',
   '/api/webhooks/alchemy',
+  '/api/genesis',
 ]);

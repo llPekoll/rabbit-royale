@@ -18,7 +18,7 @@ func _ready() -> void:
 	Kit.fill(bg)
 	add_child(bg)
 
-	# `-- --only=season|profile|history|lang|codex|email|email-code` : UN dialogue, a sa taille
+	# `-- --only=season|profile|history|genesis|lang|codex|email|email-code` : UN dialogue, a sa taille
 	# de jeu, place comme le chrome le place (plein ecran, ou centre sous le
 	# debord du [x]) — pour juger une mise en page, pas un inventaire.
 	for arg in OS.get_cmdline_user_args():
@@ -157,7 +157,7 @@ func _only(which: String) -> void:
 			board.show_rows(_fake_entries(), {"rank": 5, "score": 4210, "toPass": 640},
 				{"endsAt": Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system()) + 12 * 86400)})
 			d = board
-		"profile", "history", "settings":
+		"profile", "history", "settings", "genesis":
 			# `settings` : l'onglet des reglages. `--ticket` (solo grise),
 			# `--solo` (allume), `--low` (niveau 1, pas de ligne solo),
 			# `--pretty`, `--off` : rien n'est sauve.
@@ -180,6 +180,8 @@ func _only(which: String) -> void:
 			else:
 				profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
 			profile.show_history(_fake_history())
+			# `genesis` : l'onglet des pieces ; `--empty` sans aucune piece.
+			profile.show_genesis([] if "--empty" in args else _fake_genesis())
 			d = profile
 		"email", "email-code":
 			var mail := EmailDialog.new()
@@ -217,6 +219,8 @@ func _only(which: String) -> void:
 		(d as Profile)._show_tab(Profile.Tab.HISTORY)
 	if which == "settings":
 		(d as Profile)._show_tab(Profile.Tab.SETTINGS)
+	if which == "genesis":
+		(d as Profile)._show_tab(Profile.Tab.GENESIS)
 	for i in 3:
 		await get_tree().process_frame
 		_place(d)
@@ -318,3 +322,14 @@ func _dump(n: Node, depth: int) -> void:
 		print("  ".repeat(depth), c.get_class(), " ", c.name, " min=", c.get_combined_minimum_size(), " size=", c.size, " ", (c as Label).text if c is Label else "")
 	for ch in n.get_children():
 		_dump(ch, depth + 1)
+
+
+## Des pieces RR Genesis, scellees sauf une, d'iles differentes.
+func _fake_genesis() -> Array:
+	var now := int(Time.get_unix_time_from_system())
+	var out := []
+	var tiers := ["Caldera", "Ashland", "Thicket", "Meadow", "Ashland", "Caldera", "Thicket"]
+	for i in tiers.size():
+		out.append({"id": "g%d" % i, "islandTier": tiers[i], "minted": i == 4,
+			"wonAt": Time.get_datetime_string_from_unix_time(now - i * 2 * 86400) + ".000Z"})
+	return out

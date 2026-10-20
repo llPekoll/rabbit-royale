@@ -50,7 +50,7 @@ import { verifySession } from '../src/lib/auth/jwt';
 import { db, sql } from '../src/lib/db';
 import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
 import { recordIslandKill } from '../src/lib/game/record-raid';
-import { inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
+import { genesisPieces, inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { installStage } from './stage';
 import { roomFor } from './islands/router';
@@ -772,9 +772,18 @@ async function bankRun(rabbit: Rabbit) {
   }
   if (run.nfts.length) {
     // No mint yet — the drop is RECORDED so the run that produced it is on file
-    // when minting arrives (BUILD-PLAN phase 114). Losing the log would make an
-    // NFT owed to a player unprovable, which is worse than not minting today.
+    // when minting arrives (BUILD-PLAN phase 114). The row is what the profile's
+    // GENESIS tab shows; the log line stays as the backstop a failed insert
+    // leaves (scripts/genesis-backfill.sh replays it), since an NFT owed to a
+    // player and unprovable is worse than not minting today.
     console.log('[chest-nft]', playerId, 'run', runId, 'tiles', run.nfts.join(','));
+    try {
+      await db.insert(genesisPieces)
+        .values(run.nfts.map((tile) => ({ playerId, runId, tile })))
+        .onConflictDoNothing();
+    } catch (e) {
+      console.error('[bankRun] genesis insert failed', playerId, runId, e);
+    }
   }
 
   // Announced only now, after the row is written: the client answers this by

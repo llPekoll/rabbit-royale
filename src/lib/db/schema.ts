@@ -691,6 +691,29 @@ export const playerSkins = pgTable('player_skins', {
   boughtAt: timestamp('bought_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex('player_skins_owner_idx').on(t.playerId, t.skin)]);
 
+/**
+ * RR GENESIS PIECES won in crown chests (web3 only — the web2 world never
+ * draws one). Until 2026-10-20 a drop was only a `[chest-nft]` log line,
+ * gone with the container; a row is what makes the piece the player's.
+ *
+ * Owed, not minted: there is no collection on chain yet. `mintAddress` and
+ * `mintedAt` stay null until the mint arrives, and the piece shows SEALED in
+ * the profile meanwhile. One row per (run, tile): banking twice, or a
+ * backfill replayed over the same log, cannot hand out a second piece.
+ */
+export const genesisPieces = pgTable('genesis_pieces', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  runId: uuid('run_id').references(() => runs.id, { onDelete: 'set null' }),
+  tile: integer('tile').notNull(),
+  wonAt: timestamp('won_at', { withTimezone: true }).notNull().defaultNow(),
+  mintAddress: text('mint_address'),
+  mintedAt: timestamp('minted_at', { withTimezone: true }),
+}, (t) => [
+  uniqueIndex('genesis_pieces_run_tile_idx').on(t.runId, t.tile),
+  index('genesis_pieces_player_idx').on(t.playerId, t.wonAt),
+]);
+
 /** Seasons. The current one is the row with `endedAt` null. */
 export const seasons = pgTable('seasons', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),

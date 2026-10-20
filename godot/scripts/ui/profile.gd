@@ -52,7 +52,7 @@ signal watch(player_id: String)
 ## Le nom ou l'avatar viennent d'etre sauves ; Session.player est deja a jour.
 signal updated(patch: Dictionary)
 
-enum Tab { PROFILE, HISTORY, SETTINGS }
+enum Tab { PROFILE, HISTORY, SETTINGS, GENESIS }
 
 ## lib/game/player-name.ts : les limites d'un nom, et sa forme — des lettres
 ## ou des chiffres, avec des espaces, des « - » ou des « _ » a l'INTERIEUR
@@ -78,8 +78,11 @@ const NAME_PROBLEMS := {
 const OX := 47.0
 const OY := 105.0
 const BOARD := Vector2(1245.0, 539.0)
-## Les onglets, de haut en bas : y de la maquette.
-const TAB_Y := [226.0, 299.0, 372.0]
+## Les onglets, de haut en bas : y de la maquette. Le quatrieme (GENESIS,
+## web3 seul) reprend le pas de 73 et mord sur la fougere du coin.
+const TAB_Y := [226.0, 299.0, 372.0, 445.0]
+## La piece scellee, l'icone de l'onglet GENESIS et de chaque piece.
+const GENESIS_ART := preload("res://assets/nft/genesis-sealed.webp")
 
 const LOCK_ICON := preload("res://assets/ui/icons/settings/lock.png")
 
@@ -143,6 +146,11 @@ var _dots: Dictionary = {}
 var _name_re := RegEx.new()
 ## Un banc : pas de reseau.
 var _offline := false
+## Les pieces RR Genesis telles que /api/genesis les rend, demandees a la
+## premiere ouverture de l'onglet ; `_genesis_failed` comme pour l'historique.
+var _genesis: Variant = null
+var _genesis_failed := false
+var _genesis_asked := false
 
 
 ## LE MONDE DECIDE DES PORTES (net.gd WORLD, comme l'accueil) : web3 = le
@@ -344,6 +352,11 @@ func _show_tab(which: Tab) -> void:
 			_page_header("icon-leaf", Rect2(316, 133, 44, 37), I18N.t("profile.tabProfile"), I18N.t("profile.subtitle"))
 			_build_profile()
 			GameSocket.unwatch_presence()
+		Tab.GENESIS:
+			_page_header("", Rect2(), I18N.t("profile.tabGenesis"), I18N.t("profile.genesisSubtitle"))
+			_put(_genesis_icon(), 314, 126, 48, 48)
+			_build_genesis()
+			GameSocket.unwatch_presence()
 		Tab.SETTINGS:
 			_page_header("icon-gear", Rect2(314, 128, 48, 48), I18N.t("sound.settings"), "")
 			var pane := SettingsPane.new(_k)
@@ -360,7 +373,8 @@ func _show_tab(which: Tab) -> void:
 
 ## L'EN-TETE DE LA PAGE : son icone, le titre crie, la phrase dessous.
 func _page_header(icon: String, at: Rect2, words: String, sub: String) -> void:
-	_icon(icon, at.position.x, at.position.y, at.size.x, at.size.y)
+	if not icon.is_empty():
+		_icon(icon, at.position.x, at.position.y, at.size.x, at.size.y)
 	_page_title = _say(I18N.shout(words), 372, 129, 700, 38, 38, CampStyle.TEXT, true)
 	if not sub.is_empty():
 		_say(sub, 372, 163, 860, 22, 17, Color("#c9dade"))
@@ -387,11 +401,13 @@ func _build_rail() -> void:
 	_tabs.clear()
 	_tab_labels.clear()
 	var words := _tab_words()
-	for which in [Tab.PROFILE, Tab.HISTORY, Tab.SETTINGS]:
+	var order := _rail_order()
+	for slot in order.size():
+		var which: Tab = order[slot]
 		var on: bool = which == _tab
-		var y: float = TAB_Y[which]
+		var y: float = TAB_Y[slot]
 		var at := Rect2(64, y, 223, 66) if on else Rect2(65, y + 1, 212, 63)
-		var b := CampStyle.hit(["ProfileTab", "HistoryTab", "SettingsTab"][which])
+		var b := CampStyle.hit({Tab.PROFILE: "ProfileTab", Tab.HISTORY: "HistoryTab", Tab.SETTINGS: "SettingsTab", Tab.GENESIS: "GenesisTab"}[which])
 		_put(b, at.position.x, at.position.y, at.size.x, at.size.y, rail)
 		b.pressed.connect(_show_tab.bind(which))
 		var bg := CampStyle.band("tab-on" if on else "tab-off", _k, at.size.y * _k)
@@ -402,9 +418,11 @@ func _build_rail() -> void:
 			icon = _rabbit(look, 3.0)
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			_put(icon, 82, y + 11, 44, 44, b, at.position)
+		elif which == Tab.GENESIS:
+			_put(_genesis_icon(), 81, y + 9, 46, 48, b, at.position)
 		else:
 			_icon("icon-scroll-tab" if which == Tab.HISTORY else "icon-gear-tab", 81, y + 9, 46, 48, b, at.position)
-		var label := _say(words[which], 140, y, 135, at.size.y, 21, CampStyle.TEXT, false, b, at.position)
+		var label := _say(words[slot], 140, y, 135, at.size.y, 21, CampStyle.TEXT, false, b, at.position)
 		_tabs.append(b)
 		_tab_labels.append(label)
 		if which == Tab.HISTORY:
@@ -417,16 +435,121 @@ func _build_rail() -> void:
 			_paint_badge()
 
 
+## LES ONGLETS DU RAIL, de haut en bas. GENESIS n'existe qu'en web3 : le
+## monde web2 ne tire jamais de piece, et sa route repond 404.
+func _rail_order() -> Array:
+	return [Tab.PROFILE, Tab.HISTORY, Tab.SETTINGS] if _web2 else [Tab.PROFILE, Tab.HISTORY, Tab.GENESIS, Tab.SETTINGS]
+
+
+func _tab_word(which: Tab) -> String:
+	match which:
+		Tab.PROFILE: return I18N.t("profile.tabProfile")
+		Tab.HISTORY: return I18N.t("profile.tabHistory")
+		Tab.GENESIS: return I18N.t("profile.tabGenesis")
+	return I18N.t("sound.settings")
+
+
+## Les mots du rail, dans son ordre.
 func _tab_words() -> Array:
-	return [I18N.t("profile.tabProfile"), I18N.t("profile.tabHistory"), I18N.t("sound.settings")]
+	return _rail_order().map(_tab_word)
 
 
 func _relabel_tabs() -> void:
 	var words := _tab_words()
-	set_title(words[int(_tab)])
+	set_title(_tab_word(_tab))
 	for i in _tab_labels.size():
 		if is_instance_valid(_tab_labels[i]):
 			_tab_labels[i].text = words[i]
+
+
+# ── L'onglet Genesis (web3) ──────────────────────────────────────────────────
+
+## LES PIECES RR GENESIS (2026-10-20). Un coffre couronne en cache une sur
+## quatre ; jusqu'ici elle n'etait qu'une ligne de log, le joueur ne la
+## revoyait jamais. Chaque piece est SCELLEE tant que la collection n'est pas
+## frappee : l'art scelle, l'ile d'ou elle vient, le jour. LAQUELLE elle est
+## ne se saura qu'a la frappe (chest_prize.gd, meme raison).
+func _build_genesis() -> void:
+	if _genesis == null:
+		_say(I18N.t("profile.genesisFailed" if _genesis_failed else "profile.loading"), 320, 200, 930, 40, 18, CampStyle.BAD if _genesis_failed else CampStyle.MUTED)
+		if not _genesis_asked and not _offline and Session.signed_in():
+			_fetch_genesis()
+		return
+	var pieces: Array = _genesis
+	_panel("section", 305, 189, 958, 430)
+	if pieces.is_empty():
+		var art := _genesis_icon()
+		art.modulate = Color(1, 1, 1, 0.45)
+		_put(art, 724, 262, 120, 120)
+		var none := _say(I18N.t("profile.genesisEmpty"), 345, 400, 878, 60, 20, CampStyle.TEXT)
+		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		return
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_put(scroll, 318, 200, 932, 410)
+	TouchScroll.attach(scroll)
+	_scroll = scroll
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", roundi(12 * _k))
+	grid.add_theme_constant_override("v_separation", roundi(12 * _k))
+	scroll.add_child(grid)
+	for p in pieces:
+		grid.add_child(_genesis_card(p))
+
+
+## Une piece : la carte, l'art scelle, l'ile et le jour, l'etat.
+func _genesis_card(p: Dictionary) -> Control:
+	var card := _row(176, 228)
+	var o := Vector2.ZERO
+	var minted := bool(p.get("minted", false))
+	var bg := CampStyle.nine("card-on" if minted else "card-off", _k)
+	bg.size = card.custom_minimum_size
+	card.add_child(bg)
+	var art := _genesis_icon()
+	_put(art, 28, 14, 120, 120, card, o)
+	var tier: Variant = p.get("islandTier")
+	var where := I18N.island_name(String(tier)) if tier is String else ""
+	var head := _say(where, 8, 138, 160, 26, 18, CampStyle.TEXT, true, card, o)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var day := _say(_short_day(String(p.get("wonAt", "")).substr(0, 10)), 8, 164, 160, 22, 16, CampStyle.MUTED, false, card, o)
+	day.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var state := _say(I18N.t("profile.genesisMinted" if minted else "profile.genesisSealed"), 8, 190, 160, 30, 14, CampStyle.GOOD if minted else CampStyle.COPPER, false, card, o)
+	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return card
+
+
+func _genesis_icon() -> TextureRect:
+	var r := TextureRect.new()
+	r.texture = GENESIS_ART
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+
+## Les pieces, posees par un banc ou par la requete.
+func show_genesis(pieces: Array) -> void:
+	_genesis = pieces
+	_genesis_failed = false
+	if is_inside_tree() and _tab == Tab.GENESIS:
+		_show_tab(_tab)
+
+
+func _fetch_genesis() -> void:
+	_genesis_asked = true
+	var answer: Answer = await Net.get_json("/api/genesis", Session.token)
+	if not is_inside_tree():
+		return
+	if not answer.ok or not (answer.body.get("pieces") is Array):
+		_genesis_failed = true
+		if _tab == Tab.GENESIS:
+			_show_tab(_tab)
+		return
+	show_genesis(answer.body["pieces"])
 
 
 # ── L'onglet Profil ──────────────────────────────────────────────────────────
