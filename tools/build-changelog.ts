@@ -201,7 +201,7 @@ ${CHANGELOG.map(releaseHtml).join('\n\n')}
     <script>
       (function () {
         var data = JSON.parse(document.getElementById('changelog-data').textContent);
-        var names = { en: 'English', fr: 'Français', zh: '中文', 'pt-BR': 'Português', vi: 'Tiếng Việt' };
+        var names = { en: 'English', fr: 'Français', es: 'Español', it: 'Italiano', zh: '中文', 'pt-BR': 'Português', vi: 'Tiếng Việt' };
         var codes = Object.keys(data.ui);
 
         function pick() {

@@ -278,9 +278,9 @@ describe('the snack push', () => {
     expect(decideSweepPush(i).kind).toBe('garden_ready');
   });
 
-  it('reads the day in five languages', () => {
+  it('reads the day in seven languages', () => {
     expect(pushText('snack_ready', 'fr', { n: 13 }).title).toContain('13');
-    for (const l of ['en', 'pt-BR', 'vi', 'zh']) {
+    for (const l of ['en', 'pt-BR', 'vi', 'zh', 'es', 'it']) {
       expect(pushText('snack_ready', l, { n: 2 }).title).toContain('2');
       expect(pushText('snack_pack', l, { n: 7 }).title).toContain('7');
     }

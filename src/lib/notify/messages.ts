@@ -8,11 +8,11 @@
  * in before a raider does" its own nudge — so the phone and the game sound
  * like the same rabbit.
  *
- * The five locales the game ships (en, fr, pt-BR, vi, zh). Anything else, or
+ * The seven locales the game ships (en, fr, pt-BR, vi, zh, es, it). Anything else, or
  * nothing, reads as English: a push in the wrong language is still a push,
  * one with no text is not.
  */
-export const PUSH_LOCALES = ['en', 'fr', 'pt-BR', 'vi', 'zh'] as const;
+export const PUSH_LOCALES = ['en', 'fr', 'pt-BR', 'vi', 'zh', 'es', 'it'] as const;
 export type PushLocale = (typeof PUSH_LOCALES)[number];
 
 /**
@@ -22,7 +22,8 @@ export type PushLocale = (typeof PUSH_LOCALES)[number];
  * `zh-Hans-CN`), POSIX/Godot (`pt_BR`, `fr_FR`), bare language (`vi`), any
  * case. Portuguese of any region reads the Brazilian text — the only one
  * written — and every Chinese reads `zh`, which is written in simplified
- * characters.
+ * characters. Spanish of any region (`es-ES`, `es_MX`, `es-419`) reads the
+ * one neutral Spanish text, Italian of any region reads `it`.
  */
 export function resolveLocale(tag: unknown): PushLocale {
   if (typeof tag !== 'string') return 'en';
@@ -32,6 +33,8 @@ export function resolveLocale(tag: unknown): PushLocale {
     case 'pt': return 'pt-BR';
     case 'vi': return 'vi';
     case 'zh': return 'zh';
+    case 'es': return 'es';
+    case 'it': return 'it';
     default: return 'en';
   }
 }
@@ -134,6 +137,30 @@ const TEXT: Record<PushLocale, Record<PushKind, Line>> = {
     comeback_2: { title: '你的兔窝在等你', body: '体力满了，菜园满了，王冠还没人拿走。' },
     snack_ready: { title: 'Snack Time 🎁 第 {n} 天', body: '惊喜盒子准备好了——打开它，下一局胡萝卜翻倍。' },
     snack_pack: { title: '第 {n} 天：金色盒子 ✨', body: '今天几率更高，还有送给你洞穴的礼物。' },
+  },
+  es: {
+    raid_incoming: { title: '¡{name} está saqueando tu madriguera!', body: 'Ahora mismo. Vuelve a casa y defiéndela.' },
+    raid_looted: { title: '{name} te saqueó: -{n} 🥕', body: 'Entierra bombas en el camino antes del próximo.' },
+    raid_held: { title: '¡Madriguera defendida!', body: '{name} vino por tus zanahorias y se fue sin nada.' },
+    energy_full: { title: 'Energía llena', body: 'Te alcanza para una partida. Cava.' },
+    energy_overnight: { title: 'Tu energía se llena esta noche', body: 'Llena, deja de recargarse mientras duermes. Gasta un poco en una partida antes.' },
+    garden_ready: { title: '{n} 🥕 te esperan', body: 'Tu huerto está lleno. Recógelas antes de que llegue un saqueador.' },
+    comeback_1: { title: '{n} 🥕 en tu huerto', body: 'Los saqueadores ya se dieron cuenta. Ven a recogerlas.' },
+    comeback_2: { title: 'Tu madriguera te extraña', body: 'Energía llena, huerto lleno, y la corona sigue en juego.' },
+    snack_ready: { title: 'Snack Time 🎁 día {n}', body: 'Tu caja sorpresa está lista — y abrirla duplica tu próxima partida.' },
+    snack_pack: { title: 'Día {n}: caja DORADA ✨', body: 'Mejores probabilidades hoy, y un regalo para tu madriguera.' },
+  },
+  it: {
+    raid_incoming: { title: '{name} sta razziando la tua tana!', body: 'Proprio ora. Torna a casa e difendila.' },
+    raid_looted: { title: '{name} ti ha razziato: -{n} 🥕', body: 'Seppellisci bombe sul sentiero prima del prossimo.' },
+    raid_held: { title: 'Tana difesa!', body: '{name} è venuto per le tue carote ed è ripartito a mani vuote.' },
+    energy_full: { title: 'Energia piena', body: 'Quanto basta per una partita. Scava.' },
+    energy_overnight: { title: 'La tua energia sarà piena stanotte', body: 'Da piena smette di ricaricarsi mentre dormi. Usane un po’ in una partita prima.' },
+    garden_ready: { title: '{n} 🥕 ti aspettano', body: 'Il tuo orto è pieno. Raccoglile prima che arrivi un predone.' },
+    comeback_1: { title: '{n} 🥕 nel tuo orto', body: 'I predoni se ne sono accorti. Vieni a prenderle.' },
+    comeback_2: { title: 'La tua tana ti aspetta', body: 'Energia piena, orto pieno, e la corona è ancora in palio.' },
+    snack_ready: { title: 'Snack Time 🎁 giorno {n}', body: 'La tua scatola sorpresa è pronta — e aprirla raddoppia la tua prossima partita.' },
+    snack_pack: { title: 'Giorno {n}: scatola D’ORO ✨', body: 'Probabilità migliori oggi, e un regalo per la tua tana.' },
   },
 };
 

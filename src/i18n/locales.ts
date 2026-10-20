@@ -1,5 +1,5 @@
 /**
- * The five languages the game speaks, and the one fact that decides how each
+ * The seven languages the game speaks, and the one fact that decides how each
  * one is DRAWN.
  *
  * The arcade-kit's face (`@domin8/arcade-kit`, a 1.6KB woff2 generated from an
@@ -20,7 +20,7 @@
  */
 
 /** Every language tag the game ships. The union is what the dictionaries key on. */
-export const LOCALES = ['en', 'fr', 'zh', 'pt-BR', 'vi'] as const;
+export const LOCALES = ['en', 'fr', 'es', 'it', 'zh', 'pt-BR', 'vi'] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
@@ -49,6 +49,8 @@ export interface LocaleMeta {
 export const LOCALE_META: Record<Locale, LocaleMeta> = {
   en: { code: 'en', label: 'English', flag: '🇬🇧', pixelFace: true },
   fr: { code: 'fr', label: 'Français', flag: '🇫🇷', pixelFace: false },
+  es: { code: 'es', label: 'Español', flag: '🇪🇸', pixelFace: false },
+  it: { code: 'it', label: 'Italiano', flag: '🇮🇹', pixelFace: false },
   zh: { code: 'zh', label: '中文', flag: '🇨🇳', pixelFace: false },
   'pt-BR': { code: 'pt-BR', label: 'Português', flag: '🇧🇷', pixelFace: false },
   vi: { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳', pixelFace: false },

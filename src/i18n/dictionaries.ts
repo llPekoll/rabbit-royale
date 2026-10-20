@@ -1,5 +1,5 @@
 /**
- * THE FOUR DICTIONARIES, and the type they all answer to.
+ * THE DICTIONARIES, and the type they all answer to.
  *
  * `Dict` is DERIVED from the English file rather than declared by hand. That
  * is the whole safety net: `fr`, `zh` and `pt-BR` are each annotated `: Dict`,
@@ -16,6 +16,8 @@
 import { DEFAULT_LOCALE, type Locale } from './locales';
 import { en } from './dict/en';
 import { fr } from './dict/fr';
+import { es } from './dict/es';
+import { it } from './dict/it';
 import { zh } from './dict/zh';
 import { ptBR } from './dict/pt-BR';
 import { vi } from './dict/vi';
@@ -25,6 +27,8 @@ export type Dict = typeof en;
 export const DICTIONARIES: Record<Locale, Dict> = {
   en,
   fr,
+  es,
+  it,
   zh,
   'pt-BR': ptBR,
   vi,

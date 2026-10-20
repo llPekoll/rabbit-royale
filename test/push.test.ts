@@ -298,7 +298,7 @@ describe('decideSweepPush', () => {
 });
 
 describe('locale', () => {
-  it('maps every spelling to one of the five, English otherwise', () => {
+  it('maps every spelling to one of the seven, English otherwise', () => {
     expect(resolveLocale('fr')).toBe('fr');
     expect(resolveLocale('fr_FR')).toBe('fr');
     expect(resolveLocale('FR-ca')).toBe('fr');
@@ -307,6 +307,11 @@ describe('locale', () => {
     expect(resolveLocale('vi_VN')).toBe('vi');
     expect(resolveLocale('zh-Hans-CN')).toBe('zh');
     expect(resolveLocale('zh_TW')).toBe('zh');
+    expect(resolveLocale('es')).toBe('es');
+    expect(resolveLocale('es_MX')).toBe('es');
+    expect(resolveLocale('es-419')).toBe('es');
+    expect(resolveLocale('it')).toBe('it');
+    expect(resolveLocale('it-IT')).toBe('it');
     expect(resolveLocale('de')).toBe('en');
     expect(resolveLocale('')).toBe('en');
     expect(resolveLocale(undefined)).toBe('en');

@@ -16,6 +16,8 @@ extends Dialog
 ##     par le skin `tab` — l'or pour la courante, le bois pour les autres.
 ##     Ici c'est Kit.style_tab(on), la meme matiere.
 ##   • Des options de 44px, la hauteur d'un pouce.
+##   • DEUX COLONNES depuis l'espagnol et l'italien (2026-10-20) : sept lignes
+##     de 44px depassaient les 400px du Seeker, Tiếng Việt sortait du cadre.
 ##
 ## LA FACE. Tous les noms sauf l'anglais et tous les drapeaux tombent hors de la face
 ## pixel du kit (ASCII 32..126). Le web les ecrit dans sa face de secours ;
@@ -28,8 +30,8 @@ extends Dialog
 ## se relire : choisir une langue le FERME, comme le `onClose()` du web dans
 ## le meme clic, et il n'y a plus rien a redessiner.
 
-## La largeur du web (`.rr-lang-modal`, min(300px, 100vw - 32)).
-const WIDTH := 300.0
+## Deux options de front (le web en avait une, sur 300px).
+const WIDTH := 360.0
 ## La hauteur d'une option : la cible tactile du web.
 const ROW_H := 44.0
 
@@ -41,9 +43,15 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	body.add_child(grid)
 	for entry in I18N.LOCALES:
 		var row := _make_row(entry)
-		body.add_child(row)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(row)
 		_rows.append(row)
 	I18N.locale_changed.connect(_on_locale_changed)
 

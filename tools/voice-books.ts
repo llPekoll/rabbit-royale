@@ -24,7 +24,7 @@ const ROOT = join(import.meta.dir, "..");
 const I18N = join(ROOT, "godot/assets/i18n");
 const OUT = join(ROOT, "godot/assets/intro/voice");
 const MANIFEST = join(ROOT, "godot/assets/intro/voice.json");
-const LOCALES = ["en", "fr", "pt-BR", "vi", "zh"];
+const LOCALES = ["en", "fr", "es", "it", "pt-BR", "vi", "zh"];
 const BOOKS = ["shiro", "kuro", "sea"];
 
 // LA VOIX, choisie a l'essai (`sample`). Changer l'un de ces trois repaie tout.

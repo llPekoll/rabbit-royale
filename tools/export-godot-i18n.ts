@@ -1,5 +1,5 @@
 /**
- * THE FOUR DICTIONARIES, EXPORTED FOR GODOT.
+ * THE DICTIONARIES, EXPORTED FOR GODOT.
  *
  *   bun tools/export-godot-i18n.ts
  *
@@ -7,7 +7,7 @@
  * shape as src/i18n/dict/*.ts, so `t.shop.title` on the web is
  * `I18N.t("shop.title")` in Godot and a string is translated ONCE, here.
  *
- * WHY EXPORT RATHER THAN RETYPE. The dictionaries are 3 500 lines across four
+ * WHY EXPORT RATHER THAN RETYPE. The dictionaries are 3 500 lines across seven
  * languages, and the web's compiler is what keeps them in step (a missing key
  * fails the build — see dictionaries.ts). A hand copy in GDScript would have
  * no such check and would drift the day someone edits a string on one side.
@@ -226,4 +226,4 @@ for (const [locale, dict] of Object.entries(DICTIONARIES)) {
   writeFileSync(join(OUT_DIR, `${locale}.json`), `${JSON.stringify(tree, null, 1)}\n`);
   console.log(`${locale}.json written`);
 }
-console.log(`${functions} templates, ${variants} variants across the four languages`);
+console.log(`${functions} templates, ${variants} variants across every language`);
