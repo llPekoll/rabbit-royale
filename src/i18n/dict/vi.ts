@@ -74,6 +74,8 @@ export const vi: Dict = {
     google: 'Google',
     email: 'Email',
     googleWaiting: 'Hoàn tất trong trình duyệt...',
+    offline: 'Chơi ngoại tuyến',
+    offlineNote: 'Chế độ ngoại tuyến: hang này chỉ có trên thiết bị này.',
     cancel: 'Hủy',
     emailTitle: 'Đăng nhập bằng email',
     emailAsk: 'Chúng tôi sẽ gửi mã 6 chữ số.',

@@ -53,7 +53,8 @@ static func announce_rabbit(level: int) -> LevelUpStamp:
 	var words := "rabbitLevel.harder"
 	if level >= top:
 		words = "rabbitLevel.final"
-	elif level == raid_min:
+	# Hors ligne (voyageur.gd) il n'y a pas de raid a ouvrir.
+	elif level == raid_min and not Voyageur.active:
 		words = "rabbitLevel.raidsOpen"
 	stamp.set_words(I18N.f("rabbitLevel.up", [level]), I18N.t(words))
 	ScreenStamp.mount(stamp)

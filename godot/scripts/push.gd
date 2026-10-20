@@ -106,6 +106,10 @@ func _on_tracked(event: String, params: Dictionary) -> void:
 
 func _on_session_changed() -> void:
 	_sent_for = ""
+	# HORS LIGNE (voyageur.gd), rien ne sonnera : pas de jeton a donner.
+	if Voyageur.active:
+		_auth = ""
+		return
 	if not Session.signed_in():
 		# DECONNECTE : cet appareil ne doit plus sonner pour ce terrier. Le
 		# prochain joueur connecte reprendra le jeton (le POST le deplace).

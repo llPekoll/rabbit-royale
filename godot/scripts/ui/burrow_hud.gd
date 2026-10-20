@@ -223,6 +223,12 @@ func show_data(d: Dictionary) -> void:
 		_bar.set_amounts(stock, int(d.get("safe", 0)), false)
 	for c in _legend.get_children():
 		c.queue_free()
+	# HORS LIGNE (voyageur.gd) personne ne pille : tout est a l'abri, et la
+	# legende des raids n'a rien a dire.
+	if Voyageur.active:
+		_bar.set_amounts(stock, stock, false)
+		_fit_legend()
+		return
 	if shield > 0.0:
 		_legend.add_child(_part(SHIELD, I18N.f("loop.shieldBadge", [I18N.wait(shield)]), SAFE_INK))
 	else:

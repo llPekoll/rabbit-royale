@@ -114,7 +114,8 @@ func _ready() -> void:
 ## Ouvre la socket avec le jeton de la session. Sans jeton il n'y a rien à
 ## ouvrir : le serveur refuserait le CONNECT.
 func start() -> void:
-	if Session.token.is_empty():
+	# Hors ligne (voyageur.gd), il n'y a personne a qui parler.
+	if Session.token.is_empty() or Voyageur.active:
 		return
 	_live = true
 	_retry_seconds = RETRY_FIRST_SECONDS

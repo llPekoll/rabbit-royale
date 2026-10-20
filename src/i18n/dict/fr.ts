@@ -66,6 +66,8 @@ export const fr: Dict = {
     google: 'Google',
     email: 'Email',
     googleWaiting: 'Termine dans ton navigateur...',
+    offline: 'Jouer hors ligne',
+    offlineNote: 'Mode hors ligne : ce terrier ne vit que sur cet appareil.',
     cancel: 'Annuler',
     emailTitle: 'Connexion par email',
     emailAsk: 'On t’envoie un code à 6 chiffres.',

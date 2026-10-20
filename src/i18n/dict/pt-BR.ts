@@ -70,6 +70,8 @@ export const ptBR: Dict = {
     google: 'Google',
     email: 'E-mail',
     googleWaiting: 'Termine no navegador...',
+    offline: 'Jogar offline',
+    offlineNote: 'Modo offline: esta toca existe só neste aparelho.',
     cancel: 'Cancelar',
     emailTitle: 'Entrar com e-mail',
     emailAsk: 'Vamos enviar um código de 6 dígitos.',

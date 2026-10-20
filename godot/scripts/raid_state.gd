@@ -769,6 +769,8 @@ func fake(state: Dictionary) -> void:
 ## par une seule main (README) — le jour ou il apprend ces deux verbes, ceci
 ## s'efface.
 func _send(path: String, method: HTTPClient.Method, payload: Dictionary) -> Answer:
+	if Voyageur.active:
+		return await Voyageur.serve(path, method, payload)
 	if not is_inside_tree():
 		await tree_entered
 	var request := HTTPRequest.new()

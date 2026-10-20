@@ -90,6 +90,8 @@ export const en = {
     google: 'Google',
     email: 'Email',
     googleWaiting: 'Finish in your browser...',
+    offline: 'Play offline',
+    offlineNote: 'Offline mode: this burrow lives on this device only.',
     cancel: 'Cancel',
     emailTitle: 'Sign in with email',
     emailAsk: 'We will send you a 6-digit code.',

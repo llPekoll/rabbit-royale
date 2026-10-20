@@ -71,6 +71,8 @@ export const es: Dict = {
     google: 'Google',
     email: 'Correo',
     googleWaiting: 'Termina en tu navegador...',
+    offline: 'Jugar sin conexión',
+    offlineNote: 'Modo sin conexión: esta madriguera solo vive en este dispositivo.',
     cancel: 'Cancelar',
     emailTitle: 'Entrar con tu correo',
     emailAsk: 'Te enviamos un código de 6 dígitos.',

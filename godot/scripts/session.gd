@@ -338,6 +338,14 @@ func _discard(status: int) -> bool:
 ## SIGN OUT. Local only: the server has no session to destroy, the token simply
 ## stops being presented. Emitted so every screen drops the player at once.
 func sign_out() -> void:
+	# HORS LIGNE : on quitte le mode, et le compte en ligne de cet appareil
+	# reste tel quel (son jeton n'a jamais ete touche).
+	if Voyageur.active:
+		Voyageur.stop()
+		player = {}
+		token = _load_token()
+		changed.emit()
+		return
 	_forget()
 	changed.emit()
 

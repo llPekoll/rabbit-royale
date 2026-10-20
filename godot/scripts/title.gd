@@ -95,6 +95,8 @@ var _email: PlankButton
 ## haut-droit — libre tant que personne n'est connecte, et hors de la colonne,
 ## qui n'a pas une ligne a donner sur le Seeker couche.
 var _story: PlankButton
+## JOUER HORS LIGNE (voyageur.gd) : seulement la ou le mode est achete.
+var _voyage: PlankButton
 ## Son titre, juste au-dessus : sans lui, « Asia 54 ms » ne disait pas de quoi
 ## il s'agissait.
 var _region_title: Label
@@ -140,6 +142,9 @@ func _ready() -> void:
 	_email = _alt_door("Email")
 	_google.visible = _web2_doors
 	_email.visible = _web2_doors
+	_voyage = _alt_door("Voyage")
+	_voyage.board = PlankButton.Board.WOOD
+	_voyage.visible = Voyageur.unlocked()
 	_connect.visible = not _web2_doors
 	_region_title = Label.new()
 	_region_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -167,6 +172,7 @@ func _ready() -> void:
 	_google.pressed.connect(_on_google)
 	_email.pressed.connect(_on_email)
 	_guest.pressed.connect(_on_guest)
+	_voyage.pressed.connect(_on_voyage)
 	_lang.pressed.connect(_on_language_pressed)
 	_region.pressed.connect(_on_region_pressed)
 
@@ -175,6 +181,7 @@ func _ready() -> void:
 	_google.wave_delay = WAVE_STEPS[0] + 0.035
 	_email.wave_delay = WAVE_STEPS[0] + 0.05
 	_guest.wave_delay = WAVE_STEPS[1]
+	_voyage.wave_delay = WAVE_STEPS[1] + 0.07
 	_lang.wave_delay = WAVE_STEPS[2]
 	_region.wave_delay = WAVE_STEPS[2] + 0.07
 
@@ -218,11 +225,21 @@ func _ready() -> void:
 	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
 	# reprendre la session enregistree (qui reste intacte). Outil, pas
 	# comportement.
+	# `-- --voyageur --voyage` : la porte hors ligne pressee d'emblee, sans
+	# reprendre la session en ligne (captures, sondes).
+	if "--voyage" in args and Voyageur.unlocked():
+		_on_voyage()
+		return
 	if "--doorstep" in OS.get_cmdline_user_args():
 		await _find_region()
 		_set_restoring(false)
 		_busy(false)
 		_refresh_doors()
+		return
+	# LA DERNIERE PARTIE ETAIT HORS LIGNE : on y retourne tout droit, sans
+	# attendre un reseau qu'elle n'utilise pas. Le profil en ressort.
+	if Voyageur.was_last():
+		_on_voyage()
 		return
 	_set_restoring(not Session.token.is_empty())
 	var back := await Session.restore()
@@ -311,7 +328,8 @@ func _measure() -> void:
 	if not is_inside_tree():
 		return
 	var view := get_viewport_rect().size
-	var reserve := MENU_RESERVE + (REGION_ROW if _region.visible else 0.0)
+	var reserve := MENU_RESERVE + (REGION_ROW if _region.visible else 0.0) \
+		+ (52.0 if _voyage.visible else 0.0)
 	var doorstep := minf(view.y * 0.67, view.y - reserve - DOORSTEP_GAP)
 	var column := minf(view.x * 0.38, 420.0)
 
@@ -367,6 +385,8 @@ func _measure() -> void:
 	if _web2_doors:
 		doors = [[_guest, 64.0]]
 	var gold: PlankButton = _guest if (PLAY_DOOR or _web2_doors) else _connect
+	if _voyage.visible:
+		doors = doors + [[_voyage, 44.0]]
 	for entry in doors + [[_lang, 44.0]]:
 		var node: Control = entry[0]
 		var h: float = entry[1]
@@ -475,6 +495,7 @@ func _apply_language() -> void:
 	_apply_face()
 	_connect.relabel(_connect_word())
 	_guest.relabel(_guest_word())
+	_voyage.relabel(I18N.t("auth.offline"))
 	_google.relabel(I18N.t("auth.google"))
 	if _story != null:
 		_story.relabel(I18N.t("intro.replay"))
@@ -498,7 +519,7 @@ func _apply_language() -> void:
 func _apply_face() -> void:
 	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
 	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
-	I18N.apply_face([_connect, _guest, _lang, _region, _region_title, _ribbon, _status, _tip_text, _story])
+	I18N.apply_face([_connect, _guest, _voyage, _lang, _region, _region_title, _ribbon, _status, _tip_text, _story])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -711,6 +732,14 @@ func _on_email() -> void:
 		_enter()
 
 
+## HORS LIGNE : le terrier de l'appareil, sans compte ni reseau
+## (voyageur.gd). Le tuto se joue comme pour un invite neuf.
+func _on_voyage() -> void:
+	Voyageur.start()
+	Analytics.track("login", {"method": "voyageur"})
+	_enter(true)
+
+
 ## LA SECONDE PORTE : un terrier sans wallet, pour qui n'en a jamais tenu.
 func _on_guest() -> void:
 	_busy(true)
@@ -798,7 +827,7 @@ func _enter(fresh := false) -> void:
 		visible = false
 		await book.finished
 	Screens.build_world()
-	if first and Session.signed_in():
+	if first and Session.signed_in() and not Voyageur.active:
 		RunState.current.join(null)
 	Screens.push(Screens.Place.ISLAND if first else Screens.Place.BURROW)
 
@@ -831,6 +860,7 @@ func _busy(value: bool) -> void:
 	# Android la porte du wallet doit RESTER grisee, et la relacher rendrait un
 	# bouton sans rien derriere.
 	_guest.disabled = value
+	_voyage.disabled = value
 	# Google reste pressable pendant SON attente : c'est le bouton Annuler.
 	_google.disabled = value and not Session.google_waiting
 	_email.disabled = value
@@ -846,6 +876,7 @@ func _set_restoring(on: bool, words := "") -> void:
 	_restoring = on
 	for door in [_guest, _lang]:
 		door.visible = not on
+	_voyage.visible = not on and Voyageur.unlocked()
 	_connect.visible = not on and not _web2_doors
 	for door in [_google, _email]:
 		door.visible = _web2_doors and not on

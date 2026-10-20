@@ -586,6 +586,8 @@ func _sandbox_fence(tile: int, side: String, put: bool) -> bool:
 ## Bearer, sans corps. Une requete fraiche par appel, pour la raison que
 ## net.gd donne. Si Net gagne un `delete_json`, ceci disparait.
 func _delete(path: String) -> Answer:
+	if Voyageur.active:
+		return await Voyageur.serve(path, HTTPClient.METHOD_DELETE, {})
 	var request := HTTPRequest.new()
 	request.timeout = Net.TIMEOUT_SECONDS
 	add_child(request)

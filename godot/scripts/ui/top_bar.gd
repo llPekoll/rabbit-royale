@@ -290,7 +290,10 @@ func reflect_place() -> void:
 	# ilot (burrow_landmarks.gd) reste, mais l'icone du haut ne disparait
 	# plus en rentrant — on la cherchait. En DIG et en RAID, c'est le seul
 	# moyen de racheter une bombe ou un eclair sans quitter.
-	shop_button.visible = true
+	# HORS LIGNE (voyageur.gd) : ni etal ni classement, personne a qui
+	# acheter ni contre qui se mesurer.
+	shop_button.visible = not Voyageur.active
+	season_button.visible = not Voyageur.active
 	story_button.visible = home
 	# SANS ILOTS (2026-10-13), le terrier a son haut a lui (burrow_hud.gd) :
 	# les carottes y sont, l'energie sur le cadran de DIG. La pastille s'y

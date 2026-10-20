@@ -528,6 +528,11 @@ func _build_profile() -> void:
 		said.append(I18N.t("auth." + kind) + (" · " + mail if not mail.is_empty() else ""))
 	_connect_hint.text = I18N.t("auth.saveBurrowWeb2" if _web2 else "auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
 	var doors := ["google", "email"] if _web2 else ["wallet"]
+	# HORS LIGNE (voyageur.gd), rien a lier : le terrier vit sur l'appareil,
+	# et la section le dit.
+	if Voyageur.active:
+		doors = []
+		_connect_hint.text = I18N.t("auth.offlineNote")
 	var missing := doors.filter(func(k: String) -> bool: return not linked.has(k))
 	var x := 756.0 + (507.0 - (missing.size() * 149.0 + (missing.size() - 1) * 14.0)) * 0.5
 	for kind in missing:
@@ -1136,6 +1141,8 @@ func _save(patch: Dictionary) -> void:
 ## l'appel est construit ici a l'image de Net._send — un HTTPRequest a usage
 ## unique, le jeton en Bearer.
 func _patch_player(patch: Dictionary) -> Answer:
+	if Voyageur.active:
+		return await Voyageur.serve("/api/player", HTTPClient.METHOD_PATCH, patch)
 	var request := HTTPRequest.new()
 	request.timeout = Net.TIMEOUT_SECONDS
 	add_child(request)

@@ -72,6 +72,8 @@ export const zh: Dict = {
     google: 'Google',
     email: '邮箱',
     googleWaiting: '请在浏览器中完成...',
+    offline: '离线游玩',
+    offlineNote: '离线模式：这个洞穴只保存在本设备上。',
     cancel: '取消',
     emailTitle: '邮箱登录',
     emailAsk: '我们会发送一个6位验证码。',

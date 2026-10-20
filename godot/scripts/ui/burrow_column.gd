@@ -121,6 +121,10 @@ func _ready() -> void:
 	# livres et les etapes du terrier apprennent ce qu'il apprenait, Snack
 	# Time fait revenir. Sa recompense est donnee au tuto (TUTORIAL_REWARD).
 	var scenes := [SnackBanner, PassBanner] if quest_only else [SnackBanner, PassBanner, NEXT_STRIP, GARDEN_CARD, BURROW_PANEL]
+	# HORS LIGNE (voyageur.gd) : ni Snack Time ni ticket, deux services du
+	# serveur. Les cartes du terrier restent.
+	if Voyageur.active:
+		scenes = scenes.filter(func(s: Variant) -> bool: return s != SnackBanner and s != PassBanner)
 	for scene in scenes:
 		var card: Control = scene.instantiate() if scene is PackedScene else scene.new()
 		var slot := Control.new()

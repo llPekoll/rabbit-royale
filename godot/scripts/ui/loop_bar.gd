@@ -250,6 +250,13 @@ func _ready() -> void:
 	_row.add_child(_arrow())
 	_slabs["raid"] = _add_slab("raid", Kit.SKULL_PLANK_RED, RAID_VERB, RAID_VERB_SHADOW)
 
+	# HORS LIGNE (voyageur.gd), ni defense ni raid : DIG seul, et ses
+	# fleches avec les planches qu'elles reliaient.
+	if Voyageur.active:
+		for child in _row.get_children():
+			if child is Chevron or child == _slabs["defend"] or child == _slabs["raid"]:
+				child.visible = false
+
 	_slabs["dig"].pressed.connect(func() -> void: _press("dig", dig_pressed))
 	_slabs["defend"].pressed.connect(func() -> void: _press("defend", defend_pressed))
 	_slabs["raid"].pressed.connect(func() -> void: _press("raid", raid_pressed))

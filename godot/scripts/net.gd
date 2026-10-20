@@ -366,6 +366,9 @@ func send_json(path: String, method: int, payload: Dictionary = {}, token: Strin
 
 func _send(path: String, method: int, payload: Dictionary, token: String,
 		timeout: float = TIMEOUT_SECONDS) -> Answer:
+	# LE MODE VOYAGEUR repond lui-meme, sans reseau (voyageur.gd).
+	if Voyageur.active:
+		return await Voyageur.serve(path, method, payload)
 	var request := HTTPRequest.new()
 	request.timeout = timeout
 	add_child(request)

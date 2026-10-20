@@ -81,6 +81,10 @@ var _prize_host: Control
 ## plateau affiche est le sien. Tant qu'il l'est, une tape part au serveur et
 ## ce sont ses evenements qui creusent — le client ne devine rien.
 var _remote := false
+## UNE MANCHE HORS LIGNE DU JEU (voyageur.gd) : plateau local comme le bac a
+## sable, mais dans le monde, avec son HUD, sa fin et sa paie.
+var _voyage := false
+var _voyage_started := 0
 var _remote_snap: Dictionary = {}
 
 ## LE ZOOM DE JEU : 60 pixels par case au paysage (islandCamera.ts
@@ -175,6 +179,10 @@ func _ready() -> void:
 	if resume and not String(held.get("seed", "")).is_empty():
 		_remote_snap = held
 		show_ground(String(held.get("seed", "")))
+	elif Voyageur.active and not tutorial_pending() and _on_screen():
+		# L'ile de prechauffage (screens.gd `_warm`, dans un SubViewport) ne
+		# joue pas de manche : seule celle qu'on regarde.
+		_start_voyage()
 	else:
 		show_ground(_opening_seed())
 	get_viewport().size_changed.connect(_reframe)
@@ -391,6 +399,14 @@ func _add_chrome() -> void:
 			# serveur, elle montre son sol et attend le prochain instantane.
 			_remote = false
 			_remote_snap = {}
+		elif _voyage and not _ending and local_run != null:
+			# HORS LIGNE, la meme regle : rentrer encaisse ce que le lapin
+			# porte (voyageur.gd `bank`), sans le niveau — l'ile n'est pas videe.
+			_ending = true
+			var p := _board.chest_progress()
+			Voyageur.bank(local_run.carrots, int(local_run.digs.get("tiles", 0)),
+				int(p.total) - int(p.left), false)
+			RunState.current.go_home()
 		Screens.cross(Screens.Place.BURROW))
 	layer.add_child(_back)
 
@@ -2018,6 +2034,65 @@ func _flush_mirror() -> void:
 	_mirror_busy = false
 
 
+## UNE MANCHE HORS LIGNE (voyageur.gd) : l'ile du niveau du lapin, generee
+## et distribuee ici, jouee par `LocalRun` comme dans le bac a sable — mais
+## avec la barre du jeu (RunState, que le chrome lit), et une fin qui paie et
+## ramene au terrier (`_end_run`).
+func _start_voyage() -> void:
+	_voyage = true
+	_voyage_started = Time.get_ticks_msec()
+	play_local(Voyageur.island_seed(), Voyageur.content_seed(), Voyageur.lifetime())
+	local_changed.connect(_voyage_push)
+	local_over.connect(_voyage_over)
+	RunState.current.markable_probe = func(_on: bool) -> int: return markable_count()
+	_voyage_push({})
+	# `--voyage-auto` : la manche se joue seule (sonde, tools/voyage_pilot.gd).
+	if "--voyage-auto" in OS.get_cmdline_user_args():
+		add_child(load("res://tools/voyage_pilot.gd").new())
+
+
+## Ce que le serveur dirait de la manche apres chaque pas, pour la pastille
+## (energie, butin, coffres) et le volcan.
+func _voyage_push(_outcome: Dictionary) -> void:
+	if local_run == null:
+		return
+	var p := _board.chest_progress()
+	var stage := 0
+	for w in Tuning.list("ERUPTION.WARN_STAGES"):
+		if float(p.fraction) >= float(w):
+			stage += 1
+	var me := String(Session.player.get("id", "me"))
+	RunState.current.fake({
+		"me_id": me,
+		"seed": _seed,
+		"first_run": false,
+		"rabbits": [{"playerId": me, "name": String(Session.player.get("name", "")),
+			"tile": _board.index_of(local_run.at), "energy": local_run.energy,
+			"carrots": local_run.carrots, "alive": local_run.alive, "crowned": false}],
+		"warn_stage": stage,
+		"dug_fraction": p.fraction,
+		"chests_taken": int(p.total) - int(p.left),
+		"chests_total": p.total,
+		"digs": local_run.digs.duplicate(),
+		"bag": {"lightning": 0, "bombs": 0},
+	})
+
+
+## LA MANCHE HORS LIGNE EST FINIE : la paie (voyageur.gd `bank`), puis la
+## meme sortie qu'en ligne — le saut, la traversee, le tampon du niveau.
+func _voyage_over(cleared: bool) -> void:
+	# Deja rentre par BACK pendant l'eruption : la paie est faite.
+	if _ending or local_run == null:
+		return
+	var p := _board.chest_progress()
+	var res := Voyageur.bank(local_run.carrots, int(local_run.digs.get("tiles", 0)),
+		int(p.total) - int(p.left), cleared)
+	res["cleared"] = cleared
+	Analytics.track("voyage_end", {"cleared": cleared, "carrots": local_run.carrots,
+		"level": int(res.level), "ms": Time.get_ticks_msec() - _voyage_started})
+	_end_run(res)
+
+
 ## LA GRAINE SUR LAQUELLE L'ILE S'OUVRE : le tutoriel pour qui ne l'a pas
 ## fini, l'ile par defaut pour les autres.
 ##
@@ -2303,6 +2378,9 @@ func _finish_tutorial() -> void:
 	# l'arrivee (2026-10-16).
 	if int(Home.player.get("level", 1)) < 2:
 		Home.player["level"] = 2
+	# Hors ligne, personne d'autre ne paiera la lecon.
+	if Voyageur.active:
+		Voyageur.finish_tutorial()
 	# Le coffre de la lecon a sa fanfare, et le lapin saute de joie
 	# (IslandScene `celebrateChest` : la musique ET `me.celebrate()`).
 	Sound.music("victory")
@@ -2354,7 +2432,7 @@ func _book_two_then_home() -> void:
 ##
 ## Le tutoriel se termine seul (`_finish_tutorial`) : son plateau est local.
 func _end_run(result: Dictionary) -> void:
-	if not _remote or _ending or not RunState.current.spectating.is_empty():
+	if not (_remote or _voyage) or _ending or not RunState.current.spectating.is_empty():
 		return
 	_ending = true
 	_done = true
@@ -2409,6 +2487,11 @@ func _end_run(result: Dictionary) -> void:
 			return
 		drain.fade_line()
 		var level := int(result.get("level", 0)) if leveled else 0
+		# HORS LIGNE, rien a vendre : le reservoir du terrier est toujours
+		# plein (voyageur.gd), on rentre et la porte DIG repart tout de suite.
+		if _voyage:
+			_go_home(level)
+			return
 		EnergyPopup.open("carrots", _dig_again.bind(level), _go_home.bind(level))
 		return
 	_go_home(int(result.get("level", 0)) if leveled else 0)

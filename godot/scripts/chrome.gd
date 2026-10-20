@@ -543,6 +543,11 @@ func go(door: String) -> void:
 ## UNE PORTE, qu'elle vienne d'un batiment ou de la ligne de la quete.
 func _on_door(door: String) -> void:
 	Analytics.track("door", {"door": door})
+	# HORS LIGNE (voyageur.gd) : ces portes menent au serveur, elles restent
+	# fermees meme si un chemin oublie y conduit.
+	if Voyageur.active and door in ["defend", "raid", "shop", "energy"]:
+		Sound.deny()
+		return
 	match door:
 		"dig":
 			_dig()
@@ -603,8 +608,13 @@ func _dig() -> void:
 		# CONNECTE, la lecon est celle du SERVEUR : un compte sans manche y est
 		# assis quoi qu'on demande, et une lecon faite hors ligne ne le lui dit
 		# pas — il la redonnait, sur une ile que le client ne posait pas.
-		if Session.signed_in():
+		if Session.signed_in() and not Voyageur.active:
 			RunState.current.join(null)
+		Screens.cross(Screens.Place.ISLAND)
+		return
+	# HORS LIGNE (voyageur.gd), pas de place a demander ni de reservoir a
+	# verifier : l'ile se distribue en arrivant (island.gd `_start_voyage`).
+	if Voyageur.active:
 		Screens.cross(Screens.Place.ISLAND)
 		return
 	# A SEC, ON NE TRAVERSE PAS. Le serveur refuse le `join` (`no_energy`) et

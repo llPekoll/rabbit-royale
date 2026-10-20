@@ -69,6 +69,8 @@ export const it: Dict = {
     google: 'Google',
     email: 'Email',
     googleWaiting: 'Completa nel browser...',
+    offline: 'Gioca offline',
+    offlineNote: 'Modalità offline: questa tana vive solo su questo dispositivo.',
     cancel: 'Annulla',
     emailTitle: 'Accedi con l’email',
     emailAsk: 'Ti mandiamo un codice di 6 cifre.',
