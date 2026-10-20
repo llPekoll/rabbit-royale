@@ -133,7 +133,7 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-20',
     items: [
       {
-        kind: 'new',
+        kind: 'fix',
         text: {
           en: 'Rabbit Royale now speaks Spanish and Italian: pick Español or Italiano in the language menu. Mom reads the three books aloud in both.',
           fr: 'Rabbit Royale parle maintenant espagnol et italien : choisis Español ou Italiano dans le menu des langues. Maman lit les trois livres à voix haute dans les deux.',
