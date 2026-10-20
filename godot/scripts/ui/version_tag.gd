@@ -6,7 +6,7 @@ extends PanelContainer
 ## Elle sert a deux choses :
 ##   • le support : une capture d'un joueur dit quel build il a ;
 ##   • le changelog : la taper ouvre QUOI DE NEUF (WhatsNewDialog), dont
-##     SEE ALL mene a web3.rabbit.rip/changelog#<version> dans le navigateur
+##     SEE ALL mene a sol.rabbit.rip/changelog#<version> dans le navigateur
 ##     (web3 seulement : le web2 n'a pas ce bouton, whats_new_dialog.gd).
 ##
 ## UNE VERSION PAS ENCORE VUE pose le fond sombre et une pastille NEW qui
@@ -20,7 +20,7 @@ signal tapped
 ## Toujours le site en ligne, avec sa barre finale comme /privacy/
 ## (Consent.privacy_url()) : jamais un fichier local, meme depuis le bureau.
 ## Le changelog parle du wallet et du pot : il vit sur le site du web3.
-const URL := "https://web3.rabbit.rip/changelog/"
+const URL := "https://sol.rabbit.rip/changelog/"
 ## Au repos, a demi : elle se voit quand on la cherche.
 const REST_ALPHA := 0.72
 const TEXT_SIZE := 11
@@ -97,7 +97,7 @@ func page_url() -> String:
 
 
 ## La page dans la langue du jeu, posee sur une version :
-## https://web3.rabbit.rip/changelog/?lang=fr#v1.4.
+## https://sol.rabbit.rip/changelog/?lang=fr#v1.4.
 static func page_url_for(v: String) -> String:
 	return "%s?lang=%s#%s" % [URL, I18N.locale, v]
 

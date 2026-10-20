@@ -446,7 +446,7 @@ func _save_token(value: String) -> void:
 
 
 ## LE DEMENAGEMENT DU WEB3 (2026-10-19) : le jeu du navigateur est passe de
-## rabbit.rip/play/ a web3.rabbit.rip/play/, une autre origine, donc un autre
+## rabbit.rip/play/ a sol.rabbit.rip/play/, une autre origine, donc un autre
 ## stockage. La page laissee a l'ancienne adresse (site/play/index.html) y lit
 ## nos fichiers et les passe ici dans le fragment,
 ## #rr_move=<base64url d'un JSON {nom: texte}>, que le navigateur n'envoie a

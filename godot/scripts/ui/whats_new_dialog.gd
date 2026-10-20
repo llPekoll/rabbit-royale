@@ -8,7 +8,7 @@ extends Dialog
 ##   • les nouveautes et l'equilibrage d'abord, MAX_LINES au plus ;
 ##   • les corrections tiennent en une ligne (« + 6 fixes ») — seules, elles
 ##     n'ouvrent pas ce dialogue, la page web les garde.
-## TOUT VOIR ouvre web3.rabbit.rip/changelog/?lang=<langue>#<version>, DISCORD le
+## TOUT VOIR ouvre sol.rabbit.rip/changelog/?lang=<langue>#<version>, DISCORD le
 ## serveur des joueurs (Changelog.DISCORD_URL) sans fermer le dialogue.
 ##
 ## Les mots (titre, boutons, etiquettes) viennent du changelog lui-meme

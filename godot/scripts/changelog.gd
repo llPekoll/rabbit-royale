@@ -3,7 +3,7 @@ class_name Changelog
 ## et QUOI DE NEUF (whats_new_dialog.gd).
 ##
 ## La source est src/changelog/entries.ts ; tools/build-changelog.ts l'ecrit
-## dans assets/changelog.json (et la page web3.rabbit.rip/changelog/). La version
+## dans assets/changelog.json (et la page sol.rabbit.rip/changelog/). La version
 ## affichee est donc celle du PACK que le joueur fait tourner : un telephone
 ## qui n'a pas encore pris le dernier pack OTA dit l'ancienne, et c'est vrai.
 ##

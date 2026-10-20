@@ -354,7 +354,7 @@ describe('fcm', () => {
     expect(m.data).toEqual({ kind: 'raid_incoming', path: 'defend' });
     expect(m.android.priority).toBe('HIGH');
     expect(m.android.notification.channel_id).toBe('rr_raid');
-    expect(m.webpush.fcm_options.link).toBe('https://web3.rabbit.rip/play/');
+    expect(m.webpush.fcm_options.link).toBe('https://sol.rabbit.rip/play/');
     const calm = buildFcmMessage({
       token: 't', title: 'T', body: 'B', kind: 'garden_ready', path: 'burrow', raid: false, tag: 'garden_ready', ttlSeconds: 60,
     });

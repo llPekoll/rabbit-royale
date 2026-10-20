@@ -101,7 +101,7 @@ RUN mkdir -p dist/web/play/android \
 # Nginx sert les fichiers : ni Node ni Bun ne tournent en production ici.
 FROM nginx:alpine AS runtime
 # DEUX ARBRES (2026-10-19), un par site, que nginx choisit par le nom d'hote
-# (docker/nginx.conf.template) : web3/ pour web3.rabbit.rip (l'ancien
+# (docker/nginx.conf.template) : web3/ pour sol.rabbit.rip (l'ancien
 # rabbit.rip, jeu compris), site/ pour la vitrine de rabbit.rip.
 COPY --from=build /app/dist/web /usr/share/nginx/html/web3
 # La page d'accueil, a la racine : du HTML statique et son art, sans build.

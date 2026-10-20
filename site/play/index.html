@@ -2,7 +2,7 @@
 <!--
   LA PAGE DE PASSAGE DE RABBIT.RIP/PLAY/ (2026-10-19).
 
-  Le jeu web3 du navigateur a demenage sur web3.rabbit.rip/play/ : rabbit.rip
+  Le jeu web3 du navigateur a demenage sur sol.rabbit.rip/play/ : rabbit.rip
   est desormais la vitrine du web2, qui ne mene jamais au web3. Mais les liens
   deja partages (X, Discord, notifications, ecrans d'accueil installes)
   pointent ici, et le terrier d'un invite n'existe QUE dans le stockage de
@@ -12,7 +12,7 @@
     2. elle lit session.cfg et consent.cfg sous
        /userfs/godot/app_userdata/Rabbit Royale/ (releve sur le vrai jeu le
        2026-10-19 : contenu Int8Array, texte ConfigFile) ;
-    3. elle les passe a web3.rabbit.rip/play/ dans le FRAGMENT
+    3. elle les passe a sol.rabbit.rip/play/ dans le FRAGMENT
        (#rr_move=<base64url d'un JSON {nom: texte}>), que le navigateur
        n'envoie a aucun serveur ; godot/scripts/session.gd
        (_import_moved_session) les y ecrit puis efface le fragment.
@@ -54,7 +54,7 @@
     </main>
     <script>
       (() => {
-        const TARGET = 'https://web3.rabbit.rip/play/';
+        const TARGET = 'https://sol.rabbit.rip/play/';
         const DIR = '/userfs/godot/app_userdata/Rabbit Royale/';
         const FILES = ['session.cfg', 'consent.cfg'];
 
