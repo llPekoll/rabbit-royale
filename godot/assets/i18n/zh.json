@@ -702,6 +702,7 @@
     "skin_solana": "Solana 皮肤",
     "skin_carrot": "胡萝卜皮肤",
     "skin_solflare": "Flary 皮肤",
+    "skin_pink_october": "Pink October 皮肤",
     "skin_solana_web2": "Violet 皮肤",
     "skin_solflare_web2": "Eclipse 皮肤"
    }
@@ -1396,6 +1397,7 @@
   "carrotDescription": "橙色皮毛，绿色耳朵，来自菜园。",
   "solflareDescription": "夜黑皮毛，阳光黄耳朵。你的 Solflare 兔子。",
   "solflareDescriptionWeb2": "夜黑皮毛，阳光黄耳朵。",
+  "pinkOctoberDescription": "粉嫩皮毛，粉红丝带。献给粉红十月。",
   "ticketOnly": "这个不能购买：只有 Crown Race Ticket 才能获得。",
   "title": "皮肤",
   "description": "电光紫，薄荷绿耳朵。你的 Solana 兔子。",

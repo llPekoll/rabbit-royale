@@ -78,6 +78,22 @@
   },
   "releases": [
     {
+      "version": "v1.13",
+      "date": "2026-10-20",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "New Pink October skin: a powder-pink rabbit with a pink ribbon. The shop's skins now scroll, newest first.",
+            "fr": "Nouveau skin Pink October : un lapin rose poudré au ruban rose. Les skins de la boutique défilent, le plus récent en premier.",
+            "zh": "新皮肤 Pink October：一只戴粉红丝带的粉嫩兔子。商店的皮肤现在可以滚动浏览，最新的排在最前。",
+            "pt-BR": "Nova skin Pink October: um coelho rosa-claro com laço rosa. As skins da loja agora rolam, a mais nova primeiro.",
+            "vi": "Skin mới Pink October: chú thỏ hồng phấn với ruy băng hồng. Skin trong cửa hàng giờ cuộn được, mới nhất ở đầu."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.12.1",
       "date": "2026-10-18",
       "items": [

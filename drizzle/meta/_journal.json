@@ -253,6 +253,13 @@
       "when": 1791790729087,
       "tag": "0035_raid_axe",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792478367282,
+      "tag": "0036_pink_october_skin",
+      "breakpoints": true
     }
   ]
 }

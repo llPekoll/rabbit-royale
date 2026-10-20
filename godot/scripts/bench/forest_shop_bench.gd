@@ -69,6 +69,7 @@ func _fixtures() -> void:
 			{"key": "solana", "kind": "skin_solana", "usdCents": 99},
 			{"key": "carrot", "kind": "skin_carrot", "usdCents": 99},
 			{"key": "solflare", "kind": "skin_solflare", "usdCents": 99},
+			{"key": "pink-october", "kind": "skin_pink_october", "usdCents": 99},
 		],
 		"owned": [], "tokens": ["usdc", "sol", "skr"], "rates": RATES, "paymentsEnabled": true,
 	})
@@ -149,6 +150,7 @@ func _verify() -> void:
 	await _tap("Tab_skins")
 	_check(_shop._page == "skins" and find_child("Rail_carrots", true, false) == null, "skins have money rails only")
 	_check_bounds()
+	_check(_shop._skin == "pink-october", "the newest skin comes first")
 	await _shot("skins")
 	await _tap("Skin_carrot")
 	_check(_shop._skin == "carrot" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("carrot"), "preview uses real selected sprite sheet")
@@ -160,6 +162,16 @@ func _verify() -> void:
 	_check(_shop._skin == "solflare" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("solflare"), "Flary preview uses its own sprite sheet")
 	_check_bounds()
 	await _shot("skins-flary")
+	_check(find_child("Skin_solana", true, false) == null, "carousel shows three skins at a time")
+	await _tap("SkinsDown")
+	_check(_shop._skin_top == 1 and find_child("Skin_pink-october", true, false) == null, "carousel arrow scrolls one skin")
+	await _tap("Skin_solana")
+	_check(_shop._skin == "solana" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("solana"), "the last skin is reached by the carousel")
+	_check_bounds()
+	await _shot("skins-solana")
+	await _tap("SkinsUp")
+	await _tap("Skin_pink-october")
+	_check(_shop._skin == "pink-october" and _shop._rabbit.sprite_frames.get_frame_texture("idle", 0).atlas == Look.sheet("pink-october"), "Pink October preview uses its own sprite sheet")
 	await _tap("Tab_packs")
 	await _tap("ViewSkins")
 	_check(_shop._page == "skins", "pack showcase links to skins")

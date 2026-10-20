@@ -34,8 +34,12 @@ const DRAWN := Rect2(0, -18, 1280, 640)
 const LANTERN := Vector2(75, 187)
 const LANTERN_GLOW := Color("#ffc36b")
 const ARM_SECONDS := 3.0
-const SKINS := ["solana", "carrot", "solflare"]
+## Le plus recent EN TETE : c'est le premier que le joueur voit.
+const SKINS := ["pink-october", "solflare", "carrot", "solana"]
 const MONEY := ["usdc", "sol", "skr"]
+## Au-dela, les skins defilent : la colonne de la page, le bandeau des packs.
+const COLUMN_VISIBLE := 3
+const STRIP_VISIBLE := 3
 
 ## Lu par le chrome (`_center_dialog`) : la boutique prend la vue.
 var fullscreen := true
@@ -55,8 +59,11 @@ var _purse: Label
 var _rabbit: AnimatedSprite2D
 var _page := "packs"
 var _rail := "carrots"
-var _skin := "solana"
+var _skin: String = SKINS[0]
 var _pose := "idle"
+## Le premier skin visible dans la colonne, et le sens du dernier defilement.
+var _skin_top := 0
+var _skin_slide := 0
 ## La sorte dont le prix demande confirmation ("skin:<cle>" pour un skin).
 var _armed := ""
 var _arm_ticket := 0
@@ -255,7 +262,7 @@ func _fix_rail() -> void:
 func _render() -> void:
 	_queued = false
 	_fix_rail()
-	var drawn := var_to_str([_page, _rail, _skin, _pose, _armed, I18N.locale, _state.shop, _state.stock(),
+	var drawn := var_to_str([_page, _rail, _skin, _skin_top, _pose, _armed, I18N.locale, _state.shop, _state.stock(),
 		_state.busy, _state.note, _state.load_failed, _pay.stage, _pay.error, _skin_state.catalog,
 		_skin_state.busy, _skin_state.note, _skin_state.loading, PassState.shared().on()])
 	if drawn == _drawn:
@@ -384,20 +391,37 @@ func _packs() -> void:
 		return
 	_put(ForestShopStyle.panel("tab-off", 22), Rect2(112, 479, 1060, 76))
 	_label(I18N.shout(I18N.t("shop.tabSkins")), Rect2(136, 490, 156, 52), 22)
-	# Le pas tient tous les skins entre le titre et le bouton (a 895).
-	var step := minf(256.0, 540.0 / SKINS.size())
-	for i in SKINS.size():
-		var key: String = SKINS[i]
-		var bunny := _animated(key, Vector2(346 + i * step, 530), 2.2)
+	# CARROUSEL entre le titre et le bouton (a 895) : trois skins a la fois ;
+	# au-dela, la rangee glisse d'un cran toutes les 3 s et boucle (les trois
+	# premiers sont recopies au bout pour que la boucle ne saute pas).
+	var shown := mini(SKINS.size(), STRIP_VISIBLE)
+	var step := 540.0 / shown
+	var strip := _put(Control.new(), Rect2(318, 479, 540, 76))
+	strip.name = "SkinStrip"
+	strip.clip_contents = true
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := Control.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.add_child(row)
+	var loops := SKINS.size() > STRIP_VISIBLE
+	for i in SKINS.size() + (STRIP_VISIBLE if loops else 0):
+		var key: String = SKINS[i % SKINS.size()]
+		var bunny := _animated(key, Vector2(28 + i * step, 51), 2.2, row)
 		# De temps en temps l'un d'eux fait la fete, jamais deux ensemble :
 		# chacun a son tour, 3 s apres le precedent.
 		var cheer := bunny.create_tween().set_loops()
-		cheer.tween_interval(2.0 + i * 3.0)
+		cheer.tween_interval(2.0 + (i % SKINS.size()) * 3.0)
 		cheer.tween_callback(bunny.play.bind("happy"))
 		cheer.tween_interval(1.2)
 		cheer.tween_callback(bunny.play.bind("idle"))
-		cheer.tween_interval(3.0 * SKINS.size() - 0.2 - i * 3.0)
-		_label(SkinState.name_of(key).to_upper(), Rect2(374 + i * step, 491, step - 64, 48), 17)
+		cheer.tween_interval(3.0 * SKINS.size() - 0.2 - (i % SKINS.size()) * 3.0)
+		_label(SkinState.name_of(key).to_upper(), Rect2(56 + i * step, 12, step - 64, 48), 17, ForestShopStyle.CREAM, row)
+	if loops:
+		var slide := row.create_tween().set_loops()
+		for i in SKINS.size():
+			slide.tween_interval(3.0)
+			slide.tween_property(row, "position:x", -(i + 1) * step, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		slide.tween_callback(func() -> void: row.position.x = 0.0)
 	var open := _button(I18N.shout(I18N.t("shop.viewSkins")), Rect2(895, 490, 246, 53), "tab-on", 17)
 	open.name = "ViewSkins"
 	_pulse(open, 1.0, 1.05)
@@ -592,15 +616,28 @@ func _guest() -> bool:
 func _skins() -> void:
 	# La colonne (417 de haut, comme la scene) se partage entre les skins :
 	# a deux, le lapin trone au-dessus de son nom ; au-dela, il passe a cote.
+	# Plus de trois : CARROUSEL, trois cartes entre deux fleches.
 	var tall := SKINS.size() <= 2
-	var h := (417.0 - 9.0 * (SKINS.size() - 1)) / SKINS.size()
-	for i in SKINS.size():
-		var key: String = SKINS[i]
+	var scrolls := SKINS.size() > COLUMN_VISIBLE
+	var shown := mini(SKINS.size(), COLUMN_VISIBLE)
+	var top := 136.0
+	var room := 417.0
+	if scrolls:
+		_skin_top = clampi(_skin_top, 0, SKINS.size() - COLUMN_VISIBLE)
+		_arrow("SkinsUp", Rect2(112, 136, 282, 30), -1, _skin_top > 0)
+		_arrow("SkinsDown", Rect2(112, 523, 282, 30), 1, _skin_top < SKINS.size() - COLUMN_VISIBLE)
+		top += 36.0
+		room -= 72.0
+	else:
+		_skin_top = 0
+	var h := (room - 9.0 * (shown - 1)) / shown
+	for i in shown:
+		var key: String = SKINS[_skin_top + i]
 		var b := Button.new()
 		b.name = "Skin_" + key
 		b.flat = true
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		_put(b, Rect2(112, 136 + i * (h + 9.0), 282, h))
+		_put(b, Rect2(112, top + i * (h + 9.0), 282, h))
 		_panel(Rect2(0, 0, 282, h), key == _skin, b)
 		var plate := SkinState.name_of(key)
 		if tall:
@@ -608,15 +645,24 @@ func _skins() -> void:
 			_nameplate(plate, Rect2(37, 155, 208, 36), b)
 		else:
 			_animated(key, Vector2(80, h - 14), 5.4, b)
-			_nameplate(plate, Rect2(142, h * 0.5 - 24, 124, 36), b)
+			_nameplate(plate, Rect2(134, h * 0.5 - 24, 140, 36), b)
 		if _skin_state.owns(key):
-			var tag := Rect2(150, 14, 120, 26) if tall else Rect2(146, h * 0.5 + 14, 116, 26)
+			var tag := Rect2(150, 14, 120, 26) if tall else Rect2(138, h * 0.5 + 14, 132, 26)
 			_label(I18N.shout(I18N.t("skins.owned")), tag, 12, ForestShopStyle.GOLD, b)
 		b.pressed.connect(func() -> void:
 			_skin = key
 			_armed = ""
 			_queue())
 		_card(b)
+		if _skin_slide != 0:
+			# Les cartes arrivent du cote ou l'on a fait defiler.
+			var rest := b.position.y
+			b.position.y = rest + _skin_slide * h * 0.4
+			b.modulate.a = 0.0
+			var t := b.create_tween().set_parallel()
+			t.tween_property(b, "position:y", rest, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			t.tween_property(b, "modulate:a", 1.0, 0.14)
+	_skin_slide = 0
 	_panel(Rect2(405, 136, 414, 417))
 	_picture(ForestShopStyle.texture("pedestal"), Rect2(435, 330, 352, 130))
 	_rabbit = _animated(_skin, Vector2(610, 350), 11.0)
@@ -690,6 +736,23 @@ func _skins() -> void:
 	restore.name = "RestoreSkin"
 	restore.disabled = _skin_state.busy
 	restore.pressed.connect(_skin_state.recover.bind(key))
+
+
+## Une fleche du carrousel : un cran vers le haut (-1) ou le bas (1).
+func _arrow(name: String, rect: Rect2, dir: int, live: bool) -> void:
+	var b := _button("", rect, "tab-off")
+	b.name = name
+	b.disabled = not live
+	b.modulate.a = 1.0 if live else 0.4
+	var tip := Polygon2D.new()
+	var c := rect.size * 0.5
+	tip.polygon = PackedVector2Array([c + Vector2(-11, -5 * dir), c + Vector2(11, -5 * dir), c + Vector2(0, 7 * dir)])
+	tip.color = ForestShopStyle.CREAM
+	b.add_child(tip)
+	b.pressed.connect(func() -> void:
+		_skin_top += dir
+		_skin_slide = dir
+		_queue())
 
 
 # ── Le pied ─────────────────────────────────────────────────────────────────

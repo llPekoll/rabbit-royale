@@ -957,7 +957,7 @@ func _purchase_row(p: Dictionary) -> Control:
 	var kind := String(p.get("kind", ""))
 	var qty := int(p.get("qty", 1))
 	var name := I18N.t("items.%s.name" % kind)
-	var skin_names := {"skin_solana": "Solana", "skin_carrot": "Carrot", "skin_solflare": "Flary"}
+	var skin_names := {"skin_solana": "Solana", "skin_carrot": "Carrot", "skin_solflare": "Flary", "skin_pink_october": "Pink October"}
 	if skin_names.has(kind):
 		name = skin_names[kind]
 	if name == "items.%s.name" % kind:

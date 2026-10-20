@@ -647,7 +647,7 @@ export const en = {
       prize: {
         carrots: 'Carrots', water: 'Watering can', fertiliser: 'Fertiliser', lightning: 'Lightning',
         shield: 'Shield', energy: 'Full tank', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Solana skin', skin_carrot: 'Carrot skin', skin_solflare: 'Flary skin',
+        skin_solana: 'Solana skin', skin_carrot: 'Carrot skin', skin_solflare: 'Flary skin', skin_pink_october: 'Pink October skin',
         skin_solana_web2: 'Violet skin', skin_solflare_web2: 'Eclipse skin',
       },
     },
@@ -1174,6 +1174,7 @@ export const en = {
     carrotDescription: "Orange coat. Green ears. Fresh from the garden.",
     solflareDescription: "Night-black coat. Sun-yellow ears. Your Solflare rabbit.",
     solflareDescriptionWeb2: "Night-black coat. Sun-yellow ears.",
+    pinkOctoberDescription: "Powder-pink coat. Pink ribbon. For Pink October.",
     ticketOnly: "This one can't be bought: it only comes with the Crown Race Ticket.",
     title: "Skins",
     description: "Electric violet. Mint ears. Your Solana rabbit.",

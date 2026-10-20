@@ -762,6 +762,7 @@
     "skin_solana": "Skin Solana",
     "skin_carrot": "Skin Cenoura",
     "skin_solflare": "Skin Flary",
+    "skin_pink_october": "Skin Pink October",
     "skin_solana_web2": "Skin Violet",
     "skin_solflare_web2": "Skin Eclipse"
    }
@@ -1699,6 +1700,7 @@
   "carrotDescription": "Pelagem laranja. Orelhas verdes. Direto da horta.",
   "solflareDescription": "Pelagem preta como a noite. Orelhas amarelo-sol. Seu coelho Solflare.",
   "solflareDescriptionWeb2": "Pelagem preta como a noite. Orelhas amarelo-sol.",
+  "pinkOctoberDescription": "Pelagem rosa-claro. Laço rosa. Pelo Outubro Rosa.",
   "ticketOnly": "Este não pode ser comprado: só vem com o Crown Race Ticket.",
   "title": "Skins",
   "description": "Violeta elétrico. Orelhas menta. Seu coelho Solana.",

@@ -527,7 +527,7 @@ export const vi: Dict = {
       prize: {
         carrots: 'Cà rốt', water: 'Bình tưới', fertiliser: 'Phân bón', lightning: 'Tia sét',
         shield: 'Khiên', energy: 'Đầy năng lượng', magic_hat: 'Magic Hat', lucky_foot: 'Lucky Foot',
-        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cà rốt', skin_solflare: 'Skin Flary',
+        skin_solana: 'Skin Solana', skin_carrot: 'Skin Cà rốt', skin_solflare: 'Skin Flary', skin_pink_october: 'Skin Pink October',
         skin_solana_web2: 'Skin Violet', skin_solflare_web2: 'Skin Eclipse',
       },
     },
@@ -961,6 +961,7 @@ export const vi: Dict = {
     carrotDescription: "Bộ lông cam. Đôi tai xanh. Tươi mới từ vườn.",
     solflareDescription: "Bộ lông đen tuyền. Đôi tai vàng nắng. Chú thỏ Solflare của bạn.",
     solflareDescriptionWeb2: "Bộ lông đen tuyền. Đôi tai vàng nắng.",
+    pinkOctoberDescription: "Bộ lông hồng phấn. Ruy băng hồng. Vì Tháng Mười Hồng.",
     ticketOnly: "Không thể mua con này: chỉ có khi sở hữu Crown Race Ticket.",
     title: "Trang phục",
     description: "Tím rực rỡ. Tai xanh bạc hà. Thỏ Solana của bạn.",
