@@ -239,6 +239,7 @@ func _ready() -> void:
 	# comportement.
 	# `-- --voyageur --voyage` : la porte hors ligne pressee d'emblee, sans
 	# reprendre la session en ligne (captures, sondes).
+	var args := OS.get_cmdline_user_args()
 	if "--voyage" in args and Voyageur.unlocked():
 		_on_voyage()
 		return
