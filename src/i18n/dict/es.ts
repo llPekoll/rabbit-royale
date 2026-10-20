@@ -95,6 +95,7 @@ export const es: Dict = {
     signInCancelled: 'Inicio de sesión cancelado.',
     saveBurrow: 'Guarda esta madriguera: conecta Google, un correo o una billetera.',
     saveBurrowWeb2: 'Guarda esta madriguera: conecta Google o un correo.',
+    orKeep: 'o guarda tu madriguera con',
     signedInWith: 'Conectado con',
     region: { label: 'Servidor', finding: 'Buscando el servidor más cercano...', eu: 'Europa', sg: 'Asia', us: 'América' },
   },

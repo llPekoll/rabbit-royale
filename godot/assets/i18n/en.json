@@ -84,6 +84,7 @@
   "signInCancelled": "Sign-in cancelled.",
   "saveBurrow": "Keep this burrow: connect Google, an email or a wallet.",
   "saveBurrowWeb2": "Keep this burrow: connect Google or an email.",
+  "orKeep": "or keep your burrow with",
   "signedInWith": "Signed in with",
   "region": {
    "label": "Server",

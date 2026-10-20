@@ -114,6 +114,7 @@ export const en = {
     signInCancelled: 'Sign-in cancelled.',
     saveBurrow: 'Keep this burrow: connect Google, an email or a wallet.',
     saveBurrowWeb2: 'Keep this burrow: connect Google or an email.',
+    orKeep: 'or keep your burrow with',
     signedInWith: 'Signed in with',
     /** The region picker on the doorstep: each region is its own world. */
     region: { label: 'Server', finding: 'Finding the closest server...', eu: 'Europe', sg: 'Asia', us: 'Americas' },

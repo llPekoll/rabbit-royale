@@ -140,3 +140,37 @@ static func open() -> LanguageSelect:
 	var dialog := LanguageSelect.new()
 	Chrome.current.open(dialog)
 	return dialog
+
+
+## SUR L'ACCUEIL, qui n'a pas de chrome : un voile qui ferme au toucher, le
+## dialogue au centre, le tout retire a la fermeture (EmailDialog.ask_on).
+static func open_on(host: Control) -> LanguageSelect:
+	var layer := Control.new()
+	layer.name = "LanguageLayer"
+	layer.z_index = 200
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	Kit.fill(layer)
+	var scrim := ColorRect.new()
+	scrim.color = Palette.SCRIM
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	Kit.fill(scrim)
+	layer.add_child(scrim)
+	var dialog := LanguageSelect.new()
+	layer.add_child(dialog)
+	scrim.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			dialog.closed.emit())
+	dialog.closed.connect(layer.queue_free)
+	var center := func() -> void:
+		if not dialog.is_inside_tree():
+			return
+		var view := dialog.get_viewport_rect().size
+		var want := dialog.get_combined_minimum_size()
+		dialog.size = Vector2(minf(want.x, view.x - 2.0 * Kit.EDGE), minf(want.y, view.y - 2.0 * Kit.EDGE))
+		dialog.position = ((view - dialog.size) * 0.5).floor().max(Vector2(Kit.EDGE, Kit.EDGE))
+	host.add_child(layer)
+	dialog.minimum_size_changed.connect(center)
+	center.call_deferred()
+	layer.modulate.a = 0.0
+	layer.create_tween().tween_property(layer, "modulate:a", 1.0, 0.14)
+	return dialog

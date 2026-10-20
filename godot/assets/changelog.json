@@ -112,6 +112,18 @@
       "date": "2026-10-20",
       "items": [
         {
+          "kind": "tune",
+          "text": {
+            "en": "The home screen is tidier: the language sits at the top right, the STORY button is gone (the books are read in the game).",
+            "fr": "L’accueil est plus net : la langue passe en haut à droite, le bouton HISTOIRE disparaît (les livres se lisent dans le jeu).",
+            "zh": "首页更简洁了：语言移到右上角，\"故事\"按钮已移除（书在游戏中阅读）。",
+            "pt-BR": "A tela inicial ficou mais limpa: o idioma fica no canto superior direito e o botão HISTÓRIA saiu (os livros são lidos no jogo).",
+            "vi": "Màn hình chính gọn hơn: ngôn ngữ chuyển lên góc trên bên phải, nút CÂU CHUYỆN đã bỏ (sách được đọc trong game).",
+            "es": "La pantalla de inicio está más limpia: el idioma pasa arriba a la derecha y el botón HISTORIA desaparece (los libros se leen en el juego).",
+            "it": "La schermata iniziale è più pulita: la lingua va in alto a destra e il pulsante STORIA sparisce (i libri si leggono nel gioco)."
+          }
+        },
+        {
           "kind": "new",
           "web3": true,
           "text": {

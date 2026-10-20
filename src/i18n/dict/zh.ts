@@ -96,6 +96,7 @@ export const zh: Dict = {
     signInCancelled: '已取消登录。',
     saveBurrow: '保留这个洞穴：绑定 Google、邮箱或钱包。',
     saveBurrowWeb2: '保留这个洞穴：绑定 Google 或邮箱。',
+    orKeep: '或用以下方式保留你的洞穴',
     signedInWith: '登录方式',
     region: { label: '服务器', finding: '正在寻找最近的服务器...', eu: '欧洲', sg: '亚洲', us: '美洲' },
   },

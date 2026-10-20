@@ -94,6 +94,7 @@ export const ptBR: Dict = {
     signInCancelled: 'Login cancelado.',
     saveBurrow: 'Guarde esta toca: conecte Google, um e-mail ou uma carteira.',
     saveBurrowWeb2: 'Guarde esta toca: conecte Google ou um e-mail.',
+    orKeep: 'ou guarde sua toca com',
     signedInWith: 'Conectado com',
     region: { label: 'Servidor', finding: 'Procurando o servidor mais próximo...', eu: 'Europa', sg: 'Ásia', us: 'Américas' },
   },

@@ -52,7 +52,11 @@ var _web2_doors := Net.WORLD == "web2"
 ## portes d'avant, le wallet dore en haut.
 const PLAY_DOOR := false
 const ALT_ROW := ALT_H + 8.0
-const MENU_RESERVE := 170.0
+## La planche de la langue, en haut a droite.
+const LANG_H := 34.0
+## La ligne « ou garde ton terrier avec » au-dessus des portes d'un compte.
+const OR_H := 16.0
+const MENU_RESERVE := 118.0
 const DOORSTEP_GAP := 24.0
 
 ## Dix secondes par conseil : de quoi lire deux fois une phrase de soixante
@@ -89,12 +93,13 @@ var _region: PlankButton
 ## portes de qui n'a pas de wallet. Moins hautes que les autres — elles ne
 ## sont pas la porte principale, et la colonne du Seeker couche n'a que
 ## ~260 px.
-var _google: PlankButton
-var _email: PlankButton
+var _google: SignInButton
+var _email: SignInButton
+## « ou garde ton terrier avec », entre JOUER et les portes d'un compte.
+var _or_keep: Label
 ## HISTOIRE (2026-10-15) : rouvre le livre de Shiro (IntroBook), dans le coin
 ## haut-droit — libre tant que personne n'est connecte, et hors de la colonne,
 ## qui n'a pas une ligne a donner sur le Seeker couche.
-var _story: PlankButton
 ## JOUER HORS LIGNE (voyageur.gd) : seulement la ou le mode est achete.
 var _voyage: PlankButton
 ## Son titre, juste au-dessus : sans lui, « Asia 54 ms » ne disait pas de quoi
@@ -133,18 +138,25 @@ func _ready() -> void:
 	for style in ["normal", "pressed", "hover", "disabled", "focus"]:
 		_region.add_theme_stylebox_override(style, StyleBoxEmpty.new())
 	_ask.add_child(_region)
-	_story = Kit.button(I18N.t("intro.replay"), "wood", 0.0, 32.0)
-	_story.name = "Story"
-	_story.label_size = 12
-	add_child(_story)
-	_story.pressed.connect(_play_intro)
-	_google = _alt_door("Google")
-	_email = _alt_door("Email")
+	_google = SignInButton.make("google", I18N.t("auth.google"))
+	_email = SignInButton.make("email", I18N.t("auth.email"))
+	_ask.add_child(_google)
+	_ask.add_child(_email)
 	_google.visible = _web2_doors
 	_email.visible = _web2_doors
 	_voyage = _alt_door("Voyage")
 	_voyage.board = PlankButton.Board.WOOD
 	_voyage.visible = Voyageur.unlocked()
+	_or_keep = Label.new()
+	_or_keep.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_or_keep.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_or_keep.add_theme_font_size_override("font_size", 12)
+	_or_keep.add_theme_color_override("font_color", Palette.CREAM)
+	_or_keep.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	_or_keep.add_theme_constant_override("shadow_offset_y", 1)
+	_or_keep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_or_keep.visible = _web2_doors
+	_ask.add_child(_or_keep)
 	_connect.visible = not _web2_doors
 	_region_title = Label.new()
 	_region_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -174,6 +186,9 @@ func _ready() -> void:
 	_guest.pressed.connect(_on_guest)
 	_voyage.pressed.connect(_on_voyage)
 	_lang.pressed.connect(_on_language_pressed)
+	# La langue quitte la colonne pour le coin haut-droit de l'ecran.
+	_lang.reparent(self)
+	_lang.label_size = 12
 	_region.pressed.connect(_on_region_pressed)
 
 	# La cascade de la vague, dans l'ordre de lecture de la colonne.
@@ -217,11 +232,8 @@ func _ready() -> void:
 		await ConsentDialog.ask_on(self).answered
 	_settle_region()
 	# LE LIVRE DE SHIRO N'EST PLUS ICI : PLAY d'abord, puis le livre au premier
-	# terrier et l'ile du tuto (Chrome.maybe_books). HISTOIRE le rejoue ;
-	# `-- --intro` le force encore ici (captures).
-	var args := OS.get_cmdline_user_args()
-	if "--intro" in args:
-		await _play_intro()
+	# terrier et l'ile du tuto (Chrome.maybe_books). Plus de bouton HISTOIRE a
+	# l'accueil (2026-10-20, « on s'en fout ») : le livre se relit dans le jeu.
 	# `-- --doorstep` : l'accueil tel qu'un nouveau venu le voit, sans
 	# reprendre la session enregistree (qui reste intacte). Outil, pas
 	# comportement.
@@ -329,7 +341,7 @@ func _measure() -> void:
 		return
 	var view := get_viewport_rect().size
 	var reserve := MENU_RESERVE + (REGION_ROW if _region.visible else 0.0) \
-		+ (52.0 if _voyage.visible else 0.0)
+		+ (52.0 if _voyage.visible else 0.0) + (OR_H if _web2_doors else 0.0)
 	var doorstep := minf(view.y * 0.67, view.y - reserve - DOORSTEP_GAP)
 	var column := minf(view.x * 0.38, 420.0)
 
@@ -387,7 +399,7 @@ func _measure() -> void:
 	var gold: PlankButton = _guest if (PLAY_DOOR or _web2_doors) else _connect
 	if _voyage.visible:
 		doors = doors + [[_voyage, 44.0]]
-	for entry in doors + [[_lang, 44.0]]:
+	for entry in doors:
 		var node: Control = entry[0]
 		var h: float = entry[1]
 		node.position = Vector2((column - w) * 0.5, y)
@@ -395,23 +407,20 @@ func _measure() -> void:
 		# une taille demandee sous le minimum est refusee sans un mot.
 		node.custom_minimum_size = Vector2(w, h)
 		node.size = Vector2(w, h)
-		# LE SERVEUR, une planche pleine sous la langue.
-		if node == _lang and _region.visible:
-			_region_title.position = Vector2(0.0, y + h + 8.0)
-			_region_title.size = Vector2(column, REGION_TITLE_H)
-			_region.position = Vector2((column - w) * 0.5, y + h + 8.0 + REGION_TITLE_H + 2.0)
-			_region.custom_minimum_size = Vector2(w, h)
-			_region.size = Vector2(w, h)
 		# 8px entre deux planches ; la porte doree en ajoute 4 sous elle, comme
 		# le `margin-bottom` du web.
 		y += h + 8.0
 		if node == gold:
 			y += 4.0
 		if node == gold and _web2_doors:
-			# Google | Email, cote a cote, la largeur des autres partagee.
+			# « ou garde ton terrier avec », puis Google | Email cote a cote,
+			# boutons blancs de site (SignInButton), la largeur partagee.
+			_or_keep.position = Vector2(0.0, y - 2.0)
+			_or_keep.size = Vector2(column, OR_H)
+			y += OR_H
 			var half := (w - 8.0) * 0.5
 			for i in 2:
-				var alt: PlankButton = [_google, _email][i]
+				var alt: SignInButton = [_google, _email][i]
 				alt.position = Vector2((column - w) * 0.5 + i * (half + 8.0), y)
 				alt.custom_minimum_size = Vector2(half, ALT_H)
 				alt.size = Vector2(half, ALT_H)
@@ -423,16 +432,27 @@ func _measure() -> void:
 			_status.size = Vector2(column, 19.0)
 			y += 19.0 + 8.0
 
-	# HISTOIRE, coin haut-droit, a la largeur de son mot.
-	# La planche se mesure a son mot (le texte d'une planche est rogne, sa
-	# taille minimale ne dit rien) : « CÂU CHUYỆN » debordait d'une planche
-	# taillee pour « STORY ».
-	var ink: Label = _story._ink
+	# LE SERVEUR, une planche pleine sous les portes (la langue est partie en
+	# haut a droite).
+	if _region.visible:
+		_region_title.position = Vector2(0.0, y)
+		_region_title.size = Vector2(column, REGION_TITLE_H)
+		_region.position = Vector2((column - w) * 0.5, y + REGION_TITLE_H + 2.0)
+		_region.custom_minimum_size = Vector2(w, 44.0)
+		_region.size = Vector2(w, 44.0)
+
+	# LA LANGUE, coin haut-droit, comme sur un site (2026-10-20 : « mets les
+	# langues en haut a droite pour tout ») : le drapeau et le nom, a la
+	# largeur de son mot ; la toucher ouvre le choix des sept langues. Elle
+	# cede le coin au nom du lapin une fois connecte.
+	var ink: Label = _lang._ink
 	var word := ink.get_theme_font("font").get_string_size(ink.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 		ink.get_theme_font_size("font_size")).x
-	_story.size = Vector2(maxf(96.0, word + PlankButton.TEXT_PAD * 2.0 + 8.0), 32.0)
-	_story.position = Vector2(view.x - _story.size.x - Kit.EDGE, Kit.EDGE)
-	_story.visible = not _restoring and not _who.visible
+	var lang_w := maxf(120.0, word + PlankButton.TEXT_PAD * 2.0 + 30.0)
+	_lang.custom_minimum_size = Vector2(lang_w, LANG_H)
+	_lang.size = Vector2(lang_w, LANG_H)
+	_lang.position = Vector2(view.x - lang_w - Kit.EDGE, Kit.EDGE)
+	_lang.visible = not _restoring and not _who.visible
 
 	# La planche des conseils : max(260, min(46vw, 340)), coin bas-droit.
 	var tip_w := maxf(260.0, minf(view.x * 0.46, 340.0))
@@ -497,15 +517,14 @@ func _apply_language() -> void:
 	_guest.relabel(_guest_word())
 	_voyage.relabel(I18N.t("auth.offline"))
 	_google.relabel(I18N.t("auth.google"))
-	if _story != null:
-		_story.relabel(I18N.t("intro.replay"))
 	_email.relabel(I18N.t("auth.email"))
+	_or_keep.text = I18N.t("auth.orKeep")
 	_ribbon.text = I18N.t("codex.title").to_upper()
 	var here := I18N.LOCALES[I18N.locale_index(I18N.locale)]
 	# Le drapeau dit ce qu'est ce bouton ; une texture, pas un emoji : le web
 	# n'a pas de face emoji (flag.gd). Les chevrons disent qu'il tourne.
 	_lang.set_lead(Flag.texture(String(here["code"])))
-	_lang.set_arrows(true)
+	_lang.set_arrows(false)
 	_lang.relabel(String(here["label"]))
 	_apply_region()
 	_status.visible = false
@@ -519,7 +538,7 @@ func _apply_language() -> void:
 func _apply_face() -> void:
 	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
 	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
-	I18N.apply_face([_connect, _guest, _voyage, _lang, _region, _region_title, _ribbon, _status, _tip_text, _story])
+	I18N.apply_face([_connect, _guest, _voyage, _lang, _region, _region_title, _ribbon, _status, _tip_text])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -533,9 +552,7 @@ func _on_locale_changed(_code: String) -> void:
 ## LE SELECTEUR : un chevron a chaque bout. La moitie gauche recule d'une
 ## langue, la droite avance ; la liste boucle.
 func _on_language_pressed() -> void:
-	var n := I18N.LOCALES.size()
-	var next := (I18N.locale_index(I18N.locale) + _lang.press_side + n) % n
-	I18N.set_locale(I18N.LOCALES[next]["code"])
+	LanguageSelect.open_on(self)
 
 
 ## LE NOM DE LA REGION, et son ping une fois la sonde revenue. Contre un
@@ -678,20 +695,6 @@ func _guest_word() -> String:
 	return I18N.t("auth.play" if PLAY_DOOR else "auth.guest")
 
 
-## LE LIVRE DE SHIRO par-dessus l'accueil, qui se cache dessous le temps
-## qu'il est ouvert (rien a dessiner deux fois, et pas une tape qui traverse).
-func _play_intro() -> void:
-	_story.disabled = true
-	var book := IntroBook.play_on(self, "shiro")
-	await get_tree().create_timer(IntroBook.FADE_S + 0.1).timeout
-	visible = false
-	await book.finished
-	visible = true
-	_story.disabled = false
-	_measure()
-
-
-## Une demi-planche du rang Google | Email, montee comme le serveur.
 func _alt_door(node_name: String) -> PlankButton:
 	var door: PlankButton = (load("res://scenes/plank_button.tscn") as PackedScene).instantiate()
 	door.name = node_name
@@ -795,7 +798,6 @@ func _enter(fresh := false) -> void:
 		_say("", false)
 	_who.text = String(Session.player.get("name", ""))
 	_who.visible = not _who.text.is_empty()
-	_story.visible = false
 
 	# LE MONDE S'OUVRE — MAIS PAS AVANT LA PROCHAINE IMAGE.
 	#
@@ -820,7 +822,6 @@ func _enter(fresh := false) -> void:
 	# apres le coffre. Les autres arrivent au terrier (Chrome.maybe_books).
 	var first := fresh and Island.tutorial_pending()
 	if first and not IntroBook.seen("shiro") and not "--no-intro" in OS.get_cmdline_user_args():
-		_story.disabled = true
 		var book := IntroBook.play_on(self, "shiro")
 		# L'accueil s'efface sous le fondu au noir du livre, pas avant.
 		await get_tree().create_timer(IntroBook.FADE_S + 0.1).timeout
@@ -878,9 +879,8 @@ func _set_restoring(on: bool, words := "") -> void:
 		door.visible = not on
 	_voyage.visible = not on and Voyageur.unlocked()
 	_connect.visible = not on and not _web2_doors
-	for door in [_google, _email]:
+	for door in [_google, _email, _or_keep]:
 		door.visible = _web2_doors and not on
-	_story.visible = not on
 	_apply_region()
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
 	_status.add_theme_font_size_override("font_size", 16 if on else 12)

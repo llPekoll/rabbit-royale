@@ -90,6 +90,7 @@ export const fr: Dict = {
     signInCancelled: 'Connexion annulée.',
     saveBurrow: 'Garde ce terrier : connecte Google, un email ou un portefeuille.',
     saveBurrowWeb2: 'Garde ce terrier : connecte Google ou un email.',
+    orKeep: 'ou garde ton terrier avec',
     signedInWith: 'Connecté avec',
     region: { label: 'Serveur', finding: 'On cherche le serveur le plus proche...', eu: 'Europe', sg: 'Asie', us: 'Amériques' },
   },

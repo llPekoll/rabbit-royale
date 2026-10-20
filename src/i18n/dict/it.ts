@@ -93,6 +93,7 @@ export const it: Dict = {
     signInCancelled: 'Accesso annullato.',
     saveBurrow: 'Tieni questa tana: collega Google, un’email o un wallet.',
     saveBurrowWeb2: 'Tieni questa tana: collega Google o un’email.',
+    orKeep: 'o tieni la tua tana con',
     signedInWith: 'Accesso con',
     region: { label: 'Server', finding: 'Cerco il server più vicino...', eu: 'Europa', sg: 'Asia', us: 'Americhe' },
   },

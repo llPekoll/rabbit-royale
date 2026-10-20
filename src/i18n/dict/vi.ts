@@ -98,6 +98,7 @@ export const vi: Dict = {
     signInCancelled: 'Đã hủy đăng nhập.',
     saveBurrow: 'Giữ hang này: kết nối Google, email hoặc ví.',
     saveBurrowWeb2: 'Giữ hang này: kết nối Google hoặc email.',
+    orKeep: 'hoặc giữ hang của bạn bằng',
     signedInWith: 'Đăng nhập bằng',
     region: { label: 'Máy chủ', finding: 'Đang tìm máy chủ gần nhất...', eu: 'Châu Âu', sg: 'Châu Á', us: 'Châu Mỹ' },
   },
