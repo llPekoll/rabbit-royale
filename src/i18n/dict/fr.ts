@@ -961,7 +961,8 @@ export const fr: Dict = {
     lightning: 'ÉCLAIR',
     genesis: 'RR GENESIS',
     axe: 'HACHE',
-    piece: (amount, label) => `UNE PART EST À TOI - PLUS ${amount}x ${label}`,
+    pieceSent: 'À TOI - EN ROUTE VERS TON WALLET',
+    pieceMissed: 'UNE PIÈCE ÉTAIT LÀ - CONNECTE UN WALLET POUR GARDER LA PROCHAINE',
   },
 
   skins: {
@@ -1009,8 +1010,9 @@ export const fr: Dict = {
     genesisSubtitle: 'Les pièces RR Genesis gagnées dans les coffres couronne.',
     genesisEmpty: 'Aucune pièce pour l’instant. Un coffre couronne sur quatre cache une pièce RR Genesis.',
     genesisFailed: 'Impossible de charger tes pièces.',
-    genesisSealed: 'Scellée · frappée plus tard',
-    genesisMinted: 'Frappée',
+    genesisSending: 'En route vers ton wallet',
+    genesisSent: 'Dans ton wallet',
+    genesisGuest: 'Connecte un wallet : les pièces que tu gagnes y vont directement.',
     name: 'Nom',
     save: 'Enregistrer',
     saving: 'Enregistrement...',

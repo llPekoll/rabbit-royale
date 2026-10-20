@@ -963,7 +963,8 @@ export const ptBR: Dict = {
     lightning: 'RAIO',
     genesis: 'RR GENESIS',
     axe: 'MACHADO',
-    piece: (amount, label) => `UMA PARTE É SUA - MAIS ${amount}x ${label}`,
+    pieceSent: 'É SUA - A CAMINHO DA SUA CARTEIRA',
+    pieceMissed: 'TINHA UMA PEÇA AQUI - CONECTE UMA CARTEIRA PARA FICAR COM A PRÓXIMA',
   },
 
   skins: {
@@ -1011,8 +1012,9 @@ export const ptBR: Dict = {
     genesisSubtitle: 'As peças RR Genesis ganhas em baús coroa.',
     genesisEmpty: 'Nenhuma peça ainda. Um baú coroa em cada quatro esconde uma peça RR Genesis.',
     genesisFailed: 'Não foi possível carregar suas peças.',
-    genesisSealed: 'Selada · cunhada depois',
-    genesisMinted: 'Cunhada',
+    genesisSending: 'A caminho da sua carteira',
+    genesisSent: 'Na sua carteira',
+    genesisGuest: 'Conecte uma carteira: as peças que você ganhar vão direto para ela.',
     name: 'Nome',
     save: 'Salvar nome',
     saving: 'Salvando...',

@@ -947,7 +947,8 @@ export const zh: Dict = {
     lightning: '闪电',
     genesis: 'RR 创世',
     axe: '斧头',
-    piece: (amount, label) => `你得到一份 - 另加 ${amount}x ${label}`,
+    pieceSent: '归你了 - 正在发送到你的钱包',
+    pieceMissed: '这里曾有一块碎片 - 连接钱包，下次就能留下',
   },
 
   skins: {
@@ -995,8 +996,9 @@ export const zh: Dict = {
     genesisSubtitle: '在皇冠宝箱中赢得的 RR Genesis 碎片。',
     genesisEmpty: '还没有碎片。每四个皇冠宝箱就有一个藏着 RR Genesis 碎片。',
     genesisFailed: '无法加载你的碎片。',
-    genesisSealed: '已封存 · 稍后铸造',
-    genesisMinted: '已铸造',
+    genesisSending: '正在发送到你的钱包',
+    genesisSent: '已在你的钱包中',
+    genesisGuest: '连接钱包：你赢得的碎片会直接进入钱包。',
     name: '名字',
     save: '保存名字',
     saving: '保存中...',

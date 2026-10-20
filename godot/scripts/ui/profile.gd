@@ -149,6 +149,8 @@ var _offline := false
 ## Les pieces RR Genesis telles que /api/genesis les rend, demandees a la
 ## premiere ouverture de l'onglet ; `_genesis_failed` comme pour l'historique.
 var _genesis: Variant = null
+## Le wallet ou partent les pieces ; vide pour un joueur qui n'en a pas.
+var _genesis_wallet := ""
 var _genesis_failed := false
 var _genesis_asked := false
 
@@ -465,10 +467,11 @@ func _relabel_tabs() -> void:
 # ── L'onglet Genesis (web3) ──────────────────────────────────────────────────
 
 ## LES PIECES RR GENESIS (2026-10-20). Un coffre couronne en cache une sur
-## quatre ; jusqu'ici elle n'etait qu'une ligne de log, le joueur ne la
-## revoyait jamais. Chaque piece est SCELLEE tant que la collection n'est pas
-## frappee : l'art scelle, l'ile d'ou elle vient, le jour. LAQUELLE elle est
-## ne se saura qu'a la frappe (chest_prize.gd, meme raison).
+## quatre : un vrai actif de la collection, tire du wallet du jeu et envoye
+## au wallet du joueur (src/lib/genesis). Chaque carte montre la piece telle
+## qu'elle est on-chain — son image, son nom, sa rarete — et ou en est
+## l'envoi ; la toucher ouvre l'actif dans l'explorateur. Sans wallet, rien
+## ne se gagne : l'onglet le dit plutot que d'afficher une etagere vide.
 func _build_genesis() -> void:
 	if _genesis == null:
 		_say(I18N.t("profile.genesisFailed" if _genesis_failed else "profile.loading"), 320, 200, 930, 40, 18, CampStyle.BAD if _genesis_failed else CampStyle.MUTED)
@@ -481,7 +484,10 @@ func _build_genesis() -> void:
 		var art := _genesis_icon()
 		art.modulate = Color(1, 1, 1, 0.45)
 		_put(art, 724, 262, 120, 120)
-		var none := _say(I18N.t("profile.genesisEmpty"), 345, 400, 878, 60, 20, CampStyle.TEXT)
+		var words := I18N.t("profile.genesisEmpty")
+		if _genesis_wallet.is_empty():
+			words = I18N.t("profile.genesisGuest")
+		var none := _say(words, 345, 400, 878, 60, 20, CampStyle.TEXT)
 		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		return
@@ -500,25 +506,35 @@ func _build_genesis() -> void:
 		grid.add_child(_genesis_card(p))
 
 
-## Une piece : la carte, l'art scelle, l'ile et le jour, l'etat.
+## Une piece : sa carte, son image, son nom, sa rarete, l'etat de l'envoi.
 func _genesis_card(p: Dictionary) -> Control:
 	var card := _row(176, 228)
 	var o := Vector2.ZERO
-	var minted := bool(p.get("minted", false))
-	var bg := CampStyle.nine("card-on" if minted else "card-off", _k)
+	var sent := String(p.get("status", "")) == "sent"
+	var bg := CampStyle.nine("card-on" if sent else "card-off", _k)
 	bg.size = card.custom_minimum_size
 	card.add_child(bg)
 	var art := _genesis_icon()
-	_put(art, 28, 14, 120, 120, card, o)
-	var tier: Variant = p.get("islandTier")
-	var where := I18N.island_name(String(tier)) if tier is String else ""
-	var head := _say(where, 8, 138, 160, 26, 18, CampStyle.TEXT, true, card, o)
+	var tex := ChestPrize.piece_texture(String(p.get("image", "")))
+	if tex != null:
+		art.texture = tex
+		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_put(art, 28, 12, 120, 120, card, o)
+	var head := _say(String(p.get("name", "")).replace("RR Genesis ", ""), 8, 134, 160, 26, 19, CampStyle.TEXT, true, card, o)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var day := _say(_short_day(String(p.get("wonAt", "")).substr(0, 10)), 8, 164, 160, 22, 16, CampStyle.MUTED, false, card, o)
-	day.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var state := _say(I18N.t("profile.genesisMinted" if minted else "profile.genesisSealed"), 8, 190, 160, 30, 14, CampStyle.GOOD if minted else CampStyle.COPPER, false, card, o)
+	var rarity := String(p.get("rarity", ""))
+	var kind := _say(rarity.capitalize(), 8, 160, 160, 22, 15, ChestPrize.ACCENT.get(rarity, CampStyle.MUTED), false, card, o)
+	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var state := _say(I18N.t("profile.genesisSent" if sent else "profile.genesisSending"), 8, 186, 160, 34, 14, CampStyle.GOOD if sent else CampStyle.COPPER, false, card, o)
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var asset := String(p.get("assetId", ""))
+	if not asset.is_empty():
+		var hit := CampStyle.hit("GenesisPiece")
+		hit.size = card.custom_minimum_size
+		hit.tooltip_text = String(p.get("name", ""))
+		hit.pressed.connect(func() -> void: OS.shell_open("https://solscan.io/token/" + asset))
+		card.add_child(hit)
 	return card
 
 
@@ -531,9 +547,11 @@ func _genesis_icon() -> TextureRect:
 	return r
 
 
-## Les pieces, posees par un banc ou par la requete.
-func show_genesis(pieces: Array) -> void:
+## Les pieces, posees par un banc ou par la requete ; `wallet` vide pour un
+## joueur qui n'en a pas.
+func show_genesis(pieces: Array, wallet := "") -> void:
 	_genesis = pieces
+	_genesis_wallet = wallet
 	_genesis_failed = false
 	if is_inside_tree() and _tab == Tab.GENESIS:
 		_show_tab(_tab)
@@ -549,7 +567,8 @@ func _fetch_genesis() -> void:
 		if _tab == Tab.GENESIS:
 			_show_tab(_tab)
 		return
-	show_genesis(answer.body["pieces"])
+	var wallet: Variant = answer.body.get("wallet")
+	show_genesis(answer.body["pieces"], String(wallet) if wallet is String else "")
 
 
 # ── L'onglet Profil ──────────────────────────────────────────────────────────

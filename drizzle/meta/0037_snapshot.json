@@ -1,5 +1,5 @@
 {
-  "id": "f7698228-0203-4dc6-85e8-ccdc498dd8b4",
+  "id": "6d4d8eb8-290d-4857-ae5f-774fa871fcfa",
   "prevId": "75738a24-df48-4e2c-b7b6-dc3e81a25b4d",
   "version": "7",
   "dialect": "postgresql",
@@ -366,14 +366,64 @@
           "notNull": true,
           "default": "now()"
         },
-        "mint_address": {
-          "name": "mint_address",
+        "asset_id": {
+          "name": "asset_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "minted_at": {
-          "name": "minted_at",
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rarity": {
+          "name": "rarity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wallet": {
+          "name": "wallet",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sending'"
+        },
+        "signature": {
+          "name": "signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -401,6 +451,21 @@
           "method": "btree",
           "with": {}
         },
+        "genesis_pieces_asset_idx": {
+          "name": "genesis_pieces_asset_idx",
+          "columns": [
+            {
+              "expression": "asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "genesis_pieces_player_idx": {
           "name": "genesis_pieces_player_idx",
           "columns": [
@@ -412,6 +477,21 @@
             },
             {
               "expression": "won_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "genesis_pieces_status_idx": {
+          "name": "genesis_pieces_status_idx",
+          "columns": [
+            {
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

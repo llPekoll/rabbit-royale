@@ -1755,9 +1755,8 @@
   "lightning": "ÉCLAIR",
   "genesis": "RR GENESIS",
   "axe": "HACHE",
-  "piece": {
-   "$t": "UNE PART EST À TOI - PLUS {0}x {1}"
-  }
+  "pieceSent": "À TOI - EN ROUTE VERS TON WALLET",
+  "pieceMissed": "UNE PIÈCE ÉTAIT LÀ - CONNECTE UN WALLET POUR GARDER LA PROCHAINE"
  },
  "skins": {
   "carrotDescription": "Pelage orange. Oreilles vertes. Tout droit du potager.",
@@ -1801,8 +1800,9 @@
   "genesisSubtitle": "Les pièces RR Genesis gagnées dans les coffres couronne.",
   "genesisEmpty": "Aucune pièce pour l’instant. Un coffre couronne sur quatre cache une pièce RR Genesis.",
   "genesisFailed": "Impossible de charger tes pièces.",
-  "genesisSealed": "Scellée · frappée plus tard",
-  "genesisMinted": "Frappée",
+  "genesisSending": "En route vers ton wallet",
+  "genesisSent": "Dans ton wallet",
+  "genesisGuest": "Connecte un wallet : les pièces que tu gagnes y vont directement.",
   "name": "Nom",
   "save": "Enregistrer",
   "saving": "Enregistrement...",

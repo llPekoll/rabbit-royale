@@ -954,7 +954,8 @@ export const it: Dict = {
     lightning: 'FULMINE',
     genesis: 'RR GENESIS',
     axe: 'ASCIA',
-    piece: (amount, label) => `UN PEZZO È TUO - PIÙ ${amount}x ${label}`,
+    pieceSent: 'È TUO - IN VIAGGIO VERSO IL TUO WALLET',
+    pieceMissed: 'QUI C’ERA UN PEZZO - COLLEGA UN WALLET PER TENERE IL PROSSIMO',
   },
 
   skins: {
@@ -1000,8 +1001,9 @@ export const it: Dict = {
     genesisSubtitle: 'I pezzi RR Genesis vinti nei forzieri corona.',
     genesisEmpty: 'Ancora nessun pezzo. Un forziere corona su quattro nasconde un pezzo RR Genesis.',
     genesisFailed: 'Impossibile caricare i tuoi pezzi.',
-    genesisSealed: 'Sigillato · coniato più tardi',
-    genesisMinted: 'Coniato',
+    genesisSending: 'In viaggio verso il tuo wallet',
+    genesisSent: 'Nel tuo wallet',
+    genesisGuest: 'Collega un wallet: i pezzi che vinci finiscono direttamente lì.',
     name: 'Nome',
     save: 'Salva il nome',
     saving: 'Salvataggio...',

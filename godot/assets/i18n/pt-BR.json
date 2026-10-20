@@ -1694,9 +1694,8 @@
   "lightning": "RAIO",
   "genesis": "RR GENESIS",
   "axe": "MACHADO",
-  "piece": {
-   "$t": "UMA PARTE É SUA - MAIS {0}x {1}"
-  }
+  "pieceSent": "É SUA - A CAMINHO DA SUA CARTEIRA",
+  "pieceMissed": "TINHA UMA PEÇA AQUI - CONECTE UMA CARTEIRA PARA FICAR COM A PRÓXIMA"
  },
  "skins": {
   "carrotDescription": "Pelagem laranja. Orelhas verdes. Direto da horta.",
@@ -1740,8 +1739,9 @@
   "genesisSubtitle": "As peças RR Genesis ganhas em baús coroa.",
   "genesisEmpty": "Nenhuma peça ainda. Um baú coroa em cada quatro esconde uma peça RR Genesis.",
   "genesisFailed": "Não foi possível carregar suas peças.",
-  "genesisSealed": "Selada · cunhada depois",
-  "genesisMinted": "Cunhada",
+  "genesisSending": "A caminho da sua carteira",
+  "genesisSent": "Na sua carteira",
+  "genesisGuest": "Conecte uma carteira: as peças que você ganhar vão direto para ela.",
   "name": "Nome",
   "save": "Salvar nome",
   "saving": "Salvando...",

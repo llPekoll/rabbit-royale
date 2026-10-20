@@ -1,37 +1,26 @@
 /**
- * GET /api/genesis — the RR Genesis pieces this player has won, newest first.
+ * GET /api/genesis — the RR Genesis pieces this player has won, newest first,
+ * each with its image (base64 PNG) and where its transfer stands.
  *
  * Web3 only (WEB3_ONLY_ROUTES): the web2 world never draws a piece and answers
- * 404 here. A piece is SEALED until the mint exists (`minted` false, no
- * address); the profile's GENESIS tab shows it with the island tier it came
- * from, read off the run that banked it.
+ * 404 here. `wallet` says whether this player can win one at all — a guest is
+ * shown how to, not an empty shelf.
  */
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, isNotNull, and } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { genesisPieces, runs } from '@/lib/db/schema';
+import { genesisPieces, players } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
+import { viewOf } from '@/lib/genesis/award';
 
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
-  const rows = await db
-    .select({
-      id: genesisPieces.id,
-      wonAt: genesisPieces.wonAt,
-      mintAddress: genesisPieces.mintAddress,
-      islandTier: runs.islandTier,
-    })
-    .from(genesisPieces)
-    .leftJoin(runs, eq(runs.id, genesisPieces.runId))
-    .where(eq(genesisPieces.playerId, session.sub))
+  const [p] = await db.select({ wallet: players.wallet }).from(players).where(eq(players.id, session.sub));
+  const rows = await db.select().from(genesisPieces)
+    .where(and(eq(genesisPieces.playerId, session.sub), isNotNull(genesisPieces.assetId)))
     .orderBy(desc(genesisPieces.wonAt));
   return Response.json({
-    pieces: rows.map((r) => ({
-      id: r.id,
-      wonAt: r.wonAt.toISOString(),
-      islandTier: r.islandTier,
-      minted: r.mintAddress != null,
-      mintAddress: r.mintAddress,
-    })),
+    wallet: p?.wallet ?? null,
+    pieces: await Promise.all(rows.map(viewOf)),
   });
 }

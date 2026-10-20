@@ -1168,7 +1168,8 @@ export const en = {
     lightning: 'LIGHTNING',
     genesis: 'RR GENESIS',
     axe: 'AXE',
-    piece: (amount: number, label: string) => `A PIECE IS YOURS - PLUS ${amount}x ${label}`,
+    pieceSent: 'YOURS - ON ITS WAY TO YOUR WALLET',
+    pieceMissed: 'A PIECE WAS IN HERE - CONNECT A WALLET TO KEEP THE NEXT ONE',
   },
 
   /* ── The profile ──────────────────────────────────────────────────────── */
@@ -1217,8 +1218,9 @@ export const en = {
     genesisSubtitle: 'RR Genesis pieces won in crown chests.',
     genesisEmpty: 'No piece yet. One crown chest in four hides an RR Genesis piece.',
     genesisFailed: 'Could not load your pieces.',
-    genesisSealed: 'Sealed · minted later',
-    genesisMinted: 'Minted',
+    genesisSending: 'On its way to your wallet',
+    genesisSent: 'In your wallet',
+    genesisGuest: 'Connect a wallet: the pieces you win go straight into it.',
     name: 'Name',
     save: 'Save name',
     saving: 'Saving...',

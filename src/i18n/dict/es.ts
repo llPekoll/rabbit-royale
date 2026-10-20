@@ -940,7 +940,8 @@ export const es: Dict = {
     lightning: 'RAYO',
     genesis: 'RR GENESIS',
     axe: 'HACHA',
-    piece: (amount, label) => `UNA PIEZA ES TUYA - Y ADEMÁS ${amount}x ${label}`,
+    pieceSent: 'ES TUYA - DE CAMINO A TU BILLETERA',
+    pieceMissed: 'AQUÍ HABÍA UNA PIEZA - CONECTA UNA BILLETERA PARA QUEDARTE LA PRÓXIMA',
   },
 
   skins: {
@@ -986,8 +987,9 @@ export const es: Dict = {
     genesisSubtitle: 'Las piezas RR Genesis ganadas en cofres corona.',
     genesisEmpty: 'Aún no tienes ninguna. Uno de cada cuatro cofres corona esconde una pieza RR Genesis.',
     genesisFailed: 'No se pudieron cargar tus piezas.',
-    genesisSealed: 'Sellada · se acuñará más tarde',
-    genesisMinted: 'Acuñada',
+    genesisSending: 'De camino a tu billetera',
+    genesisSent: 'En tu billetera',
+    genesisGuest: 'Conecta una billetera: las piezas que ganes van directo a ella.',
     name: 'Nombre',
     save: 'Guardar nombre',
     saving: 'Guardando...',

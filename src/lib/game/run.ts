@@ -275,6 +275,16 @@ export function teachingHold(island: Island): number | null {
 }
 
 /**
+ * May a crown chest draw an RR Genesis piece? rr-ws plugs in the game wallet's
+ * stock (`genesisOpen`, src/lib/genesis/award.ts) at boot; anything else —
+ * tests, the simulators — keeps the plain odds.
+ */
+let genesisGate: () => boolean = () => true;
+export function setGenesisGate(gate: () => boolean): void {
+  genesisGate = gate;
+}
+
+/**
  * Where a drowned rabbit climbs back out: the open ground nearest the spawn.
  *
  * OPEN ground — revealed — because a landing on undug earth would be a dig
@@ -608,7 +618,9 @@ export function resolveMove(
         // The Genesis piece is a SEPARATE roll on top of a crown chest's
         // guaranteed item, never instead of it: folding it into the table would
         // make the best outcome cost the player the item they were promised.
-        if (chestTier === 'crown' && !isWeb2() && rng() < CHEST_NFT_ODDS.inCrown) {
+        // `genesisGate` is the game wallet's stock (src/lib/genesis): an empty
+        // wallet draws nothing rather than promising a piece there is no asset for.
+        if (chestTier === 'crown' && !isWeb2() && genesisGate() && rng() < CHEST_NFT_ODDS.inCrown) {
           rabbit.run?.nfts.push(to);
           dig.nft = true;
         }

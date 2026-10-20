@@ -135,6 +135,8 @@ var art: Texture2D
 var art_w := ITEM_W
 var stamp_text := ""
 var caption_text := ""
+## La piece manquee s'efface un peu : elle n'est pas au joueur.
+var modulate_art := Color.WHITE
 
 var _rays: RayBurst
 var _chest: LootChest
@@ -171,31 +173,63 @@ static func announce(prize: Dictionary, mount := true) -> Control:
 	# l'app ; sa cle en capitales est la seule chose honnete qui reste.
 	var drop_name := I18N.t("chest.%s" % drop["label"]) if not drop.is_empty() else kind.to_upper()
 
+	if drop.is_empty():
+		return null
 	var node: Control
 	if not announced and not nft:
-		if drop.is_empty():
-			return null
 		node = ChestPrize._fly(Kit.ICONS[drop["icon"]], drop_name, amount)
 	else:
 		var it := ChestPrize.new()
-		if nft:
-			it.art = GENESIS
-			it.art_w = PIECE_W
-			it.rarity = "legendary"
-			it.stamp_text = I18N.t("chest.genesis")
-			it.caption_text = I18N.f("chest.piece", [amount, drop_name])
-		else:
-			if drop.is_empty():
-				return null
-			it.art = Kit.ICONS[drop["icon"]]
-			it.art_w = ITEM_W
-			it.rarity = String(drop["rarity"])
-			it.stamp_text = drop_name
-			it.caption_text = ("+%d %s" % [amount, drop_name]).strip_edges()
+		it.art = Kit.ICONS[drop["icon"]]
+		it.art_w = ITEM_W
+		it.rarity = String(drop["rarity"])
+		it.stamp_text = drop_name
+		it.caption_text = ("+%d %s" % [amount, drop_name]).strip_edges()
 		node = it
 	if mount:
 		ScreenStamp.mount(node)
 	return node
+
+
+## LA PIECE RR GENESIS, telle que le serveur l'a tiree (`genesis`, apres le
+## pas qui l'a roulee — src/lib/genesis/award.ts) :
+##   {kind: "won", piece: {name, rarity, image (PNG en base64), ...}} — la
+##   vraie piece, son image, son nom, en route vers le wallet du joueur ;
+##   {kind: "missed"} — un joueur sans wallet : la piece etait la, il ne la
+##   garde pas, et on lui dit comment garder la prochaine.
+## « Du moment ou il est gagne, il est gagne » (2026-10-20) : plus de piece
+## scellee, l'image est celle de l'actif on-chain.
+static func genesis(award: Dictionary, mount := true) -> Control:
+	var it := ChestPrize.new()
+	it.art_w = PIECE_W
+	if String(award.get("kind", "")) == "won":
+		var piece: Dictionary = award.get("piece", {}) if award.get("piece") is Dictionary else {}
+		var tex := piece_texture(String(piece.get("image", "")))
+		it.art = tex if tex != null else GENESIS
+		var r := String(piece.get("rarity", ""))
+		it.rarity = r if ACCENT.has(r) else "legendary"
+		it.stamp_text = String(piece.get("name", I18N.t("chest.genesis"))).to_upper()
+		it.caption_text = I18N.t("chest.pieceSent")
+	else:
+		it.art = GENESIS
+		it.rarity = "legendary"
+		it.stamp_text = I18N.t("chest.genesis")
+		it.caption_text = I18N.t("chest.pieceMissed")
+		it.modulate_art = Color(1, 1, 1, 0.55)
+	if mount:
+		ScreenStamp.mount(it)
+	return it
+
+
+## L'image d'une piece, du PNG en base64 que le serveur joint. Null si elle
+## manque ou ne se lit pas : l'appelant retombe sur la piece scellee.
+static func piece_texture(b64: String) -> Texture2D:
+	if b64.is_empty():
+		return null
+	var img := Image.new()
+	if img.load_png_from_buffer(Marshalls.base64_to_raw(b64)) != OK:
+		return null
+	return ImageTexture.create_from_image(img)
 
 
 func _init() -> void:
@@ -275,6 +309,11 @@ func _build() -> void:
 	_column.add_child(_glow)
 
 	_item = Kit.icon(art, art_w * float(art.get_height()) / maxf(1.0, float(art.get_width())))
+	# Une piece RR Genesis est du pixel art : agrandie au plus proche.
+	if art_w == PIECE_W:
+		_item.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# self_modulate : l'apparition anime `modulate`.
+	_item.self_modulate = modulate_art
 	_column.add_child(_item)
 
 	_stamp = Kit.label(stamp_text, STAMP_SIZE, accent)
@@ -287,6 +326,7 @@ func _build() -> void:
 
 	_caption = Kit.label(caption_text, CAPTION_SIZE, CAPTION_INK)
 	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_caption.visible = false
 	add_child(_caption)
 
@@ -335,7 +375,13 @@ func _measure() -> void:
 	_stamp.position = Vector2((item_size.x - stamp_size.x) * 0.5, STAMP_BITE - stamp_size.y)
 	_stamp.pivot_offset = stamp_size * 0.5
 
-	var cap_size := _caption.get_combined_minimum_size()
+	# Une legende plus large que l'ecran passe a la ligne (la piece manquee,
+	# en espagnol, sur un telephone) : sa largeur naturelle, bornee.
+	var font := _caption.get_theme_font("font")
+	var px := _caption.get_theme_font_size("font_size")
+	var natural := font.get_string_size(_caption.text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 2.0
+	var cap_w := minf(natural, box.x - 32.0)
+	var cap_size := Vector2(cap_w, font.get_multiline_string_size(_caption.text, HORIZONTAL_ALIGNMENT_CENTER, cap_w, px).y + 4.0)
 	_caption.size = cap_size
 	_caption.position = Vector2((box.x - cap_size.x) * 0.5, box.y - CAPTION_BOTTOM - cap_size.y)
 

@@ -1385,9 +1385,13 @@ func _on_board_event(name: String, data: Variant) -> void:
 				_float_dig(_board.cell_of(int(dig.tile)), int(dig.get("energyDelta", 0)),
 					int(dig.get("carrotDelta", 0)), kind)
 			if dig.get("loot") is Dictionary:
+				# La piece RR Genesis n'est plus dans ce lot : elle arrive a part,
+				# reelle, par `genesis` — le lot garanti du coffre passe d'abord.
 				var prize: Dictionary = (dig["loot"] as Dictionary).duplicate()
-				prize["nft"] = bool(dig.get("nft", false))
+				prize["nft"] = false
 				_show_prize(prize)
+		"genesis":
+			_show_genesis(d if d is Dictionary else {})
 		"sheep_moved":
 			_on_sheep_moved(d.get("sheep", []))
 		"move_rejected":
@@ -1842,6 +1846,15 @@ var _shake_home := Vector2.ZERO
 ## VRAI : les lots de cette ile restent sur elle, jamais au chrome — l'ile
 ## des livres (IntroStage) joue par-dessus un terrier bien reel.
 var own_prizes := false
+
+
+## LA PIECE RR GENESIS, gagnee (son image, en route vers le wallet) ou
+## manquee faute de wallet — la seule ceremonie plein ecran qui reste.
+func _show_genesis(award: Dictionary) -> void:
+	var node := ChestPrize.genesis(award, not own_prizes)
+	if node.get_parent() == null and _prize_host != null:
+		_prize_host.add_child(node)
+		Kit.fill(node)
 
 
 func _show_prize(prize: Dictionary) -> void:

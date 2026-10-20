@@ -180,8 +180,10 @@ func _only(which: String) -> void:
 			else:
 				profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
 			profile.show_history(_fake_history())
-			# `genesis` : l'onglet des pieces ; `--empty` sans aucune piece.
-			profile.show_genesis([] if "--empty" in args else _fake_genesis())
+			# `genesis` : l'onglet des pieces ; `--empty` sans aucune piece,
+			# `--nowallet` un joueur sans wallet ; `--piece=<png>` l'image.
+			profile.show_genesis([] if "--empty" in args or "--nowallet" in args else _fake_genesis(),
+				"" if "--nowallet" in args else "7fAvPhZnGi4UuwoiAoDhzDtjjv2ZZF8CxQkBfNxbZ3FR")
 			d = profile
 		"email", "email-code":
 			var mail := EmailDialog.new()
@@ -324,12 +326,18 @@ func _dump(n: Node, depth: int) -> void:
 		_dump(ch, depth + 1)
 
 
-## Des pieces RR Genesis, scellees sauf une, d'iles differentes.
+## Des pieces RR Genesis : envoyees, sauf la plus recente, en route.
 func _fake_genesis() -> Array:
+	var image := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--piece="):
+			image = Marshalls.raw_to_base64(FileAccess.get_file_as_bytes(arg.trim_prefix("--piece=")))
 	var now := int(Time.get_unix_time_from_system())
 	var out := []
-	var tiers := ["Caldera", "Ashland", "Thicket", "Meadow", "Ashland", "Caldera", "Thicket"]
-	for i in tiers.size():
-		out.append({"id": "g%d" % i, "islandTier": tiers[i], "minted": i == 4,
+	var rarities := ["rare", "common", "epic", "common", "legendary", "rare", "common"]
+	for i in rarities.size():
+		out.append({"id": "g%d" % i, "assetId": "5Bg3M1MMRCfQZn5ymHrqjeLD3kYTLKnZNuid5kuUQ6ts",
+			"name": "RR Genesis #0%d" % (129 + i * 37), "rarity": rarities[i], "image": image,
+			"status": "sending" if i == 0 else "sent",
 			"wonAt": Time.get_datetime_string_from_unix_time(now - i * 2 * 86400) + ".000Z"})
 	return out

@@ -956,7 +956,8 @@ export const vi: Dict = {
     lightning: 'SÉT',
     genesis: 'RR GENESIS',
     axe: 'RÌU',
-    piece: (amount, label) => `MỘT PHẦN LÀ CỦA BẠN - THÊM ${amount}x ${label}`,
+    pieceSent: 'CỦA BẠN - ĐANG GỬI VÀO VÍ CỦA BẠN',
+    pieceMissed: 'TỪNG CÓ MỘT MẢNH Ở ĐÂY - KẾT NỐI VÍ ĐỂ GIỮ MẢNH TIẾP THEO',
   },
 
   skins: {
@@ -1003,8 +1004,9 @@ export const vi: Dict = {
     genesisSubtitle: 'Các mảnh RR Genesis giành được từ rương vương miện.',
     genesisEmpty: 'Chưa có mảnh nào. Cứ bốn rương vương miện thì một rương giấu một mảnh RR Genesis.',
     genesisFailed: 'Không tải được các mảnh của bạn.',
-    genesisSealed: 'Đã niêm phong · đúc sau',
-    genesisMinted: 'Đã đúc',
+    genesisSending: 'Đang gửi vào ví của bạn',
+    genesisSent: 'Trong ví của bạn',
+    genesisGuest: 'Kết nối ví: các mảnh bạn thắng sẽ vào thẳng ví.',
     name: 'Tên',
     save: 'Lưu tên',
     saving: 'Đang lưu...',

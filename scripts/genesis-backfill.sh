@@ -16,8 +16,10 @@
 # containers (a failed insert) are picked up too. Web3 only — the web2
 # containers never draw a piece.
 #
-# Safe to run twice: one row per (run, tile), ON CONFLICT DO NOTHING. A line
-# whose run or player no longer exists (a purged guest) is skipped.
+# Safe to run twice: one row per (run, tile), ON CONFLICT DO NOTHING. Only a
+# player with a wallet gets a row — a guest wins nothing (src/lib/genesis/
+# award.ts) — and it is inserted with no asset: rr-ws's sender gives it a real
+# piece from the game wallet and sends it, like any piece won since.
 #
 # Regions: eu (Coolify, datemeee), sg, us (OVH, user deploy).
 set -euo pipefail
@@ -57,12 +59,13 @@ fi
 # no quote can appear in them, and the grep above already pinned the shape.
 values="$(awk '{ split($6, t, ","); for (i in t) printf "%s(%s, %s, %s)", (n++ ? ",\n  " : "  "), "'"'"'" $2 "'"'"'", "'"'"'" $4 "'"'"'", t[i] }' "$tmp/lines.txt")"
 cat > "$tmp/apply.sql" <<SQL
-INSERT INTO genesis_pieces (player_id, run_id, tile, won_at)
-SELECT v.player_id, r.id, v.tile, coalesce(r.ended_at, r.started_at)
+INSERT INTO genesis_pieces (player_id, run_id, tile, won_at, wallet, status)
+SELECT v.player_id, r.id, v.tile, coalesce(r.ended_at, r.started_at), p.wallet, 'sending'
 FROM (VALUES
 $values
 ) AS v(player_id, run_id, tile)
 JOIN runs r ON r.id = v.run_id::uuid AND r.player_id = v.player_id
+JOIN players p ON p.id = v.player_id AND p.wallet IS NOT NULL
 ON CONFLICT DO NOTHING;
 SQL
 

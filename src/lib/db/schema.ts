@@ -693,13 +693,15 @@ export const playerSkins = pgTable('player_skins', {
 
 /**
  * RR GENESIS PIECES won in crown chests (web3 only — the web2 world never
- * draws one). Until 2026-10-20 a drop was only a `[chest-nft]` log line,
- * gone with the container; a row is what makes the piece the player's.
+ * draws one). A piece is a real Metaplex Core asset of the RR Genesis
+ * collection, taken from the game's wallet the moment the chest opens and sent
+ * straight to the winner's wallet (src/lib/genesis). Only a player with a
+ * wallet wins one: a guest is told what they missed, and nothing is kept.
  *
- * Owed, not minted: there is no collection on chain yet. `mintAddress` and
- * `mintedAt` stay null until the mint arrives, and the piece shows SEALED in
- * the profile meanwhile. One row per (run, tile): banking twice, or a
- * backfill replayed over the same log, cannot hand out a second piece.
+ * `status`: 'sending' until the chain shows the asset in `wallet`, then
+ * 'sent' with the transfer's `signature`; 'failed' only when the game wallet
+ * has nothing left to give. One row per (run, tile) and per asset: a replayed
+ * dig or two regions drawing at once cannot hand the same piece out twice.
  */
 export const genesisPieces = pgTable('genesis_pieces', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -707,11 +709,24 @@ export const genesisPieces = pgTable('genesis_pieces', {
   runId: uuid('run_id').references(() => runs.id, { onDelete: 'set null' }),
   tile: integer('tile').notNull(),
   wonAt: timestamp('won_at', { withTimezone: true }).notNull().defaultNow(),
-  mintAddress: text('mint_address'),
-  mintedAt: timestamp('minted_at', { withTimezone: true }),
+  /** The Core asset; null only while a backfilled drop waits for one. */
+  assetId: text('asset_id'),
+  name: text('name'),
+  imageUrl: text('image_url'),
+  /** The piece's own rarity trait (Common / Rare / Epic / Legendary). */
+  rarity: text('rarity'),
+  /** Where it goes: the player's wallet when the piece was won. */
+  wallet: text('wallet').notNull(),
+  status: text('status').notNull().default('sending'),
+  signature: text('signature'),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
 }, (t) => [
   uniqueIndex('genesis_pieces_run_tile_idx').on(t.runId, t.tile),
+  uniqueIndex('genesis_pieces_asset_idx').on(t.assetId),
   index('genesis_pieces_player_idx').on(t.playerId, t.wonAt),
+  index('genesis_pieces_status_idx').on(t.status),
 ]);
 
 /** Seasons. The current one is the row with `endedAt` null. */

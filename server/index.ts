@@ -28,7 +28,10 @@ import { ENERGY, OUT_OF_RUN_ENERGY } from '../src/lib/tuning/tables';
 import { servirApi } from './api-router';
 import { cascadeAround, chestProgress, chestRng, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first-island';
-import { flagTile, resolveMove, spawnRabbit, teachingHold } from '../src/lib/game/run';
+import { flagTile, resolveMove, setGenesisGate, spawnRabbit, teachingHold } from '../src/lib/game/run';
+import { awardGenesis, genesisOpen, warmGenesis } from '../src/lib/genesis/award';
+import { sendPending } from '../src/lib/genesis/send';
+import { isWeb2 } from '../src/lib/world';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
 import { strike, struckRabbits } from '../src/lib/game/lightning';
 import { makeShape } from '../src/config/gridConfig';
@@ -50,7 +53,7 @@ import { verifySession } from '../src/lib/auth/jwt';
 import { db, sql } from '../src/lib/db';
 import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
 import { recordIslandKill } from '../src/lib/game/record-raid';
-import { genesisPieces, inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
+import { inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { installStage } from './stage';
 import { roomFor } from './islands/router';
@@ -771,19 +774,9 @@ async function bankRun(rabbit: Rabbit) {
     }
   }
   if (run.nfts.length) {
-    // No mint yet — the drop is RECORDED so the run that produced it is on file
-    // when minting arrives (BUILD-PLAN phase 114). The row is what the profile's
-    // GENESIS tab shows; the log line stays as the backstop a failed insert
-    // leaves (scripts/genesis-backfill.sh replays it), since an NFT owed to a
-    // player and unprovable is worse than not minting today.
+    // The piece itself was drawn and sent at the dig (`awardGenesis`); this
+    // line is the run's record of it.
     console.log('[chest-nft]', playerId, 'run', runId, 'tiles', run.nfts.join(','));
-    try {
-      await db.insert(genesisPieces)
-        .values(run.nfts.map((tile) => ({ playerId, runId, tile })))
-        .onConflictDoNothing();
-    } catch (e) {
-      console.error('[bankRun] genesis insert failed', playerId, runId, e);
-    }
   }
 
   // Announced only now, after the row is written: the client answers this by
@@ -1652,6 +1645,17 @@ io.on('connection', (socket: Socket) => {
     // The mover alone gets the private detail (their loot, their knockback).
     socket.emit('move_result', out);
 
+    // AN RR GENESIS PIECE: a real asset, drawn from the game wallet now, its
+    // ceremony sent the moment it is in hand — or, for a player without a
+    // wallet, what they missed (src/lib/genesis/award.ts).
+    if (out.dig?.nft) {
+      const runId = rabbit.run?.id;
+      void awardGenesis(data.playerId, runId, to).then((award) => {
+        if (award.kind !== 'none') socket.emit('genesis', award);
+        if (award.kind === 'won') void sendPending();
+      });
+    }
+
     if (out.runOver) {
       // NOT on a tutorial win. `rabbit_died` slumps the rabbit and drains the
       // map to grey — the picture of running out of energy, which is exactly
@@ -2076,6 +2080,17 @@ setInterval(() => { void checkSeason(); }, 10 * 60_000).unref();
  */
 void refreshTokenPrices();
 setInterval(() => { void refreshTokenPrices(); }, PRICE_REFRESH_MS).unref();
+
+/**
+ * THE RR GENESIS PIECES (web3 only): crown chests draw from the game wallet's
+ * stock, and the sender keeps every won piece moving to its winner's wallet
+ * (src/lib/genesis). The web2 world has neither.
+ */
+if (!isWeb2()) {
+  setGenesisGate(genesisOpen);
+  void warmGenesis().then((n) => console.log(`[genesis] ${n} piece(s) in the game wallet`));
+  setInterval(() => { void sendPending(); }, 15_000).unref();
+}
 
 /**
  * Le port occupe doit le DIRE.
