@@ -133,6 +133,35 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-21',
+    items: [
+      {
+        kind: 'fix',
+        text: {
+          en: 'Switching server on the home screen no longer starts the game: you choose, then you sign in.',
+          fr: 'Changer de serveur sur l’accueil ne lance plus le jeu : tu choisis, puis tu te connectes.',
+          zh: '在首页切换服务器不会再直接进入游戏：先选择，再登录。',
+          'pt-BR': 'Trocar de servidor na tela inicial não inicia mais o jogo: você escolhe e depois entra.',
+          vi: 'Đổi máy chủ ở màn hình chính không còn tự vào game: bạn chọn, rồi mới đăng nhập.',
+          es: 'Cambiar de servidor en la pantalla de inicio ya no inicia el juego: eliges y luego entras.',
+          it: 'Cambiare server nella schermata iniziale non avvia più il gioco: scegli, poi accedi.',
+        },
+      },
+      {
+        kind: 'fix',
+        text: {
+          en: 'A Discord button in the player menu, and at the top of your burrow.',
+          fr: 'Un bouton Discord dans le menu du joueur, et en haut de ton terrier.',
+          zh: '玩家菜单和洞穴顶部新增 Discord 按钮。',
+          'pt-BR': 'Um botão do Discord no menu do jogador e no topo da sua toca.',
+          vi: 'Nút Discord trong menu người chơi và ở trên cùng hang của bạn.',
+          es: 'Un botón de Discord en el menú del jugador y arriba en tu madriguera.',
+          it: 'Un pulsante Discord nel menu del giocatore e in cima alla tua tana.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-20',
     items: [
       {

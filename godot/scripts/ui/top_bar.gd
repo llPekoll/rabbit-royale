@@ -82,6 +82,14 @@ var _corner: HBoxContainer
 static var live: TopBar
 
 
+## LE DISCORD DES JOUEURS, a gauche du lapin (2026-10-21) : le lien en bas
+## des reglages, personne ne le trouvait. AU TERRIER SEULEMENT (« pas in-game,
+## juste dans le burrow ») : sur l'ile et en raid, la barre garde sa place au
+## jeu. Eteint hors ligne. Le Clyde d'art-source/discord-icon/draw.py.
+const DISCORD := preload("res://assets/ui/icons/discord.png")
+var discord_button: HubIconButton
+
+
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -157,6 +165,10 @@ func _ready() -> void:
 
 	_make_fullscreen()
 
+	discord_button = HubIconButton.make("Discord", DISCORD)
+	discord_button.pressed.connect(func() -> void: OS.shell_open(Changelog.DISCORD_URL))
+	_corner.add_child(discord_button)
+
 	me_button = HubIconButton.make("Profile")
 	me_button.pressed.connect(func() -> void: profile_pressed.emit())
 	_corner.add_child(me_button)
@@ -193,6 +205,7 @@ func _relabel() -> void:
 	story_button.tooltip_text = I18N.t("codex.title")
 	season_button.tooltip_text = I18N.t("board.show")
 	me_button.tooltip_text = I18N.t("profile.title")
+	discord_button.tooltip_text = "Discord"
 
 
 func _make_fullscreen() -> void:
@@ -233,6 +246,7 @@ func _measure() -> void:
 	for b in [shop_button, story_button, season_button]:
 		(b as HubIconButton).set_square(square, view.y)
 	me_button.set_square(square, view.y)
+	discord_button.set_square(square, view.y)
 	if fullscreen_button != null:
 		fullscreen_button.set_square(square, view.y)
 	# A la gouttiere de l'ecran : les pastilles
@@ -295,6 +309,8 @@ func reflect_place() -> void:
 	shop_button.visible = not Voyageur.active
 	season_button.visible = not Voyageur.active
 	story_button.visible = home
+	discord_button.visible = home and not Voyageur.active \
+		and not (Chrome.current != null and Chrome.current.burrow_in_play())
 	# SANS ILOTS (2026-10-13), le terrier a son haut a lui (burrow_hud.gd) :
 	# les carottes y sont, l'energie sur le cadran de DIG. La pastille s'y
 	# tait — sauf en raid, ou elle porte la jauge du raid.
@@ -326,12 +342,17 @@ func _arrive() -> void:
 	if fullscreen_button != null:
 		UiEntrance.play(fullscreen_button, UiEntrance.FROM_TOP, rank)
 		rank += 1
+	# Toujours joue : cache (raid, DEFEND), `play` le remet opaque pour quand
+	# il reviendra, au lieu de le laisser a l'alpha 0 de `_arrive_pose`.
+	UiEntrance.play(discord_button, UiEntrance.FROM_TOP, rank)
+	if discord_button.visible:
+		rank += 1
 	UiEntrance.play(me_button, UiEntrance.FROM_TOP, rank)
 
 
 ## La premiere image de l'arrivee : tout eteint.
 func _arrive_pose() -> void:
-	UiEntrance.pose([shop_button, story_button, season_button, me_button])
+	UiEntrance.pose([shop_button, story_button, season_button, discord_button, me_button])
 	if fullscreen_button != null:
 		UiEntrance.pose([fullscreen_button])
 	pill.drop_pose()

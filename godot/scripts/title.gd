@@ -635,18 +635,13 @@ func _on_region_pressed() -> void:
 	Net.choose_region(open[(at + _region.press_side + n) % n], true)
 	_apply_region()
 	Analytics.track("region_pick", {"region": Net.region})
-	if Session.token.is_empty():
-		Session.checking = false
-		return
-	_busy(true)
-	_set_restoring(true)
-	if await Session.restore():
-		Analytics.track("login", {"method": "restore"})
-		_enter()
-		return
-	_set_restoring(false)
-	_busy(false)
-	_refresh_doors()
+	# CHANGER DE SERVEUR NE FAIT QUE CA (2026-10-21). Il reprenait aussitot le
+	# terrier que ce serveur connaissait (Asie et US empruntent celui
+	# d'Europe) : tout se grisait, le jeu partait, et pour changer autre chose
+	# il fallait se deconnecter. Le jeton de la region est garde ; c'est la
+	# porte invitee qui le reprend (`_on_guest`), plutot que d'en creer un
+	# second par-dessus.
+	Session.checking = false
 
 
 ## LA PORTE D'ENTREE : le wallet signe le defi du serveur et la session revient.
@@ -748,6 +743,23 @@ func _on_voyage() -> void:
 func _on_guest() -> void:
 	_busy(true)
 	_working(_guest, true)
+	# UN TERRIER DEJA LA sur ce serveur (choisi au selecteur, voir
+	# `_on_region_pressed`) : on le reprend. Refuse, le jeton est oublie et un
+	# invite neuf nait, comme avant.
+	if not Session.token.is_empty():
+		var back := await Session.restore()
+		if back or not Session.token.is_empty():
+			_working(_guest, false)
+			_busy(false)
+		if back:
+			Analytics.track("login", {"method": "restore"})
+			_enter()
+			return
+		# Jeton garde = le serveur n'a pas repondu (pas un refus) : rien ne
+		# nait par-dessus le terrier qu'on n'a pas pu joindre.
+		if not Session.token.is_empty():
+			_say(I18N.t("auth.signInFailed"), true)
+			return
 	var ok := await Session.play_as_guest()
 	_working(_guest, false)
 	_busy(false)

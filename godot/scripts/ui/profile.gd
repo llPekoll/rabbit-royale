@@ -98,6 +98,12 @@ var _tab_badge_label: Label
 var _scroll: ScrollContainer
 var _page: Control
 var _board: Control
+## LE DISCORD DES JOUEURS, a gauche du [x] (2026-10-21) : en bas des
+## reglages, personne ne le trouvait (« not hide so deep in settings »). Ici
+## il est sur la premiere page du menu, sur tous les onglets, sans prendre de
+## place a la barre du haut. Le Clyde d'art-source/discord-icon/draw.py.
+const DISCORD := preload("res://assets/ui/icons/discord.png")
+var _discord: Button
 var _night: Control
 var _k := 0.7
 var _tab: Tab = Tab.PROFILE
@@ -203,6 +209,10 @@ func _init() -> void:
 	close_button.stretch_mode = TextureButton.STRETCH_SCALE
 	close_button.mouse_entered.connect(func() -> void: close_button.modulate = Color(1.15, 1.15, 1.15))
 	close_button.mouse_exited.connect(func() -> void: close_button.modulate = Color.WHITE)
+	_discord = CampStyle.hit("Discord")
+	_discord.tooltip_text = "Discord"
+	_discord.pressed.connect(func() -> void: OS.shell_open(Changelog.DISCORD_URL))
+	add_child(_discord)
 
 
 func _ready() -> void:
@@ -227,6 +237,33 @@ func _place_close() -> void:
 	close_button.custom_minimum_size = Vector2(46, 44) * _k
 	close_button.size = close_button.custom_minimum_size
 	close_button.position = _board.position + (Vector2(1232, 120) - Vector2(OX, OY)) * _k
+	_place_discord()
+
+
+## LE DISCORD, la taille du [x] et 6 de maquette a sa gauche : le cadre du
+## portrait du rail (« face ») et le Clyde au pixel pres dedans.
+func _place_discord() -> void:
+	if _discord == null:
+		return
+	_discord.size = Vector2(46, 44) * _k
+	_discord.position = close_button.position - Vector2(52, 0) * _k
+	for c in _discord.get_children():
+		c.queue_free()
+	var frame := CampStyle.nine("face", _k)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.size = _discord.size
+	_discord.add_child(frame)
+	var clyde := TextureRect.new()
+	clyde.texture = DISCORD
+	clyde.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	clyde.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	clyde.stretch_mode = TextureRect.STRETCH_SCALE
+	clyde.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Un nombre entier de pixels d'ecran par pixel d'art.
+	var side := float(DISCORD.get_width()) * maxf(1.0, floorf(_discord.size.y * 0.62 / DISCORD.get_width()))
+	clyde.size = Vector2(side, side)
+	clyde.position = ((_discord.size - clyde.size) * 0.5).floor()
+	_discord.add_child(clyde)
 
 
 func set_title(words: String) -> void:

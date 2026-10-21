@@ -670,6 +670,7 @@ func defend(on: bool, finished: bool = false) -> void:
 	# carte de la defense prend sa place ; pendue dessous, elle couvrait le
 	# potager, la ou l'intrus va.
 	_defending = on
+	_raid_changed.emit()
 	if on:
 		close_dialog()
 		# UN VRAI RAID : le plan et sa repetition s'effacent, la defense en
@@ -819,6 +820,12 @@ func raid_shown() -> bool:
 	return _raid_shown
 
 
+## LE TERRIER EN JEU : un raid (le notre ou celui subi), ou DEFEND (bombes et
+## clotures a poser). La barre du haut y eteint le Discord (2026-10-21).
+func burrow_in_play() -> bool:
+	return _raid_shown or _defending or not _mode.is_empty()
+
+
 ## LE PLATEAU DU RAID vient de monter, ou de redescendre (burrow.gd, au noir
 ## du rideau). Le chrome tourne AU MEME INSTANT que le plateau : la barre du
 ## raid au-dessus de notre propre jardin, ou DIG sous le sol d'un autre,
@@ -842,6 +849,7 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 	if _kit == null:
 		return
 	_mode = mode
+	_raid_changed.emit()
 	# Le coin bas-droit est au kit et a CLEAR ALL le temps du mode.
 	if _version != null:
 		_version.visible = false
@@ -1090,6 +1098,7 @@ func _end_mode() -> void:
 	if _mode.is_empty():
 		return
 	_mode = ""
+	_raid_changed.emit()
 	_drop_clean()
 	_drop_plan()
 	if _version != null:
