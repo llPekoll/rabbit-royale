@@ -5,10 +5,10 @@
  *       [--to=<wallet>] [--rpc=<url>]
  *
  * `--list` is what scripts/genesis-hub-release.sql printed: one mint per line,
- * already taken out of the hub's catalogue. `--key` is the VAULT's keypair
- * file (a JSON byte array, like mintbot/vault-server-mainnet.json, or a
- * base58 string) — read here and nowhere else, never printed, never copied.
- * `--to` defaults to the rabbits' wallet, FChws…uHB.
+ * already taken out of the hub's catalogue. `--key` is the keypair file of
+ * the wallet that holds them (a JSON byte array, like
+ * mintbot/vault-server-mainnet.json, or a base58 string) — read here and nowhere else, never printed, never copied.
+ * `--to` defaults to the game wallet, 8jv4…sjqMy (RABBIT_WALLET).
  *
  * Without `--yes` nothing is sent: every mint is READ on chain and the plan
  * says how many the vault holds, how many are already at the destination
@@ -55,9 +55,21 @@ console.log(`vault ${vault} -> ${to}, ${mints.length} mint(s) listed, rpc ${new 
 const movable: string[] = [];
 let already = 0;
 const refused: string[] = [];
+// The public RPC throttles (429) long before 356 reads: wait it out instead of
+// calling a piece unreadable.
+const read = async (mint: string) => {
+  for (let i = 0; ; i++) {
+    try {
+      return await fetchAsset(umi, publicKey(mint), { skipDerivePlugins: true });
+    } catch (e) {
+      if (i >= 6 || !/429/.test(String(e))) throw e;
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+    }
+  }
+};
 for (const mint of mints) {
   try {
-    const a = await fetchAsset(umi, publicKey(mint), { skipDerivePlugins: true });
+    const a = await read(mint);
     const inCollection = a.updateAuthority.type === 'Collection' && a.updateAuthority.address?.toString() === collection;
     if (!inCollection) refused.push(`${mint} not in the RR Genesis collection`);
     else if (a.owner.toString() === to) already++;

@@ -3,10 +3,12 @@
  *
  * The pieces a crown chest gives away are real Metaplex Core assets of the RR
  * Genesis collection (the Domin8 hub's, `GNkM…B56A`), held by the game's own
- * wallet — "le wallet officiel des rabbits", `FChws…uHB` — which the hub's
- * vault stocked once. Nothing about a piece is baked into the game: its name,
- * rarity and image are read from the asset and its metadata the moment it is
- * won, and the transfer to the winner is signed with the game wallet's key.
+ * wallet, `8jv4…sjqMy` — made for this alone (2026-10-21), so the key rr-ws
+ * holds can reach these pieces and nothing else: not the RR treasury
+ * (`FChws…uHB`), not the hub's vault. The hub's vault stocked it once.
+ * Nothing about a piece is baked into the game: its name, rarity and image are
+ * read from the asset and its metadata the moment it is won, and the transfer
+ * to the winner is signed with the game wallet's key.
  *
  * Everything chain-shaped sits behind `GenesisChain`, so the award and the
  * sender can be exercised without an RPC (tests) or against devnet (a
@@ -28,7 +30,7 @@ import { fetchAsset, transferV1 } from '@metaplex-foundation/mpl-core';
 import bs58 from 'bs58';
 
 export const RR_GENESIS_COLLECTION = 'GNkMLCVtP3i2imay4LSRKugEFaUeb77QYHR4uDcxB56A';
-export const RABBIT_WALLET = 'FChwsKVeuDjgToaP5HHrk9u4oz1QiPbnJH1zzpbMKuHB';
+export const RABBIT_WALLET = '8jv4N9KWwuG4ww8E8CqGz6A3eaheyUT4B6qsjoxsjqMy';
 const CORE_PROGRAM = new PublicKey('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 
 export function collectionAddress(): string {
