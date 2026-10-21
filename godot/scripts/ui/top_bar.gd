@@ -229,12 +229,8 @@ func _make_fullscreen() -> void:
 ## nom : c'etait la planche « LVL 6 CursedRoot », qui prenait la moitie de
 ## la barre pour dire ce que le profil dit deja.
 func _reflect_me() -> void:
-	var crop := AtlasTexture.new()
-	crop.atlas = Look.sheet(Look.mine())
-	crop.region = AvatarFace.ART
-	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
-	crop.filter_clip = true
-	me_button.set_glyph(crop)
+	# La fenetre de l'art du lapin porte : le chapeau de Kappa deborde.
+	me_button.set_glyph(AvatarFace.texture(Look.mine()))
 	var level: Variant = Home.player.get("level")
 	me_button.set_badge(I18N.f("rabbitLevel.badge", [int(level)]) if level != null else "")
 

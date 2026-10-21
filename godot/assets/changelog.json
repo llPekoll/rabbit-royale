@@ -108,6 +108,36 @@
   },
   "releases": [
     {
+      "version": "v1.15.2",
+      "date": "2026-10-21",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Profile: Teadom’s hat is no longer cut off, and every rabbit fits in the grid again.",
+            "fr": "Profil : le chapeau de Teadom n’est plus coupé, et tous les lapins tiennent de nouveau dans la grille.",
+            "zh": "个人资料：Teadom 的帽子不再被裁掉，所有兔子都能重新放进网格里。",
+            "pt-BR": "Perfil: o chapéu do Teadom não é mais cortado, e todos os coelhos cabem de novo na grade.",
+            "vi": "Hồ sơ: mũ của Teadom không còn bị cắt, và mọi chú thỏ lại vừa trong lưới.",
+            "es": "Perfil: el sombrero de Teadom ya no sale cortado, y todos los conejos vuelven a caber en la cuadrícula.",
+            "it": "Profilo: il cappello di Teadom non è più tagliato, e tutti i conigli tornano a stare nella griglia."
+          }
+        },
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Profile: a linked account now takes a single line, leaving more room for your rabbits.",
+            "fr": "Profil : un compte déjà lié tient sur une seule ligne, et laisse plus de place à tes lapins.",
+            "zh": "个人资料：已绑定的账号现在只占一行，给你的兔子留出更多空间。",
+            "pt-BR": "Perfil: uma conta já vinculada agora ocupa uma só linha, deixando mais espaço para os seus coelhos.",
+            "vi": "Hồ sơ: tài khoản đã liên kết giờ chỉ chiếm một dòng, chừa thêm chỗ cho những chú thỏ của bạn.",
+            "es": "Perfil: una cuenta ya vinculada ocupa ahora una sola línea y deja más sitio a tus conejos.",
+            "it": "Profilo: un account già collegato ora occupa una sola riga e lascia più spazio ai tuoi conigli."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.15.1",
       "date": "2026-10-21",
       "items": [

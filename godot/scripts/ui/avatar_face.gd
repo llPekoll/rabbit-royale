@@ -17,6 +17,11 @@ class_name AvatarFace
 ## `ART` de podium.ts : ou est le lapin dans la case 0, en pixels source.
 const ART := Rect2(8, 18, 14, 14)
 
+## LES PLANCHES QUI DEBORDENT de la fenetre des lapins : le chapeau de Kappa
+## monte a y 15 et sa largeur court jusqu'a x 23 (mesure sur la case 0).
+## Une fenetre carree un peu plus grande, sinon le chapeau est tranche net.
+const ART_OF := {"kappa": Rect2(7, 15, 17, 17)}
+
 ## La cle d'un joueur qui n'a jamais choisi (avatars.ts DEFAULT_AVATAR).
 const DEFAULT_KEY := "brown"
 
@@ -30,11 +35,16 @@ static func sheet(key: Variant) -> Texture2D:
 	return Look.sheet(key)
 
 
-## La texture du portrait seul : la fenetre ART sur la planche.
+## La fenetre de l'art d'une cle : ART, sauf planche qui deborde.
+static func art(key: Variant) -> Rect2:
+	return ART_OF.get(String(key) if key is String or key is StringName else "", ART)
+
+
+## La texture du portrait seul : la fenetre de l'art sur la planche.
 static func texture(key: Variant) -> AtlasTexture:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = sheet(key)
-	atlas.region = ART
+	atlas.region = art(key)
 	# Rien de la case voisine sur la planche (voir home_rabbit.gd).
 	atlas.filter_clip = true
 	return atlas

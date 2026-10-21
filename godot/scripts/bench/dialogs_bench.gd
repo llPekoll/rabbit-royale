@@ -170,7 +170,12 @@ func _only(which: String) -> void:
 			var profile := Profile.new()
 			# `--account` : un compte Google (portes de retour, SUPPRIMER LE
 			# COMPTE) au lieu d'un invite.
-			if "--account" in args:
+			# `--wallet` : un compte web3 lie (rien a lier, compte compact) qui
+			# porte Kappa — le chapeau deborde la fenetre des lapins.
+			if "--wallet" in args:
+				profile.show_player({"id": "acct:bench", "name": "DOM", "wallet": "7U22aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac6FJ",
+					"guest": false, "avatar": "orange", "look": "kappa"})
+			elif "--account" in args:
 				profile.show_player({"id": "acct:bench", "name": "Thistle", "wallet": null, "guest": false,
 					"avatar": "orange", "identities": [{"provider": "google", "email": "thistle@gmail.com"}]})
 			else:

@@ -91,6 +91,9 @@ var _tab_labels: Array[Label] = []
 var _tab_row: Control
 var _skin_detail := false
 var _rabbit_grid: Control
+## Les rangees de la grille des lapins : trois quand le compte tient en une
+## ligne (rien a lier), deux sinon.
+var _rabbit_rows := 2
 var _portrait: TextureRect
 var _tab_badge: PanelContainer
 var _tab_badge_label: Label
@@ -669,31 +672,8 @@ func _build_profile() -> void:
 	_warn.visible = false
 	_refresh_name()
 
-	# Choisir mon lapin : deux rangees de cinq cases.
-	_panel("section", 756, 187, 507, 244)
-	_icon("icon-rabbit", 773, 200, 30, 30)
-	_say(I18N.t("profile.chooseRabbit"), 810, 202, 430, 28, 22, CampStyle.TEXT, true)
-	_rabbit_grid = Control.new()
-	_rabbit_grid.name = "Rabbits"
-	_rabbit_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_put(_rabbit_grid, 756, 187, 507, 244)
-	_error = _say("", 1050, 336, 200, 78, 14, CampStyle.BAD)
-	_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_error.clip_text = false
-	_error.visible = false
-	_refresh_rabbits()
-
-	# Sauvegarder mon terrier — ou, lie, le compte.
-	_panel("section", 756, 443, 507, 147)
-	_icon("icon-shield", 773, 449, 35, 35)
-	_say(I18N.t("profile.saveBurrowTitle" if guest else "profile.accountLabel"), 822, 452, 420, 28, 22, CampStyle.TEXT, true)
-	_connect_hint = _say("", 772, 476, 480, 40, 15, Color("#c9dade"))
-	_connect_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_connect_hint.clip_text = false
-	_connect_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-	# GOOGLE, E-MAIL, WALLET (2026-10-08) : les portes qui manquent encore a
-	# ce compte, cote a cote au pas de la maquette (149 de large) et centrees
-	# dans la section. Une porte deja liee se dit dans le texte au-dessus.
+	# LES PORTES DU COMPTE d'abord : GOOGLE, E-MAIL, WALLET (2026-10-08), celles
+	# qui manquent encore. Une porte deja liee se dit dans le texte.
 	var wallet := String(_player["wallet"]) if _player.get("wallet") != null else ""
 	var linked := {}
 	var said: Array[String] = []
@@ -705,14 +685,55 @@ func _build_profile() -> void:
 		linked[kind] = true
 		var mail := String(idn["email"]) if idn.get("email") != null else ""
 		said.append(I18N.t("auth." + kind) + (" · " + mail if not mail.is_empty() else ""))
-	_connect_hint.text = I18N.t("auth.saveBurrowWeb2" if _web2 else "auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
 	var doors := ["google", "email"] if _web2 else ["wallet"]
 	# HORS LIGNE (voyageur.gd), rien a lier : le terrier vit sur l'appareil,
 	# et la section le dit.
 	if Voyageur.active:
 		doors = []
-		_connect_hint.text = I18N.t("auth.offlineNote")
 	var missing := doors.filter(func(k: String) -> bool: return not linked.has(k))
+	# RIEN A LIER (2026-10-21, « lots of empty space ») : le compte tient en une
+	# ligne au pied, et la grille des lapins prend une troisieme rangee.
+	var compact := missing.is_empty() and not guest
+	_rabbit_rows = 3 if compact else 2
+
+	# Choisir mon lapin : deux rangees de cinq cases (trois si le compte est
+	# compact).
+	_panel("section", 756, 187, 507, 244 + (92 if compact else 0))
+	_icon("icon-rabbit", 773, 200, 30, 30)
+	_say(I18N.t("profile.chooseRabbit"), 810, 202, 430, 28, 22, CampStyle.TEXT, true)
+	_rabbit_grid = Control.new()
+	_rabbit_grid.name = "Rabbits"
+	_rabbit_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_put(_rabbit_grid, 756, 187, 507, 244 + (92 if compact else 0))
+	_error = _say("", 1050, 336, 200, 78, 14, CampStyle.BAD)
+	_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_error.clip_text = false
+	_error.visible = false
+	_refresh_rabbits()
+
+	# Sauvegarder mon terrier — ou, lie, le compte : titre a gauche, ce qui
+	# est lie a droite, sur la meme ligne quand il est compact.
+	if compact:
+		_panel("section", 756, 535, 507, 55)
+		_icon("icon-shield", 773, 545, 35, 35)
+		_say(I18N.t("profile.accountLabel"), 822, 548, 200, 28, 22, CampStyle.TEXT, true)
+		_connect_hint = _say("", 1000, 548, 248, 28, 15, Color("#c9dade"))
+		_connect_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_connect_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_connect_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	else:
+		_panel("section", 756, 443, 507, 147)
+		_icon("icon-shield", 773, 449, 35, 35)
+		_say(I18N.t("profile.saveBurrowTitle" if guest else "profile.accountLabel"), 822, 452, 420, 28, 22, CampStyle.TEXT, true)
+		_connect_hint = _say("", 772, 476, 480, 40, 15, Color("#c9dade"))
+		_connect_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_connect_hint.clip_text = false
+		_connect_hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_connect_hint.text = I18N.t("auth.saveBurrowWeb2" if _web2 else "auth.saveBurrow") if guest else "   ".join(PackedStringArray(said))
+	if Voyageur.active:
+		_connect_hint.text = I18N.t("auth.offlineNote")
+	# Les portes qui manquent, cote a cote au pas de la maquette (149 de
+	# large) et centrees dans la section.
 	var x := 756.0 + (507.0 - (missing.size() * 149.0 + (missing.size() - 1) * 14.0)) * 0.5
 	for kind in missing:
 		var b := _provider(kind, x, 517.0)
@@ -725,7 +746,7 @@ func _build_profile() -> void:
 				b.pressed.connect(_on_link_google)
 			"email":
 				b.pressed.connect(func() -> void: EmailDialog.open(true))
-	_connect_error = _say("", 772, 482, 480, 24, 15, CampStyle.BAD)
+	_connect_error = _say("", 1000, 548, 248, 28, 15, CampStyle.BAD) if compact else _say("", 772, 482, 480, 24, 15, CampStyle.BAD)
 	_connect_error.visible = false
 	_refresh_connect()
 
@@ -821,15 +842,22 @@ func _refresh_rabbits() -> void:
 		# integres) ni de ticket : seuls les skins deja a soi (la boite du
 		# Snack Time en donne) rejoignent les lapins gratuits.
 		keys = keys.filter(func(k: String) -> bool: return not Kit.SKINS.has(k) or (k != "kuro-violet" and skins.owns(k)))
+	var cols := maxi(5, ceili(float(keys.size()) / float(_rabbit_rows)))
+	var span := 4.0 * 93.5 + 85.0
+	var gap := 93.5 - 85.0
+	var cell_w := (span - gap * float(cols - 1)) / float(cols)
+	var pitch := cell_w + gap
 	for i in keys.size():
 		var key := String(keys[i])
 		var premium: bool = Kit.SKINS.has(key)
 		var locked: bool = premium and not skins.owns(key)
 		var on := wearing == key
-		# Les cases de la maquette : 85 x 78, au pas de 93,5 et de 92.
-		var at := Vector2(777.0 + float(i % 5) * 93.5, 243.0 + float(i / 5) * 92.0)
+		# Les cases de la maquette : 85 x 78, au pas de 93,5 et de 92. Jamais
+		# plus de `_rabbit_rows` rangees : au-dela, les colonnes se resserrent
+		# dans la meme largeur (une rangee de trop passait sous le compte).
+		var at := Vector2(777.0 + float(i % cols) * pitch, 243.0 + float(i / cols) * 92.0)
 		var cell := CampStyle.hit("Rabbit_" + key)
-		_put(cell, at.x, at.y, 85, 78, _rabbit_grid, Vector2(756, 187))
+		_put(cell, at.x, at.y, cell_w, 78, _rabbit_grid, Vector2(756, 187))
 		if SkinState.SALE_NAMES.has(key):
 			var item := skins.item(key)
 			cell.tooltip_text = SkinState.name_of(key)
@@ -843,15 +871,15 @@ func _refresh_rabbits() -> void:
 		cell.add_child(bg)
 		var face := _rabbit(key, 4.0)
 		face.modulate.a = 0.45 if locked else 1.0
-		_put(face, at.x + 14, at.y + 11, 56, 56, cell, at)
+		_put(face, at.x + (cell_w - 56.0) * 0.5, at.y + 11, 56, 56, cell, at)
 		if locked:
 			var lock := CampStyle.picture(LOCK_ICON)
 			lock.name = "Lock"
 			lock.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			lock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			_put(lock, at.x + 28, at.y + 32, 30, 30, cell, at)
+			_put(lock, at.x + (cell_w - 30.0) * 0.5, at.y + 32, 30, 30, cell, at)
 		if on:
-			_icon("check", at.x + 58, at.y - 6, 32, 32, cell, at)
+			_icon("check", at.x + cell_w - 27.0, at.y - 6, 32, 32, cell, at)
 		cell.pressed.connect(_on_skin_pick.bind(key) if premium else _on_pick.bind(key))
 	if is_instance_valid(_error):
 		_error.text = skins.note if skins.failed else _save_error
