@@ -12,7 +12,7 @@
  * `spendTrap` decides whether this placement eats a free one (pushing the claim
  * stamp forward by exactly one trap's worth) or a bought one.
  */
-import { and, eq, inArray, sql as raw } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, traps } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
@@ -169,6 +169,57 @@ export async function POST(req: Request) {
   // whose meaning depends on spread order is a bug waiting for whoever reads
   // it next.
   return Response.json({ tile, ...(await trapState(session.sub)) });
+}
+
+/**
+ * `{ tile }` — REARM NOW (2026-10-22): a bomb a raider sprang stands again at
+ * once, for one bomb from the bag (the free allowance first, `spendTrap`).
+ *
+ * The clock (TRAPS.REARM_MS) left the gate it guarded open to the next raider
+ * for three hours, and nothing told its owner so: one raider sacrificed a run
+ * on the bomb, a second walked through four minutes later (GrimClover93,
+ * Discord 2026-10-21). An owner who is there can now close it. This is the
+ * instant rearm the lift rule below refuses for FREE — here it is paid with a
+ * whole bomb, which is what lifting and re-burying already cost, said out
+ * loud. An empty bag is the client's to fill first (`shop` buys a trap).
+ */
+export async function PATCH(req: Request) {
+  const session = await getSession(req);
+  if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+
+  const body = (await req.json().catch(() => ({}))) as { tile?: unknown };
+  const tile = Number(body.tile);
+  if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
+
+  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+
+  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, session.sub) });
+  const row = placed.find((t) => t.tile === tile);
+  if (!row) return Response.json({ error: 'no_trap_there' }, { status: 404 });
+  // Standing already, by the same queue the raid reads (`armedTraps`).
+  if (!row.sprungAt || armedTraps(placed).includes(row)) {
+    return Response.json({ error: 'trap_armed' }, { status: 409 });
+  }
+
+  const spend = spendTrap(player);
+  if (!spend) return Response.json({ error: 'no_traps' }, { status: 400 });
+
+  // The claim is the trap's own `sprungAt` going null: two taps racing rearm
+  // it once and spend one bomb. Tested as NOT NULL, not equal to the value
+  // read — Postgres keeps microseconds a JS Date drops, so that never matched.
+  const rearmed = await db.transaction(async (tx) => {
+    const [done] = await tx.update(traps)
+      .set({ sprungAt: null })
+      .where(and(eq(traps.id, row.id), isNotNull(traps.sprungAt)))
+      .returning({ id: traps.id });
+    if (!done) return false;
+    await tx.update(players).set(spend).where(eq(players.id, session.sub));
+    return true;
+  });
+  if (!rearmed) return Response.json({ error: 'trap_armed' }, { status: 409 });
+
+  return Response.json({ rearmed: tile, ...(await trapState(session.sub)) });
 }
 
 /**

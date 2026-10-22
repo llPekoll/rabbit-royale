@@ -208,6 +208,7 @@ export const fr: Dict = {
     noShield: 'sans bouclier',
     /* Zéro est singulier en français, contrairement à l'anglais. */
     traps: (n) => `${n} bombe${n < 2 ? '' : 's'}`,
+    trapsDown: (n) => `${n} en recharge`,
     leftOutside: (name, n) => `${name} a laissé ${n} dehors`,
     burrowsOpen: (n) => `${n} terrier${n < 2 ? '' : 's'} ouvert${n < 2 ? '' : 's'}`,
     bombsInBag: (n) => `${n} bombe${n < 2 ? '' : 's'} en sac`,
@@ -665,6 +666,7 @@ export const fr: Dict = {
     tile_field: 'On n\'enterre rien dans ton potager.',
     tile_already_trapped: 'Il y a déjà une bombe là.',
     no_trap_there: 'Pas de bombe là.',
+    trap_armed: 'Cette bombe est déjà armée.',
     no_fences: 'Plus de clôtures. La boutique en vend.',
     span_already_fenced: 'Une clôture est déjà dressée là.',
     span_not_exposed: 'Ce n’est pas un bord de ton potager.',
@@ -920,6 +922,7 @@ export const fr: Dict = {
     held_: 'Terrier tenu',
     cutTree: (name: string) => `${name} a abattu un de tes arbres`,
     cutPlank: (name: string) => `${name} a abattu une de tes clôtures`,
+    rearmed: 'Bombe réarmée',
     incoming: (name) => `${name} pille ton terrier !`,
     planBombs: (drain) => `Touche une case : une bombe. Encore : tu la reprends. Le pillard qui marche dessus perd ${drain} ⚡.`,
     planFences: 'Touche un bord du potager : une planche. Le pillard doit faire le tour.',

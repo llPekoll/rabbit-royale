@@ -369,7 +369,12 @@ func _toggle_trap(tile: int) -> void:
 		return
 	_toggling = true
 	var shop := ShopState.shared()
-	if _traps.has_trap(tile):
+	if _traps.is_rearming(tile):
+		# SAUTEE PAR UN RAID, elle se recharge : la tape la rearme tout de
+		# suite (une bombe du sac), plutot que de la relever pour rien.
+		if await shop.rearm_trap(tile):
+			Sound.play("step")
+	elif _traps.has_trap(tile):
 		# LA BOMBE SORT DE SA CASE tant que le serveur decide : la tape se
 		# voit, et la vraie part (ou se repose) a la reponse.
 		_traps.set_lifted(tile)

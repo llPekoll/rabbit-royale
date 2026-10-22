@@ -198,6 +198,9 @@ var _land: Timer
 ## Ce que le chrome et la boutique posent.
 var _traps_placed := 0
 var _traps_held := 0
+## Quand chaque bombe sautee se rearme (secondes unix) : la ligne de DEFEND
+## les dit tant qu'elles sont a terre (`loop.trapsDown`).
+var _rearm_at: Array[float] = []
 var _open := 0
 var _all_shielded := false
 var _bombs := 0
@@ -323,7 +326,12 @@ func _arrive() -> void:
 func _on_shop_changed() -> void:
 	var traps := ShopState.shared().traps
 	var placed: Variant = traps.get("placed", [])
-	set_defence((placed as Array).size() if placed is Array else 0, int(traps.get("held", 0)))
+	var rearm_at: Array[float] = []
+	var now := Time.get_unix_time_from_system()
+	for r in (traps.get("rearming") if traps.get("rearming") is Array else []):
+		if r is Dictionary:
+			rearm_at.append(now + BurrowTraps._ms_until(String(r.get("readyAt", ""))) / 1000.0)
+	set_defence((placed as Array).size() if placed is Array else 0, int(traps.get("held", 0)), rearm_at)
 
 
 func _on_targets_changed() -> void:
@@ -349,11 +357,26 @@ func _raids_unlocked() -> bool:
 
 # ── L'API du chrome ──────────────────────────────────────────────────────────
 
-## Les pieges : poses (la ligne de DEFEND les compte) et en reserve.
-func set_defence(traps_placed: int, traps_held: int) -> void:
+## Les pieges : poses (la ligne de DEFEND les compte), en reserve, et quand
+## se rearment ceux qu'un raid a fait sauter.
+func set_defence(traps_placed: int, traps_held: int, rearm_at: Array[float] = []) -> void:
 	_traps_placed = traps_placed
 	_traps_held = traps_held
+	_rearm_at = rearm_at
 	_relabel()
+
+
+## « 8 bombes », et « 1 en recharge » tant qu'une est a terre : une bombe
+## sautee ne garde plus sa case, et le pillard suivant passe par la
+## (Discord 2026-10-21, l'entree minee de GrimClover93). Tapee, elle se
+## rearme tout de suite (burrow.gd `_toggle_trap`).
+func _bomb_parts() -> Array[String]:
+	var parts: Array[String] = [I18N.f("loop.traps", [_traps_placed])]
+	var now := Time.get_unix_time_from_system()
+	var down := _rearm_at.filter(func(at: float) -> bool: return at > now).size()
+	if down > 0:
+		parts.append(I18N.f("loop.trapsDown", [down]))
+	return parts
 
 
 ## Les cibles du raid : combien de terriers sont ouverts, et si tous sont
@@ -558,12 +581,12 @@ func _relabel() -> void:
 	var home_parts: Array[String] = [
 		I18N.f("loop.gardenPlus", [I18N.group_digits(garden)]) if garden > 0 else I18N.t("loop.gardenEmpty"),
 		I18N.f("loop.shieldFor", [I18N.wait(shield)]) if shield >= 0 else I18N.t("loop.noShield"),
-		I18N.f("loop.traps", [_traps_placed]),
 	]
+	home_parts.append_array(_bomb_parts())
 	# BURY : l'enjeu d'abord (ce qu'un pillard prendrait), puis les bombes ;
 	# le bouclier a quitte la planche, il est sur celle des carottes.
 	if bury or not defend_risk.is_empty():
-		home_parts = [I18N.f("loop.traps", [_traps_placed])]
+		home_parts = _bomb_parts()
 		if garden > 0:
 			home_parts.push_front(I18N.f("loop.atRisk", [I18N.group_digits(garden)]) if bury \
 				else defend_risk.format([I18N.group_digits(garden)]))

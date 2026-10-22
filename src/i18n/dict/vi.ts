@@ -216,6 +216,7 @@ export const vi: Dict = {
     noShield: 'không có khiên',
     /* Pas de pluriel en vietnamien : une seule forme. */
     traps: (n) => `${n} bom`,
+    trapsDown: (n) => `${n} đang nạp`,
     leftOutside: (name, n) => `${name} để ${n} bên ngoài`,
     burrowsOpen: (n) => `${n} hang đang mở`,
     bombsInBag: (n) => `${n} bom trong túi`,
@@ -672,6 +673,7 @@ export const vi: Dict = {
     tile_field: 'Không chôn gì trong vườn bạn.',
     tile_already_trapped: 'Đã có bom ở đó rồi.',
     no_trap_there: 'Không có bom ở đó.',
+    trap_armed: 'Quả bom này đã được gài rồi.',
     no_fences: 'Hết hàng rào. Cửa hàng có bán.',
     span_already_fenced: 'Đã có hàng rào ở đó.',
     span_not_exposed: 'Đó không phải mép vườn của bạn.',
@@ -915,6 +917,7 @@ export const vi: Dict = {
     held_: 'Hang đã giữ được',
     cutTree: (name: string) => `${name} đã chặt một cây của bạn`,
     cutPlank: (name: string) => `${name} đã chặt một hàng rào của bạn`,
+    rearmed: 'Bom đã gài lại',
     incoming: (name) => `${name} đang cướp hang bạn!`,
     planBombs: (drain) => `Chạm một ô để chôn bom, chạm lại để lấy lên. Kẻ cướp giẫm phải mất ${drain} ⚡.`,
     planFences: 'Chạm một cạnh vườn để dựng hàng rào. Kẻ cướp phải đi vòng.',

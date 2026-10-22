@@ -85,6 +85,12 @@ func has_trap(tile: int) -> bool:
 	return _traps.has(tile)
 
 
+## Une bombe qu'un raid a fait sauter et qui se recharge : la tape la
+## rearme (ShopState `rearm_trap`) au lieu de la relever.
+func is_rearming(tile: int) -> bool:
+	return _traps.has(tile) and float(_traps[tile].total_ms) > 0.0 and float(_traps[tile].left_ms) > 0.0
+
+
 func tiles() -> Array:
 	return _traps.keys()
 

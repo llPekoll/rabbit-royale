@@ -244,6 +244,7 @@ export const en = {
     shieldBadge: (wait: string) => `SHIELD ${wait}`.toUpperCase(),
     noShield: 'no shield',
     traps: (n: number) => `${n} bomb${n === 1 ? '' : 's'}`,
+    trapsDown: (n: number) => `${n} rearming`,
     leftOutside: (name: string, n: string) => `${name} left ${n} outside`,
     burrowsOpen: (n: number) => `${n} burrow${n === 1 ? '' : 's'} open`,
     bombsInBag: (n: number) => `${n} bomb${n === 1 ? '' : 's'} in the bag`,
@@ -815,6 +816,7 @@ export const en = {
     tile_field: 'Nothing is buried in your garden.',
     tile_already_trapped: 'A bomb is already there.',
     no_trap_there: 'No bomb there.',
+    trap_armed: 'This bomb is already armed.',
     no_fences: 'No fences left. The shop sells them.',
     span_already_fenced: 'A fence already stands there.',
     span_not_exposed: 'That is not an edge of your garden.',
@@ -1124,6 +1126,7 @@ export const en = {
     held_: 'Burrow held',
     cutTree: (name: string) => `${name} chopped down one of your trees`,
     cutPlank: (name: string) => `${name} chopped one of your fences`,
+    rearmed: 'Bomb rearmed',
     incoming: (name: string) => `${name} is raiding your burrow!`,
     /* THE DEFENCE PLAN (Godot chrome, BURY): the raider's cheapest path from
        the gate to the garden, drawn live, and TEST walks Kuro down it. */

@@ -108,6 +108,24 @@
   },
   "releases": [
     {
+      "version": "v1.16",
+      "date": "2026-10-22",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "DEFEND: a bomb a raider set off now shows on the plank (“1 rearming”). Tap it to rearm it right away, for one bomb from your bag.",
+            "fr": "DEFEND : une bombe qu’un pillard a fait sauter s’affiche sur la planche (« 1 en recharge »). Touche-la pour la réarmer tout de suite, contre une bombe de ton sac.",
+            "zh": "DEFEND：被掠夺者引爆的炸弹现在会显示在木板上（“1 颗重设中”）。点一下即可立刻重新布设，消耗背包里的一颗炸弹。",
+            "pt-BR": "DEFEND: uma bomba que um saqueador detonou agora aparece na placa (“1 recarregando”). Toque nela para rearmá-la na hora, por uma bomba da sua bolsa.",
+            "vi": "DEFEND: quả bom bị kẻ cướp kích nổ giờ hiện trên tấm ván (“1 đang nạp”). Chạm vào để gài lại ngay, tốn một quả bom trong túi.",
+            "es": "DEFEND: una bomba que un saqueador hizo estallar ahora aparece en la tabla (“1 recargando”). Tócala para rearmarla al instante, a cambio de una bomba de tu bolsa.",
+            "it": "DEFEND: una bomba fatta esplodere da un predone ora compare sulla tavola (“1 in ricarica”). Toccala per riarmarla subito, in cambio di una bomba dalla tua borsa."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.15.2",
       "date": "2026-10-21",
       "items": [

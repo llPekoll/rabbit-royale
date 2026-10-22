@@ -239,6 +239,9 @@
     }
    ]
   },
+  "trapsDown": {
+   "$t": "{0} recarregando"
+  },
   "leftOutside": {
    "$t": "{0} deixou {1} lá fora"
   },
@@ -1117,6 +1120,7 @@
   "tile_field": "Nada fica enterrado na sua horta.",
   "tile_already_trapped": "Já tem uma bomba aí.",
   "no_trap_there": "Não tem bomba aí.",
+  "trap_armed": "Essa bomba já está armada.",
   "no_fences": "Sem cercas. A loja vende.",
   "span_already_fenced": "Já tem uma cerca aí.",
   "span_not_exposed": "Isso não é uma borda da sua horta.",
@@ -1628,6 +1632,7 @@
   "cutPlank": {
    "$t": "{0} derrubou uma das suas cercas"
   },
+  "rearmed": "Bomba rearmada",
   "incoming": {
    "$t": "{0} está saqueando sua toca!"
   },

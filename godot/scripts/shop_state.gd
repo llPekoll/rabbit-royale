@@ -281,6 +281,23 @@ func place_trap(tile: int) -> bool:
 	return _took(answer, "traps")
 
 
+## REARMER TOUT DE SUITE une bombe qu'un raid a fait sauter, contre une
+## bombe du sac (`PATCH /api/traps`). Sac vide : on en achete une d'abord,
+## comme « Buy & zap » pour l'eclair.
+func rearm_trap(tile: int) -> bool:
+	if not Session.signed_in() or _fake:
+		return false
+	_say("", false)
+	if int(traps.get("held", 0)) <= 0 and (await buy("trap")).is_empty():
+		return false
+	var answer: Answer = await Net.send_json("/api/traps", HTTPClient.METHOD_PATCH, {"tile": tile}, Session.token)
+	Analytics.track("trap_rearm", {"ok": answer.ok and not answer.body.has("error")})
+	if not _took(answer, "traps"):
+		return false
+	_say(I18N.t("defend.rearmed"), false)
+	return true
+
+
 ## RELEVER UNE BOMBE d'une case. L'autre moitie de `place_trap`, de la meme
 ## forme : la marque ne part qu'une fois que le serveur dit la case libre. La
 ## case va dans l'URL, pas dans un corps : un corps de DELETE est legal, mais

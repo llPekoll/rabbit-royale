@@ -214,6 +214,7 @@ export const zh: Dict = {
     noShield: '无护盾',
     /* 中文不区分单复数。 */
     traps: (n) => `${n} 颗炸弹`,
+    trapsDown: (n) => `${n} 颗重设中`,
     leftOutside: (name, n) => `${name}在外面留下了 ${n}`,
     burrowsOpen: (n) => `${n} 个兔窝敞着`,
     bombsInBag: (n) => `背包里有 ${n} 颗炸弹`,
@@ -665,6 +666,7 @@ export const zh: Dict = {
     tile_field: '菜园里不能埋东西。',
     tile_already_trapped: '那里已经有炸弹了。',
     no_trap_there: '那里没有炸弹。',
+    trap_armed: '这颗炸弹已经就位了。',
     no_fences: '没有栅栏了。商店有卖。',
     span_already_fenced: '那里已经立着一道栅栏了。',
     span_not_exposed: '那不是你菜园的边。',
@@ -906,6 +908,7 @@ export const zh: Dict = {
     held_: '兔窝守住了',
     cutTree: (name: string) => `${name} 砍倒了你的一棵树`,
     cutPlank: (name: string) => `${name} 砍倒了你的一段围栏`,
+    rearmed: '炸弹已重新布设',
     incoming: (name) => `${name} 正在掠夺你的兔窝！`,
     planBombs: (drain) => `点一格埋炸弹，再点一次收回。掠夺者踩上去会失去 ${drain} ⚡。`,
     planFences: '点菜园的边放篱笆，掠夺者只能绕路。',

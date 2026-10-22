@@ -212,6 +212,7 @@ export const ptBR: Dict = {
     noShield: 'sem escudo',
     /* Zero é plural em português: "0 bombas". */
     traps: (n) => `${n} bomba${n === 1 ? '' : 's'}`,
+    trapsDown: (n) => `${n} recarregando`,
     leftOutside: (name, n) => `${name} deixou ${n} lá fora`,
     burrowsOpen: (n) => `${n} toca${n === 1 ? '' : 's'} abert${n === 1 ? 'a' : 'as'}`,
     bombsInBag: (n) => `${n} bomba${n === 1 ? '' : 's'} na bolsa`,
@@ -669,6 +670,7 @@ export const ptBR: Dict = {
     tile_field: 'Nada fica enterrado na sua horta.',
     tile_already_trapped: 'Já tem uma bomba aí.',
     no_trap_there: 'Não tem bomba aí.',
+    trap_armed: 'Essa bomba já está armada.',
     no_fences: 'Sem cercas. A loja vende.',
     span_already_fenced: 'Já tem uma cerca aí.',
     span_not_exposed: 'Isso não é uma borda da sua horta.',
@@ -922,6 +924,7 @@ export const ptBR: Dict = {
     held_: 'Toca defendida',
     cutTree: (name: string) => `${name} derrubou uma das suas árvores`,
     cutPlank: (name: string) => `${name} derrubou uma das suas cercas`,
+    rearmed: 'Bomba rearmada',
     incoming: (name) => `${name} está saqueando sua toca!`,
     planBombs: (drain) => `Toque numa casa para enterrar uma bomba, de novo para tirar. Quem pisar nela perde ${drain} ⚡.`,
     planFences: 'Toque numa borda da horta para uma cerca. O saqueador tem que dar a volta.',

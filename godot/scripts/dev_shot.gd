@@ -34,10 +34,14 @@ static func arm(node: Node) -> void:
 			after = float(arg.trim_prefix("--after="))
 	if path.is_empty():
 		return
-	await node.get_tree().create_timer(after).timeout
+	# L'ARBRE, pas le noeud : main.gd arme la prise, puis le gestionnaire de
+	# scenes le remplace (une scene vivante a la fois) — un `node` libere au
+	# reveil ne rendait plus d'image, et le jeu ne quittait pas.
+	var tree := node.get_tree()
+	await tree.create_timer(after).timeout
 	Sound.silence()
 	await RenderingServer.frame_post_draw
-	var image := node.get_viewport().get_texture().get_image()
+	var image := tree.root.get_texture().get_image()
 	image.save_png(path)
 	print("[shot] ", path)
-	node.get_tree().quit()
+	tree.quit()

@@ -239,6 +239,9 @@
     }
    ]
   },
+  "trapsDown": {
+   "$t": "{0} rearming"
+  },
   "leftOutside": {
    "$t": "{0} left {1} outside"
   },
@@ -1105,6 +1108,7 @@
   "tile_field": "Nothing is buried in your garden.",
   "tile_already_trapped": "A bomb is already there.",
   "no_trap_there": "No bomb there.",
+  "trap_armed": "This bomb is already armed.",
   "no_fences": "No fences left. The shop sells them.",
   "span_already_fenced": "A fence already stands there.",
   "span_not_exposed": "That is not an edge of your garden.",
@@ -1570,6 +1574,7 @@
   "cutPlank": {
    "$t": "{0} chopped one of your fences"
   },
+  "rearmed": "Bomb rearmed",
   "incoming": {
    "$t": "{0} is raiding your burrow!"
   },

@@ -211,6 +211,7 @@ export const it: Dict = {
     noShield: 'senza scudo',
     /* In italiano lo zero è plurale, come in inglese: 0 bombe, 1 bomba. */
     traps: (n) => `${n} ${n === 1 ? 'bomba' : 'bombe'}`,
+    trapsDown: (n) => `${n} in ricarica`,
     leftOutside: (name, n) => `${name} ha lasciato ${n} fuori`,
     burrowsOpen: (n) => `${n} ${n === 1 ? 'tana aperta' : 'tane aperte'}`,
     bombsInBag: (n) => `${n} ${n === 1 ? 'bomba' : 'bombe'} nello zaino`,
@@ -664,6 +665,7 @@ export const it: Dict = {
     tile_field: 'Nel tuo orto non si sotterra niente.',
     tile_already_trapped: 'Lì c’è già una bomba.',
     no_trap_there: 'Nessuna bomba lì.',
+    trap_armed: 'Questa bomba è già armata.',
     no_fences: 'Steccati finiti. Il negozio li vende.',
     span_already_fenced: 'Lì c’è già uno steccato.',
     span_not_exposed: 'Questo non è un bordo del tuo orto.',
@@ -913,6 +915,7 @@ export const it: Dict = {
     held_: 'Tana difesa',
     cutTree: (name: string) => `${name} ha abbattuto uno dei tuoi alberi`,
     cutPlank: (name: string) => `${name} ha abbattuto uno dei tuoi steccati`,
+    rearmed: 'Bomba riarmata',
     incoming: (name) => `${name} sta razziando la tua tana!`,
     planBombs: (drain) => `Tocca una casella per sotterrare una bomba, toccala di nuovo per riprenderla. Il predone che la pesta perde ${drain} ⚡.`,
     planFences: 'Tocca un bordo dell’orto per uno steccato. Il predone deve girarci intorno.',

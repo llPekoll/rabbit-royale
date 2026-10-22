@@ -239,6 +239,9 @@
     }
    ]
   },
+  "trapsDown": {
+   "$t": "{0} in ricarica"
+  },
   "leftOutside": {
    "$t": "{0} ha lasciato {1} fuori"
   },
@@ -1105,6 +1108,7 @@
   "tile_field": "Nel tuo orto non si sotterra niente.",
   "tile_already_trapped": "Lì c’è già una bomba.",
   "no_trap_there": "Nessuna bomba lì.",
+  "trap_armed": "Questa bomba è già armata.",
   "no_fences": "Steccati finiti. Il negozio li vende.",
   "span_already_fenced": "Lì c’è già uno steccato.",
   "span_not_exposed": "Questo non è un bordo del tuo orto.",
@@ -1586,6 +1590,7 @@
   "cutPlank": {
    "$t": "{0} ha abbattuto uno dei tuoi steccati"
   },
+  "rearmed": "Bomba riarmata",
   "incoming": {
    "$t": "{0} sta razziando la tua tana!"
   },

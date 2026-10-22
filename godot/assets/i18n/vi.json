@@ -231,6 +231,9 @@
   "traps": {
    "$t": "{0} bom"
   },
+  "trapsDown": {
+   "$t": "{0} đang nạp"
+  },
   "leftOutside": {
    "$t": "{0} để {1} bên ngoài"
   },
@@ -1051,6 +1054,7 @@
   "tile_field": "Không chôn gì trong vườn bạn.",
   "tile_already_trapped": "Đã có bom ở đó rồi.",
   "no_trap_there": "Không có bom ở đó.",
+  "trap_armed": "Quả bom này đã được gài rồi.",
   "no_fences": "Hết hàng rào. Cửa hàng có bán.",
   "span_already_fenced": "Đã có hàng rào ở đó.",
   "span_not_exposed": "Đó không phải mép vườn của bạn.",
@@ -1439,6 +1443,7 @@
   "cutPlank": {
    "$t": "{0} đã chặt một hàng rào của bạn"
   },
+  "rearmed": "Bom đã gài lại",
   "incoming": {
    "$t": "{0} đang cướp hang bạn!"
   },

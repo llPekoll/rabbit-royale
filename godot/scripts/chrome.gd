@@ -399,6 +399,17 @@ func _dev_open() -> void:
 	if what.begins_with("raid:"):
 		revenge(what.trim_prefix("raid:"))
 		return
+	# `--open=defend-tap:<case>` : DEFEND, puis la tape sur cette case, comme
+	# le doigt — pour capturer une bombe sautee qu'on rearme.
+	if what.begins_with("defend-tap:"):
+		_on_door("defend")
+		await get_tree().create_timer(1.5).timeout
+		for home in get_tree().root.find_children("*", "Node2D", true, false):
+			if home.has_method("_toggle_trap"):
+				home.set_placing(true)
+				home._toggle_trap(int(what.trim_prefix("defend-tap:")))
+				break
+		return
 	match what:
 		"shop": Shop.open()
 		# Traverser vers l'ile, comme la planche DIG (`_dig`) — pour capturer
