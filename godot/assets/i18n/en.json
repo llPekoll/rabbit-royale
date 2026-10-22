@@ -324,6 +324,10 @@
   "stumpRegrows": {
    "$t": "Regrows in {0}"
   },
+  "bombRearms": {
+   "$t": "Rearms in {0}"
+  },
+  "tapToRearm": "Tap to rearm",
   "markStands": {
    "$t": "Back up in {0}"
   },

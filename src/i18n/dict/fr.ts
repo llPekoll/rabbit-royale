@@ -245,6 +245,8 @@ export const fr: Dict = {
     gardenGrowing: (perHour, holds) => `pousse pendant que tu creuses \u00b7 ${perHour}/h \u00b7 contient ${holds}`,
     yieldRate: (perHour) => `${perHour} carottes/h`,
     stumpRegrows: (when: string) => `Repousse dans ${when}`,
+    bombRearms: (when: string) => `Réarmée dans ${when}`,
+    tapToRearm: 'Touche pour réarmer',
     markStands: (when: string) => `Se relève dans ${when}`,
     regenRate: (perHour) => `${perHour} énergie/h`,
   },

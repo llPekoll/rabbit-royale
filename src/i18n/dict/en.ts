@@ -298,6 +298,9 @@ export const en = {
     yieldRate: (perHour: number) => `${perHour} carrots/hour`,
     /* A felled tree's stump, on the owner's board: how long until it stands again. */
     stumpRegrows: (when: string) => `Regrows in ${when}`,
+    /* A bomb a raider set off, on the owner's board (2026-10-22). */
+    bombRearms: (when: string) => `Rearms in ${when}`,
+    tapToRearm: 'Tap to rearm',
     /* A landmark the axe knocked over, on the owner's board. */
     markStands: (when: string) => `Back up in ${when}`,
     regenRate: (perHour: number) => `${perHour} energy/hour`,

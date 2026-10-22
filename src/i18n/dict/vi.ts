@@ -253,6 +253,8 @@ export const vi: Dict = {
     gardenGrowing: (perHour, holds) => `lớn trong lúc bạn đào · ${perHour}/giờ · chứa ${holds}`,
     yieldRate: (perHour) => `${perHour} cà rốt/giờ`,
     stumpRegrows: (when: string) => `Mọc lại sau ${when}`,
+    bombRearms: (when: string) => `Gài lại sau ${when}`,
+    tapToRearm: 'Chạm để gài lại',
     markStands: (when: string) => `Dựng lại sau ${when}`,
     regenRate: (perHour) => `${perHour} năng lượng/giờ`,
   },

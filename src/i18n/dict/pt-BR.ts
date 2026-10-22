@@ -249,6 +249,8 @@ export const ptBR: Dict = {
     gardenGrowing: (perHour, holds) => `cresce enquanto você cava \u00b7 ${perHour}/h \u00b7 cabe ${holds}`,
     yieldRate: (perHour) => `${perHour} cenouras/h`,
     stumpRegrows: (when: string) => `Cresce de novo em ${when}`,
+    bombRearms: (when: string) => `Rearma em ${when}`,
+    tapToRearm: 'Toque para rearmar',
     markStands: (when: string) => `Levanta de novo em ${when}`,
     regenRate: (perHour) => `${perHour} de energia/h`,
   },

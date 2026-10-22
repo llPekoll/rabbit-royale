@@ -251,6 +251,8 @@ export const zh: Dict = {
     gardenGrowing: (perHour, holds) => `挖掘时生长 \u00b7 每小时 ${perHour} \u00b7 可存 ${holds}`,
     yieldRate: (perHour) => `每小时 ${perHour} 根胡萝卜`,
     stumpRegrows: (when: string) => `${when}后重新长出`,
+    bombRearms: (when: string) => `${when}后重新布设`,
+    tapToRearm: '点击重新布设',
     markStands: (when: string) => `${when}后重新立起`,
     regenRate: (perHour) => `每小时 ${perHour} 点能量`,
   },

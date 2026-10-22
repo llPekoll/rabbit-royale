@@ -38,6 +38,10 @@ const LIFT_TINT := Color("#ff6b4a")
 const LIFT_PX := 5.0
 ## La copie pale de la bombe qui se recharge.
 const REARMING_ALPHA := 0.3
+## Sa marque, A REPARER : l'orange qui bat tant qu'elle est a terre — une
+## bombe sautee ne garde rien, et la tape la rearme (2026-10-22).
+const REARM_TINT := Color("#ff9a3c")
+const REARM_PULSE_HZ := 0.8
 ## Le souffle d'une bombe qui saute sous un pillard.
 const BLAST_TINT := Color("#ff6b6b")
 const DUST := Color("#c9b48a")
@@ -57,6 +61,7 @@ var _lift_tween: Tween
 ## Les cases que le JOUEUR vient de poser : elles arrivent avec le rebond et
 ## la poussiere. Les autres (relecture, retour d'un raid) arrivent posees.
 var _fresh: Dictionary = {}
+var _pulse := 0.0
 
 ## LE FANTOME (`GhostBomb`) : la bombe qu'une tape enterrerait, pale, sur la
 ## case visee. MEME texture, ancre et echelle que la vraie — un fantome d'une
@@ -89,6 +94,16 @@ func has_trap(tile: int) -> bool:
 ## rearme (ShopState `rearm_trap`) au lieu de la relever.
 func is_rearming(tile: int) -> bool:
 	return _traps.has(tile) and float(_traps[tile].total_ms) > 0.0 and float(_traps[tile].left_ms) > 0.0
+
+
+## Les bombes a terre et ce qu'il leur reste (ms) : les etiquettes du
+## terrier (burrow.gd `_sync_bomb_tags`).
+func rearming_left() -> Dictionary:
+	var out := {}
+	for tile in _traps:
+		if is_rearming(tile):
+			out[tile] = float(_traps[tile].left_ms)
+	return out
 
 
 func tiles() -> Array:
@@ -382,10 +397,14 @@ func set_rearm(tile: int, left_ms: float, total_ms: float) -> void:
 ## LA RAMPE ENTRE DEUX RELECTURES, plafonnee sous 1 : le dernier eclat
 ## appartient au serveur, qui seul dit quand elle re-arme.
 func _process(delta: float) -> void:
+	_pulse += delta
 	for tile in _traps:
 		var t: Dictionary = _traps[tile]
 		if float(t.total_ms) <= 0.0:
 			continue
+		if tile != _lifted:
+			(t.marker as Sprite2D).modulate = Color(REARM_TINT,
+				0.6 + 0.35 * sin(_pulse * TAU * REARM_PULSE_HZ))
 		t.left_ms = maxf(0.0, float(t.left_ms) - delta * 1000.0)
 		var charge := minf(0.98, 1.0 - float(t.left_ms) / float(t.total_ms))
 		if absf(charge - float(t.charge)) < 0.002:
@@ -402,7 +421,8 @@ func _paint(tile: int) -> void:
 	var charge := clampf(float(t.charge), 0.0, 1.0)
 	var marker: Sprite2D = t.marker
 	var lifting := _lifted == tile
-	marker.modulate = LIFT_TINT if lifting else TRAP_TINT
+	var down := float(t.total_ms) > 0.0 and float(t.left_ms) > 0.0
+	marker.modulate = LIFT_TINT if lifting else (REARM_TINT if down else TRAP_TINT)
 	marker.modulate.a = 0.95 if lifting else 0.55 + 0.2 * charge
 	var bomb: Sprite2D = t.bomb
 	bomb.modulate.a = REARMING_ALPHA

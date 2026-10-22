@@ -92,6 +92,9 @@ var _raid_edits := ""
 var _axe_lit: Array = []
 ## Les comptes a rebours des souches (`_sync_stumps`) : tuile -> Label.
 var _stump_tags := {}
+## case -> Label : « Rearms in 2h » au-dessus d'une bombe sautee, « Tap to
+## rearm » pendant la pose (`_sync_bomb_tags`).
+var _bomb_tags := {}
 ## Une relecture demandee pour une souche arrivee a zero (`_sync_stumps`).
 var _regrow_asked := {}
 const WOOD_CHIPS := [Color("#8a5a32"), Color("#d9c8a0")]
@@ -239,6 +242,7 @@ func _ready() -> void:
 	var ticks := Timer.new()
 	ticks.wait_time = STUMP_TICK_S
 	ticks.timeout.connect(_sync_stumps)
+	ticks.timeout.connect(_sync_bomb_tags)
 	add_child(ticks)
 	ticks.start()
 	Home.level_up.connect(func(level: int) -> void:
@@ -402,6 +406,7 @@ func _sync_traps() -> void:
 	if _traps == null or not _own_ground():
 		return
 	_traps.sync(ShopState.shared().traps)
+	_sync_bomb_tags()
 	_hints.restyle()
 	_sync_fences()
 
@@ -1050,24 +1055,56 @@ func _sync_stumps() -> void:
 	for tile in want:
 		var tag: Label = _stump_tags.get(tile)
 		if tag == null:
-			tag = Label.new()
-			tag.add_theme_font_size_override("font_size", int(STUMP_TAG_SIZE * STUMP_TAG_OVERSAMPLE))
-			tag.add_theme_color_override("font_color", Color("#fff4d6"))
-			tag.add_theme_color_override("font_outline_color", Color("#1d1608"))
-			tag.add_theme_constant_override("outline_size", int(3 * STUMP_TAG_OVERSAMPLE))
-			tag.scale = Vector2.ONE / STUMP_TAG_OVERSAMPLE
-			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			tag.z_as_relative = false
-			tag.z_index = 3000
-			tag.size = Vector2(STUMP_TAG_W, 14) * STUMP_TAG_OVERSAMPLE
-			add_child(tag)
+			tag = _make_tag()
 			_stump_tags[tile] = tag
-		var c := BurrowLayout.cell_of(tile)
-		tag.position = _terrain.map.screen_of(c.x, c.y) + Vector2(-STUMP_TAG_W * 0.5, Iso.half_h() - STUMP_TAG_RISE)
+		_place_tag(tag, tile)
 		var key := "burrow.stumpRegrows" if want[tile][1] == "felled" else "burrow.markStands"
 		tag.text = I18N.f(key, [I18N.short_wait(float(want[tile][0]))])
+
+
+## LES BOMBES SAUTEES, chez soi (2026-10-22) : combien de temps elle reste a
+## terre, ou — pendant la pose — que la tape la rearme (`_toggle_trap`).
+## Sans le mot, une bombe pale ne dit pas qu'elle ne garde plus rien.
+func _sync_bomb_tags() -> void:
+	var want: Dictionary = {}
+	if _own_ground() and not _in_raid and _traps != null and _terrain != null:
+		want = _traps.rearming_left()
+	for tile in _bomb_tags.keys():
+		if not want.has(tile):
+			(_bomb_tags[tile] as Node).queue_free()
+			_bomb_tags.erase(tile)
+	for tile in want:
+		var tag: Label = _bomb_tags.get(tile)
+		if tag == null:
+			tag = _make_tag()
+			_bomb_tags[tile] = tag
+		_place_tag(tag, tile)
+		tag.text = I18N.t("burrow.tapToRearm") if _placing \
+			else I18N.f("burrow.bombRearms", [I18N.short_wait(float(want[tile]))])
+
+
+## L'etiquette des souches et des bombes : le nom des lapins de l'ile, a
+## plat au-dessus de tout.
+func _make_tag() -> Label:
+	var tag := Label.new()
+	tag.add_theme_font_size_override("font_size", int(STUMP_TAG_SIZE * STUMP_TAG_OVERSAMPLE))
+	tag.add_theme_color_override("font_color", Color("#fff4d6"))
+	tag.add_theme_color_override("font_outline_color", Color("#1d1608"))
+	tag.add_theme_constant_override("outline_size", int(3 * STUMP_TAG_OVERSAMPLE))
+	tag.scale = Vector2.ONE / STUMP_TAG_OVERSAMPLE
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.z_as_relative = false
+	tag.z_index = 3000
+	tag.size = Vector2(STUMP_TAG_W, 14) * STUMP_TAG_OVERSAMPLE
+	add_child(tag)
+	return tag
+
+
+func _place_tag(tag: Label, tile: int) -> void:
+	var c := BurrowLayout.cell_of(tile)
+	tag.position = _terrain.map.screen_of(c.x, c.y) + Vector2(-STUMP_TAG_W * 0.5, Iso.half_h() - STUMP_TAG_RISE)
 
 
 ## L'ARBRE REPOUSSE (2026-10-12) : la souche s'efface, l'arbre sort de son
@@ -1617,6 +1654,7 @@ func set_placing(on: bool) -> void:
 	_hints.show_hints(on)
 	_traps.set_lifted(-1)
 	_traps.show_ghost(-1)
+	_sync_bomb_tags()
 	_sync_door()
 	_relabel_cycle()
 	frame_camera()

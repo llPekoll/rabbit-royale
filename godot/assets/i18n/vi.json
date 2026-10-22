@@ -300,6 +300,10 @@
   "stumpRegrows": {
    "$t": "Mọc lại sau {0}"
   },
+  "bombRearms": {
+   "$t": "Gài lại sau {0}"
+  },
+  "tapToRearm": "Chạm để gài lại",
   "markStands": {
    "$t": "Dựng lại sau {0}"
   },

@@ -248,6 +248,8 @@ export const it: Dict = {
     gardenGrowing: (perHour, holds) => `cresce mentre scavi · ${perHour}/h · contiene ${holds}`,
     yieldRate: (perHour) => `${perHour} carote/h`,
     stumpRegrows: (when: string) => `Ricresce tra ${when}`,
+    bombRearms: (when: string) => `Si riarma tra ${when}`,
+    tapToRearm: 'Tocca per riarmare',
     markStands: (when: string) => `Si rialza tra ${when}`,
     regenRate: (perHour) => `${perHour} energia/h`,
   },
