@@ -147,6 +147,18 @@ export const CHANGELOG: Release[] = [
           it: 'DEFEND: una bomba fatta esplodere da un predone ora compare sulla tavola (“1 in ricarica”). Toccala per riarmarla subito, in cambio di una bomba dalla tua borsa.',
         },
       },
+      {
+        kind: 'new',
+        text: {
+          en: 'The bomb slot now shows what defends you: 8/8 on your burrow, your reserve in the corner.',
+          fr: 'La case de la bombe montre ce qui te défend : 8/8 sur ton terrier, ta réserve dans le coin.',
+          zh: '炸弹格子现在显示真正守护你的数量：洞穴里 8/8，角落里是备用数量。',
+          'pt-BR': 'O espaço da bomba agora mostra o que te defende: 8/8 na sua toca, sua reserva no canto.',
+          vi: 'Ô bom giờ hiện thứ đang bảo vệ bạn: 8/8 trong hang, số dự trữ ở góc.',
+          es: 'La casilla de la bomba ahora muestra lo que te defiende: 8/8 en tu madriguera, tu reserva en la esquina.',
+          it: 'La casella della bomba ora mostra cosa ti difende: 8/8 nella tana, la riserva nell’angolo.',
+        },
+      },
     ],
   },
   {

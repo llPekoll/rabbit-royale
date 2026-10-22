@@ -425,8 +425,18 @@ func _refresh() -> void:
 	for kind in _slots:
 		var slot: ItemSlot = _slots[kind]
 		var n := _count_of(kind)
-		slot.set_count((str(smoke_days) + I18N.t("units.d")) if kind == "smoke" else str(n))
 		slot.set_selected(kind == _selected)
+		# LA BOMBE DIT CE QUI DEFEND (2026-10-22) : « 8/8 » sur le terrier, en
+		# or quand c'est plein, la reserve en petit au coin (« +12 ») — le
+		# seul chiffre du sac faisait croire qu'on pouvait en poser 12.
+		if kind == "trap":
+			var placed := state.traps_placed()
+			var most := Tuning.i("TRAPS.MAX_PLACED", 8)
+			slot.set_count("%d/%d" % [placed, most], placed >= most)
+			slot.set_extra(("+%d" % n) if n > 0 else "")
+			slot.set_dim(placed + n == 0)
+			continue
+		slot.set_count((str(smoke_days) + I18N.t("units.d")) if kind == "smoke" else str(n))
 		slot.set_dim(n == 0 and _active_of(kind) < 0 and not (kind == "smoke" and smoke_days > 0))
 
 	_detail.visible = _expanded
@@ -450,7 +460,7 @@ func _refresh_detail(smoke_days: int, pending: bool) -> void:
 
 	match kind:
 		"trap":
-			status += " · " + I18N.f(copy + "placed", [state.traps_placed()])
+			status = I18N.f(copy + "trapStatus", [state.traps_placed(), Tuning.i("TRAPS.MAX_PLACED", 8), amount])
 			hint = I18N.t(copy + "trapHint") if amount > 0 else I18N.t(copy + "trapEmpty")
 			# Le prix de l'etal quand il est lu : c'est lui que le serveur
 			# debite (SHOP.PRICES, reglable en direct), pas le fichier.

@@ -1157,6 +1157,9 @@
    "placed": {
     "$t": "{0} placed"
    },
+   "trapStatus": {
+    "$t": "{0}/{1} on your burrow · {2} in reserve"
+   },
    "active": {
     "$t": "{0} remaining"
    },
@@ -1233,7 +1236,7 @@
    "$t": "Bombs: none left. One costs {0} carrots - dig for more."
   },
   "trapsBuyFull": {
-   "$t": "Bombs: {0} in the bag. The bag is full."
+   "$t": "Bombs: {0} in reserve. Your reserve is full."
   },
   "bottleRunning": {
    "$t": "{0}: running, {1} left. {2} in the bag."

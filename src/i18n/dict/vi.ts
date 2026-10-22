@@ -716,6 +716,7 @@ export const vi: Dict = {
       more: 'Xem hiệu ứng và thao tác', less: 'Thu gọn',
       available: (n) => n + ' sẵn có',
       placed: (n) => n + ' đã đặt',
+      trapStatus: (placed, max, reserve) => `${placed}/${max} trong hang \u00b7 ${reserve} dự trữ`,
       active: (time) => 'còn ' + time,
       buyTrap: (price) => 'Mua một quả bom - ' + price + ' cà rốt',
       trapHint: 'Chạm một ô để chôn bom. Chạm bom để lấy lại.',
@@ -752,7 +753,7 @@ export const vi: Dict = {
         : `Bom: túi trống. Mua một quả giá ${price} cà rốt.`),
     trapsBuyBroke: (price) =>
       `Bom: hết sạch. Một quả giá ${price} cà rốt - đi đào thêm.`,
-    trapsBuyFull: (held) => `Bom: ${held} trong túi. Túi đã đầy.`,
+    trapsBuyFull: (held) => `Bom: ${held} dự trữ. Kho dự trữ đã đầy.`,
     bottleRunning: (name, wait, count) => `${name}: đang chạy, còn ${wait}. ${count} trong túi.`,
     bottleHeld: (name, count) => `${name}: ${count} trong túi. Đổ một cái lên vườn.`,
     bottleNone: (name) => `${name}: không có. Tìm trong rương.`,

@@ -1187,6 +1187,9 @@
    "placed": {
     "$t": "{0} en place"
    },
+   "trapStatus": {
+    "$t": "{0}/{1} sur ton terrier · {2} en réserve"
+   },
    "active": {
     "$t": "{0} restantes"
    },
@@ -1269,7 +1272,7 @@
    "$t": "Bombes : plus aucune. Une bombe coûte {0} carottes - va en creuser."
   },
   "trapsBuyFull": {
-   "$t": "Bombes : {0} en sac. Le sac est plein."
+   "$t": "Bombes : {0} en réserve. Ta réserve est pleine."
   },
   "bottleRunning": {
    "$t": "{0} : en cours, {1} restant. {2} en sac."

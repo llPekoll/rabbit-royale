@@ -863,6 +863,7 @@ export const en = {
       more: 'Show effect and actions', less: 'Fold details',
       available: (n: number) => n + ' available',
       placed: (n: number) => n + ' placed',
+      trapStatus: (placed: number, max: number, reserve: number) => `${placed}/${max} on your burrow \u00b7 ${reserve} in reserve`,
       active: (time: string) => time + ' remaining',
       buyTrap: (price: string) => 'Buy a bomb - ' + price + ' carrots',
       trapHint: 'Tap a tile to bury a bomb. Tap a bomb to recover it.',
@@ -912,7 +913,7 @@ export const en = {
         : `Bombs: none in the bag. Buy one for ${price} carrots.`),
     trapsBuyBroke: (price: string) =>
       `Bombs: none left. One costs ${price} carrots - dig for more.`,
-    trapsBuyFull: (held: number) => `Bombs: ${held} in the bag. The bag is full.`,
+    trapsBuyFull: (held: number) => `Bombs: ${held} in reserve. Your reserve is full.`,
     bottleRunning: (name: string, wait: string, count: number) =>
       `${name}: running, ${wait} left. ${count} in the bag.`,
     bottleHeld: (name: string, count: number) => `${name}: ${count} in the bag. Pour one on the garden.`,
