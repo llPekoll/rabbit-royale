@@ -7,12 +7,13 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, inArray } from 'drizzle-orm';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey, type AccountInfo } from '@solana/web3.js';
 import bs58 from 'bs58';
 
 import { db } from '@/lib/db';
 import { genesisPieces, players, runs } from '@/lib/db/schema';
-import { RABBIT_WALLET, isTransient, liveChain, rarityOf, type GenesisChain } from '@/lib/genesis/chain';
+import { RABBIT_WALLET, RR_GENESIS_COLLECTION, heldBy, isTransient, liveChain, rarityOf, type GenesisChain } from '@/lib/genesis/chain';
+import STOCK from '@/lib/genesis/stock.json';
 import { awardGenesis, genesisOpen, setGenesisChain, warmGenesis } from '@/lib/genesis/award';
 import { sendPending } from '@/lib/genesis/send';
 
@@ -66,6 +67,39 @@ describe('chain helpers', () => {
       expect(isTransient(new Error(m))).toBe(true);
     }
     expect(isTransient(new Error('Account does not exist'))).toBe(false);
+  });
+});
+
+describe('the stock list', () => {
+  const CORE = new PublicKey('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
+  /** The first 66 bytes of a Core AssetV1 account. */
+  const asset = (owner: string, collection: string, o: { key?: number; kind?: number; program?: PublicKey } = {}): AccountInfo<Buffer> => {
+    const d = Buffer.alloc(66);
+    d[0] = o.key ?? 1;
+    new PublicKey(owner).toBuffer().copy(d, 1);
+    d[33] = o.kind ?? 2;
+    new PublicKey(collection).toBuffer().copy(d, 34);
+    return { data: d, owner: o.program ?? CORE, lamports: 1, executable: false, rentEpoch: 0 };
+  };
+
+  it('holds the 356 pieces moved from the hub, each once', () => {
+    expect(STOCK).toHaveLength(356);
+    expect(new Set(STOCK).size).toBe(356);
+    for (const m of STOCK) expect(() => new PublicKey(m)).not.toThrow();
+  });
+
+  it('counts only what the wallet holds in the collection', () => {
+    const wallet = addr();
+    const keys = [addr(), addr(), addr(), addr(), addr(), addr()];
+    const infos = [
+      asset(wallet, RR_GENESIS_COLLECTION),                          // ours
+      asset(addr(), RR_GENESIS_COLLECTION),                          // already sent
+      asset(wallet, addr()),                                         // another collection
+      asset(wallet, RR_GENESIS_COLLECTION, { key: 2 }),              // not an AssetV1
+      asset(wallet, RR_GENESIS_COLLECTION, { program: new PublicKey(addr()) }), // not Core
+      null,                                                          // burnt
+    ];
+    expect(heldBy(keys, infos, wallet, RR_GENESIS_COLLECTION)).toEqual([keys[0]]);
   });
 });
 

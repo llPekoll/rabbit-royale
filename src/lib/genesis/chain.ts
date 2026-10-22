@@ -20,14 +20,22 @@
  *                              'sending' until the key is there.
  *   GENESIS_WALLET_ADDRESS     the game wallet (default the official one).
  *   GENESIS_COLLECTION_ADDRESS the collection (default RR Genesis mainnet).
- *   GENESIS_RPC_URL            else SOLANA_RPC_URL — getProgramAccounts must
- *                              be allowed on it.
+ *   GENESIS_RPC_URL            else SOLANA_RPC_URL.
+ *
+ * THE STOCK IS A LIST, `stock.json`: the mints the game was given (the 356
+ * moved from the hub's vault on 2026-10-21), read 100 at a time with
+ * getMultipleAccounts. Scanning the Core program for whatever the wallet
+ * holds (getProgramAccounts) is what Alchemy refused on every call (429,
+ * compute units), and a list also keeps the game off any piece it was not
+ * handed. More stock = more mints in the file. Another collection (devnet, a
+ * local validator) has no list and is scanned.
  */
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, type AccountInfo } from '@solana/web3.js';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { createSignerFromKeypair, publicKey, signerIdentity } from '@metaplex-foundation/umi';
 import { fetchAsset, transferV1 } from '@metaplex-foundation/mpl-core';
 import bs58 from 'bs58';
+import STOCK from './stock.json';
 
 export const RR_GENESIS_COLLECTION = 'GNkMLCVtP3i2imay4LSRKugEFaUeb77QYHR4uDcxB56A';
 export const RABBIT_WALLET = '8jv4N9KWwuG4ww8E8CqGz6A3eaheyUT4B6qsjoxsjqMy';
@@ -87,6 +95,23 @@ export function rarityOf(attributes: unknown): string | null {
   return null;
 }
 
+/**
+ * Which of `keys` the wallet holds in the collection, from their accounts'
+ * first 66 bytes (the AssetV1 layout the scan below filters on). A closed
+ * (burnt) account or another program's is simply not stock.
+ */
+export function heldBy(keys: string[], infos: (AccountInfo<Buffer> | null)[], wallet: string, collection: string): string[] {
+  return keys.filter((_, i) => {
+    const info = infos[i];
+    if (!info || !info.owner.equals(CORE_PROGRAM) || info.data.length < 66) return false;
+    const d = info.data;
+    return d[0] === 1
+      && new PublicKey(d.subarray(1, 33)).toBase58() === wallet
+      && d[33] === 2
+      && new PublicKey(d.subarray(34, 66)).toBase58() === collection;
+  });
+}
+
 /** The real chain, or null when no RPC is configured (dev without one). */
 export function liveChain(): GenesisChain | null {
   const rpc = rpcUrl();
@@ -110,6 +135,15 @@ export function liveChain(): GenesisChain | null {
     wallet,
     canSend: !!secret,
     async stock() {
+      if (collection === RR_GENESIS_COLLECTION) {
+        const out: string[] = [];
+        for (let i = 0; i < STOCK.length; i += 100) {
+          const keys = STOCK.slice(i, i + 100);
+          const infos = await connection.getMultipleAccountsInfo(keys.map((k) => new PublicKey(k)), { dataSlice: { offset: 0, length: 66 } });
+          out.push(...heldBy(keys, infos, wallet, collection));
+        }
+        return out;
+      }
       // A Core AssetV1 account: key (1 = AssetV1, base58 "2"), owner at 1,
       // update authority kind at 33 (2 = collection) and its address at 34.
       const accounts = await connection.getProgramAccounts(CORE_PROGRAM, {
