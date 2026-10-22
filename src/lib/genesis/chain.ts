@@ -112,15 +112,36 @@ export function heldBy(keys: string[], infos: (AccountInfo<Buffer> | null)[], wa
   });
 }
 
+/**
+ * A Solana secret key as people paste it: base58 (Phantom's export) or the
+ * JSON byte array of a keypair file, maybe wrapped in quotes. Null unless it
+ * is the 64 bytes a keypair is made of — an address (32) or a cut-off paste
+ * is not a key.
+ */
+export function secretKeyBytes(raw: string): Uint8Array | null {
+  const s = raw.trim().replace(/^(["'])(.*)\1$/s, '$2').trim();
+  try {
+    const bytes = s.startsWith('[') ? Uint8Array.from(JSON.parse(s) as number[]) : bs58.decode(s);
+    return bytes.length === 64 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The real chain, or null when no RPC is configured (dev without one). */
 export function liveChain(): GenesisChain | null {
   const rpc = rpcUrl();
   if (!rpc) return null;
   const umi = createUmi(rpc);
-  const secret = process.env.GENESIS_WALLET_SECRET_KEY?.trim();
+  const raw = process.env.GENESIS_WALLET_SECRET_KEY?.trim();
+  const secret = raw ? secretKeyBytes(raw) : null;
+  // A key that is not one (2026-10-22, EU: "bad secret key size" thrown from
+  // here on every sweep AND inside crown-chest digs): say so once and send
+  // nothing, never throw — pieces wait in 'sending' until the key is fixed.
+  if (raw && !secret) console.error('[genesis] GENESIS_WALLET_SECRET_KEY is not a 64-byte Solana secret key (base58 or JSON array): sending is off');
   let wallet = gameWallet();
   if (secret) {
-    const kp = umi.eddsa.createKeypairFromSecretKey(bs58.decode(secret));
+    const kp = umi.eddsa.createKeypairFromSecretKey(secret);
     umi.use(signerIdentity(createSignerFromKeypair(umi, kp)));
     // The key decides: a mismatched GENESIS_WALLET_ADDRESS would read one
     // wallet's stock and try to send it with another's signature.

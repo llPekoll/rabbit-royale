@@ -12,7 +12,7 @@ import bs58 from 'bs58';
 
 import { db } from '@/lib/db';
 import { genesisPieces, players, runs } from '@/lib/db/schema';
-import { RABBIT_WALLET, RR_GENESIS_COLLECTION, heldBy, isTransient, liveChain, rarityOf, type GenesisChain } from '@/lib/genesis/chain';
+import { RABBIT_WALLET, RR_GENESIS_COLLECTION, heldBy, isTransient, liveChain, rarityOf, secretKeyBytes, type GenesisChain } from '@/lib/genesis/chain';
 import STOCK from '@/lib/genesis/stock.json';
 import { awardGenesis, genesisOpen, setGenesisChain, warmGenesis } from '@/lib/genesis/award';
 import { sendPending } from '@/lib/genesis/send';
@@ -45,6 +45,31 @@ describe('the game wallet', () => {
     const c = liveChain()!;
     expect(c.wallet).toBe(RABBIT_WALLET);
     expect(c.canSend).toBe(false);
+  });
+
+  it('takes the key as people paste it: base58, quoted, or a keypair file', () => {
+    const kp = Keypair.generate();
+    const b58 = bs58.encode(kp.secretKey);
+    for (const v of [b58, ` ${b58}\n`, `"${b58}"`, `'${b58}'`, JSON.stringify([...kp.secretKey])]) {
+      expect(secretKeyBytes(v)).toEqual(kp.secretKey);
+    }
+  });
+
+  it('refuses what is not a key, without ever throwing', () => {
+    const kp = Keypair.generate();
+    expect(secretKeyBytes(kp.publicKey.toBase58())).toBeNull(); // the address
+    expect(secretKeyBytes(bs58.encode(kp.secretKey).slice(0, 60))).toBeNull(); // cut off
+    expect(secretKeyBytes('not a key 0OIl')).toBeNull();
+    expect(secretKeyBytes('[1,2,3')).toBeNull();
+  });
+
+  it('switches sending off on a bad key instead of crashing (EU, 2026-10-22)', () => {
+    process.env.GENESIS_RPC_URL = 'http://127.0.0.1:1';
+    process.env.GENESIS_WALLET_SECRET_KEY = Keypair.generate().publicKey.toBase58();
+    delete process.env.GENESIS_WALLET_ADDRESS;
+    const c = liveChain()!;
+    expect(c.canSend).toBe(false);
+    expect(c.wallet).toBe(RABBIT_WALLET);
   });
 
   it('is off without an RPC', () => {
