@@ -414,6 +414,9 @@
   "bombsBack": {
    "$t": "{0} bom đã về lại túi"
   },
+  "bombsMoved": {
+   "$t": "{0} bom đã dời sang bên"
+  },
   "unsaved": "Không lưu được hang. Thử lại sau một lát.",
   "refused": {
    "entrance": "Đây là lối vào hang: kẻ cướp đi vào từ đó.",

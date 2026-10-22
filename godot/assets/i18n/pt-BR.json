@@ -466,6 +466,23 @@
     }
    ]
   },
+  "bombsMoved": {
+   "$t": "{0} bombas movidas para o lado",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomba movida para o lado"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 bomba movida para o lado"
+    }
+   ]
+  },
   "unsaved": "Não deu para salvar sua toca. Tente de novo daqui a pouco.",
   "refused": {
    "entrance": "É a entrada da sua toca: os saqueadores chegam por ali.",

@@ -134,6 +134,18 @@
             "es": "La casilla de la bomba ahora muestra lo que te defiende: 8/8 en tu madriguera, tu reserva justo debajo.",
             "it": "La casella della bomba ora mostra cosa ti difende: 8/8 nella tana, la scorta subito sotto."
           }
+        },
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Dropping your house or a tree on your bombs no longer makes them vanish: they step aside to the nearest free tile.",
+            "fr": "Poser ta maison ou un arbre sur tes bombes ne les fait plus disparaître : elles se poussent sur la case libre la plus proche.",
+            "zh": "把房子或树放在炸弹上，炸弹不会再消失：它们会挪到最近的空格子。",
+            "pt-BR": "Colocar sua casa ou uma árvore em cima das bombas não as faz mais sumir: elas vão para a casa livre mais próxima.",
+            "vi": "Đặt nhà hoặc cây lên bom không còn làm bom biến mất: bom sẽ dời sang ô trống gần nhất.",
+            "es": "Poner tu casa o un árbol sobre tus bombas ya no las hace desaparecer: se apartan a la casilla libre más cercana.",
+            "it": "Mettere la casa o un albero sulle bombe non le fa più sparire: si spostano sulla casella libera più vicina."
+          }
         }
       ]
     },

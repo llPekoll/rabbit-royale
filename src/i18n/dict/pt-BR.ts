@@ -337,6 +337,7 @@ export const ptBR: Dict = {
     },
     planksBack: (n) => `${n} cerca${n > 1 ? 's' : ''} de volta na bolsa`,
     bombsBack: (n) => `${n} bomba${n > 1 ? 's' : ''} de volta na bolsa`,
+    bombsMoved: (n) => `${n} bomba${n > 1 ? 's' : ''} movida${n > 1 ? 's' : ''} para o lado`,
     unsaved: 'Não deu para salvar sua toca. Tente de novo daqui a pouco.',
     refused: {
       entrance: 'É a entrada da sua toca: os saqueadores chegam por ali.',

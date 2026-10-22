@@ -29,6 +29,7 @@ import { editBurrow, hasEdits, withGifts } from '@/game/burrow/generate';
 import { fieldReachable, isSpan } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
 import { burrowUnderRaid, loadBurrowEdits, parseBurrowEdits } from '@/lib/game/burrowEdits';
+import { hopAside } from '@/lib/game/traps';
 import { giftsOwned } from '@/lib/game/snack';
 import { snackRowOf } from '@/lib/game/snackState';
 
@@ -126,9 +127,15 @@ export async function PUT(req: Request) {
   const evicted = placed
     .filter((t) => !isTrappable(id, t.tile) || house.has(t.tile))
     .map((t) => t.tile);
+  // Covered bombs STEP ASIDE to the nearest free cell (`hopAside`); only the
+  // ones with nowhere to go come home to the bag.
+  const staying = new Set(placed.map((t) => t.tile).filter((t) => !evicted.includes(t)));
+  const hops = hopAside(id, evicted, staying, house);
+  const homeless = evicted.filter((t) => hops.get(t) === null);
 
   let planksBack = 0;
   let bombsBack = 0;
+  let bombsMoved = 0;
   try {
     await db.transaction(async (tx) => {
       await tx.update(players)
@@ -155,9 +162,24 @@ export async function PUT(req: Request) {
         }
       }
 
-      if (evicted.length) {
+      // A hop keeps the row — and its rearm clock: a bomb down stays down.
+      // Two passes through a tile no bomb holds, so the (owner, tile) index
+      // never sees two rows on one cell mid-move.
+      const moving = [...hops].filter((e): e is [number, number] => e[1] !== null);
+      for (const [from] of moving) {
+        await tx.update(traps).set({ tile: -1 - from })
+          .where(and(eq(traps.ownerId, id), eq(traps.tile, from)));
+      }
+      for (const [from, to] of moving) {
+        const [row] = await tx.update(traps).set({ tile: to })
+          .where(and(eq(traps.ownerId, id), eq(traps.tile, -1 - from)))
+          .returning({ id: traps.id });
+        if (row) bombsMoved += 1;
+      }
+
+      if (homeless.length) {
         const rows = await tx.delete(traps)
-          .where(and(eq(traps.ownerId, id), inArray(traps.tile, evicted)))
+          .where(and(eq(traps.ownerId, id), inArray(traps.tile, homeless)))
           .returning({ tile: traps.tile });
         bombsBack = rows.length;
         // Every evicted bomb comes back, past the bag's ceiling if need be:
@@ -178,5 +200,5 @@ export async function PUT(req: Request) {
     throw err;
   }
 
-  return Response.json({ edits, locked: false, planksBack, bombsBack });
+  return Response.json({ edits, locked: false, planksBack, bombsBack, bombsMoved });
 }

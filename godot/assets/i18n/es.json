@@ -454,6 +454,17 @@
     }
    ]
   },
+  "bombsMoved": {
+   "$t": "{0} bombas movidas a un lado",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomba movida a un lado"
+    }
+   ]
+  },
   "unsaved": "No se pudo guardar tu madriguera. Inténtalo de nuevo en un momento.",
   "refused": {
    "entrance": "Es la entrada de tu madriguera: los saqueadores llegan por ahí.",

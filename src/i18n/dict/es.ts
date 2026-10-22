@@ -337,6 +337,7 @@ export const es: Dict = {
     },
     planksBack: (n) => `${n} valla${n === 1 ? '' : 's'} de vuelta en tu bolsa`,
     bombsBack: (n) => `${n} bomba${n === 1 ? '' : 's'} de vuelta en tu bolsa`,
+    bombsMoved: (n) => `${n} bomba${n === 1 ? '' : 's'} movida${n === 1 ? '' : 's'} a un lado`,
     unsaved: 'No se pudo guardar tu madriguera. Inténtalo de nuevo en un momento.',
     refused: {
       entrance: 'Es la entrada de tu madriguera: los saqueadores llegan por ahí.',

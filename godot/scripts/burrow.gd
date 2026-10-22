@@ -2212,10 +2212,15 @@ func _save_edits() -> void:
 			break
 		var back := int(res.get("planksBack", 0))
 		var bombs := int(res.get("bombsBack", 0))
-		if (back > 0 or bombs > 0) and Chrome.current != null:
+		# Les bombes que la maison (ou un arbre) couvre SAUTENT A COTE
+		# (2026-10-22) ; le sac ne prend que celles qui n'ont nulle part ou aller.
+		var moved := int(res.get("bombsMoved", 0))
+		if (back > 0 or bombs > 0 or moved > 0) and Chrome.current != null:
 			var parts: Array[String] = []
 			if back > 0:
 				parts.append(I18N.f("arrange.planksBack", [back]))
+			if moved > 0:
+				parts.append(I18N.f("arrange.bombsMoved", [moved]))
 			if bombs > 0:
 				parts.append(I18N.f("arrange.bombsBack", [bombs]))
 			Chrome.current.toast(" ".join(parts))

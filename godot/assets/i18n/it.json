@@ -454,6 +454,17 @@
     }
    ]
   },
+  "bombsMoved": {
+   "$t": "{0} bombe spostate di lato",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomba spostata di lato"
+    }
+   ]
+  },
   "unsaved": "Impossibile salvare la tua tana. Riprova tra un attimo.",
   "refused": {
    "entrance": "È l’ingresso della tua tana: i predoni entrano da lì.",

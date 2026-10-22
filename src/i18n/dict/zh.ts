@@ -339,6 +339,7 @@ export const zh: Dict = {
     },
     planksBack: (n) => `${n} 道栅栏回到了背包`,
     bombsBack: (n) => `${n} 颗炸弹回到了背包`,
+    bombsMoved: (n) => `${n} 颗炸弹挪到了旁边`,
     unsaved: '兔窝没能保存，请稍后再试。',
     refused: {
       entrance: '这是兔窝的入口，掠夺者从这里进来。',

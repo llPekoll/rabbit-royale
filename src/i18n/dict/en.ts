@@ -414,6 +414,7 @@ export const en = {
     },
     planksBack: (n: number) => `${n} fence${n === 1 ? '' : 's'} back in your bag`,
     bombsBack: (n: number) => `${n} bomb${n === 1 ? '' : 's'} back in your bag`,
+    bombsMoved: (n: number) => `${n} bomb${n === 1 ? '' : 's'} stepped aside`,
     unsaved: 'Could not save your burrow. Try again in a moment.',
     refused: {
       entrance: 'That\'s your burrow\'s entrance: raiders come in there.',

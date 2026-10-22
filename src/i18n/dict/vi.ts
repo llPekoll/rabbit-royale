@@ -341,6 +341,7 @@ export const vi: Dict = {
     },
     planksBack: (n) => `${n} hàng rào đã về lại túi`,
     bombsBack: (n) => `${n} bom đã về lại túi`,
+    bombsMoved: (n) => `${n} bom đã dời sang bên`,
     unsaved: 'Không lưu được hang. Thử lại sau một lát.',
     refused: {
       entrance: 'Đây là lối vào hang: kẻ cướp đi vào từ đó.',

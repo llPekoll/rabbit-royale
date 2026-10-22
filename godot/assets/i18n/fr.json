@@ -484,6 +484,23 @@
     }
    ]
   },
+  "bombsMoved": {
+   "$t": "{0} bombes poussées à côté",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bombe poussée à côté"
+    },
+    {
+     "when": {
+      "0": 0
+     },
+     "t": "0 bombe poussée à côté"
+    }
+   ]
+  },
   "unsaved": "Impossible d'enregistrer ton terrier. Réessaie dans un instant.",
   "refused": {
    "entrance": "C'est l'entrée de ton terrier : les pillards arrivent par là.",

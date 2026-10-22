@@ -333,6 +333,7 @@ export const fr: Dict = {
     },
     planksBack: (n) => `${n} clôture${n > 1 ? 's' : ''} de retour dans le sac`,
     bombsBack: (n) => `${n} bombe${n > 1 ? 's' : ''} de retour dans le sac`,
+    bombsMoved: (n) => `${n} bombe${n > 1 ? 's' : ''} poussée${n > 1 ? 's' : ''} à côté`,
     unsaved: 'Impossible d\'enregistrer ton terrier. Réessaie dans un instant.',
     refused: {
       entrance: 'C\'est l\'entrée de ton terrier : les pillards arrivent par là.',

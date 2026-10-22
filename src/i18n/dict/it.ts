@@ -336,6 +336,7 @@ export const it: Dict = {
     },
     planksBack: (n) => `${n} ${n === 1 ? 'steccato tornato' : 'steccati tornati'} nello zaino`,
     bombsBack: (n) => `${n} ${n === 1 ? 'bomba tornata' : 'bombe tornate'} nello zaino`,
+    bombsMoved: (n) => `${n} ${n === 1 ? 'bomba spostata' : 'bombe spostate'} di lato`,
     unsaved: 'Impossibile salvare la tua tana. Riprova tra un attimo.',
     refused: {
       entrance: 'È l’ingresso della tua tana: i predoni entrano da lì.',

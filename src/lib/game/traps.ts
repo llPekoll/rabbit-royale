@@ -10,7 +10,9 @@
  * are never punished for playing at the wrong hour, and there is no stampede.
  */
 import { TRAPS } from '@/lib/tuning/tables';
-import { isTrappable } from '@/game/burrow/board';
+import {
+  BURROW_COLS, BURROW_ROWS, burrowColRow, burrowIndex, isDoorstep, isTrappable,
+} from '@/game/burrow/board';
 
 export interface TrapRow {
   /** Traps bought or looted — these never expire. */
@@ -251,4 +253,51 @@ export function rearmingTraps<T extends PlacedTrap>(
   return [...rearmSchedule(traps)]
     .filter(([, readyAt]) => readyAt > now)
     .map(([trap, readyAt]) => ({ trap, readyAt }));
+}
+
+/** How far a bomb pushed off its tile looks for another (rings of cells). */
+export const HOP_REACH = 3;
+
+/**
+ * BOMBS STEP ASIDE (2026-10-22): a rearrangement that covers a bomb — the
+ * house dropped on it, a tree moved onto it, the garden slid over it — moves
+ * it to the nearest free minable cell instead of lifting it.
+ *
+ * It used to go back to the bag, and the bag's count is capped (`MAX_HELD`):
+ * a player with a full stock dropped the house on two bombs, picked it up
+ * again and saw them gone (Telegram, 2026-10-22). A bomb that steps aside is
+ * still on the board, where the player left it in spirit; only one with no
+ * free cell within HOP_REACH goes home (`null`).
+ *
+ * `taken` is every tile already mined and staying; `blocked` what the edit
+ * forbids beyond `isTrappable` (the house's footprint). Nearest first by
+ * distance, ties by index, so the same edit always lands the same way.
+ */
+export function hopAside(
+  seed: string,
+  evicted: readonly number[],
+  taken: ReadonlySet<number>,
+  blocked: ReadonlySet<number>,
+  reach = HOP_REACH,
+): Map<number, number | null> {
+  const used = new Set(taken);
+  const out = new Map<number, number | null>();
+  for (const from of [...evicted].sort((a, b) => a - b)) {
+    const { col, row } = burrowColRow(from);
+    const near: { tile: number; d: number }[] = [];
+    for (let dr = -reach; dr <= reach; dr++) {
+      for (let dc = -reach; dc <= reach; dc++) {
+        const c = col + dc;
+        const r = row + dr;
+        if ((dc === 0 && dr === 0) || c < 0 || r < 0 || c >= BURROW_COLS || r >= BURROW_ROWS) continue;
+        near.push({ tile: burrowIndex(c, r), d: dc * dc + dr * dr });
+      }
+    }
+    near.sort((a, b) => a.d - b.d || a.tile - b.tile);
+    const to = near.find(({ tile }) => isTrappable(seed, tile) && !isDoorstep(seed, tile)
+      && !blocked.has(tile) && !used.has(tile))?.tile ?? null;
+    out.set(from, to);
+    if (to !== null) used.add(to);
+  }
+  return out;
 }

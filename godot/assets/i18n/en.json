@@ -454,6 +454,17 @@
     }
    ]
   },
+  "bombsMoved": {
+   "$t": "{0} bombs stepped aside",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 bomb stepped aside"
+    }
+   ]
+  },
   "unsaved": "Could not save your burrow. Try again in a moment.",
   "refused": {
    "entrance": "That's your burrow's entrance: raiders come in there.",
