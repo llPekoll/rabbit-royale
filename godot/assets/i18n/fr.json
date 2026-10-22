@@ -1188,7 +1188,10 @@
     "$t": "{0} en place"
    },
    "trapStatus": {
-    "$t": "{0}/{1} sur ton terrier · {2} en réserve"
+    "$t": "{0}/{1} sur ton terrier · {2} en stock"
+   },
+   "inStock": {
+    "$t": "{0} en stock"
    },
    "active": {
     "$t": "{0} restantes"
@@ -1272,7 +1275,7 @@
    "$t": "Bombes : plus aucune. Une bombe coûte {0} carottes - va en creuser."
   },
   "trapsBuyFull": {
-   "$t": "Bombes : {0} en réserve. Ta réserve est pleine."
+   "$t": "Bombes : {0} en stock. Ton stock est plein."
   },
   "bottleRunning": {
    "$t": "{0} : en cours, {1} restant. {2} en sac."

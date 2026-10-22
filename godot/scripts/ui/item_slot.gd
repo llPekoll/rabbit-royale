@@ -65,8 +65,8 @@ var kind := ""
 var selected := false
 var _art: Control
 var _count: Label
-## Le coin du haut : la RESERVE d'une sorte qui se pose (« +12 » sous
-## « 8/8 » pour la bombe, 2026-10-22). Vide le plus souvent.
+## La legende SOUS la case : le stock d'une sorte qui se pose (« 12 en
+## stock » sous « 8/8 » pour la bombe, 2026-10-22). Vide le plus souvent.
 var _extra: Label
 var _wide := false
 
@@ -89,7 +89,7 @@ func _init(p_kind: String = "") -> void:
 	_extra.add_theme_color_override("font_shadow_color", COUNT_SHADOW)
 	_extra.add_theme_constant_override("shadow_offset_x", 0)
 	_extra.add_theme_constant_override("shadow_offset_y", 1)
-	_extra.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_extra.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_extra)
 	resized.connect(_place)
 	set_wide(false)
@@ -118,9 +118,15 @@ func set_count(text: String, full := false) -> void:
 	_count.add_theme_color_override("font_color", Palette.GOLD if full else Palette.CREAM)
 
 
-## Le coin du haut (la reserve), ou rien.
+## La legende sous la case (le stock), ou rien.
 func set_extra(text: String) -> void:
 	_extra.text = text
+
+
+## La hauteur que la legende prend sous la case (0 sans legende) : la rangee
+## remonte d'autant, sinon le bas de l'ecran la coupe.
+func extra_height() -> float:
+	return 0.0 if _extra.text.is_empty() else float(COUNT_SIZE) + 1.0
 
 
 ## Assombrit l'art, pas le carre.
@@ -145,8 +151,9 @@ func _place() -> void:
 	_art.position = Vector2(floorf((size.x - want.x) * 0.5), floorf((size.y - 10.0 - want.y) * 0.5))
 	_count.size = Vector2(size.x - 10.0, float(COUNT_SIZE) + 2.0)
 	_count.position = Vector2(5.0, size.y - 3.0 - _count.size.y)
-	_extra.size = Vector2(size.x - 8.0, float(COUNT_SIZE))
-	_extra.position = Vector2(4.0, 3.0)
+	# Plus large que la case : « 12 en stock » deborde de part et d'autre.
+	_extra.size = Vector2(size.x + 24.0, float(COUNT_SIZE))
+	_extra.position = Vector2(-12.0, size.y + 1.0)
 
 
 ## L'IMAGE D'UNE SORTE a une hauteur donnee : le sprite quand il y en a un,

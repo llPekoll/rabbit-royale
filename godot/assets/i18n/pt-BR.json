@@ -1170,7 +1170,10 @@
     "$t": "{0} colocados"
    },
    "trapStatus": {
-    "$t": "{0}/{1} na sua toca · {2} de reserva"
+    "$t": "{0}/{1} na sua toca · {2} em estoque"
+   },
+   "inStock": {
+    "$t": "{0} em estoque"
    },
    "active": {
     "$t": "{0} restantes"
@@ -1248,7 +1251,7 @@
    "$t": "Bombas: nenhuma. Uma custa {0} cenouras - va cavar mais."
   },
   "trapsBuyFull": {
-   "$t": "Bombas: {0} de reserva. Sua reserva está cheia."
+   "$t": "Bombas: {0} em estoque. Seu estoque está cheio."
   },
   "bottleRunning": {
    "$t": "{0}: em curso, restam {1}. {2} na bolsa."

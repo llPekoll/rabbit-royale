@@ -710,7 +710,8 @@ export const zh: Dict = {
       more: '查看效果和操作', less: '收起详情',
       available: (n) => '库存 ' + n,
       placed: (n) => '已放置 ' + n,
-      trapStatus: (placed, max, reserve) => `洞穴里 ${placed}/${max} \u00b7 备用 ${reserve}`,
+      trapStatus: (placed, max, reserve) => `洞穴里 ${placed}/${max} \u00b7 库存 ${reserve}`,
+      inStock: (n) => `库存 ${n}`,
       active: (time) => '剩余 ' + time,
       buyTrap: (price) => '购买炸弹 - ' + price + ' 胡萝卜',
       trapHint: '点击地块埋下炸弹。再次点击炸弹即可收回。',
@@ -742,7 +743,7 @@ export const zh: Dict = {
       ? `炸弹：背包里 ${held} 颗。再买一颗，${price} 胡萝卜。`
       : `炸弹：背包里空了。买一颗，${price} 胡萝卜。`),
     trapsBuyBroke: (price) => `炸弹：没有了。一颗 ${price} 胡萝卜 - 去挖点回来。`,
-    trapsBuyFull: (held) => `炸弹：备用 ${held} 颗。备用已满。`,
+    trapsBuyFull: (held) => `炸弹：库存 ${held} 颗。库存已满。`,
     bottleRunning: (name, wait, count) => `${name}：生效中，还剩${wait}。背包里有 ${count} 个。`,
     bottleHeld: (name, count) => `${name}：背包里有 ${count} 个。往菜园浇一个。`,
     bottleNone: (name) => `${name}：没有。宝箱里能找到。`,

@@ -711,7 +711,8 @@ export const fr: Dict = {
       more: 'Voir l’effet et les actions', less: 'Réduire les détails',
       available: (n) => n + ' en sac',
       placed: (n) => n + ' en place',
-      trapStatus: (placed, max, reserve) => `${placed}/${max} sur ton terrier \u00b7 ${reserve} en réserve`,
+      trapStatus: (placed, max, reserve) => `${placed}/${max} sur ton terrier \u00b7 ${reserve} en stock`,
+      inStock: (n) => `${n} en stock`,
       active: (time) => time + ' restantes',
       buyTrap: (price) => 'Acheter une bombe - ' + price + ' carottes',
       trapHint: 'Touche une case pour poser une bombe. Retouche une bombe pour la récupérer.',
@@ -748,7 +749,7 @@ export const fr: Dict = {
         : `Bombes : aucune en sac. Achètes-en une pour ${price} carottes.`),
     trapsBuyBroke: (price) =>
       `Bombes : plus aucune. Une bombe coûte ${price} carottes - va en creuser.`,
-    trapsBuyFull: (held) => `Bombes : ${held} en réserve. Ta réserve est pleine.`,
+    trapsBuyFull: (held) => `Bombes : ${held} en stock. Ton stock est plein.`,
     bottleRunning: (name, wait, count) => `${name} : en cours, ${wait} restant. ${count} en sac.`,
     bottleHeld: (name, count) => `${name} : ${count} en sac. Verse-en un sur le potager.`,
     bottleNone: (name) => `${name} : aucun. On en trouve dans les coffres.`,

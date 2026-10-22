@@ -1158,7 +1158,10 @@
     "$t": "{0} piazzati"
    },
    "trapStatus": {
-    "$t": "{0}/{1} nella tana · {2} di riserva"
+    "$t": "{0}/{1} nella tana · {2} in scorta"
+   },
+   "inStock": {
+    "$t": "{0} in scorta"
    },
    "active": {
     "$t": "{0} rimanenti"
@@ -1236,7 +1239,7 @@
    "$t": "Bombe: finite. Una costa {0} carote - scava per averne."
   },
   "trapsBuyFull": {
-   "$t": "Bombe: {0} di riserva. La riserva è piena."
+   "$t": "Bombe: {0} in scorta. La scorta è piena."
   },
   "bottleRunning": {
    "$t": "{0}: in corso, {1} rimanenti. {2} nello zaino."

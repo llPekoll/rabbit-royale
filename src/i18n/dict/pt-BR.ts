@@ -715,7 +715,8 @@ export const ptBR: Dict = {
       more: 'Ver efeito e ações', less: 'Recolher detalhes',
       available: (n) => n + ' disponíveis',
       placed: (n) => n + ' colocados',
-      trapStatus: (placed, max, reserve) => `${placed}/${max} na sua toca \u00b7 ${reserve} de reserva`,
+      trapStatus: (placed, max, reserve) => `${placed}/${max} na sua toca \u00b7 ${reserve} em estoque`,
+      inStock: (n) => `${n} em estoque`,
       active: (time) => time + ' restantes',
       buyTrap: (price) => 'Comprar bomba - ' + price + ' cenouras',
       trapHint: 'Toque numa casa para enterrar. Toque na bomba para recuperar.',
@@ -752,7 +753,7 @@ export const ptBR: Dict = {
         : `Bombas: nenhuma na bolsa. Compre uma por ${price} cenouras.`),
     trapsBuyBroke: (price) =>
       `Bombas: nenhuma. Uma custa ${price} cenouras - va cavar mais.`,
-    trapsBuyFull: (held) => `Bombas: ${held} de reserva. Sua reserva está cheia.`,
+    trapsBuyFull: (held) => `Bombas: ${held} em estoque. Seu estoque está cheio.`,
     bottleRunning: (name, wait, count) => `${name}: em curso, restam ${wait}. ${count} na bolsa.`,
     bottleHeld: (name, count) => `${name}: ${count} na bolsa. Despeje uma na horta.`,
     bottleNone: (name) => `${name}: nenhuma. Encontradas em baús.`,

@@ -210,7 +210,11 @@ func _measure() -> void:
 		(slot as ItemSlot).set_wide(wide)
 	var want := _column.get_combined_minimum_size()
 	_column.size = want
-	_column.position = Vector2(floorf((size.x - want.x) * 0.5), size.y - Kit.EDGE - want.y)
+	# « 12 en stock » pend sous la case de la bombe : la rangee lui fait place.
+	var under := 0.0
+	for slot in _slots.values():
+		under = maxf(under, (slot as ItemSlot).extra_height())
+	_column.position = Vector2(floorf((size.x - want.x) * 0.5), size.y - Kit.EDGE - want.y - under)
 
 	_fit_detail()
 	laid_out.emit()
@@ -427,13 +431,13 @@ func _refresh() -> void:
 		var n := _count_of(kind)
 		slot.set_selected(kind == _selected)
 		# LA BOMBE DIT CE QUI DEFEND (2026-10-22) : « 8/8 » sur le terrier, en
-		# or quand c'est plein, la reserve en petit au coin (« +12 ») — le
-		# seul chiffre du sac faisait croire qu'on pouvait en poser 12.
+		# or quand c'est plein, et « 12 en stock » sous la case — le seul
+		# chiffre du sac faisait croire qu'on pouvait en poser 12.
 		if kind == "trap":
 			var placed := state.traps_placed()
 			var most := Tuning.i("TRAPS.MAX_PLACED", 8)
 			slot.set_count("%d/%d" % [placed, most], placed >= most)
-			slot.set_extra(("+%d" % n) if n > 0 else "")
+			slot.set_extra(I18N.f("kit.tools.inStock", [n]))
 			slot.set_dim(placed + n == 0)
 			continue
 		slot.set_count((str(smoke_days) + I18N.t("units.d")) if kind == "smoke" else str(n))

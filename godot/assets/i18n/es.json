@@ -1164,7 +1164,10 @@
     "$t": "{0} colocadas"
    },
    "trapStatus": {
-    "$t": "{0}/{1} en tu madriguera · {2} de reserva"
+    "$t": "{0}/{1} en tu madriguera · {2} en reserva"
+   },
+   "inStock": {
+    "$t": "{0} en reserva"
    },
    "active": {
     "$t": "quedan {0}"
@@ -1242,7 +1245,7 @@
    "$t": "Bombas: no queda ninguna. Una cuesta {0} zanahorias - cava para conseguir más."
   },
   "trapsBuyFull": {
-   "$t": "Bombas: {0} de reserva. Tu reserva está llena."
+   "$t": "Bombas: {0} en reserva. Tu reserva está llena."
   },
   "bottleRunning": {
    "$t": "{0}: en curso, quedan {1}. {2} en la bolsa."

@@ -1104,7 +1104,10 @@
     "$t": "{0} đã đặt"
    },
    "trapStatus": {
-    "$t": "{0}/{1} trong hang · {2} dự trữ"
+    "$t": "{0}/{1} trong hang · {2} trong kho"
+   },
+   "inStock": {
+    "$t": "{0} trong kho"
    },
    "active": {
     "$t": "còn {0}"
@@ -1174,7 +1177,7 @@
    "$t": "Bom: hết sạch. Một quả giá {0} cà rốt - đi đào thêm."
   },
   "trapsBuyFull": {
-   "$t": "Bom: {0} dự trữ. Kho dự trữ đã đầy."
+   "$t": "Bom: {0} trong kho. Kho đã đầy."
   },
   "bottleRunning": {
    "$t": "{0}: đang chạy, còn {1}. {2} trong túi."
