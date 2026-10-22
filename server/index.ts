@@ -2085,10 +2085,21 @@ setInterval(() => { void refreshTokenPrices(); }, PRICE_REFRESH_MS).unref();
  * THE RR GENESIS PIECES (web3 only): crown chests draw from the game wallet's
  * stock, and the sender keeps every won piece moving to its winner's wallet
  * (src/lib/genesis). The web2 world has neither.
+ *
+ * The stock is read again every five minutes, not only when a crown chest
+ * asks: a boot read the RPC throttled (2026-10-21, Alchemy 429 right after a
+ * deploy) left SG and US believing the wallet empty, and the chest that
+ * noticed was refused its piece.
  */
 if (!isWeb2()) {
   setGenesisGate(genesisOpen);
-  void warmGenesis().then((n) => console.log(`[genesis] ${n} piece(s) in the game wallet`));
+  let known = -1;
+  const readStock = () => warmGenesis().then((n) => {
+    if (n !== known) console.log(`[genesis] ${n} piece(s) in the game wallet`);
+    known = n;
+  });
+  void readStock();
+  setInterval(() => { void readStock(); }, 5 * 60_000).unref();
   setInterval(() => { void sendPending(); }, 15_000).unref();
 }
 
