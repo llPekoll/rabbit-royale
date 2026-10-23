@@ -27,8 +27,10 @@ var _solo_note: Label
 var _solo_msg := ""
 var _solo_busy := false
 ## LE SERVEUR (2026-10-23) : « Auto », le plus proche avant chaque ile, ou une
-## region forcee. Un toucher passe au suivant.
+## region forcee. Un champ de selection : son nom, le choix, une fleche ; le
+## toucher ouvre la liste (ServerMenu).
 var _server: Button
+var _server_caption: Label
 var _server_words: Label
 var _words: Dictionary = {}
 
@@ -76,19 +78,39 @@ func _init(k: float = 0.7) -> void:
 	for i in 2:
 		_cards.append(_card(i, 32.0 + 337.0 * i, 354.0, 319.0 - 3.0 * i, 228.0))
 	# LE SERVEUR, sur la ligne du titre, entre le titre et les boutons du
-	# coin : le seul blanc du panneau ou « Serveur : Auto · Ameriques 213 ms »
-	# tient a 890 px (sous la qualite, il mordait sur son titre). Il remplace
-	# la planche de l'accueil. Rien a choisir contre un serveur nomme a la
-	# main (`--server=`).
+	# coin : le seul blanc du panneau ou le champ tient a 890 px (sous la
+	# qualite, il mordait sur son titre). Il remplace la planche de
+	# l'accueil. Un texte qui changeait au toucher ne se lisait pas comme un
+	# choix (« il faut un vrai select ») : un champ encadre, une fleche, une
+	# liste. Rien a choisir contre un serveur nomme a la main (`--server=`).
 	_server = CampStyle.hit("Server")
-	_place(_server, 620, 10, 440, 42)
-	_server_words = CampStyle.text("", 20 * M * _k, CampStyle.COPPER)
-	_server_words.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_place(_server, 600, 8, 460, 46)
+	_server.add_child(_field_frame())
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", int(10 * _k))
+	var pad := MarginContainer.new()
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_theme_constant_override("margin_left", int(14 * _k))
+	pad.add_theme_constant_override("margin_right", int(12 * _k))
+	Kit.fill(pad)
+	pad.add_child(row)
+	_server.add_child(pad)
+	_server_caption = CampStyle.text("", 18 * M * _k, Color("#8fb3bd"))
+	_server_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Rogne, il tomberait a zero de large dans la ligne : c'est le choix
+	# qui se raccourcit, jamais le nom du champ.
+	_server_caption.clip_text = false
+	_server_caption.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	row.add_child(_server_caption)
+	_server_words = CampStyle.text("", 20 * M * _k, CampStyle.TEXT)
 	_server_words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_server_words.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_server_words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_server_words.clip_text = true
 	_server_words.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	Kit.fill(_server_words)
-	_server.add_child(_server_words)
+	row.add_child(_server_words)
+	row.add_child(_chevron())
 	_server.pressed.connect(_on_server_pressed)
 	_server.visible = Net._override() == ""
 
@@ -180,6 +202,48 @@ func _switch(x: float, y: float, parent: Control = null) -> CampSwitch:
 	return s
 
 
+## LE CADRE DU CHAMP : un creux sombre a filet, cuivre au survol.
+func _field_frame() -> Panel:
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Kit.fill(frame)
+	frame.add_theme_stylebox_override("panel", _field_style(Color("#2b6170")))
+	_server.mouse_entered.connect(func() -> void:
+		if not _server.disabled:
+			frame.add_theme_stylebox_override("panel", _field_style(CampStyle.COPPER)))
+	_server.mouse_exited.connect(func() -> void:
+		frame.add_theme_stylebox_override("panel", _field_style(Color("#2b6170"))))
+	return frame
+
+
+func _field_style(edge: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color("#0b1d24")
+	s.border_color = edge
+	s.set_border_width_all(maxi(1, roundi(2 * _k)))
+	s.set_corner_radius_all(roundi(6 * _k))
+	return s
+
+
+## La fleche vers le bas, en deux traits (la face pixel n'a pas de ▾).
+func _chevron() -> Control:
+	var box := Control.new()
+	var w := 14.0 * _k
+	box.custom_minimum_size = Vector2(w, w)
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var v := Line2D.new()
+	v.points = PackedVector2Array([Vector2(0, w * 0.3), Vector2(w * 0.5, w * 0.75), Vector2(w, w * 0.3)])
+	v.width = maxf(1.5, 2.5 * _k)
+	v.default_color = CampStyle.COPPER
+	v.joint_mode = Line2D.LINE_JOINT_ROUND
+	v.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	v.end_cap_mode = Line2D.LINE_CAP_ROUND
+	box.add_child(v)
+	return box
+
+
 ## UNE VIGNETTE DE QUALITE : l'apercu, son nom, ce qu'elle fait ; le cadre
 ## cuivre et la pastille cochee sur celle qui est choisie.
 func _card(i: int, x: float, y: float, w: float, h: float) -> Button:
@@ -217,6 +281,7 @@ func _relabel() -> void:
 	_words["soloMode"].text = I18N.t("sound.soloMode")
 	_words["soloPlay"].text = I18N.t("sound.soloPlay")
 	_words["autosaved"].text = I18N.t("sound.autosaved")
+	_server_caption.text = I18N.t("auth.region.label")
 	for i in _cards.size():
 		(_cards[i].get_node("Name") as Label).text = I18N.t(["sound.smooth", "sound.pretty"][i]).capitalize()
 		(_cards[i].get_node("Hint") as Label).text = I18N.t(["sound.smoothHint", "sound.prettyHint"][i])
@@ -244,42 +309,42 @@ func _reflect() -> void:
 	_reflect_solo(w)
 
 
-## « Serveur : Auto · Europe 45 ms », ou la region forcee et son ping.
+## Le choix dans le champ : « Auto · Europe 45 ms », ou la region forcee et
+## son ping.
 func _reflect_server() -> void:
-	var here := ""
-	if Net.region != "":
-		here = I18N.t("auth.region." + Net.region)
-		var ms := int(Net.pings.get(Net.region, -1))
-		if ms >= 0:
-			here += " %d ms" % ms
-	var choice := I18N.t("auth.region.auto") if Net.server_pick() == "auto" else here
-	if Net.server_pick() == "auto" and not here.is_empty():
-		choice += " · " + here
-	_server_words.text = I18N.f("auth.region.setting", [choice])
+	var here := ServerMenu._where(Net.region)
+	var choice := here
+	if Net.server_pick() == "auto":
+		choice = I18N.t("auth.region.auto") + ("" if here.is_empty() else " · " + here)
+	_server_words.text = choice
 	# Pas en pleine ile : elle vit sur ce serveur-ci, la socket ne le quitte
 	# pas avant le retour au terrier.
 	_server.disabled = GameSocket.wants_seat()
 	_server.modulate.a = 0.5 if _server.disabled else 1.0
 
 
-## Auto, puis chaque region qui a repondu a la derniere mesure (et celle ou
-## l'on est), puis Auto. Revenir a Auto va au plus proche (remesure si la
-## mesure a plus d'une minute).
+## La liste, sous le champ. Auto va au plus proche tout de suite (remesure
+## si la mesure a plus d'une minute).
 func _on_server_pressed() -> void:
 	if GameSocket.wants_seat():
 		return
-	var picks: Array[String] = ["auto"]
-	for r in Net.REGIONS:
-		var code := String(r.code)
-		if code == Net.region or int(Net.pings.get(code, -1)) >= 0:
-			picks.append(code)
-	var next := picks[(maxi(0, picks.find(Net.server_pick())) + 1) % picks.size()]
-	Analytics.track("region_pick", {"region": next})
-	Net.set_server_pick(next)
-	_reflect_server()
-	if next == "auto":
-		await Net.settle_for_island()
+	# Sur un calque a lui, au-dessus du dialogue du profil ; il part avec le
+	# menu.
+	var layer := CanvasLayer.new()
+	layer.layer = 120
+	add_child(layer)
+	var host := Control.new()
+	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(host)
+	Kit.fill(host)
+	var menu := ServerMenu.open_server_under(host, _server)
+	menu.closed.connect(layer.queue_free)
+	menu.picked.connect(func(pick: String) -> void:
 		_reflect_server()
+		if pick == "auto":
+			await Net.settle_for_island()
+			if is_inside_tree():
+				_reflect_server())
 
 
 ## LE MODE SOLO. Cache avant RAID_MIN : les iles des niveaux 1-2 sont deja a

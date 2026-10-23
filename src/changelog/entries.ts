@@ -138,6 +138,23 @@ export const CHANGELOG: Release[] = [
       {
         kind: 'tune',
         text: {
+          en: 'Settings → Server is now a real list: every server with its ping, and which one Auto would pick.',
+          fr: 'Réglages → Serveur est maintenant une vraie liste : chaque serveur avec son ping, et celui qu’Auto prendrait.',
+          zh: '设置 → 服务器现在是一个真正的列表：每个服务器都显示延迟，还能看到“自动”会选哪一个。',
+          'pt-BR': 'Ajustes → Servidor agora é uma lista de verdade: cada servidor com seu ping, e qual o Auto escolheria.',
+          vi: 'Cài đặt → Máy chủ giờ là một danh sách thật: mỗi máy chủ kèm ping, và máy chủ mà Tự động sẽ chọn.',
+          es: 'Ajustes → Servidor ahora es una lista de verdad: cada servidor con su ping, y cuál elegiría Auto.',
+          it: 'Impostazioni → Server ora è un vero elenco: ogni server con il suo ping, e quale sceglierebbe Auto.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-23',
+    items: [
+      {
+        kind: 'tune',
+        text: {
           en: 'Raids: after a raid takes your carrots, nobody can raid you for 30 minutes — time to rearm and put your planks back. And a burrow can be robbed at most 3 times a day.',
           fr: 'Raids : après un raid qui t’a pris des carottes, personne ne peut te piller pendant 30 minutes — le temps de réarmer et de reposer tes planches. Et un terrier ne peut être pillé que 3 fois par jour.',
           zh: '掠夺：被掠夺走胡萝卜后，30 分钟内谁也不能再掠夺你——足够重新布雷、装回木板。每个洞穴每天最多被掠夺 3 次。',

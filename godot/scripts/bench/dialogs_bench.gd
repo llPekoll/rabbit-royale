@@ -167,6 +167,14 @@ func _only(which: String) -> void:
 				PlaySettings.pretty = true
 			if "--ticket" in args:
 				PassState.shared().fake({"on": true, "mine": {"holder": true}})
+			# Le champ du serveur sans reseau : des pings tout faits (les
+			# Ameriques muettes), Europe au plus proche ; `--forced` force
+			# l'Asie, `--server-menu` ouvre la liste.
+			Net.pings = {"eu": 45, "sg": 212, "us": -1}
+			Net.region = "sg" if "--forced" in args else "eu"
+			Net.region_manual = "--forced" in args
+			Net.region_best = "eu"
+			Net.probed_at = Time.get_ticks_msec()
 			var profile := Profile.new()
 			# `--account` : un compte Google (portes de retour, SUPPRIMER LE
 			# COMPTE) au lieu d'un invite.
@@ -225,6 +233,10 @@ func _only(which: String) -> void:
 		(d as Profile)._show_tab(Profile.Tab.HISTORY)
 	if which == "settings":
 		(d as Profile)._show_tab(Profile.Tab.SETTINGS)
+		if "--server-menu" in OS.get_cmdline_user_args():
+			for i in 4:
+				await get_tree().process_frame
+			(d.find_children("*", "SettingsPane", true, false)[0] as SettingsPane)._on_server_pressed()
 	if which == "genesis":
 		(d as Profile)._show_tab(Profile.Tab.GENESIS)
 	for i in 3:

@@ -13,6 +13,9 @@ extends Control
 ## Le menu ne couvre rien : un toucher a cote le ferme, Echap aussi, et
 ## choisir une langue le ferme dans le meme geste. Il se pose sous `anchor`,
 ## aligne sur son bord droit ; sans ancre, au coin haut-droit de l'ecran.
+##
+## LES LIGNES VIENNENT DE `_items()` (2026-10-23) : le choix du serveur
+## (ServerMenu) est le meme menu, avec un ping a droite de chaque ligne.
 
 signal closed
 
@@ -24,6 +27,7 @@ const GAP := 8.0
 
 var _anchor: Control
 var _plate: Control
+var _width := WIDTH
 
 
 ## Pose le menu sur `host` (plein ecran), sous `anchor`. Rend le menu.
@@ -91,28 +95,56 @@ func _build() -> Control:
 	Kit.fill(margin)
 	margin.add_child(col)
 	panel.add_child(margin)
-	var codes := I18N.LOCALES
-	for i in codes.size():
-		col.add_child(_row(String(codes[i]["code"]), String(codes[i]["label"])))
-		if i < codes.size() - 1:
+	var items := _items()
+	for i in items.size():
+		col.add_child(_row(items[i]))
+		if i < items.size() - 1:
 			var rule := ColorRect.new()
 			rule.color = Color(1, 1, 1, 0.06)
 			rule.custom_minimum_size = Vector2(0, 1)
 			rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			col.add_child(rule)
-	panel.size = Vector2(WIDTH, 2.0 * PAD + codes.size() * (ROW_H + 1.0) - 1.0)
+	panel.size = Vector2(_width, 2.0 * PAD + items.size() * (ROW_H + 1.0) - 1.0)
 	return panel
 
 
-## Une langue : son drapeau, son nom ; l'or, le liseré et la coche pour la
-## courante.
-func _row(code: String, label: String) -> Button:
-	var on := code == I18N.locale
+## Les lignes : `key`, `label`, et au choix `lead` (un Control devant le
+## nom), `detail` (un mot gris a droite), `on` (la courante), `enabled`.
+func _items() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for l in I18N.LOCALES:
+		var code := String(l["code"])
+		out.append({"key": code, "label": String(l["label"]), "lead": Flag.rect(code, 12.0), "on": code == I18N.locale})
+	return out
+
+
+## Une ligne touchee.
+func _choose(key: String) -> void:
+	I18N.set_locale(key)
+	close()
+
+
+## La plaque refaite sur place (une mesure arrivee pendant qu'il est ouvert).
+func rebuild() -> void:
+	if _plate == null or is_queued_for_deletion():
+		return
+	_plate.queue_free()
+	_plate = _build()
+	add_child(_plate)
+	_place()
+
+
+## Une ligne : son drapeau, son nom ; l'or, le liseré et la coche pour la
+## courante. Eteinte, grisee et sourde.
+func _row(item: Dictionary) -> Button:
+	var on := bool(item.get("on", false))
+	var enabled := bool(item.get("enabled", true))
 	var b := Button.new()
-	b.name = "Lang_" + code
+	b.name = "Row_" + String(item["key"])
+	b.disabled = not enabled
 	b.custom_minimum_size = Vector2(0.0, ROW_H)
 	b.focus_mode = Control.FOCUS_NONE
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
 	var idle := _fill(Color(Palette.GOLD, 0.12) if on else Color(0, 0, 0, 0))
 	for state in ["normal", "focus", "disabled"]:
 		b.add_theme_stylebox_override(state, idle)
@@ -135,11 +167,13 @@ func _row(code: String, label: String) -> Button:
 	Kit.fill(margin)
 	margin.add_child(line)
 	b.add_child(margin)
-	var flag := Flag.rect(code, 12.0)
-	flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	flag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(flag)
-	var word := Kit.label(label, 13, Palette.GOLD if on else Palette.CREAM)
+	var lead: Control = item.get("lead")
+	if lead != null:
+		lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		lead.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(lead)
+	var ink := Palette.GOLD if on else Palette.CREAM
+	var word := Kit.label(String(item["label"]), 13, ink if enabled else Color(Palette.CREAM, 0.35))
 	word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(word)
@@ -147,11 +181,16 @@ func _row(code: String, label: String) -> Button:
 	push.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	push.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(push)
+	var detail := String(item.get("detail", ""))
+	if not detail.is_empty():
+		var note := Kit.label(detail, 11, Color(Palette.CREAM, 0.55 if enabled else 0.3))
+		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(note)
 	if on:
 		line.add_child(_check())
-	b.pressed.connect(func() -> void:
-		I18N.set_locale(code)
-		close())
+	var key := String(item["key"])
+	b.pressed.connect(func() -> void: _choose(key))
 	return b
 
 
@@ -187,7 +226,10 @@ func _place() -> void:
 	var top := Kit.EDGE
 	var right := view.x - Kit.EDGE
 	if _anchor != null and is_instance_valid(_anchor) and _anchor.is_visible_in_tree():
-		var a := Rect2(_anchor.global_position - global_position, _anchor.size)
+		# Par l'ecran : l'ancre peut vivre sur un autre calque (le champ du
+		# serveur, dans un dialogue mis a l'echelle).
+		var to_me := get_global_transform_with_canvas().affine_inverse() * _anchor.get_global_transform_with_canvas()
+		var a := to_me * Rect2(Vector2.ZERO, _anchor.size)
 		top = a.end.y + GAP
 		right = a.end.x
 	var x := clampf(right - _plate.size.x, Kit.EDGE, view.x - _plate.size.x - Kit.EDGE)
