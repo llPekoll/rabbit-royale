@@ -29,8 +29,9 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import {
-  TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction,
-  createTransferCheckedInstruction, getAccount, getAssociatedTokenAddressSync,
+  TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, TokenAccountNotFoundError,
+  createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, getAccount,
+  getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { USDC } from '@config/tuning';
 import { mintAddressFor, type PayTokenId } from './tokens';
@@ -401,8 +402,13 @@ export async function buildPaymentTx(opts: {
     try {
       const account = await getAccount(conn, from, 'confirmed', program);
       if (account.amount < BigInt(opts.amount)) return { ok: false, reason: 'insufficient_funds' };
-    } catch {
-      return { ok: false, reason: 'no_token_account' };
+    } catch (err) {
+      // Only an account that is not there is the player's "no USDC". Anything
+      // else (an Alchemy 429, a dead RPC) is ours: thrown, so the quote answers
+      // rpc_unavailable and the alert rings, instead of telling a player who
+      // holds the token that they do not.
+      if (err instanceof TokenAccountNotFoundError || (err as Error)?.name === 'TokenAccountNotFoundError') return { ok: false, reason: 'no_token_account' };
+      throw err;
     }
 
     // Created by the first payer if the treasury has never held this token —
