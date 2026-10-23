@@ -44,10 +44,18 @@ Vérifier : `curl https://ws-sg.rabbit.rip/health`.
 
 - **Migrations** : automatiques — le conteneur `migrate` passe le journal
   `drizzle/` avant chaque démarrage du serveur. Jamais de push.
-- **Tuning** : la table `tuning` de chaque région est vide au départ, le
-  serveur lit alors `config/tuning.ts`. Un réglage en base est à passer dans
-  CHAQUE base (`bun db:seed-tuning` avec le `DATABASE_URL` de la région, via
-  un tunnel SSH : `ssh -L 5433:localhost:5432` ne suffit pas, Postgres n'a pas
-  de port publié — `docker compose exec postgres psql -U rabbit` sur le VPS).
+- **Tuning** : une seule table `tuning`, celle d'Europe. Un réglage s'y passe
+  une fois et vaut pour les trois régions (chaque serveur relit la table).
+  La table des bases locales de Singapour et des US ne sert plus.
 - **Logs** : `ssh deploy@<ip> 'cd /opt/rabbit && docker compose logs -f rr-ws'`.
-- **Restaurer** : `docker compose exec -T postgres pg_restore -U rabbit -d rabbit --clean < backups/rabbit-<n>.dump`.
+- **Sauvegardes** : les bases d'Europe sont copiées chaque nuit, trois fois
+  (`scripts/eu-backups.sh`, `status` pour voir les dernières nuits) :
+  - sur datemeee, dans `~/rabbit-backups/nightly`, à 03:31 UTC ;
+  - à Singapour (03:41) et aux US (04:11), tirées par le tunnel avec
+    `eu-backup.sh` dans `/opt/rabbit/backups/eu-web3-<jour>.dump` et
+    `eu-web2-<jour>.dump`, sous le rôle `rr_backup`, qui ne peut que lire.
+
+  Les dumps `rabbit-<n>.dump` de `bootstrap.sh` copient encore la base
+  locale, qui ne bouge plus depuis le 2026-10-23.
+- **Restaurer l'Europe** : arrêter les serveurs du monde, puis sur datemeee
+  `docker exec -i <conteneur> pg_restore -U rr -d rr_crown --clean --if-exists < eu-web3-<n>.dump`.
