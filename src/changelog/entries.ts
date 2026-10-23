@@ -133,6 +133,23 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-23',
+    items: [
+      {
+        kind: 'fix',
+        text: {
+          en: 'The browser version starts again: it stopped on a black screen saying “null function”.',
+          fr: 'La version navigateur se lance de nouveau : elle s’arrêtait sur un écran noir « null function ».',
+          zh: '网页版恢复启动：之前会停在显示“null function”的黑屏上。',
+          'pt-BR': 'A versão de navegador abre de novo: ela parava numa tela preta escrita “null function”.',
+          vi: 'Bản trình duyệt đã chạy lại: trước đó nó dừng ở màn hình đen ghi “null function”.',
+          es: 'La versión de navegador vuelve a arrancar: se quedaba en una pantalla negra con «null function».',
+          it: 'La versione browser si avvia di nuovo: si fermava su uno schermo nero con «null function».',
+        },
+      },
+    ],
+  },
+  {
     // The regions' cutover: move the date to the day it goes live.
     date: '2026-10-23',
     items: [

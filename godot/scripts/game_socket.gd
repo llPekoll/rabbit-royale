@@ -96,7 +96,9 @@ var _settling := false
 
 
 func _ready() -> void:
-	_launch = Crypto.new().generate_random_bytes(12).hex_encode()
+	# Pas `Crypto` : le moteur web n'a pas mbedtls, et la classe y manque
+	# (« null function » au demarrage). Le RNG global est seme au lancement.
+	_launch = "%08x%08x%08x" % [randi(), randi(), randi()]
 	_io = SocketIO.new()
 	# Pas de connexion au montage : elle a besoin d'un jeton, et à cette
 	# seconde la session n'est pas encore restaurée.
