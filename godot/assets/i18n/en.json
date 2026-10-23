@@ -18,6 +18,11 @@
   "reopen": "The app will close: open it again.",
   "restart": "Restart"
  },
+ "elsewhere": {
+  "title": "Other device",
+  "body": "Your burrow just opened on another device. Only one can play at a time.",
+  "playHere": "Play here"
+ },
  "consent": {
   "title": "Before you dig",
   "body": "Can we measure how you play? Screens, taps, and which ad brought you here. It shows us what to fix. Nothing is sold.",
@@ -91,7 +96,11 @@
    "finding": "Finding the closest server...",
    "eu": "Europe",
    "sg": "Asia",
-   "us": "Americas"
+   "us": "Americas",
+   "auto": "Auto",
+   "setting": {
+    "$t": "Server: {0}"
+   }
   }
  },
  "chrome": {

@@ -35,9 +35,12 @@ import { tutorialReward } from '@/lib/game/tutorial-reward';
  * one query rather than two.
  */
 async function ownerView(playerId: string) {
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
+  // Together: one round trip to a database that may be on another continent.
+  const [player, rows] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, playerId) }),
+    db.query.inventory.findMany({ where: eq(inventory.playerId, playerId) }),
+  ]);
   if (!player) return null;
-  const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, playerId) });
   return { player, view: burrowView(player, Date.now(), holdings(rows, player)) };
 }
 
@@ -48,9 +51,8 @@ export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const owner = await ownerView(session.sub);
+  const [owner, cuts] = await Promise.all([ownerView(session.sub), activeCuts(session.sub)]);
   if (!owner) return Response.json({ error: 'unknown player' }, { status: 404 });
-  const cuts = await activeCuts(session.sub);
 
   // The quest board rides on the same read as the burrow: every moment the
   // client re-reads its carrots is also a moment a quest may have moved, and

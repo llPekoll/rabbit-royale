@@ -133,6 +133,72 @@ export const CHANGELOG_UI: Record<Locale, ChangelogUi> = {
 
 export const CHANGELOG: Release[] = [
   {
+    // The regions' cutover: move the date to the day it goes live.
+    date: '2026-10-23',
+    items: [
+      {
+        kind: 'new',
+        text: {
+          en: 'One account for the whole world: Europe, Asia and America now share your burrow, your rabbit and a single leaderboard. Travel and you find your game where you left it.',
+          fr: 'Un seul compte pour le monde entier : Europe, Asie et Amérique partagent désormais ton terrier, ton lapin et un seul classement. En voyage, tu retrouves ta partie là où tu l’as laissée.',
+          zh: '全世界只有一个账号：欧洲、亚洲和美洲现在共享你的洞穴、你的兔子和同一个排行榜。出门旅行，也能接着上次的进度玩。',
+          'pt-BR': 'Uma só conta para o mundo todo: Europa, Ásia e América agora compartilham sua toca, seu coelho e um único ranking. Em viagem, você encontra seu jogo onde deixou.',
+          vi: 'Một tài khoản cho cả thế giới: châu Âu, châu Á và châu Mỹ giờ dùng chung hang, chú thỏ và một bảng xếp hạng duy nhất. Đi du lịch vẫn chơi tiếp đúng chỗ bạn dừng.',
+          es: 'Una sola cuenta para todo el mundo: Europa, Asia y América comparten ahora tu madriguera, tu conejo y una única clasificación. De viaje, encuentras tu partida donde la dejaste.',
+          it: 'Un solo account per tutto il mondo: Europa, Asia e America ora condividono la tua tana, il tuo coniglio e un’unica classifica. In viaggio ritrovi la partita dove l’avevi lasciata.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'Played in several regions? Your most advanced burrow is the one kept, with everything you ever bought, wherever you bought it.',
+          fr: 'Tu as joué dans plusieurs régions ? On garde ton terrier le plus avancé, avec tout ce que tu as acheté, où que tu l’aies acheté.',
+          zh: '在多个地区玩过？我们保留你进度最高的洞穴，以及你在任何地区买过的所有东西。',
+          'pt-BR': 'Jogou em várias regiões? Fica a sua toca mais avançada, com tudo o que você já comprou, onde quer que tenha comprado.',
+          vi: 'Từng chơi ở nhiều khu vực? Hang tiến xa nhất của bạn được giữ lại, cùng mọi thứ bạn từng mua, mua ở đâu cũng vậy.',
+          es: '¿Jugaste en varias regiones? Se conserva tu madriguera más avanzada, con todo lo que compraste, lo compraras donde lo compraras.',
+          it: 'Hai giocato in più regioni? Teniamo la tana più avanzata, con tutto ciò che hai comprato, ovunque tu l’abbia comprato.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'Before each island, the game picks the closest server for you. To choose one yourself: Settings → Server.',
+          fr: 'Avant chaque île, le jeu choisit pour toi le serveur le plus proche. Pour en choisir un toi-même : Réglages → Serveur.',
+          zh: '每次上岛前，游戏会为你选择最近的服务器。想自己选：设置 → 服务器。',
+          'pt-BR': 'Antes de cada ilha, o jogo escolhe para você o servidor mais próximo. Para escolher você mesmo: Ajustes → Servidor.',
+          vi: 'Trước mỗi hòn đảo, trò chơi tự chọn máy chủ gần bạn nhất. Muốn tự chọn: Cài đặt → Máy chủ.',
+          es: 'Antes de cada isla, el juego elige por ti el servidor más cercano. Para elegirlo tú: Ajustes → Servidor.',
+          it: 'Prima di ogni isola il gioco sceglie per te il server più vicino. Per sceglierlo tu: Impostazioni → Server.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'Raids reach every burrow in the world, and live defence works from one continent to another.',
+          fr: 'Les raids touchent tous les terriers du monde, et la défense en direct marche d’un continent à l’autre.',
+          zh: '突袭可以到达世界上任何一个洞穴，实时防守也能跨大洲进行。',
+          'pt-BR': 'Os saques alcançam todas as tocas do mundo, e a defesa ao vivo funciona de um continente a outro.',
+          vi: 'Đột kích tới được mọi hang trên thế giới, và phòng thủ trực tiếp hoạt động giữa các châu lục.',
+          es: 'Los asaltos llegan a todas las madrigueras del mundo, y la defensa en directo funciona de un continente a otro.',
+          it: 'Le incursioni raggiungono ogni tana del mondo, e la difesa dal vivo funziona da un continente all’altro.',
+        },
+      },
+      {
+        kind: 'new',
+        text: {
+          en: 'One device at a time: open the game elsewhere and the first one says “Other device”. “Play here” takes it back, and the island you were on is banked.',
+          fr: 'Un appareil à la fois : si tu ouvres le jeu ailleurs, le premier affiche « Autre appareil ». « Jouer ici » te rend la main, et ton île en cours est encaissée.',
+          zh: '一次只能用一台设备：在别处打开游戏时，第一台会显示“其他设备”。点“在这里玩”即可拿回，正在进行的岛屿收益会被存下。',
+          'pt-BR': 'Um aparelho por vez: abra o jogo em outro lugar e o primeiro mostra “Outro aparelho”. “Jogar aqui” devolve o controle, e a ilha em andamento é guardada.',
+          vi: 'Mỗi lúc một thiết bị: mở trò chơi ở nơi khác thì máy đầu tiên hiện “Thiết bị khác”. “Chơi ở đây” lấy lại quyền chơi, và hòn đảo đang dở được cất vào.',
+          es: 'Un dispositivo a la vez: si abres el juego en otro sitio, el primero muestra «Otro dispositivo». «Jugar aquí» te devuelve el control, y la isla en curso se guarda.',
+          it: 'Un dispositivo alla volta: se apri il gioco altrove, il primo mostra «Altro dispositivo». «Gioca qui» te lo restituisce, e l’isola in corso viene incassata.',
+        },
+      },
+    ],
+  },
+  {
     date: '2026-10-22',
     items: [
       {

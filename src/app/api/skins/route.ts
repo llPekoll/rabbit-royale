@@ -12,12 +12,17 @@ import { tokenUsdPrices } from '@/lib/pay/rates';
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
-  const owned = await ownedSkinKeys(session.sub);
-  const pending = await db.select({ kind: payments.kind }).from(payments)
-    .where(and(eq(payments.playerId, session.sub), eq(payments.status, 'pending')));
   const enabled = payEnabled();
+  // One round trip for the whole page: the region servers may sit a
+  // continent away from the database.
+  const [player, owned, pending, rates] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, session.sub) }),
+    ownedSkinKeys(session.sub),
+    db.select({ kind: payments.kind }).from(payments)
+      .where(and(eq(payments.playerId, session.sub), eq(payments.status, 'pending'))),
+    enabled ? tokenUsdPrices().catch(() => null) : Promise.resolve(null),
+  ]);
+  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
   return Response.json({
     skins: SKINS.filter((skin) => skin.onSale).map((skin) => ({
       ...skin, owned: owned.includes(skin.key), equipped: player.equippedSkin === skin.key,
@@ -26,6 +31,6 @@ export async function GET(req: Request) {
     owned, equipped: player.equippedSkin, look: lookOf(player.avatar, player.equippedSkin),
     paymentsEnabled: enabled, tokens: enabled ? enabledTokens() : [],
     // The shop's rates (api/shop), so the page prices in the chosen rail.
-    rates: enabled ? await tokenUsdPrices().catch(() => null) : null,
+    rates,
   });
 }

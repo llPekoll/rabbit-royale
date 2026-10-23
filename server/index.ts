@@ -42,7 +42,8 @@ import { payCrossing } from '../src/lib/game/pay-crossing';
 import { registerSeatLookup } from '../src/lib/game/live-seats';
 import { rolloverSeasonIfDue } from '../src/lib/game/season';
 import { racesNow } from '../src/lib/game/season-pass';
-import { equippedSkinOf, lookOf } from '../src/lib/game/look';
+import { lookOf } from '../src/lib/game/look';
+import { isSkinKey } from '../src/lib/game/skins';
 import { currentEnergy } from '../src/lib/game/regen';
 import { grantItem } from '../src/lib/game/grant';
 import { tutorialReward } from '../src/lib/game/tutorial-reward';
@@ -51,15 +52,18 @@ import { refreshTuning } from '../src/lib/tuning/live';
 import type { ItemKind } from '../src/lib/game/inventory';
 import { verifySession } from '../src/lib/auth/jwt';
 import { db, sql } from '../src/lib/db';
-import { decodePush, PLAYER_PUSH_CHANNEL } from '../src/lib/game/raid-events';
+import { decodePush, deliverHereWith, PLAYER_PUSH_CHANNEL, pushToPlayer } from '../src/lib/game/raid-events';
+import { dropRaid, listenForRaidNews, raidWritten } from '../src/lib/game/raid-live';
 import { recordIslandKill } from '../src/lib/game/record-raid';
-import { inventory, players, raidRuns, runs, seasons } from '../src/lib/db/schema';
+import { inventory, players, raidRuns, runs } from '../src/lib/db/schema';
 import { MemoryIslandStore, type LiveIsland } from './islands/store';
 import { installStage } from './stage';
 import { roomFor } from './islands/router';
+import { crownHolderId } from '../src/lib/leaderboard';
 import {
-  crownHolderId, markConnected, markDisconnected, markOffline, markOnline, setScore,
-} from '../src/lib/leaderboard';
+  decodePresence, encodePresence, notePresence, presenceAmong, PRESENCE_BEAT_MS, PRESENCE_CHANNEL, PRESENCE_TTL_MS,
+  setLocalSpeaker, type PresenceNote, type Where,
+} from '../src/lib/presence';
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { PRICE_REFRESH_MS, refreshTokenPrices } from '../src/lib/pay/rates';
 import { guard, installProcessGuards, optional } from './resilience';
@@ -111,6 +115,14 @@ const WATCH_PRESENCE_MAX = 40;
 interface SocketData {
   playerId?: string;
   name?: string;
+  /**
+   * Which RUN OF THE APP this socket comes from — a random id the client
+   * draws at launch (game_socket.gd). Two sockets with the same one are the
+   * same app reconnecting; two different ones are two devices (or two tabs),
+   * and only one of them may play (`claimSession`). Absent from a client
+   * older than 2026-10-23, which keeps the old ways.
+   */
+  launch?: string;
   islandId?: string;
   /** Run row id, so the recap can be written when the run ends. */
   runId?: string;
@@ -208,6 +220,8 @@ io.use(async (socket, next) => {
         const data = socket.data as SocketData;
         data.playerId = claims.sub;
         data.name = claims.name || 'Rabbit';
+        const launch = (socket.handshake.auth as { launch?: unknown }).launch;
+        if (typeof launch === 'string' && launch.length <= 64) data.launch = launch;
       }
     }
   } catch (e) {
@@ -504,22 +518,23 @@ function pushWatchers(playerId: string | undefined): void {
 }
 
 /**
- * Where a player is standing, in the raid list's three words.
- *
- * The same reading as `GET /api/raid`'s target list, kept deliberately
- * identical: `digging` wins over `home` because it is the one that changes a
- * raid, and a player with no socket here is `away`. Read off the live sockets
- * rather than Redis — this runs on every arrival and departure, and the
- * sockets in this process ARE the answer for anyone connected to it.
+ * Where a player is standing, as THIS server sees them, in the raid list's
+ * three words: `digging` wins over `home` because it is the one that changes
+ * a raid, and a player with no socket here is `away`. A solo island reads
+ * `home`: it turns every watcher away, and a WATCH beside the name would
+ * land on a closed door. Read off the live sockets — they ARE the answer for
+ * anyone connected to this process.
  */
-function presenceOf(playerId: string): 'away' | 'home' | 'digging' {
+function presenceOf(playerId: string): Where {
   const s = socketOf(playerId);
   if (!s) return 'away';
-  return (s.data as SocketData).islandId ? 'digging' : 'home';
+  const islandId = (s.data as SocketData).islandId;
+  if (!islandId) return 'home';
+  return store.get(islandId)?.isolated ? 'home' : 'digging';
 }
 
 /**
- * Tell everyone following this player that their dot has changed.
+ * Tell everyone HERE following this player that their dot has changed.
  *
  * Pushed, never asked for: the profile's raid log subscribes once with
  * `watch` and then simply listens, so a raider sees their target go out
@@ -528,15 +543,86 @@ function presenceOf(playerId: string): 'away' | 'home' | 'digging' {
  * when someone actually arrives or leaves, and a registry of subscriptions is
  * one more thing to leave stale when a tab dies.
  */
-function pushPresence(playerId: string | undefined): void {
-  if (!playerId) return;
-  const where = presenceOf(playerId);
+function pushPresence(playerId: string, where: Where): void {
   for (const s of io.sockets.sockets.values()) {
     if ((s.data as SocketData).watchingPresence?.has(playerId)) {
       s.emit('presence', { id: playerId, where });
     }
   }
 }
+
+/**
+ * A player arrived, left, or crossed between island and burrow on THIS
+ * server: their followers here hear it now, and every region hears it over
+ * the bus (lib/presence.ts) — the raid lists of the whole world read it.
+ */
+function presenceChanged(playerId: string | undefined): void {
+  if (!playerId) return;
+  const where = presenceOf(playerId);
+  pushPresence(playerId, where);
+  void optional('presence', () => announcePresence([[playerId, where]]));
+}
+
+/** Say it: into this region's Redis at once, and to the other regions. */
+async function announcePresence(entries: PresenceNote['e'], beat?: true): Promise<void> {
+  const x = Date.now() + PRESENCE_TTL_MS;
+  // Chunked under NOTIFY's 8000 bytes: an id is ~50 characters.
+  for (let i = 0; i < entries.length; i += 100) {
+    const note: PresenceNote = { s: BOOT_ID, x, e: entries.slice(i, i + 100), ...(beat ? { beat } : {}) };
+    await notePresence(note);
+    const wire = encodePresence(note);
+    if (wire) await sql.notify(PRESENCE_CHANNEL, wire);
+  }
+}
+
+/**
+ * Everyone this server holds, restated: the entries expire unless renewed
+ * (that is how a crashed server's players stop being home), so a live one
+ * renews them. The departed were said at once and are not here.
+ */
+function presenceBeat(): Promise<void> {
+  const seen = new Set<string>();
+  const entries: PresenceNote['e'] = [];
+  for (const s of io.sockets.sockets.values()) {
+    const id = (s.data as SocketData).playerId;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    entries.push([id, presenceOf(id)]);
+  }
+  return announcePresence(entries, true);
+}
+setInterval(() => { void optional('presenceBeat', presenceBeat); }, PRESENCE_BEAT_MS).unref();
+
+/**
+ * What the OTHER servers say. Written into this region's Redis under their
+ * name; a change (not a heartbeat) reaches the followers here — as the whole
+ * world now reads it, so a player who moved servers and whose old server says
+ * `away` second is still `home`.
+ */
+function listenForPresence(): void {
+  setLocalSpeaker(BOOT_ID);
+  sql.listen(PRESENCE_CHANNEL, (wire) => {
+    const note = decodePresence(wire);
+    if (!note || note.s === BOOT_ID) return;
+    void optional('notePresence', async () => {
+      await notePresence(note);
+      if (note.beat) return;
+      // Someone connected HERE is answered by the socket, not by hearsay.
+      const elsewhere = note.e.map(([id]) => id).filter((id) => !socketOf(id));
+      for (const [id, where] of await presenceAmong(elsewhere)) pushPresence(id, where);
+    });
+  }).then(
+    () => console.log('[rr-ws] presence bus listening on', PRESENCE_CHANNEL),
+    (e) => console.error('[rr-ws] presence bus unavailable (other regions read as away):', e),
+  );
+}
+listenForPresence();
+
+// Raids held here hear what other servers change under them (raid-live.ts).
+listenForRaidNews().then(
+  () => console.log('[rr-ws] raid bus listening'),
+  (e) => console.error('[rr-ws] raid bus unavailable (raids from other regions read one step late):', e),
+);
 
 // ── The push bus ─────────────────────────────────────────────────────────────
 
@@ -555,10 +641,22 @@ function pushPresence(playerId: string | undefined): void {
  * picture and nothing else.
  */
 function listenForPushes(): void {
+  // A push for a player whose socket is HERE skips the bus (raid-events'
+  // `deliveredHere`): the same emit the listener below would make, without
+  // the round trip to Postgres. The two special events keep the bus — they
+  // act on a rabbit, not on a socket.
+  deliverHereWith((push) => {
+    if (push.event === 'energy_granted' || push.event === 'look_changed' || push.event === 'session_taken') return false;
+    const socket = socketOf(push.to);
+    if (!socket) return false;
+    socket.emit(push.event, push.payload);
+    return true;
+  });
   sql.listen(PLAYER_PUSH_CHANNEL, (wire) => {
     const push = decodePush(wire);
     if (!push) return;
     if (push.event === 'energy_granted') return topUpRabbit(push.to, push.payload);
+    if (push.event === 'session_taken') return sessionTakenElsewhere(push.to, push.payload);
     if (push.event === 'look_changed') return wearRabbit(push.to, push.payload);
     const socket = socketOf(push.to);
     if (socket) return void socket.emit(push.event, push.payload);
@@ -611,21 +709,6 @@ function wearRabbit(playerId: string, payload: unknown): void {
 }
 
 // ── Persistence ──────────────────────────────────────────────────────────────
-
-/** The open season, created on first need so a fresh database just works. */
-async function currentSeason() {
-  // A season past its end is closed first, so a run banked across the
-  // boundary scores into the season that is actually running.
-  await optional('rolloverSeason', async () => { await rolloverSeasonIfDue(); });
-  const open = await db.query.seasons.findFirst({ where: isNull(seasons.endedAt) });
-  if (open) return open;
-  const { SEASON } = await import('../config/tuning');
-  const [created] = await db
-    .insert(seasons)
-    .values({ endsAt: new Date(Date.now() + SEASON.DURATION_MS) })
-    .returning();
-  return created;
-}
 
 /**
  * Bank a finished run.
@@ -715,41 +798,52 @@ async function bankRun(rabbit: Rabbit) {
     energy: Math.min(OUT_OF_RUN_ENERGY.MAX, Math.max(0, Math.floor(rabbit.energy) + (refunded ? ENERGY.CROSSING_COST : 0))),
     energyUpdatedAt: new Date(),
   };
-  await db.update(players).set({
-    stock: raw`${players.stock} + ${carrots + bonus}`,
-    seasonScore: raw`${players.seasonScore} + ${scored + bonus}`,
-    lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots + bonus}`,
-    runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
-    ...settled,
-    tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
-    chestsOpened: raw`${players.chestsOpened} + ${run.chests ?? 0}`,
-    lastSeenAt: new Date(),
-  }).where(eq(players.id, playerId));
+  // The two rows closed together, and the record read beside them (see THE
+  // RECORD PER ISLAND below): one round trip, where there were four in a row
+  // to a database the region servers may reach across an ocean.
+  const [, , best] = await Promise.all([
+    db.update(players).set({
+      stock: raw`${players.stock} + ${carrots + bonus}`,
+      seasonScore: raw`${players.seasonScore} + ${scored + bonus}`,
+      lifetimeCarrots: raw`${players.lifetimeCarrots} + ${carrots + bonus}`,
+      runsPlayed: raw`${players.runsPlayed} + ${refunded ? 0 : 1}`,
+      ...settled,
+      tilesDug: raw`${players.tilesDug} + ${run.tilesDug}`,
+      chestsOpened: raw`${players.chestsOpened} + ${run.chests ?? 0}`,
+      lastSeenAt: new Date(),
+    }).where(eq(players.id, playerId)),
 
-  await db.update(runs).set({
-    carrots,
-    tilesDug: run.tilesDug,
-    bombsHit: run.bombsHit,
-    durationMs: Date.now() - run.startedAt,
-    endedAt: new Date(),
-  }).where(eq(runs.id, runId));
+    db.update(runs).set({
+      carrots,
+      tilesDug: run.tilesDug,
+      bombsHit: run.bombsHit,
+      durationMs: Date.now() - run.startedAt,
+      endedAt: new Date(),
+    }).where(eq(runs.id, runId)),
+
+    // This run's tier, and the best haul of the player's OTHER runs on it.
+    carrots > 0
+      ? db.execute<{ tier: number | null; previous: number | null }>(raw`
+          select r.island_tier as tier,
+                 (select max(o.carrots) from ${runs} o
+                   where o.player_id = ${playerId} and o.island_tier = r.island_tier and o.id <> r.id) as previous
+          from ${runs} r where r.id = ${runId}`).then((rows) => rows[0])
+      : Promise.resolve(undefined),
+  ]);
 
   /**
    * THE RECORD PER ISLAND (Paul, 21 September 2026: after the ladder, the
    * difficulty is chosen and the reason to come back is the record). The
    * best haul in one run on this tier, from the player's own finished runs;
    * beaten, the socket is told so the recap — or the burrow, when the run
-   * ended by walking home — can say so. Read AFTER the row is written, so a
-   * reconnect that banks twice cannot announce the same run twice.
+   * ended by walking home — can say so. A reconnect that banks twice cannot
+   * announce the same run twice: the second call finds `run.id` gone and
+   * leaves at the top. Read with the writes above (`best`): the other runs
+   * are not what they change.
    */
-  const row = await db.query.runs.findFirst({ where: eq(runs.id, runId), columns: { islandTier: true } });
-  if (row && carrots > 0) {
-    const others = await db.query.runs.findMany({
-      where: and(eq(runs.playerId, playerId), eq(runs.islandTier, row.islandTier), ne(runs.id, runId)),
-      columns: { carrots: true },
-    });
-    const previous = others.reduce((m, r) => Math.max(m, r.carrots), 0);
-    if (carrots > previous) socketOf(playerId)?.emit('run_record', { tier: row.islandTier, carrots, previous });
+  if (best && best.tier !== null) {
+    const previous = Number(best.previous ?? 0);
+    if (carrots > previous) socketOf(playerId)?.emit('run_record', { tier: best.tier, carrots, previous });
   }
 
   // Chest items land in the SAME banking step as the carrots, and after the
@@ -785,17 +879,6 @@ async function bankRun(rabbit: Rabbit) {
   // The socket may be gone (a closed tab, a sweep banking for an absent player)
   // — the carrots are safe either way, and the next burrow load will show them.
   socketOf(playerId)?.emit('banked', { carrots, bonus, loot: run.loot, nfts: run.nfts.length });
-
-  // The carrots are banked in Postgres by this point, which is what matters.
-  // Mirroring the score into Redis is a CACHE update — `rebuildLeaderboard`
-  // restores it from Postgres — so it is not allowed to fail the banking that
-  // already succeeded.
-  await optional('setScore', async () => {
-    const [row] = await db.select({ score: players.seasonScore })
-      .from(players).where(eq(players.id, playerId));
-    const season = await currentSeason();
-    if (row) await setScore(season.id, playerId, row.score);
-  });
 }
 
 /**
@@ -819,6 +902,86 @@ async function payForRun(
   return payCrossing(playerId, first);
 }
 
+// ── One session per account ──────────────────────────────────────────────────
+
+/**
+ * ONE ACCOUNT, ONE PLACE TO PLAY (2026-10-23). The newest connection wins,
+ * the way Clash of Clans does it: an account opened on another device — on
+ * this server or on another region's, once the regions share one database —
+ * closes the older one, which is told why (`session_elsewhere`) and does not
+ * reconnect by itself (game_socket.gd): it offers PLAY HERE instead, and two
+ * devices never kick each other back and forth.
+ *
+ * Why it matters: an island run digs with the tank in memory and writes it
+ * home at the end (`bankRun`), a raid is held in memory too (raid-live). Two
+ * devices playing at once on two servers would each spend the same energy,
+ * and the last write would erase the other's.
+ *
+ * The SAME APP reconnecting (same `launch`: a network blip, a socket the
+ * server has not seen die yet) is not another device: its stale socket is
+ * closed without a word, and its seat waits in the grace window as before.
+ */
+function claimSession(socket: Socket): void {
+  const data = socket.data as SocketData;
+  const playerId = data.playerId!;
+  // A client from before this rule says nothing of its launch: it neither
+  // kicks nor is told — the old ways, until it updates.
+  if (!data.launch) return;
+  for (const other of io.sockets.sockets.values()) {
+    const them = other.data as SocketData;
+    if (other === socket || them.playerId !== playerId) continue;
+    if (them.launch === data.launch) other.disconnect(true);
+    else void guard('evict', evictElsewhere)(other);
+  }
+  // And on every other server: the push bus reaches them all.
+  void pushToPlayer(sql, { to: playerId, event: 'session_taken', payload: { boot: BOOT_ID, launch: data.launch } });
+}
+
+/** The bus says this account was opened on ANOTHER server: whoever holds it
+ *  here plays no more. (This server's own claims were settled at the door.) */
+function sessionTakenElsewhere(playerId: string, payload: unknown): void {
+  const from = (payload ?? {}) as { boot?: unknown };
+  if (from.boot === BOOT_ID) return;
+  for (const other of io.sockets.sockets.values()) {
+    if ((other.data as SocketData).playerId === playerId) void guard('evict', evictElsewhere)(other);
+  }
+}
+
+/**
+ * Close a socket whose account is now playing elsewhere. Its run is banked
+ * NOW rather than held for a reconnect that will not come (the grace window
+ * would let the other device's run and this one write the same tank), its
+ * raid's steps are written and the raid let go — the other device rebuilds
+ * it from the row — and only then is the socket closed.
+ */
+async function evictElsewhere(socket: Socket): Promise<void> {
+  const data = socket.data as SocketData;
+  const playerId = data.playerId;
+  if (!playerId) return;
+  socket.emit('session_elsewhere');
+  const live = data.islandId ? store.get(data.islandId) : undefined;
+  const rabbit = live?.rabbits.get(playerId);
+  if (live && rabbit && !live.erupting) {
+    await bankRun(rabbit).catch((e) => console.error('[bankRun:elsewhere]', e));
+    live.rabbits.delete(playerId);
+    live.disconnectedAt.delete(playerId);
+    io.to(roomFor(live.island.id)).emit('rabbit_left', { playerId, grace: false });
+  }
+  data.islandId = undefined;
+  data.runId = undefined;
+  presenceChanged(playerId);
+  await raidWritten(playerId);
+  dropRaid(playerId);
+  // Closed a moment AFTER the word, not with it: a client still on long-polling
+  // (Godot's addon opens that way) loses whatever the buffer held when the
+  // transport is cut — the notice went with it, the client reconnected on its
+  // own, and kicked the other device back (seen 2026-10-23).
+  setTimeout(() => socket.disconnect(true), EVICT_GRACE_MS);
+}
+
+/** How long the evicted socket has to hear why before it is closed. */
+const EVICT_GRACE_MS = 1500;
+
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 io.on('connection', (socket: Socket) => {
@@ -826,18 +989,15 @@ io.on('connection', (socket: Socket) => {
   // Scenario setup, local only (RR_STAGE=1) — see server/stage.ts.
   installStage(socket, store, socketOf);
   socket.emit('server_hello', { boot: BOOT_ID });
+  if (data.playerId) claimSession(socket);
 
   // AT THE KEYBOARD, wherever they are standing — the handshake has already
   // named them by here, and this lasts until the socket closes. It is what
   // lets the raid list tell a burrow whose owner is away from one whose owner
-  // is home and watching; `markOnline` below is the narrower "on an island".
-  // Spectators have no playerId and are nobody's target, so they are skipped.
-  if (data.playerId) {
-    void optional('markConnected', () => markConnected(data.playerId!));
-    // Anyone with this name in their raid log sees the dot light up. Their
-    // panel may have been open since before this tab existed.
-    pushPresence(data.playerId);
-  }
+  // is home and watching. Anyone with this name in their raid log sees the
+  // dot light up; their panel may have been open since before this tab
+  // existed. Spectators have no playerId and are nobody's target.
+  presenceChanged(data.playerId);
 
   /**
    * FOLLOW THESE PLAYERS' PRESENCE — the profile's raid log, opening.
@@ -851,11 +1011,14 @@ io.on('connection', (socket: Socket) => {
    * Capped, and no auth beyond the handshake: this says nothing a raider
    * cannot already read off `GET /api/raid`'s target list.
    */
-  socket.on('watch_presence', guard('watch_presence', (ids: unknown) => {
+  socket.on('watch_presence', guard('watch_presence', async (ids: unknown) => {
     if (!Array.isArray(ids)) return;
     const wanted = ids.filter((i): i is string => typeof i === 'string').slice(0, WATCH_PRESENCE_MAX);
     data.watchingPresence = new Set(wanted);
-    socket.emit('presence_all', wanted.map((id) => ({ id, where: presenceOf(id) })));
+    // Read off the sockets for those connected here, off the region's copy of
+    // what every other server says for the rest.
+    const elsewhere = await presenceAmong(wanted.filter((id) => !socketOf(id))).catch(() => new Map<string, Where>());
+    socket.emit('presence_all', wanted.map((id) => ({ id, where: socketOf(id) ? presenceOf(id) : elsewhere.get(id) ?? 'away' })));
   }));
 
   /** Panel closed: stop hearing about them. */
@@ -917,7 +1080,21 @@ io.on('connection', (socket: Socket) => {
   socket.on('join', guard('join', oneAtATime(data, async (choice?: IslandChoice | null) => {
     if (!data.playerId) return socket.emit('error_msg', { code: 'unauthenticated' });
 
-    const player = await db.query.players.findFirst({ where: eq(players.id, data.playerId) });
+    // Every read the door makes, in one trip: the row, a raid left open (see
+    // ONE DOOR AT A TIME below) and the crown. The last two are wasted on a
+    // reconnect; asked one after another they cost a round trip each, and the
+    // region servers may sit a continent away from the database.
+    const playerId = data.playerId;
+    // A raid held in memory writes its steps behind (raid-live): the row read
+    // here must be the row as it stands.
+    await raidWritten(playerId);
+    const [player, openRaid, crownHolder] = await Promise.all([
+      db.query.players.findFirst({ where: eq(players.id, playerId) }),
+      db.query.raidRuns.findFirst({
+        where: and(eq(raidRuns.attackerId, playerId), isNull(raidRuns.endedAt)),
+      }),
+      crownHolderId().catch(() => null),
+    ]);
     if (!player) return socket.emit('error_msg', { code: 'unknown_player' });
     data.name = player.name;
     data.lifetimeCarrots = player.lifetimeCarrots;
@@ -991,10 +1168,8 @@ io.on('connection', (socket: Socket) => {
       // ONE DOOR AT A TIME, from this side (the raid route guards the other):
       // a raid under way is paying out of the same tank, and banking the run
       // would write over what it spent. A raid opened and never walked is only
-      // a look — it is closed here, as a Retreat would close it.
-      const openRaid = await db.query.raidRuns.findFirst({
-        where: and(eq(raidRuns.attackerId, data.playerId), isNull(raidRuns.endedAt)),
-      });
+      // a look — it is closed here, as a Retreat would close it. (`openRaid`
+      // was read at the top, with the row.)
       if (openRaid && openRaid.visited.length > 1) {
         return socket.emit('error_msg', { code: 'raid_in_progress' });
       }
@@ -1002,6 +1177,7 @@ io.on('connection', (socket: Socket) => {
         await db.update(raidRuns)
           .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
           .where(and(eq(raidRuns.id, openRaid.id), isNull(raidRuns.endedAt)));
+        dropRaid(playerId);
       }
       const paid = await payForRun(data.playerId, player);
       if (!paid.ok) {
@@ -1029,11 +1205,12 @@ io.on('connection', (socket: Socket) => {
     // THE CROWN rides on the rabbit: everyone on the island sees the #1
     // (`publicRabbit`), and the run it digs scores CROWN.GAIN_MULT (`bankRun`).
     // Read at the door — a crown won mid-run is worn from the next one.
-    if (!existing) rabbit.crowned = (await crownHolderId().catch(() => null)) === data.playerId;
+    if (!existing) rabbit.crowned = crownHolder === data.playerId;
     // THE TICKET'S SKIN, worn for everyone to see (`publicRabbit`) — and the
     // LOOK it settles: that skin, else the fur the player picked (look.ts).
     if (!existing) {
-      rabbit.skin = await equippedSkinOf(data.playerId).catch(() => null);
+      // From the row already in hand (`equippedSkin`), not a second read.
+      rabbit.skin = isSkinKey(player.equippedSkin) ? player.equippedSkin : null;
       rabbit.look = lookOf(player.avatar, rabbit.skin);
     }
     live.rabbits.set(data.playerId, rabbit);
@@ -1058,15 +1235,10 @@ io.on('connection', (socket: Socket) => {
       data.tilesDug = 0;
     }
 
-    // Presence is a NICE-TO-HAVE. A Redis hiccup must not stop a player joining
-    // a run — this used to throw straight out of the handler and take the whole
-    // process, and everyone else's live island, with it.
-    // Not for a SOLO run: this set is what puts WATCH beside a name on the
-    // leaderboard, and an isolated island turns every watcher away.
-    if (!live.isolated) await optional('markOnline', () => markOnline(data.playerId!));
     // Out on an island now: anyone holding this name in their raid log sees
-    // the dot turn. `data.islandId` is set above, so this reads `digging`.
-    pushPresence(data.playerId);
+    // the dot turn, and the board offers WATCH. `data.islandId` is set above,
+    // so this reads `digging` (`home` on a solo island — see `presenceOf`).
+    presenceChanged(data.playerId);
     socket.emit('island', { ...snapshot(live), bank });
     socket.to(roomFor(live.island.id)).emit('rabbit_joined', publicRabbit(rabbit));
   })));
@@ -1762,14 +1934,12 @@ io.on('connection', (socket: Socket) => {
     }
 
     // Off the island, so no longer "digging". This was missing, and it is not
-    // cosmetic: the board offers a WATCH button on whoever this set names, so a
+    // cosmetic: the board offers a WATCH button on whoever is digging, so a
     // player who walked back to their burrow stayed advertised as a live run
     // until they closed the tab — and clicking them landed on `not_playing`.
-    // The set is cleared here, on the way out, rather than only on disconnect.
-    await optional('markOffline', () => markOffline(data.playerId!));
     // Home, not away: the socket is still here. `data.islandId` was cleared
     // above, so the dot goes from "digging" to "home".
-    pushPresence(data.playerId);
+    presenceChanged(data.playerId);
   }));
 
   /** Start a fresh run after dying, without a reconnect. */
@@ -1783,26 +1953,22 @@ io.on('connection', (socket: Socket) => {
     data.islandId = undefined;
     socket.emit('restarting');
     // Between two islands: there is no run to watch for the moment it takes to
-    // join the next one. `join` marks them online again.
-    await optional('markOffline', () => markOffline(data.playerId!));
-    pushPresence(data.playerId);
+    // join the next one. `join` marks them digging again.
+    presenceChanged(data.playerId);
   }));
 
   socket.on('disconnect', guard('disconnect', async () => {
     if (!data.playerId) return;
-    // THE crash that took production down. This runs on every closed tab, so a
-    // single bad second from Redis was enough to kill the server and end every
-    // live run on it. Presence is not worth a run, let alone all of them.
-    await optional('markOffline', () => markOffline(data.playerId!));
-    // Out of BOTH sets: the socket is gone, so they are neither digging nor at
-    // the keyboard. Left behind, a closed tab would haunt the raid list as a
-    // defender who is home and watching — the one row a raider avoids, and the
-    // safest burrow in the game would be an abandoned one.
-    await optional('markDisconnected', () => markDisconnected(data.playerId!));
-    // Gone dark for anyone following this name. This socket is already out of
+    // Neither digging nor at the keyboard: the socket is gone. Left behind, a
+    // closed tab would haunt the raid list as a defender who is home and
+    // watching — the one row a raider avoids, and the safest burrow in the
+    // game would be an abandoned one. This socket is already out of
     // `io.sockets.sockets` by now (see below), so `presenceOf` says `away` —
-    // and it is not in the loop it would otherwise be told by.
-    pushPresence(data.playerId);
+    // unless the same player is still connected here on the socket that
+    // replaced this one (`claimSession`): they never left. Never awaited, and
+    // never allowed to throw (`optional`): a Redis hiccup on a closed tab once
+    // took production down, every live run with it.
+    presenceChanged(data.playerId);
     // A spectator holds no seat, so there is nothing to keep warm for them —
     // but the run they were watching is one eye lighter, and has to hear it.
     // The socket is already out of `io.sockets.sockets` by the time this runs,

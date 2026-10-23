@@ -20,23 +20,32 @@ import { burrowView } from '@/lib/game/burrow';
 import { grantItem } from '@/lib/game/grant';
 import { ownedSkinKeys, SKINS, isSkinKind } from '@/lib/game/skins';
 import { claimSnack, prizeItems, snackView, type SnackRow } from '@/lib/game/snack';
-import { adoptGifts, firstRunSince, layGifts, snackRowOf } from '@/lib/game/snackState';
+import { adoptGifts, firstRunSince, firstRunSinceClaim, layGifts, snackRowOf } from '@/lib/game/snackState';
 import { clampTzOffset } from '@/lib/notify/schedule';
 import { holdings, type ItemKind } from '@/lib/game/inventory';
 
 export const dynamic = 'force-dynamic';
 
 async function viewOf(playerId: string, row: SnackRow | null, now: number, tz: number) {
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId), columns: { level: true } });
-  return snackView(row, now, tz, player?.level ?? 1, await firstRunSince(playerId, row));
+  const [player, firstRun] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, playerId), columns: { level: true } }),
+    firstRunSince(playerId, row),
+  ]);
+  return snackView(row, now, tz, player?.level ?? 1, firstRun);
 }
 
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
   const tz = clampTzOffset(new URL(req.url, 'http://x').searchParams.get('tz'));
-  const row = await snackRowOf(session.sub);
-  return Response.json({ snack: await viewOf(session.sub, row, Date.now(), tz) });
+  // The three reads in one trip — the region servers may sit a continent
+  // away from the database.
+  const [row, player, firstRun] = await Promise.all([
+    snackRowOf(session.sub),
+    db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true } }),
+    firstRunSinceClaim(session.sub),
+  ]);
+  return Response.json({ snack: snackView(row, Date.now(), tz, player?.level ?? 1, firstRun) });
 }
 
 export async function POST(req: Request) {
@@ -48,10 +57,14 @@ export async function POST(req: Request) {
   const id = session.sub;
 
   const result = await db.transaction(async (tx) => {
-    await tx.insert(snackStreak).values({ playerId: id }).onConflictDoNothing();
-    const [row] = await tx.select().from(snackStreak).where(eq(snackStreak.playerId, id)).for('update');
-    const [player] = await tx.select({ level: players.level }).from(players).where(eq(players.id, id)).limit(1);
-    const ownedKeys = await ownedSkinKeys(id, tx);
+    // Pipelined on the transaction's connection: one trip, still in order —
+    // the row exists before it is locked.
+    const [, [row], [player], ownedKeys] = await Promise.all([
+      tx.insert(snackStreak).values({ playerId: id }).onConflictDoNothing(),
+      tx.select().from(snackStreak).where(eq(snackStreak.playerId, id)).for('update'),
+      tx.select({ level: players.level }).from(players).where(eq(players.id, id)).limit(1),
+      ownedSkinKeys(id, tx),
+    ]);
     const ownedKinds = SKINS.filter((s) => ownedKeys.includes(s.key)).map((s) => s.kind as string);
     const claim = claimSnack(row ?? null, now, tz, player?.level ?? 1, ownedKinds);
     if (!claim.ok) return claim;
@@ -91,7 +104,11 @@ export async function POST(req: Request) {
   }
   if (result.edits) adoptGifts(id, result.edits);
 
-  const after = await db.query.players.findFirst({ where: eq(players.id, id) });
+  const [after, bag, snack] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, id) }),
+    db.query.inventory.findMany({ where: eq(inventory.playerId, id) }),
+    viewOf(id, result.next, now, tz),
+  ]);
   if (!after) return Response.json({ error: 'unknown player' }, { status: 404 });
   return Response.json({
     reward: {
@@ -103,15 +120,10 @@ export async function POST(req: Request) {
       items: result.items,
       gift: result.gift,
     },
-    snack: await viewOf(id, result.next, now, tz),
-    burrow: await viewWithBag(after),
+    snack,
+    // WITH its bag: the refills and the garden bottles live in the other
+    // table, and a view built from the row alone reads them as zero.
+    burrow: burrowView(after, Date.now(), holdings(bag, after)),
     ...(result.edits ? { edits: result.edits } : {}),
   });
-}
-
-/** The burrow WITH its bag: the refills and the garden bottles live in the
- *  other table, and a view built from the row alone reads them as zero. */
-async function viewWithBag(row: NonNullable<Awaited<ReturnType<typeof db.query.players.findFirst>>>) {
-  const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, row.id) });
-  return burrowView(row, Date.now(), holdings(rows, row));
 }

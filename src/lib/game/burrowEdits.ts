@@ -22,11 +22,12 @@ import { AXE } from '@config/tuning';
  * `cuts` is never stored in `burrow_edits` — it is `burrow_cuts`, read here.
  */
 export async function loadBurrowEdits(playerId: string): Promise<BurrowEdits | null> {
-  const row = await db.query.players.findFirst({
-    where: eq(players.id, playerId),
-    columns: { burrowEdits: true },
-  });
-  const cuts = (await activeCuts(playerId)).map((c) => c.tile);
+  // Together: one round trip, not two, to a database that may be overseas.
+  const [row, active] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, playerId), columns: { burrowEdits: true } }),
+    activeCuts(playerId),
+  ]);
+  const cuts = active.map((c) => c.tile);
   const edits = row?.burrowEdits ?? null;
   setBurrowEdits(playerId, cuts.length ? { ...(edits ?? {}), cuts } : edits);
   return burrowEditsOf(playerId);

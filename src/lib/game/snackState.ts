@@ -3,7 +3,7 @@
  * streak row, the run the bonus of the day went to, and the gifts a closed
  * week puts in the burrow.
  */
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, asc, eq, gt, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, runs, snackStreak } from '@/lib/db/schema';
 import { baseBurrowFor, setBurrowEdits } from '@/game/burrow/board';
@@ -31,15 +31,33 @@ export async function firstRunSince(playerId: string, row: SnackRow | null, tx: 
 }
 
 /**
+ * `firstRunSince`, for a caller that has not read the streak row yet: the
+ * claim's stamp is read inside the same statement, so the three reads of the
+ * snack page go out together. No box opened → no row → null, as above.
+ */
+export async function firstRunSinceClaim(playerId: string, tx: Tx = db): Promise<number | null> {
+  const [run] = await tx.select({ carrots: runs.carrots }).from(runs)
+    .where(and(
+      eq(runs.playerId, playerId),
+      gt(runs.endedAt, raw`(select ${snackStreak.claimedAt} from ${snackStreak} where ${snackStreak.playerId} = ${playerId})`),
+      gt(runs.carrots, 0),
+    ))
+    .orderBy(asc(runs.endedAt))
+    .limit(1);
+  return run ? run.carrots : null;
+}
+
+/**
  * THE BONUS OF THE DAY for a run banking `carrots` now: what to add on top,
  * zero when no box was opened today or a paying run already took it. Read
  * BEFORE the run's own row is closed, so it never counts itself.
  */
 export async function snackBonus(playerId: string, carrots: number, level: number, now = Date.now()): Promise<number> {
   if (carrots <= 0) return 0;
-  const row = await snackRowOf(playerId);
+  // Both at once, one trip: the second reads the claim's stamp itself.
+  const [row, firstRun] = await Promise.all([snackRowOf(playerId), firstRunSinceClaim(playerId)]);
   if (!buffLive(row, now, false)) return 0;
-  if ((await firstRunSince(playerId, row)) !== null) return 0;
+  if (firstRun !== null) return 0;
   return buffBonus(carrots, level);
 }
 

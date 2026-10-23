@@ -13,6 +13,7 @@
 import { and, desc, eq, isNull, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
+import { raidWritten } from '@/lib/game/raid-live';
 import { getSession, signSession, SESSION_COOKIE } from '@/lib/auth/jwt';
 import { applyRegen } from '@/lib/game/regen';
 import { isBuiltInAvatar } from '@/lib/game/avatars';
@@ -79,7 +80,9 @@ export async function PATCH(req: Request) {
         return Response.json({ error: 'solo_ticket' }, { status: 403 });
       }
       // Not halfway across someone's burrow: a raider does not get to pull
-      // up the drawbridge behind them.
+      // up the drawbridge behind them. (Its steps, written behind the
+      // answers — raid-live — land in the row before it is read.)
+      await raidWritten(session.sub);
       const open = await db.query.raidRuns.findFirst({
         where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
         columns: { id: true },

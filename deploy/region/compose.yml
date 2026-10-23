@@ -1,8 +1,12 @@
 # ONE REGION ON ONE VPS — Singapore, the US: no Coolify, the whole stack here.
 #
-# Europe stays on Coolify (datemeee). A region is ISOLATED: its own Postgres,
-# its own Redis, its own accounts, seasons and raids. Only the image is shared,
-# built once by .github/workflows/deploy-regions.yml and pulled from GHCR.
+# Europe stays on Coolify (datemeee). Since the regions were unified
+# (2026-10-23) a region keeps its own game server and Redis, but its players'
+# accounts live in EUROPE's databases, reached through the WireGuard tunnel
+# (deploy/tunnel) as eu-db: SHARED_DATABASE_URL / WEB2_SHARED_DATABASE_URL in
+# .env, set by scripts/cutover-regions.sh. Unset, a region falls back on its
+# own Postgres below — which it keeps, untouched, as the way back. The image
+# is built once by .github/workflows/deploy-regions.yml and pulled from GHCR.
 #
 #   docker compose up -d          # Caddy + Postgres + Redis + migrate + rr-ws,
 #                                 # and the same four again for the web2 world
@@ -34,7 +38,10 @@ services:
     volumes:
       - redis:/data
 
-  # Runs once per `up`, before the server: the image's own `drizzle/`.
+  # Runs once per `up`, before the server: the image's own `drizzle/`. Always
+  # on the region's OWN base: the shared one is migrated by Europe alone, by
+  # its owner — three regions running one journal at once would race, and a
+  # region's role may not alter tables.
   migrate:
     image: ${RR_WS_IMAGE:-ghcr.io/llpekoll/rr-ws:latest}
     command: ["./migrate"]
@@ -50,7 +57,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://rabbit:${POSTGRES_PASSWORD}@postgres:5432/rabbit
+      DATABASE_URL: ${SHARED_DATABASE_URL:-postgres://rabbit:${POSTGRES_PASSWORD}@postgres:5432/rabbit}
       REDIS_URL: redis://redis:6379
       WS_PORT: "3010"
     depends_on:
@@ -103,7 +110,10 @@ services:
     restart: unless-stopped
     environment:
       RR_WORLD: web2
-      DATABASE_URL: postgres://rabbit:${WEB2_POSTGRES_PASSWORD}@postgres-web2:5432/rabbit
+      DATABASE_URL: ${WEB2_SHARED_DATABASE_URL:-postgres://rabbit:${WEB2_POSTGRES_PASSWORD}@postgres-web2:5432/rabbit}
+      # Europe's base has 100 connections for every region's servers.
+      PG_POOL_MAX: ${WEB2_PG_POOL_MAX:-25}
+      PG_TX_POOL_MAX: ${WEB2_PG_TX_POOL_MAX:-5}
       REDIS_URL: redis://redis-web2:6379
       WS_PORT: "3010"
       WS_DOMAIN: ${WS2_DOMAIN}

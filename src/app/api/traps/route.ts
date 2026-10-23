@@ -23,12 +23,30 @@ import {
 import { burrowCell, isDoorstep, isTrappable } from '@/game/burrow/board';
 import { houseTiles } from '@/game/burrow/buildings';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
+import { groundChanged } from '@/lib/game/raid-live';
 import { TRAPS } from '@/lib/tuning/tables';
 
-async function trapState(playerId: string) {
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
+type Player = typeof players.$inferSelect;
+type Trap = typeof traps.$inferSelect;
+
+/** The owner's row and their board, read together — one round trip. */
+async function boardOf(playerId: string): Promise<{ player: Player | undefined; placed: Trap[] }> {
+  const [player, placed] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, playerId) }),
+    db.query.traps.findMany({ where: eq(traps.ownerId, playerId) }),
+  ]);
+  return { player, placed };
+}
+
+/**
+ * What the owner's board shows. From the rows the caller holds — a write
+ * that just changed them hands over the rows as they now stand, rather than
+ * reading back what it wrote (a round trip each, from a region whose database
+ * may be on another continent) — or read here.
+ */
+async function trapState(playerId: string, known?: { player: Player | undefined; placed: Trap[] }) {
+  const { player, placed } = known ?? await boardOf(playerId);
   if (!player) return null;
-  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, playerId) });
   const armed = new Set(armedTraps(placed).map((t) => t.tile));
   return {
     /** Tiles the owner has mined. Owner-only — never sent to a raider. */
@@ -69,17 +87,15 @@ async function trapState(playerId: string) {
  * with nothing to evict, and a rule that keeps a list of "already migrated"
  * players would be a second source of truth for what the seed already says.
  */
-async function evictDoorstep(playerId: string): Promise<void> {
-  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, playerId) });
+/** Lifts what may not stand where it is; true when something was lifted. */
+async function evictDoorstep(playerId: string, player: Player, placed: Trap[]): Promise<boolean> {
   // …and the house: nothing is buried under it (2026-09-23). Covers the
   // bombs that were there before the rule, and a house the owner moved.
   const house = new Set(houseTiles(playerId));
   const evicted = placed
     .filter((t) => !isTrappable(playerId, t.tile) || house.has(t.tile))
     .map((t) => t.tile);
-  if (!evicted.length) return;
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
-  if (!player) return;
+  if (!evicted.length) return false;
   await db.transaction(async (tx) => {
     // The DELETE's `returning` says how many were actually there, so two GETs
     // racing on the same board cannot refund the same trap twice.
@@ -91,15 +107,21 @@ async function evictDoorstep(playerId: string): Promise<void> {
       .set(refundTraps(player, rows.length))
       .where(eq(players.id, playerId));
   });
+  return true;
 }
 
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  await loadBurrowEdits(session.sub);
-  await evictDoorstep(session.sub);
-  const state = await trapState(session.sub);
+  const [, board] = await Promise.all([loadBurrowEdits(session.sub), boardOf(session.sub)]);
+  if (!board.player) return Response.json({ error: 'unknown player' }, { status: 404 });
+  // The rare board with a bomb where it may no longer stand is read again
+  // after the eviction; every other one answers from the rows in hand.
+  const evicted = await evictDoorstep(session.sub, board.player, board.placed);
+  // A GET that lifted bombs changed the ground under any raid on it.
+  if (evicted) groundChanged(session.sub);
+  const state = await trapState(session.sub, evicted ? undefined : board);
   if (!state) return Response.json({ error: 'unknown player' }, { status: 404 });
   return Response.json(state);
 }
@@ -111,12 +133,8 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as { tile?: unknown };
   const tile = Number(body.tile);
-  await loadBurrowEdits(session.sub);
-
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  const [, { player, placed }] = await Promise.all([loadBurrowEdits(session.sub), boardOf(session.sub)]);
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
-
-  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, session.sub) });
 
   // `isTrappable` guards the tile index itself — it is a number off the wire,
   // so a non-integer, a negative or an out-of-range value has to be refused
@@ -149,14 +167,20 @@ export async function POST(req: Request) {
   // One transaction: the trap appearing and the allowance being drawn down are
   // the same event. The insert goes FIRST so the unique index on (owner, tile)
   // rejects a double-tap before any allowance is spent.
+  // Both statements pipelined (one trip): they still run in this order, and a
+  // refused insert aborts the transaction under the update.
+  let planted: Trap;
   try {
-    await db.transaction(async (tx) => {
-      await tx.insert(traps).values({ ownerId: session.sub, tile });
-      // `trapsPlaced` is a LIFETIME count for the quest board — a trap lifted
-      // later was still placed, and the lesson was still learned.
-      await tx.update(players)
-        .set({ ...spend, trapsPlaced: raw`${players.trapsPlaced} + 1` })
-        .where(eq(players.id, session.sub));
+    planted = await db.transaction(async (tx) => {
+      const [row] = await Promise.all([
+        tx.insert(traps).values({ ownerId: session.sub, tile }).returning().then((r) => r[0]),
+        // `trapsPlaced` is a LIFETIME count for the quest board — a trap lifted
+        // later was still placed, and the lesson was still learned.
+        tx.update(players)
+          .set({ ...spend, trapsPlaced: raw`${players.trapsPlaced} + 1` })
+          .where(eq(players.id, session.sub)),
+      ]);
+      return row;
     });
   } catch (err) {
     if (String(err).includes('traps_owner_tile_idx')) {
@@ -168,7 +192,10 @@ export async function POST(req: Request) {
   // `tile`, not `placed`: the state below carries a `placed` ARRAY, and a key
   // whose meaning depends on spread order is a bug waiting for whoever reads
   // it next.
-  return Response.json({ tile, ...(await trapState(session.sub)) });
+  return Response.json({
+    tile,
+    ...(await trapState(session.sub, { player: { ...player, ...spend }, placed: [...placed, planted] })),
+  });
 }
 
 /**
@@ -191,10 +218,9 @@ export async function PATCH(req: Request) {
   const tile = Number(body.tile);
   if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
 
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  const { player, placed } = await boardOf(session.sub);
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
-  const placed = await db.query.traps.findMany({ where: eq(traps.ownerId, session.sub) });
   const row = placed.find((t) => t.tile === tile);
   if (!row) return Response.json({ error: 'no_trap_there' }, { status: 404 });
   // Standing already, by the same queue the raid reads (`armedTraps`).
@@ -219,7 +245,13 @@ export async function PATCH(req: Request) {
   });
   if (!rearmed) return Response.json({ error: 'trap_armed' }, { status: 409 });
 
-  return Response.json({ rearmed: tile, ...(await trapState(session.sub)) });
+  return Response.json({
+    rearmed: tile,
+    ...(await trapState(session.sub, {
+      player: { ...player, ...spend },
+      placed: placed.map((t) => (t.id === row.id ? { ...t, sprungAt: null } : t)),
+    })),
+  });
 }
 
 /**
@@ -269,7 +301,7 @@ export async function DELETE(req: Request) {
   // the refund is stock returned rather than allowance rewound, so clearing
   // and re-mining creates nothing.
   if (url.searchParams.get('all') !== null) {
-    const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+    const { player } = await boardOf(session.sub);
     if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
     const cleared = await db.transaction(async (tx) => {
@@ -279,7 +311,7 @@ export async function DELETE(req: Request) {
       const rows = await tx.delete(traps)
         .where(eq(traps.ownerId, session.sub))
         .returning({ tile: traps.tile, sprungAt: traps.sprungAt });
-      if (!rows.length) return 0;
+      if (!rows.length) return { count: 0, refundable: 0 };
       // Only the STANDING traps are paid back — a board cleared mid-rearm
       // hands back what was actually on it, not what was on its way. Counted
       // through `armedTraps` rather than by testing `sprungAt` here, so the
@@ -290,10 +322,12 @@ export async function DELETE(req: Request) {
           .set(refundTraps(player, refundable))
           .where(eq(players.id, session.sub));
       }
-      return rows.length;
+      return { count: rows.length, refundable };
     });
 
-    return Response.json({ cleared, ...(await trapState(session.sub)) });
+    // The board is empty now, and the bag holds what the refund put in it.
+    const after = cleared.refundable > 0 ? { ...player, ...refundTraps(player, cleared.refundable) } : player;
+    return Response.json({ cleared: cleared.count, ...(await trapState(session.sub, { player: after, placed: [] })) });
   }
 
   const fromQuery = url.searchParams.get('tile');
@@ -303,7 +337,7 @@ export async function DELETE(req: Request) {
   const tile = Number(body.tile);
   if (!Number.isInteger(tile)) return Response.json({ error: 'bad_tile' }, { status: 400 });
 
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  const { player, placed } = await boardOf(session.sub);
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
   // One transaction, and the DELETE goes first: its `returning` is what says
@@ -324,5 +358,11 @@ export async function DELETE(req: Request) {
   });
   if (!removed) return Response.json({ error: 'no_trap_there' }, { status: 404 });
 
-  return Response.json({ removed: tile, ...(await trapState(session.sub)) });
+  return Response.json({
+    removed: tile,
+    ...(await trapState(session.sub, {
+      player: isArmed(removed) ? { ...player, ...refundTrap(player) } : player,
+      placed: placed.filter((t) => t.tile !== tile),
+    })),
+  });
 }

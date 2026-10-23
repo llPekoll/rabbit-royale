@@ -29,6 +29,11 @@ export const fr: Dict = {
     reopen: 'L’appli va se fermer : rouvre-la.',
     restart: 'Relancer',
   },
+  elsewhere: {
+    title: 'Autre appareil',
+    body: 'Ton terrier vient de s’ouvrir sur un autre appareil. Un seul peut jouer à la fois.',
+    playHere: 'Jouer ici',
+  },
   consent: {
     title: 'Avant de creuser',
     body: 'On peut mesurer ta façon de jouer ? Les écrans, les tapes, et la pub qui t’a amené ici. Ça nous montre quoi réparer. Rien n’est vendu.',
@@ -92,7 +97,7 @@ export const fr: Dict = {
     saveBurrowWeb2: 'Garde ce terrier : connecte Google ou un email.',
     orKeep: 'ou garde ton terrier avec',
     signedInWith: 'Connecté avec',
-    region: { label: 'Serveur', finding: 'On cherche le serveur le plus proche...', eu: 'Europe', sg: 'Asie', us: 'Amériques' },
+    region: { label: 'Serveur', finding: 'On cherche le serveur le plus proche...', eu: 'Europe', sg: 'Asie', us: 'Amériques', auto: 'Auto', setting: (choice) => `Serveur : ${choice}` },
   },
 
   chrome: {

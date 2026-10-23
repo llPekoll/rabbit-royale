@@ -34,6 +34,11 @@ export const es: Dict = {
     reopen: 'La app se va a cerrar: vuelve a abrirla.',
     restart: 'Reiniciar',
   },
+  elsewhere: {
+    title: 'Otro dispositivo',
+    body: 'Tu madriguera se acaba de abrir en otro dispositivo. Solo uno puede jugar a la vez.',
+    playHere: 'Jugar aquí',
+  },
   consent: {
     title: 'Antes de cavar',
     body: '¿Podemos medir cómo juegas? Las pantallas, los toques y el anuncio que te trajo. Nos muestra qué arreglar. No vendemos nada.',
@@ -97,7 +102,7 @@ export const es: Dict = {
     saveBurrowWeb2: 'Guarda esta madriguera: conecta Google o un correo.',
     orKeep: 'o guarda tu madriguera con',
     signedInWith: 'Conectado con',
-    region: { label: 'Servidor', finding: 'Buscando el servidor más cercano...', eu: 'Europa', sg: 'Asia', us: 'América' },
+    region: { label: 'Servidor', finding: 'Buscando el servidor más cercano...', eu: 'Europa', sg: 'Asia', us: 'América', auto: 'Auto', setting: (choice) => `Servidor: ${choice}` },
   },
 
   chrome: {

@@ -32,6 +32,11 @@ export const it: Dict = {
     reopen: 'L’app si chiuderà: riaprila.',
     restart: 'Riavvia',
   },
+  elsewhere: {
+    title: 'Altro dispositivo',
+    body: 'La tua tana si è appena aperta su un altro dispositivo. Si può giocare su uno solo alla volta.',
+    playHere: 'Gioca qui',
+  },
   consent: {
     title: 'Prima di scavare',
     body: 'Possiamo misurare come giochi? Le schermate, i tocchi, e la pubblicità che ti ha portato qui. Ci mostra cosa sistemare. Non vendiamo niente.',
@@ -95,7 +100,7 @@ export const it: Dict = {
     saveBurrowWeb2: 'Tieni questa tana: collega Google o un’email.',
     orKeep: 'o tieni la tua tana con',
     signedInWith: 'Accesso con',
-    region: { label: 'Server', finding: 'Cerco il server più vicino...', eu: 'Europa', sg: 'Asia', us: 'Americhe' },
+    region: { label: 'Server', finding: 'Cerco il server più vicino...', eu: 'Europa', sg: 'Asia', us: 'Americhe', auto: 'Auto', setting: (choice) => `Server: ${choice}` },
   },
 
   chrome: {

@@ -47,10 +47,13 @@ export async function ownsSkin(playerId: string, key: string, tx: Tx = db): Prom
 }
 
 export async function ownedSkinKeys(playerId: string, tx: Tx = db): Promise<string[]> {
-  const rows = await tx.select({ key: playerSkins.skin }).from(playerSkins)
-    .where(eq(playerSkins.playerId, playerId));
+  // Both asked at once — one round trip to a database that may be far away.
+  const [rows, pass] = await Promise.all([
+    tx.select({ key: playerSkins.skin }).from(playerSkins).where(eq(playerSkins.playerId, playerId)),
+    ownsSkin(playerId, PASS.SKIN, tx),
+  ]);
   const keys = rows.map((row) => row.key).filter(isSkinKey);
-  if (await ownsSkin(playerId, PASS.SKIN, tx)) keys.push(PASS.SKIN);
+  if (pass) keys.push(PASS.SKIN);
   return keys;
 }
 

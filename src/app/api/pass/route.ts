@@ -23,13 +23,26 @@ const dollars = (cents: number) => Math.round(cents) / 100;
 
 /** The whole screen for `playerId` (or for nobody). */
 export async function passState(playerId: string | null, now = Date.now()) {
-  const season = await openSeason();
+  // Two trips, where there were up to nine in a row: the season (and the
+  // ticket's skin, which needs no season), then everything the season names.
+  const [season, skin] = await Promise.all([
+    openSeason(),
+    playerId ? skinOf(playerId) : Promise.resolve(null),
+  ]);
   // No Crown Race in the web2 world (lib/world.ts): no pot, no ticket.
   const on = !!season?.passOn && !isWeb2();
-  const pot = on ? await potCents(db, season!.id) : 0;
-  const plan = on ? payoutPlan(pot, await rankedHolders(db, season!.id)) : [];
+  const [pot, holders, holderTotal, held, heldRank] = await Promise.all([
+    on ? potCents(db, season!.id) : Promise.resolve(0),
+    on ? rankedHolders(db, season!.id) : Promise.resolve([]),
+    on ? holderCount(db, season!.id) : Promise.resolve(0),
+    playerId && season ? passOf(db, season.id, playerId) : Promise.resolve(null),
+    // Asked beside `passOf` rather than after it, and dropped below when the
+    // player holds no pass.
+    playerId && season ? holderRank(db, season.id, playerId) : Promise.resolve(null),
+  ]);
+  const plan = on ? payoutPlan(pot, holders) : [];
   // Every holder wears the ticket's skin: the race is drawn in it (look.ts).
-  const looks = await looksOf(plan.map((p) => ({ id: p.playerId, avatar: p.avatar })));
+  const looks = await looksOf(plan.map((p) => ({ id: p.playerId, avatar: p.avatar, equippedSkin: p.equippedSkin })));
 
   let mine: null | {
     holder: boolean;
@@ -40,14 +53,13 @@ export async function passState(playerId: string | null, now = Date.now()) {
     blocker: string | null;
   } = null;
   if (playerId) {
-    const held = season ? await passOf(db, season.id, playerId) : null;
-    const rank = held && season ? await holderRank(db, season.id, playerId) : null;
+    const rank = held ? heldRank : null;
     const seat = plan.find((p) => p.playerId === playerId);
     mine = {
       holder: held !== null,
       rank,
       prizeUsd: dollars(seat?.usdCents ?? 0),
-      skin: await skinOf(playerId),
+      skin,
       blocker: passSaleBlocker(season, held !== null, now),
     };
   }
@@ -59,7 +71,7 @@ export async function passState(playerId: string | null, now = Date.now()) {
     potUsd: dollars(pot),
     prizePoolUsd: dollars(prizePoolCents(pot)),
     potShare: PASS.POT_SHARE,
-    holders: on ? await holderCount(db, season!.id) : 0,
+    holders: holderTotal,
     /** What the pass gives — the screen lists it from here, not from its own copy. */
     rewards: {
       skin: PASS.SKIN,

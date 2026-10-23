@@ -1,0 +1,26 @@
+# EUROPE (datemeee), beside Coolify — not managed by it.
+#   cd ~/rabbit-tunnel && docker compose -f compose.hub.yml up -d --build
+# Sits on Coolify's network to reach the two game databases by container
+# name, and offers them ONLY on its tunnel address: 10.77.0.1:5432 (web3,
+# rr-postgres) and :5433 (web2, rr2-postgres). The one published port is
+# WireGuard's UDP, which answers nothing to a packet without a known key.
+name: rabbit-tunnel
+services:
+  tunnel:
+    build: .
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun]
+    environment:
+      ADDRESS: 10.77.0.1/24
+      PORT: "51820"
+      BIND: 10.77.0.1
+      FORWARDS: "5432:8eskt0v2sx156yrsrqyuam8t:5432 5433:h3ep5bsbpxnj2ue6ayfe7o9g:5432"
+    ports:
+      - "51820:51820/udp"
+    volumes:
+      - ./keys:/keys
+    networks: [coolify]
+networks:
+  coolify:
+    external: true

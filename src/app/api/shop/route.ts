@@ -28,28 +28,13 @@ import { treasuryAddress } from '@/lib/pay/solana';
 
 /** Everything the shop screen needs, in one round trip. */
 export async function shopState(playerId: string) {
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
-  if (!player) return null;
-
-  const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, playerId) });
-  const bag = holdings(rows, player);
-
-  // Placed traps are OFF the bag's count in spirit — they are on the ground,
-  // not in your pocket — so the screen reports both. Otherwise a player who has
-  // placed their three free ones reads "0 traps" and concludes the game ate them.
-  //
-  // Counted as ROWS rather than as armed traps: a trap rearming still occupies
-  // its tile, so it still counts against MAX_PLACED and the shed still cannot
-  // take another. The split into standing / coming back is reported beside it.
-  const placedRows = await db.query.traps.findMany({ where: eq(trapsTable.ownerId, playerId) });
-  const placed = placedRows.length;
-  const armed = armedTraps(placedRows).length;
-  const coming = rearmingTraps(placedRows);
-
   const money = treasuryAddress() !== null;
-
   /**
-   * What a dollar is worth on each rail, right now.
+   * The row, the bag, the board and the rates, asked together — they were
+   * four trips in a row, each a continent long for a region whose database
+   * is elsewhere.
+   *
+   * `rates`: what a dollar is worth on each rail, right now.
    *
    * Sent with the shelf so the tile can say `0.0021 SOL` instead of `$0.25`
    * when the player has chosen SOL — a price in a currency you do not hold is
@@ -64,7 +49,25 @@ export async function shopState(playerId: string) {
    * its last good price and then to its baked fallback, so the worst case is a
    * slightly stale number rather than a shelf that will not load.
    */
-  const rates = money ? await tokenUsdPrices() : null;
+  const [player, rows, placedRows, rates] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, playerId) }),
+    db.query.inventory.findMany({ where: eq(inventory.playerId, playerId) }),
+    db.query.traps.findMany({ where: eq(trapsTable.ownerId, playerId) }),
+    money ? tokenUsdPrices() : Promise.resolve(null),
+  ]);
+  if (!player) return null;
+  const bag = holdings(rows, player);
+
+  // Placed traps are OFF the bag's count in spirit — they are on the ground,
+  // not in your pocket — so the screen reports both. Otherwise a player who has
+  // placed their three free ones reads "0 traps" and concludes the game ate them.
+  //
+  // Counted as ROWS rather than as armed traps: a trap rearming still occupies
+  // its tile, so it still counts against MAX_PLACED and the shed still cannot
+  // take another. The split into standing / coming back is reported beside it.
+  const placed = placedRows.length;
+  const armed = armedTraps(placedRows).length;
+  const coming = rearmingTraps(placedRows);
 
   return {
     stock: player.stock,

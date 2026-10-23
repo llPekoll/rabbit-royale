@@ -18,6 +18,11 @@
   "reopen": "O app vai fechar: abra de novo.",
   "restart": "Reiniciar"
  },
+ "elsewhere": {
+  "title": "Outro aparelho",
+  "body": "Sua toca acabou de abrir em outro aparelho. Só um pode jogar por vez.",
+  "playHere": "Jogar aqui"
+ },
  "consent": {
   "title": "Antes de cavar",
   "body": "Podemos medir como você joga? Telas, toques e o anúncio que te trouxe aqui. Isso mostra o que consertar. Nada é vendido.",
@@ -91,7 +96,11 @@
    "finding": "Procurando o servidor mais próximo...",
    "eu": "Europa",
    "sg": "Ásia",
-   "us": "Américas"
+   "us": "Américas",
+   "auto": "Auto",
+   "setting": {
+    "$t": "Servidor: {0}"
+   }
   }
  },
  "chrome": {

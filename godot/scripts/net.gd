@@ -26,13 +26,12 @@ var HOST := ""
 ## Le serveur de test (branche `stage`), hors des regions.
 const STAGE_HOST := "https://ws-stage.rabbit.rip"
 
-## LES REGIONS (2026-10-02), facon LoL : chacune est un jeu ENTIER — sa base,
-## ses comptes, ses saisons, ses raids (deploy/region). Singapour est partie
-## d'une COPIE de l'Europe ce jour-la, avec le meme secret de session : un
-## compte d'avant la copie existe des deux cotes, puis chacun vit sa vie.
-##
-## `eu` est l'ancien et unique serveur : un jeton enregistre avant les regions
-## est un jeton `eu`, que les autres regions peuvent essayer (session.gd).
+## LES REGIONS : un serveur de jeu sur chaque continent (deploy/region).
+## Elles etaient des jeux entiers, chacune ses comptes (2026-10-02) ; depuis
+## l'unification (2026-10-23) elles partagent UNE base : un compte, un
+## terrier, un classement, et le serveur ne decide plus que du ping — et de
+## qui partage l'ile, des voisins. Le plus proche est repris avant chaque
+## ile (`settle_for_island`), sauf serveur force dans les reglages.
 ##
 ## DEUX MONDES (2026-10-18) : le web3 (Seeker, sol.rabbit.rip/play) et le web2
 ## (Google Play, App Store, CrazyGames, itch.io) ne se croisent jamais — chaque
@@ -60,6 +59,11 @@ var REGIONS: Array[Dictionary] = WEB2_REGIONS if WORLD == "web2" else WEB3_REGIO
 const REGION_PATH := "user://region.cfg"
 ## Une region qui ne repond pas en ce temps-la est hors course a la sonde.
 const PROBE_SECONDS := 2.5
+## Avant une ile, on n'attend pas si longtemps : une region muette ne doit pas
+## retenir le joueur sur la plage.
+const ISLAND_PROBE_SECONDS := 1.2
+## Une mesure plus jeune que ca sert telle quelle avant une ile.
+const PROBE_FRESH_MSEC := 60_000
 ## LA PRESELECTION NE SAUTE PAS pour trois millisecondes : une autre region
 ## ne la remplace que si elle repond nettement plus vite que celle-ci.
 const SWITCH_RATIO := 0.7
@@ -69,16 +73,28 @@ signal region_changed(code: String)
 ## La region jouee. Vide contre un serveur nomme a la main (`--server=`) :
 ## ce serveur-la n'est aucune des regions.
 var region := ""
-## Le joueur l'a choisie lui-meme sur l'accueil : la sonde ne la change plus.
+## Le joueur l'a forcee dans les reglages (« Serveur ») : la sonde ne la
+## change plus. Faux = Auto.
 var region_manual := false
 ## Ce que la derniere sonde a trouve de mieux : le lancement suivant y va,
 ## sans attendre une nouvelle mesure.
 var region_best := ""
 ## Le dernier aller-retour mesure vers chaque region, en ms ; -1 = muette.
 var pings: Dictionary = {}
+## Quand la derniere sonde est revenue (ticks ms), -1 = jamais.
+var probed_at := -1
 
 
 func _init() -> void:
+	# `-- --regions=eu=http://localhost:3041,sg=http://localhost:3042` : des
+	# serveurs locaux en guise de regions, pour voir le jeu en changer. Outil,
+	# pas comportement : rien sans l'argument.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--regions="):
+			var local: Array[Dictionary] = []
+			for pair in arg.trim_prefix("--regions=").split(","):
+				local.append({"code": pair.get_slice("=", 0), "host": pair.get_slice("=", 1)})
+			REGIONS = local
 	HOST = _host()
 
 
@@ -114,8 +130,8 @@ func region_chosen() -> bool:
 	return region != "" or _override() != ""
 
 
-## `manual` : le joueur a tape la planche. Sinon c'est la sonde qui choisit,
-## et elle pourra rechoisir plus tard.
+## `manual` : le joueur l'a forcee (`set_server_pick`). Sinon c'est la sonde
+## qui choisit, et elle pourra rechoisir plus tard.
 func choose_region(code: String, manual := false) -> void:
 	if _override() != "":
 		return
@@ -138,6 +154,11 @@ func _load_region() -> void:
 			region = code
 	region_manual = bool(cfg.get_value("region", "manual", false))
 	region_best = String(cfg.get_value("region", "best", ""))
+	# UN CHOIX FAIT SUR L'ANCIENNE PLANCHE disait « quel monde, quel compte » ;
+	# depuis l'unification (2026-10-23) il ne dit plus que le ping. Il repart
+	# en Auto, une fois — le reglage « Serveur » le refige si on veut.
+	if not bool(cfg.get_value("region", "unified", false)):
+		region_manual = false
 
 
 func _save_region() -> void:
@@ -145,7 +166,44 @@ func _save_region() -> void:
 	cfg.set_value("region", "code", region)
 	cfg.set_value("region", "manual", region_manual)
 	cfg.set_value("region", "best", region_best)
+	cfg.set_value("region", "unified", true)
 	cfg.save(REGION_PATH)
+
+
+## LE REGLAGE « SERVEUR » (2026-10-23) : `auto`, le plus proche avant chaque
+## ile, ou le code d'une region, forcee — si la mesure se trompe (un reseau
+## qui ment sur le ping, un VPN).
+func server_pick() -> String:
+	return region if region_manual and region != "" else "auto"
+
+
+func set_server_pick(pick: String) -> void:
+	if _override() != "":
+		return
+	if pick != "auto":
+		region_manual = true
+		choose_region(pick, true)
+		return
+	# Auto : le plus proche sera repris a la prochaine ile, ou tout de suite
+	# par qui appelle `settle_for_island`.
+	region_manual = false
+	_save_region()
+
+
+## AVANT CHAQUE ILE (2026-10-23) : en Auto, le serveur le plus proche a cet
+## instant. Une mesure de moins d'une minute sert telle quelle ; plus vieille,
+## on remesure, en ne laissant qu'ISLAND_PROBE_SECONDS a chaque region. Les
+## comptes etant communs, changer de serveur ne change que l'ile : la socket
+## suit (game_socket.gd), le terrier reste le meme. Vrai si le serveur change.
+func settle_for_island() -> bool:
+	if _override() != "" or region_manual:
+		return false
+	if probed_at < 0 or Time.get_ticks_msec() - probed_at > PROBE_FRESH_MSEC:
+		await probe(ISLAND_PROBE_SECONDS)
+	if region_manual or region_best == "" or region_best == region:
+		return false
+	choose_region(region_best)
+	return true
 
 
 ## LA SONDE : chaque region chronometree en meme temps. Remplit `pings`,
@@ -155,10 +213,10 @@ func _save_region() -> void:
 ## La meilleure ne detrone celle d'aujourd'hui que nettement plus rapide
 ## (`SWITCH_RATIO`) : un joueur a mi-chemin ne doit pas changer de monde a
 ## chaque lancement.
-func probe() -> String:
+func probe(seconds := PROBE_SECONDS) -> String:
 	var pending := {"n": REGIONS.size()}
 	for r in REGIONS:
-		_ping_into(String(r.code), String(r.host), pending)
+		_ping_into(String(r.code), String(r.host), pending, seconds)
 	while pending.n > 0:
 		await get_tree().process_frame
 	var best := ""
@@ -171,6 +229,7 @@ func probe() -> String:
 	if best != "" and _override() == "":
 		region_best = best
 		_save_region()
+	probed_at = Time.get_ticks_msec()
 	return best
 
 
@@ -182,15 +241,15 @@ func probe() -> String:
 ## une fois par image ajoutait deux ou trois images (50 ms lus 88). Le web n'a
 ## pas toujours de threads ; il relève par image, un client par requete, et
 ## le navigateur garde la connexion de la premiere.
-func _ping_into(code: String, host: String, pending: Dictionary) -> void:
+func _ping_into(code: String, host: String, pending: Dictionary, seconds: float) -> void:
 	pings[code] = -1
 	if OS.has_feature("web"):
-		pings[code] = await _ping_by_frame(host)
+		pings[code] = await _ping_by_frame(host, seconds)
 	else:
 		var box := {"ms": -1, "done": false}
 		var worker := Thread.new()
 		worker.start(func() -> void:
-			box.ms = _ping_blocking(host)
+			box.ms = _ping_blocking(host, seconds)
 			box.done = true)
 		while not box.done:
 			await get_tree().process_frame
@@ -212,11 +271,11 @@ func _open(host: String) -> HTTPClient:
 
 
 ## Dans le thread : pas d'arbre, pas d'await — une boucle serree.
-func _ping_blocking(host: String) -> int:
+func _ping_blocking(host: String, seconds: float) -> int:
 	var c := _open(host)
 	if c == null:
 		return -1
-	var deadline := Time.get_ticks_msec() + int(PROBE_SECONDS * 1000.0)
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	var ms := -1
 	while c.get_status() in [HTTPClient.STATUS_RESOLVING, HTTPClient.STATUS_CONNECTING] \
 			and Time.get_ticks_msec() < deadline:
@@ -249,8 +308,8 @@ func _ping_blocking(host: String) -> int:
 ## partait jamais : toutes les regions restaient muettes et la planche
 ## « Serveur » ne sortait pas. Un client neuf par requete ; c'est le
 ## navigateur qui garde la connexion, la seconde mesure reste un vrai ping.
-func _ping_by_frame(host: String) -> int:
-	var deadline := Time.get_ticks_msec() + int(PROBE_SECONDS * 1000.0)
+func _ping_by_frame(host: String, seconds: float) -> int:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	var ms := -1
 	for i in 2:
 		var c := _open(host)

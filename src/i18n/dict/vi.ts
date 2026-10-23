@@ -37,6 +37,11 @@ export const vi: Dict = {
     reopen: 'Ứng dụng sẽ đóng: hãy mở lại.',
     restart: 'Khởi động lại',
   },
+  elsewhere: {
+    title: 'Thiết bị khác',
+    body: 'Hang của bạn vừa được mở trên một thiết bị khác. Mỗi lần chỉ chơi được trên một thiết bị.',
+    playHere: 'Chơi ở đây',
+  },
   consent: {
     title: 'Trước khi đào',
     body: 'Cho phép đo cách bạn chơi? Màn hình, lượt chạm và quảng cáo đưa bạn đến đây. Nhờ vậy biết cần sửa gì. Không bán dữ liệu.',
@@ -100,7 +105,7 @@ export const vi: Dict = {
     saveBurrowWeb2: 'Giữ hang này: kết nối Google hoặc email.',
     orKeep: 'hoặc giữ hang của bạn bằng',
     signedInWith: 'Đăng nhập bằng',
-    region: { label: 'Máy chủ', finding: 'Đang tìm máy chủ gần nhất...', eu: 'Châu Âu', sg: 'Châu Á', us: 'Châu Mỹ' },
+    region: { label: 'Máy chủ', finding: 'Đang tìm máy chủ gần nhất...', eu: 'Châu Âu', sg: 'Châu Á', us: 'Châu Mỹ', auto: 'Tự động', setting: (choice) => `Máy chủ: ${choice}` },
   },
 
   chrome: {

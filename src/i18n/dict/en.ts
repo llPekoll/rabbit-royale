@@ -48,6 +48,13 @@ export const en = {
     reopen: 'The app will close: open it again.',
     restart: 'Restart',
   },
+  elsewhere: {
+    /** Another device opened this account (godot/scripts/ui/elsewhere_dialog.gd):
+     *  only one plays at a time, the newest. */
+    title: 'Other device',
+    body: 'Your burrow just opened on another device. Only one can play at a time.',
+    playHere: 'Play here',
+  },
   consent: {
     title: 'Before you dig',
     /** Analytics and ads go together, one switch (godot/scripts/consent.gd). */
@@ -116,8 +123,8 @@ export const en = {
     saveBurrowWeb2: 'Keep this burrow: connect Google or an email.',
     orKeep: 'or keep your burrow with',
     signedInWith: 'Signed in with',
-    /** The region picker on the doorstep: each region is its own world. */
-    region: { label: 'Server', finding: 'Finding the closest server...', eu: 'Europe', sg: 'Asia', us: 'Americas' },
+    /** The server: `finding` on the doorstep, `setting` in the settings (Auto, or one forced). */
+    region: { label: 'Server', finding: 'Finding the closest server...', eu: 'Europe', sg: 'Asia', us: 'Americas', auto: 'Auto', setting: (choice: string) => `Server: ${choice}` },
   },
 
   /* ── The frame around everything ──────────────────────────────────────── */

@@ -186,20 +186,26 @@ export async function placeDefaultDefence(
   tx: typeof db | PgTransaction<never, never, never> = db,
 ): Promise<{ bombs: number; planks: number }> {
   const t = tx as typeof db;
-  const [{ n: bombsStanding }] = await t.select({ n: sql<number>`count(*)::int` }).from(traps).where(eq(traps.ownerId, playerId));
-  const [{ n: planksStanding }] = await t.select({ n: sql<number>`count(*)::int` }).from(fences).where(eq(fences.ownerId, playerId));
+  // The two counts and the layout in one trip; the layout is wasted on a
+  // burrow that already stands, which is the rare case.
+  const [[{ n: bombsStanding }], [{ n: planksStanding }]] = await Promise.all([
+    t.select({ n: sql<number>`count(*)::int` }).from(traps).where(eq(traps.ownerId, playerId)),
+    t.select({ n: sql<number>`count(*)::int` }).from(fences).where(eq(fences.ownerId, playerId)),
+    loadBurrowEdits(playerId),
+  ]);
   if (bombsStanding > 0 || planksStanding > 0) return { bombs: 0, planks: 0 };
 
-  await loadBurrowEdits(playerId);
   const { bombs, planks } = defaultDefence(playerId);
   // ONE instant for every piece: that is how a default nobody has touched is
   // told apart later (scripts/default-defence-backfill.ts --redo).
   const placedAt = new Date();
-  if (bombs.length) {
-    await t.insert(traps).values(bombs.map((tile) => ({ ownerId: playerId, tile, placedAt }))).onConflictDoNothing();
-  }
-  if (planks.length) {
-    await t.insert(fences).values(planks.map((p) => ({ ownerId: playerId, tile: p.tile, side: p.side, placedAt }))).onConflictDoNothing();
-  }
+  await Promise.all([
+    bombs.length
+      ? t.insert(traps).values(bombs.map((tile) => ({ ownerId: playerId, tile, placedAt }))).onConflictDoNothing()
+      : null,
+    planks.length
+      ? t.insert(fences).values(planks.map((p) => ({ ownerId: playerId, tile: p.tile, side: p.side, placedAt }))).onConflictDoNothing()
+      : null,
+  ]);
   return { bombs: bombs.length, planks: planks.length };
 }

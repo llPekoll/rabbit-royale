@@ -30,7 +30,7 @@ export interface PlayerPush {
   /** Whose socket. */
   to: string;
   /** The socket.io event name the client listens for. */
-  event: 'raid_incoming' | 'raid_struck' | 'energy_granted' | 'look_changed';
+  event: 'raid_incoming' | 'raid_struck' | 'energy_granted' | 'look_changed' | 'session_taken';
   payload: unknown;
 }
 
@@ -45,7 +45,7 @@ export function decodePush(wire: string): PlayerPush | null {
   try {
     const v = JSON.parse(wire) as Partial<PlayerPush>;
     if (typeof v?.to !== 'string' || typeof v.event !== 'string') return null;
-    if (v.event !== 'raid_incoming' && v.event !== 'raid_struck' && v.event !== 'energy_granted' && v.event !== 'look_changed') return null;
+    if (v.event !== 'raid_incoming' && v.event !== 'raid_struck' && v.event !== 'energy_granted' && v.event !== 'look_changed' && v.event !== 'session_taken') return null;
     return { to: v.to, event: v.event, payload: v.payload };
   } catch {
     return null;
@@ -53,11 +53,32 @@ export function decodePush(wire: string): PlayerPush | null {
 }
 
 /**
+ * THE SHORT WAY, when the player is connected to THIS process: the game
+ * server registers how to reach a socket it holds (`deliverHereWith`), and a
+ * push for one of its own players is handed over directly instead of making
+ * the trip to Postgres and back — instant for a defender in the same region
+ * as their raider, whatever ocean lies between the region and the database.
+ * Returns false (not delivered) when nobody here holds that player, or when
+ * no game server is listening in this process at all.
+ */
+let deliverHere: ((push: PlayerPush) => boolean) | null = null;
+
+export function deliverHereWith(deliver: (push: PlayerPush) => boolean): void {
+  deliverHere = deliver;
+}
+
+export function deliveredHere(push: PlayerPush): boolean {
+  return deliverHere?.(push) ?? false;
+}
+
+/**
  * Notify. Resolves once Postgres has taken the notification; never throws
  * into the caller's flow — a push that could not be sent is logged and the
- * raid goes on, because the raid is already true in the row.
+ * raid goes on, because the raid is already true in the row. Handed over
+ * directly when the player is connected here (`deliveredHere`).
  */
 export async function pushToPlayer(sql: Sql, push: PlayerPush): Promise<void> {
+  if (deliveredHere(push)) return;
   const wire = encodePush(push);
   if (!wire) {
     console.warn('[push] payload too large, dropped', push.event, push.to);

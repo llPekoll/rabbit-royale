@@ -44,7 +44,7 @@ export async function GET(req: Request) {
   // Carrots per day. Grouped in SQL rather than in JS: the (player_id,
   // started_at) index already orders this, and shipping 14 days of rows to
   // add them up here would be the same query with extra steps.
-  const days = await db
+  const daysQuery = db
     .select({
       day: sql<string>`to_char(date_trunc('day', ${runs.startedAt}), 'YYYY-MM-DD')`.as('day'),
       carrots: sql<number>`coalesce(sum(${runs.carrots}), 0)::int`.as('carrots'),
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     .groupBy(sql`date_trunc('day', ${runs.startedAt})`)
     .orderBy(desc(sql`date_trunc('day', ${runs.startedAt})`));
 
-  const recentRuns = await db
+  const runsQuery = db
     .select({
       id: runs.id,
       carrots: runs.carrots,
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
   // Aliased because the same table is joined again below for the other
   // direction, and two joins to `players` need two names.
   const attacker = alias(players, 'attacker');
-  const against = await db
+  const againstQuery = db
     .select({
       id: raids.id,
       result: raids.result,
@@ -98,7 +98,7 @@ export async function GET(req: Request) {
   // ...and raids BY this player, so the log reads as a feud rather than a list
   // of grievances.
   const defender = alias(players, 'defender');
-  const by = await db
+  const byQuery = db
     .select({
       id: raids.id,
       result: raids.result,
@@ -122,7 +122,7 @@ export async function GET(req: Request) {
   // latter is the USDC rail's own ledger and holds quotes that were never paid,
   // whereas this table only ever holds goods actually delivered — which is what
   // a receipt list should show.
-  const recentPurchases = await db
+  const purchasesQuery = db
     .select({
       id: purchases.id,
       kind: purchases.kind,
@@ -137,6 +137,13 @@ export async function GET(req: Request) {
     .where(eq(purchases.playerId, session.sub))
     .orderBy(desc(purchases.createdAt))
     .limit(PURCHASE_LIMIT);
+
+  // The five reads above are BUILT, then sent together: one round trip, where
+  // they used to queue behind each other to a database that may be on another
+  // continent.
+  const [days, recentRuns, against, by, recentPurchases] = await Promise.all([
+    daysQuery, runsQuery, againstQuery, byQuery, purchasesQuery,
+  ]);
   // A money receipt says `currency: 'usdc'` whatever was paid — the enum only
   // knows carrots and usdc — while `cost` is in the base units of the token
   // ACTUALLY paid (lamports for SOL). Read the rail off the payment it links to

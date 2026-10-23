@@ -22,7 +22,7 @@ import { ENERGY } from '../tuning/tables';
 import { currentEnergy } from './regen';
 
 export type CrossingPaid =
-  | { ok: true; energy: number }
+  | { ok: true; energy: number; /** The stamp written with it: the tank's row is `{ energy, energyUpdatedAt: at }`. */ at: Date }
   | { ok: false; energy: number; nextRunInMs: number | null };
 
 /** What a charge asks of the tank — see `chargeEnergy` (burrow.ts). */
@@ -84,7 +84,7 @@ export async function payEnergy(
       .returning({ id: players.id });
     // The bar AFTER the charge rides back so the caller can say what the
     // crossing cost — the one moment the number is news rather than a status.
-    if (charged) return { ok: true, energy: paid.energy };
+    if (charged) return { ok: true, energy: paid.energy, at: paid.energyUpdatedAt };
 
     const fresh = await db.query.players.findFirst({
       where: eq(players.id, playerId),

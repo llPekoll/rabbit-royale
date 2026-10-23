@@ -33,6 +33,11 @@ export const ptBR: Dict = {
     reopen: 'O app vai fechar: abra de novo.',
     restart: 'Reiniciar',
   },
+  elsewhere: {
+    title: 'Outro aparelho',
+    body: 'Sua toca acabou de abrir em outro aparelho. Só um pode jogar por vez.',
+    playHere: 'Jogar aqui',
+  },
   consent: {
     title: 'Antes de cavar',
     body: 'Podemos medir como você joga? Telas, toques e o anúncio que te trouxe aqui. Isso mostra o que consertar. Nada é vendido.',
@@ -96,7 +101,7 @@ export const ptBR: Dict = {
     saveBurrowWeb2: 'Guarde esta toca: conecte Google ou um e-mail.',
     orKeep: 'ou guarde sua toca com',
     signedInWith: 'Conectado com',
-    region: { label: 'Servidor', finding: 'Procurando o servidor mais próximo...', eu: 'Europa', sg: 'Ásia', us: 'Américas' },
+    region: { label: 'Servidor', finding: 'Procurando o servidor mais próximo...', eu: 'Europa', sg: 'Ásia', us: 'Américas', auto: 'Auto', setting: (choice) => `Servidor: ${choice}` },
   },
 
   chrome: {

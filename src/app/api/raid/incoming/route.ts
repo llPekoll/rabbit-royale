@@ -22,6 +22,7 @@ import { and, desc, eq, gt, isNull, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
+import { raidWritten } from '@/lib/game/raid-live';
 import { defenderRaidView } from '@/lib/game/defence';
 import { playerLook } from '@/lib/game/look';
 import { RAID_RUN } from '@config/tuning';
@@ -36,24 +37,29 @@ export async function GET(req: Request) {
   // merely loaded their page at the wrong moment — the one scare the push was
   // changed to stop. `visited` holds the entrance tile alone until the first
   // step, hence > 1.
-  const open = await db.query.raidRuns.findFirst({
+  // Both asked at once: one round trip, to a database that may be far away —
+  // once the raider's steps, written behind their answers (raid-live), are
+  // in the row.
+  await raidWritten(session.sub);
+  const [open, ended] = await Promise.all([db.query.raidRuns.findFirst({
     where: and(
       eq(raidRuns.defenderId, session.sub),
       isNull(raidRuns.endedAt),
       raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
     ),
     orderBy: desc(raidRuns.startedAt),
-  });
+  }),
   // Same rule for the one that just ended: an abandoned, unwalked raid has no
   // ending worth showing either.
-  const run = open ?? await db.query.raidRuns.findFirst({
+  db.query.raidRuns.findFirst({
     where: and(
       eq(raidRuns.defenderId, session.sub),
       gt(raidRuns.endedAt, new Date(Date.now() - RAID_RUN.ENDED_SHOWN_MS)),
       raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
     ),
     orderBy: desc(raidRuns.startedAt),
-  });
+  })]);
+  const run = open ?? ended;
   if (!run) return Response.json({ raid: null });
 
   const attacker = await db.query.players.findFirst({ where: eq(players.id, run.attackerId) });

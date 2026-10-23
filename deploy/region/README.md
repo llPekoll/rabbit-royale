@@ -1,7 +1,10 @@
 # Les régions — Singapour, US
 
-Chaque région est un **jeu entier et isolé** : sa base, son Redis, ses comptes,
-ses saisons, ses raids. Seule l'image est commune. L'Europe reste sur Coolify
+Depuis l'unification (2026-10-23, `scripts/cutover-regions.sh`), chaque
+région garde **son serveur de jeu et son Redis**. Les comptes, les saisons et
+les raids sont dans **les bases d'Europe**, jointes par le tunnel WireGuard
+(`deploy/tunnel`). La base locale de la région ne sert plus qu'aux migrations
+et au retour en arrière. L'image est la même partout. L'Europe reste sur Coolify
 (`datemeee`, `ws.rabbit.rip`) ; les régions tournent sur un VPS OVH chacune,
 sans Coolify : `compose.yml` + le workflow `.github/workflows/deploy-regions.yml`.
 
@@ -11,10 +14,9 @@ sans Coolify : `compose.yml` + le workflow `.github/workflows/deploy-regions.yml
 | sg | `ws-sg.rabbit.rip` | OVH VPS-1, Singapour |
 | us | `ws-us.rabbit.rip` | OVH VPS-1, Vint Hill |
 
-Le client Godot choisit la région au premier lancement (la plus rapide à
-répondre à `/health`) et la planche « Serveur » de l'accueil permet d'en
-changer — elle n'apparaît que si au moins deux régions répondent. Un joueur
-d'avant les régions (jeton déjà enregistré) reste en Europe.
+Avant chaque île, le client Godot prend le serveur qui répond le plus vite à
+`/health` (`Net.settle_for_island`). Réglages → Serveur permet d'en forcer un.
+Un seul jeton ouvre toutes les régions d'un même monde.
 
 ## Mettre une région en route (une fois)
 

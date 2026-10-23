@@ -55,6 +55,12 @@ signal event(name: String, data: Variant)
 ## processus, et creuser dessus ne revele plus rien (cases sombres, pas de
 ## chiffres, 2026-10-11). Le chrome demande alors de relancer le jeu.
 signal server_updated
+## LE COMPTE JOUE AILLEURS (2026-10-23) : un autre appareil l'a ouvert, et un
+## seul joue a la fois — le plus recent (server/index.ts `claimSession`). La
+## socket est fermee par le serveur et ne se rouvre pas d'elle-meme : deux
+## appareils se la reprendraient sans fin. Le chrome propose JOUER ICI
+## (`reclaim`).
+signal session_elsewhere
 
 var _io: SocketIO
 var _retry_seconds := RETRY_FIRST_SECONDS
@@ -74,9 +80,23 @@ var _followed: Array = []
 var _boot := ""
 ## Deja vu : le chrome monte apres coup (doorstep, puis le monde) le relit.
 var server_moved_on := false
+## Pareil pour `session_elsewhere` : vrai jusqu'a JOUER ICI.
+var elsewhere := false
+## CE LANCEMENT DE L'APPLI, tire au hasard une fois : rejoue a chaque
+## reconnexion, il dit au serveur « c'est encore moi » — une coupure de reseau
+## ne passe pas pour un autre appareil, et l'ile attend comme avant.
+var _launch := ""
+## UNE PLACE NOUS ATTEND sur ce serveur (`seat_held`, une ile quittee par une
+## coupure) : la prochaine `join` y retourne, sans rechoisir de serveur — un
+## autre ne connait pas cette ile, et la traversee se repaierait.
+var _seat_waiting := false
+## Le serveur de la prochaine ile se choisit (`join`) : une reconnexion entre
+## deux n'envoie pas la place a celui qu'on est peut-etre en train de quitter.
+var _settling := false
 
 
 func _ready() -> void:
+	_launch = Crypto.new().generate_random_bytes(12).hex_encode()
 	_io = SocketIO.new()
 	# Pas de connexion au montage : elle a besoin d'un jeton, et à cette
 	# seconde la session n'est pas encore restaurée.
@@ -104,11 +124,29 @@ func _ready() -> void:
 	# wallet — est une socket à refaire : le jeton du handshake n'est plus
 	# celui que le serveur nous connaît.
 	Session.changed.connect(_on_session_changed)
-	# UNE AUTRE REGION, UN AUTRE SERVEUR : la socket ouverte parle a l'ancien.
-	# Et un autre nom de processus, qui n'est pas un redemarrage.
+	# UNE AUTRE REGION, UN AUTRE SERVEUR : la socket ouverte parle a l'ancien,
+	# on la rouvre chez le nouveau. Le compte est le meme partout (2026-10-23) ;
+	# le `launch` aussi, donc l'ancien serveur lache la socket sans « joue
+	# ailleurs » (server/index.ts `claimSession`).
 	Net.region_changed.connect(func(_code: String) -> void:
-		_boot = ""
-		stop())
+		_seat_waiting = false
+		if _live:
+			# Plus rien vers l'ancien des maintenant ; la socket elle-meme se
+			# ferme et se rouvre hors de la boucle de paquets de l'addon — un
+			# changement decide pendant un evenement la coupait sous ses pieds.
+			_namespace_ready = false
+			_move_server.call_deferred())
+
+
+## La socket passe au serveur que Net vient de choisir. Le nom de processus
+## s'oublie une fois l'ancienne fermee : un `server_hello` de l'ancien arrive
+## encore jusque-la, et celui du nouveau passerait pour un redemarrage.
+func _move_server() -> void:
+	if not _live:
+		return
+	stop()
+	_boot = ""
+	start()
 
 
 ## Ouvre la socket avec le jeton de la session. Sans jeton il n'y a rien à
@@ -157,7 +195,7 @@ func _attempt() -> void:
 	# LE JETON EST LU MAINTENANT, pas mémorisé au premier appel : entre la
 	# coupure et cette reprise, un invité a pu lier son wallet, et le serveur a
 	# alors réémis un jeton. Rejouer l'ancien ferait refuser le CONNECT.
-	_io.connect_socket({"token": Session.token})
+	_io.connect_socket({"token": Session.token, "launch": _launch})
 	_connect_timer.start(CONNECT_TIMEOUT_SECONDS)
 
 
@@ -172,7 +210,7 @@ func _on_connected(_ns: String) -> void:
 		# On regarde, on ne joue pas : le siège voulu avant ne l'est plus.
 		_want_seat = false
 		_io.emit("spectate", {"playerId": _spectating})
-	elif _want_seat:
+	elif _want_seat and not _settling:
 		_io.emit("join", _seat_choice)
 
 	# L'abonnement vit sur la socket du SERVEUR, donc il est mort avec elle.
@@ -230,7 +268,32 @@ func _on_event(name: String, data: Variant, _ns: String) -> void:
 		Net.trace("socket < %s %s" % [name, JSON.stringify(payload).left(160)])
 	if name == "server_hello" and payload is Dictionary:
 		_on_hello(str((payload as Dictionary).get("boot", "")))
+	if name == "seat_held":
+		_seat_waiting = true
+	elif name == "island":
+		_seat_waiting = false
+	if name == "session_elsewhere":
+		_on_elsewhere()
 	event.emit(name, payload)
+
+
+## Le serveur va fermer : on ne retente pas, et rien de ce qui se rejouait a
+## la reconnexion ne doit partir tout seul plus tard — JOUER ICI rassoirait
+## sinon le joueur sur une ile, et la traversee se paierait dans son dos.
+func _on_elsewhere() -> void:
+	_live = false
+	_retry_timer.stop()
+	_want_seat = false
+	_spectating = ""
+	if not elsewhere:
+		elsewhere = true
+		session_elsewhere.emit()
+
+
+## JOUER ICI : on reprend la main, et le serveur la retire a l'autre appareil.
+func reclaim() -> void:
+	elsewhere = false
+	start()
 
 
 func _on_hello(boot: String) -> void:
@@ -251,9 +314,12 @@ const _QUIET := ["rabbit_moved", "tile_revealed", "hints_revealed", "rabbit_ener
 
 func _on_session_changed() -> void:
 	if Session.signed_in():
-		if not is_live():
+		# Pas apres un « joue ailleurs » : seul JOUER ICI reprend la main.
+		if not is_live() and not elsewhere:
 			start()
 	else:
+		# Deconnecte : le prochain compte n'a rien a voir avec l'autre appareil.
+		elsewhere = false
 		stop()
 
 
@@ -266,7 +332,14 @@ func join(choice: Variant = null) -> void:
 	_want_seat = true
 	_spectating = ""
 	_seat_choice = choice
-	if is_live():
+	# LE SERVEUR LE PLUS PROCHE, juste avant l'ile (2026-10-23 ; Net). S'il
+	# change, la socket se rouvre la-bas et `_on_connected` y envoie la place
+	# demandee.
+	if not _seat_waiting:
+		_settling = true
+		await Net.settle_for_island()
+		_settling = false
+	if _want_seat and is_live():
 		_io.emit("join", choice)
 
 

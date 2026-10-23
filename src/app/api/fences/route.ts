@@ -34,12 +34,27 @@ async function heldFences(playerId: string): Promise<number> {
 
 const asSeg = ({ tile, side }: FenceSeg): FenceSeg => ({ tile, side });
 
-async function fenceState(playerId: string) {
-  await loadBurrowEdits(playerId);
-  const player = await db.query.players.findFirst({ where: eq(players.id, playerId) });
-  if (!player) return null;
-  const rows = await db.query.fences.findMany({ where: eq(fences.ownerId, playerId) });
-  const placed = fencedSpans(rows);
+/**
+ * Everything the fence board reads, together — the layout, the owner, the
+ * planks standing and the planks in the bag: one round trip where there were
+ * four in a row, to a database that may sit on another continent.
+ */
+async function fenceBoard(playerId: string) {
+  const [, player, rows, held] = await Promise.all([
+    loadBurrowEdits(playerId),
+    db.query.players.findFirst({ where: eq(players.id, playerId), columns: { id: true } }),
+    db.query.fences.findMany({ where: eq(fences.ownerId, playerId) }),
+    heldFences(playerId),
+  ]);
+  return { exists: !!player, standing: fencedSpans(rows), held };
+}
+
+/** What the board shows — from what the caller holds after a write (the
+ *  planks as they now stand, the bag as it now holds), or read here. */
+async function fenceState(playerId: string, known?: { standing: FenceSeg[]; held: number }) {
+  const board = known ? { exists: true, ...known } : await fenceBoard(playerId);
+  if (!board.exists) return null;
+  const placed = board.standing;
   const spans = fenceSpans(playerId).map(asSeg);
   return {
     /** The planks standing right now. */
@@ -60,7 +75,7 @@ async function fenceState(playerId: string) {
      * go, and the refusal names the empty bag.
      */
     offers: spans.filter((s) => !fencePlacementBlocker(playerId, 1, placed, s.tile, s.side)),
-    held: await heldFences(playerId),
+    held: board.held,
     maxHeld: FENCES.MAX_HELD,
   };
 }
@@ -83,14 +98,8 @@ export async function POST(req: Request) {
   const tile = Number(body.tile);
   const side = String(body.side ?? '');
 
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
-
-  const standing = fencedSpans(
-    await db.query.fences.findMany({ where: eq(fences.ownerId, session.sub) }),
-  );
-  const held = await heldFences(session.sub);
-  await loadBurrowEdits(session.sub);
+  const { exists, standing, held } = await fenceBoard(session.sub);
+  if (!exists) return Response.json({ error: 'unknown player' }, { status: 404 });
 
   // The owner's own id is their burrow's seed — they may only wall their own
   // field, and the geometry is asked about exactly that field. `tile` is a
@@ -101,11 +110,15 @@ export async function POST(req: Request) {
   // One transaction, insert FIRST: the unique index on (owner, tile, side) is
   // what rejects a double-tap, so it has to fire before the bag is charged.
   try {
+    // Pipelined, one trip: still in this order, and a refused insert aborts
+    // the transaction under the update.
     await db.transaction(async (tx) => {
-      await tx.insert(fences).values({ ownerId: session.sub, tile, side });
-      await tx.update(inventory)
-        .set({ qty: held - 1 })
-        .where(and(eq(inventory.playerId, session.sub), eq(inventory.kind, 'fence')));
+      await Promise.all([
+        tx.insert(fences).values({ ownerId: session.sub, tile, side }),
+        tx.update(inventory)
+          .set({ qty: held - 1 })
+          .where(and(eq(inventory.playerId, session.sub), eq(inventory.kind, 'fence'))),
+      ]);
     });
   } catch (err) {
     if (String(err).includes('fences_owner_span_idx')) {
@@ -114,7 +127,10 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  return Response.json({ tile, side, ...(await fenceState(session.sub)) });
+  return Response.json({
+    tile, side,
+    ...(await fenceState(session.sub, { standing: [...standing, { tile, side } as FenceSeg], held: held - 1 })),
+  });
 }
 
 /**
@@ -164,13 +180,8 @@ export async function DELETE(req: Request) {
   const tile = Number(body.tile);
   const side = String(body.side ?? '');
 
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-  if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
-
-  const standing = fencedSpans(
-    await db.query.fences.findMany({ where: eq(fences.ownerId, session.sub) }),
-  );
-  const held = await heldFences(session.sub);
+  const { exists, standing, held } = await fenceBoard(session.sub);
+  if (!exists) return Response.json({ error: 'unknown player' }, { status: 404 });
 
   const blocker = fenceRemovalBlocker(standing, held, tile, side);
   if (blocker) return Response.json({ error: blocker }, { status: 400 });
@@ -194,5 +205,11 @@ export async function DELETE(req: Request) {
   });
   if (!removed) return Response.json({ error: 'span_not_fenced' }, { status: 404 });
 
-  return Response.json({ removed: { tile, side }, ...(await fenceState(session.sub)) });
+  return Response.json({
+    removed: { tile, side },
+    ...(await fenceState(session.sub, {
+      standing: standing.filter((f) => !(f.tile === tile && f.side === side)),
+      held: held + 1,
+    })),
+  });
 }

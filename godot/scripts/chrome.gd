@@ -121,6 +121,11 @@ func _ready() -> void:
 	GameSocket.server_updated.connect(_on_server_updated)
 	if GameSocket.server_moved_on:
 		_on_server_updated.call_deferred()
+	# OUVERT SUR UN AUTRE APPAREIL (ElsewhereDialog) — entendu avant que ce
+	# chrome existe (a l'accueil) ou pendant.
+	GameSocket.session_elsewhere.connect(_on_session_elsewhere)
+	if GameSocket.elsewhere:
+		_on_session_elsewhere.call_deferred()
 	get_viewport().size_changed.connect(_measure)
 	_measure()
 	_mount()
@@ -1459,7 +1464,11 @@ func open(dialog: Control, dismiss: bool = true, placement: String = "center") -
 	if _dialog is UpdateDialog:
 		dialog.queue_free()
 		return
-	close_dialog()
+	# OUVERT AILLEURS de meme, sauf pour RELANCER, qui le remplace.
+	if _dialog is ElsewhereDialog and is_instance_valid(_dialog) and not dialog is UpdateDialog:
+		dialog.queue_free()
+		return
+	close_dialog(dialog is UpdateDialog)
 	_placement = placement
 	_scrim = ColorRect.new()
 	_scrim.color = Palette.SCRIM
@@ -1552,8 +1561,17 @@ func _on_server_updated() -> void:
 		open(UpdateDialog.new(), false)
 
 
-func close_dialog() -> void:
+## Sous une nouvelle version, rien d'autre : relancer reglera les deux.
+func _on_session_elsewhere() -> void:
+	if not _dialog is UpdateDialog and not _dialog is ElsewhereDialog:
+		open(ElsewhereDialog.new(), false)
+
+
+## `force` : JOUER ICI ferme son propre dialogue, que rien d'autre ne ferme.
+func close_dialog(force := false) -> void:
 	if _dialog is UpdateDialog and is_instance_valid(_dialog):
+		return
+	if not force and _dialog is ElsewhereDialog and is_instance_valid(_dialog):
 		return
 	if _dialog != null:
 		Analytics.dialog_closed()

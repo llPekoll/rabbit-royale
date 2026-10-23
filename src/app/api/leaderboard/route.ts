@@ -1,15 +1,14 @@
 /**
  * The season leaderboard — and the list you pick a spectate target from.
  *
- * Served from Redis when it is up (a sorted set answers "top 100" in O(log n)
- * however many players there are) and from Postgres when it is not. Redis is a
- * CACHE here, never the record: losing it costs a rebuild, not anyone's score.
+ * Served from Postgres, the one database every region writes its scores to.
  */
-import { desc, inArray, isNull, eq } from 'drizzle-orm';
+import { desc, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, seasons } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { topPlayers, rankOf, onlineAmong, gapToNextRank } from '@/lib/leaderboard';
+import { standingOf } from '@/lib/leaderboard';
+import { onlineAmong } from '@/lib/presence';
 import { SEASON } from '@config/tuning';
 import { holdersAmong } from '@/lib/game/season-pass';
 import { looksOf } from '@/lib/game/look';
@@ -21,73 +20,45 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const limit = Math.min(Number(url.searchParams.get('limit') ?? 50), SEASON.TOP_N);
 
-  const season = await db.query.seasons.findFirst({ where: isNull(seasons.endedAt) });
-
-  // Redis holds the ORDERING; the player rows still come from Postgres, because
-  // a name or a burrow level has no business living in a sorted set.
-  let rows: Array<{ id: string; name: string; avatar: string | null; seasonScore: number; lifetimeCarrots: number; burrowLevel: number }>;
-  const ranked = season ? await topPlayers(season.id, limit) : [];
-
-  // Postgres is asked for the top `limit` REGARDLESS of what Redis said.
-  //
-  // The sorted set used to decide not just the order but the ROSTER: whoever
-  // was missing from it did not appear, however high their score. A player only
-  // enters that set when the WS server mirrors their score on join (see
-  // server/index.ts), so anyone who has not started a run since the season
-  // opened was invisible on the board forever — with a perfectly good score
-  // sitting in the database. That is not a cache miss that heals; nothing ever
-  // backfills it. It hid a 25k-point player for the whole season.
-  //
-  // Redis keeps the job it is good at (ordering a large set cheaply) and loses
-  // the one it was never entitled to (deciding who exists). Both sources are
-  // merged below, so a player shows up if EITHER knows about them.
-  const fromDb = await db.select({
-    id: players.id, name: players.name, avatar: players.avatar,
+  // The page's columns. `equippedSkin` rides along so the look (look.ts) is
+  // worked out from the row, without a trip of its own.
+  const columns = {
+    id: players.id, name: players.name, avatar: players.avatar, equippedSkin: players.equippedSkin,
     seasonScore: players.seasonScore,
     lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
-  }).from(players).orderBy(desc(players.seasonScore)).limit(limit);
+  };
+  const session = await getSession(req);
 
-  if (ranked.length > 0) {
-    // Anyone Redis names who is NOT already in the Postgres page — a player
-    // ranked by the cache but pushed out of the top `limit` by rows the cache
-    // does not know about. Fetching them keeps the two views consistent
-    // instead of silently dropping whichever source the other disagrees with.
-    const known = new Set(fromDb.map((p) => p.id));
-    const missing = ranked.map((r) => r.playerId).filter((id) => !known.has(id));
-    const extra = missing.length > 0
-      ? await db.select({
-          id: players.id, name: players.name, avatar: players.avatar,
-          seasonScore: players.seasonScore,
-          lifetimeCarrots: players.lifetimeCarrots, burrowLevel: players.burrowLevel,
-        }).from(players).where(inArray(players.id, missing))
-      : [];
+  // ONE trip, all at once: the season, the top of the table, and where the
+  // viewer stands. The region servers sit up to 170 ms from the database;
+  // these used to go out one after another.
+  //
+  // Postgres alone, roster AND order (2026-10-23): a Redis sorted set used
+  // to order the board, but it belongs to one region and the board is the
+  // world's now — see lib/leaderboard.ts.
+  const [season, rows, standing] = await Promise.all([
+    db.query.seasons.findFirst({ where: isNull(seasons.endedAt) }),
+    db.select(columns).from(players).orderBy(desc(players.seasonScore)).limit(limit),
+    session ? standingOf(session.sub) : Promise.resolve(null),
+  ]);
 
-    // Ordered by the SCORE IN POSTGRES, which is the record. A stale Redis
-    // score would otherwise reorder the board around a number nobody has.
-    rows = [...fromDb, ...extra]
-      .sort((a, b) => b.seasonScore - a.seasonScore)
-      .slice(0, limit);
-  } else {
-    // Redis down, or a season that has not scored yet. Postgres alone already
-    // answered the question.
-    rows = fromDb;
-  }
-
-  // Who is out digging right now. One round trip for the whole page — and a
-  // failure here costs a dot, not the board (see onlineAmong).
-  const online = await onlineAmong(rows.map((p) => p.id));
-  // The gold ticket: who holds this season's pass. Empty outside a pass season.
-  const passHolders = season?.passOn ? await holdersAmong(season.id, rows.map((p) => p.id)) : new Set<string>();
+  const ids = rows.map((p) => p.id);
+  // Everything else on the page, in one trip:
+  //  - who is out digging right now (a failure costs a dot, not the board —
+  //    see onlineAmong);
+  //  - the gold ticket: who holds this season's pass, empty outside one;
+  //  - CAN I RAID THEM, written on the row (2026-10-13): the board is where a
+  //    player meets rivals by name, and a row is a door — raid, watch, or the
+  //    wait until the shield drops. Only for a signed-in viewer who can raid.
+  const [online, passHolders, doors] = await Promise.all([
+    onlineAmong(ids),
+    season?.passOn ? holdersAmong(season.id, ids) : Promise.resolve(new Set<string>()),
+    session ? raidDoors(session.sub, ids) : Promise.resolve(null),
+  ]);
 
   // The sheet each one wears (look.ts) — the podium draws the rabbit they
-  // play as, skin included, not just the fur they picked.
+  // play as, skin included, not just the fur they picked. From the rows.
   const looks = await looksOf(rows);
-
-  // CAN I RAID THEM, written on the row (2026-10-13): the board is where
-  // a player meets rivals by name, and a row is a door — raid, watch, or the
-  // wait until the shield drops. Only for a signed-in viewer who can raid.
-  const session = await getSession(req);
-  const doors = session ? await raidDoors(session.sub, rows.map((p) => p.id)) : null;
 
   const entries = rows.map((p, i) => ({
     rank: i + 1,
@@ -126,21 +97,16 @@ export async function GET(req: Request) {
 
   // Where the viewer sits, even when they are nowhere near the top — a board
   // that cannot show you your own rank is a board you stop opening.
-  let me: { rank: number | null; score: number; toPass: number | null } | null = null;
-  if (session) {
-    const row = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
-    if (row) {
+  const me: { rank: number | null; score: number; toPass: number | null } | null = standing
+    ? {
+      rank: season ? standing.rank : null,
+      score: standing.score,
       /* The gap to the rank above, so the caller can say what it would take
          to climb rather than only where the player stands. Null when there is
-         nothing to chase (#1, unranked, or no Redis) — see `gapToNextRank`. */
-      const ahead = season ? await gapToNextRank(season.id, session.sub) : null;
-      me = {
-        rank: season ? await rankOf(season.id, session.sub) : null,
-        score: row.seasonScore,
-        toPass: ahead?.gap ?? null,
-      };
+         nothing to chase (#1, or tied for it) — see `standingOf`. */
+      toPass: standing.gap,
     }
-  }
+    : null;
 
   return Response.json({
     entries,

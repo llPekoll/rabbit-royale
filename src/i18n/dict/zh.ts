@@ -35,6 +35,11 @@ export const zh: Dict = {
     reopen: '应用将关闭：请重新打开。',
     restart: '重启',
   },
+  elsewhere: {
+    title: '其他设备',
+    body: '你的洞穴刚在另一台设备上打开。同一时间只能在一台设备上玩。',
+    playHere: '在这里玩',
+  },
   consent: {
     title: '开挖之前',
     body: '能不能让我们记录你怎么玩？界面、点击，还有你是从哪里来的。这能告诉我们该修什么。什么都不会卖。',
@@ -98,7 +103,7 @@ export const zh: Dict = {
     saveBurrowWeb2: '保留这个洞穴：绑定 Google 或邮箱。',
     orKeep: '或用以下方式保留你的洞穴',
     signedInWith: '登录方式',
-    region: { label: '服务器', finding: '正在寻找最近的服务器...', eu: '欧洲', sg: '亚洲', us: '美洲' },
+    region: { label: '服务器', finding: '正在寻找最近的服务器...', eu: '欧洲', sg: '亚洲', us: '美洲', auto: '自动', setting: (choice) => `服务器：${choice}` },
   },
 
   chrome: {

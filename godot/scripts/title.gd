@@ -85,10 +85,6 @@ const TIP_PAD_Y := 10.0
 @onready var _connect: PlankButton = %Connect
 @onready var _guest: PlankButton = %Guest
 @onready var _lang: PlankButton = %Language
-## LE SERVEUR (2026-10-02), sous la langue et fait comme elle (chevrons, la
-## liste boucle). Fait ici plutot que dans la scene ; quand il se montre, la
-## colonne reserve sa place (`REGION_ROW`) et le titre remonte d'autant.
-var _region: PlankButton
 ## GOOGLE | EMAIL (2026-10-08), deux demi-planches sous la porte doree : les
 ## portes de qui n'a pas de wallet. Moins hautes que les autres — elles ne
 ## sont pas la porte principale, et la colonne du Seeker couche n'a que
@@ -102,11 +98,6 @@ var _or_keep: Label
 ## qui n'a pas une ligne a donner sur le Seeker couche.
 ## JOUER HORS LIGNE (voyageur.gd) : seulement la ou le mode est achete.
 var _voyage: PlankButton
-## Son titre, juste au-dessus : sans lui, « Asia 54 ms » ne disait pas de quoi
-## il s'agissait.
-var _region_title: Label
-const REGION_TITLE_H := 16.0
-const REGION_ROW := 52.0 + REGION_TITLE_H + 2.0
 @onready var _status: Label = %Status
 @onready var _who: Label = %Who
 @onready var _tip: NinePatchRect = %Tip
@@ -133,11 +124,6 @@ var _tip_timer: Timer
 
 
 func _ready() -> void:
-	_region = (load("res://scenes/plank_button.tscn") as PackedScene).instantiate()
-	_region.name = "Region"
-	for style in ["normal", "pressed", "hover", "disabled", "focus"]:
-		_region.add_theme_stylebox_override(style, StyleBoxEmpty.new())
-	_ask.add_child(_region)
 	_google = SignInButton.make("google", I18N.t("auth.google"))
 	_email = SignInButton.make("email", I18N.t("auth.email"))
 	_ask.add_child(_google)
@@ -158,14 +144,6 @@ func _ready() -> void:
 	_or_keep.visible = _web2_doors
 	_ask.add_child(_or_keep)
 	_connect.visible = not _web2_doors
-	_region_title = Label.new()
-	_region_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_region_title.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_region_title.add_theme_font_size_override("font_size", 12)
-	_region_title.add_theme_color_override("font_color", Palette.CREAM)
-	_region_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_region_title.visible = false
-	_ask.add_child(_region_title)
 	_paint_veil()
 	_paint_floor()
 	_apply_language()
@@ -189,7 +167,6 @@ func _ready() -> void:
 	# La langue quitte la colonne pour le coin haut-droit de l'ecran.
 	_lang.reparent(self)
 	_lang.label_size = 12
-	_region.pressed.connect(_on_region_pressed)
 
 	# La cascade de la vague, dans l'ordre de lecture de la colonne.
 	_connect.wave_delay = WAVE_STEPS[0]
@@ -198,7 +175,6 @@ func _ready() -> void:
 	_guest.wave_delay = WAVE_STEPS[1]
 	_voyage.wave_delay = WAVE_STEPS[1] + 0.07
 	_lang.wave_delay = WAVE_STEPS[2]
-	_region.wave_delay = WAVE_STEPS[2] + 0.07
 
 	_tip_timer = Timer.new()
 	_tip_timer.wait_time = TIP_SECONDS
@@ -256,12 +232,6 @@ func _ready() -> void:
 		return
 	_set_restoring(not Session.token.is_empty())
 	var back := await Session.restore()
-	# UN COMPTE NE EN EUROPE APRES LA COPIE n'existe pas ici : la sonde l'y
-	# avait envoye, on le ramene chez lui et il y reste (choix fige).
-	if not back and Session.borrowed_refused and not Net.region_manual:
-		Net.choose_region("eu", true)
-		_apply_region()
-		back = await Session.restore()
 	if back:
 		# Les portes restent cachees : l'ecran ne sert plus qu'a attendre le
 		# terrier, qui le remplace.
@@ -341,8 +311,7 @@ func _measure() -> void:
 	if not is_inside_tree():
 		return
 	var view := get_viewport_rect().size
-	var reserve := MENU_RESERVE + (REGION_ROW if _region.visible else 0.0) \
-		+ (52.0 if _voyage.visible else 0.0) + (OR_H if _web2_doors else 0.0)
+	var reserve := MENU_RESERVE + (52.0 if _voyage.visible else 0.0) + (OR_H if _web2_doors else 0.0)
 	var doorstep := minf(view.y * 0.67, view.y - reserve - DOORSTEP_GAP)
 	var column := minf(view.x * 0.38, 420.0)
 
@@ -433,15 +402,6 @@ func _measure() -> void:
 			_status.size = Vector2(column, 19.0)
 			y += 19.0 + 8.0
 
-	# LE SERVEUR, une planche pleine sous les portes (la langue est partie en
-	# haut a droite).
-	if _region.visible:
-		_region_title.position = Vector2(0.0, y)
-		_region_title.size = Vector2(column, REGION_TITLE_H)
-		_region.position = Vector2((column - w) * 0.5, y + REGION_TITLE_H + 2.0)
-		_region.custom_minimum_size = Vector2(w, 44.0)
-		_region.size = Vector2(w, 44.0)
-
 	# LA LANGUE, coin haut-droit, comme sur un site (2026-10-20 : « mets les
 	# langues en haut a droite pour tout ») : le drapeau et le nom, a la
 	# largeur de son mot ; la toucher ouvre le choix des sept langues. Elle
@@ -527,7 +487,6 @@ func _apply_language() -> void:
 	_lang.set_lead(Flag.texture(String(here["code"])))
 	_lang.set_arrows(false)
 	_lang.relabel(String(here["label"]))
-	_apply_region()
 	_status.visible = false
 
 
@@ -539,7 +498,7 @@ func _apply_language() -> void:
 func _apply_face() -> void:
 	# La face vit dans le theme du projet depuis I18N._apply_theme_face :
 	# il ne reste qu'a retirer l'override que cet ecran posait lui-meme.
-	I18N.apply_face([_connect, _guest, _voyage, _lang, _region, _region_title, _ribbon, _status, _tip_text])
+	I18N.apply_face([_connect, _guest, _voyage, _lang, _ribbon, _status, _tip_text])
 
 
 func _on_locale_changed(_code: String) -> void:
@@ -556,37 +515,17 @@ func _on_language_pressed() -> void:
 	LanguageMenu.open_under(self, _lang)
 
 
-## LE NOM DE LA REGION, et son ping une fois la sonde revenue. Contre un
-## serveur nomme a la main (`--server=`), la planche n'a rien a choisir.
-func _apply_region() -> void:
-	# Une seule region qui repond (aujourd'hui, avant Singapour et les US) :
-	# rien a choisir, la planche se tait et la langue garde sa ligne entiere.
-	var was := _region.visible
-	_region.visible = Net.region != "" and not _restoring and _open_regions().size() > 1
-	_region_title.visible = _region.visible
-	_region_title.text = I18N.t("auth.region.label")
-	# La ligne de la langue se coupe en deux, ou se recolle.
-	if was != _region.visible and _logo_box != Vector2.ZERO:
-		_measure()
-	if not _region.visible:
-		return
-	_region.set_arrows(true)
-	var words := I18N.t("auth.region." + Net.region)
-	var ms := int(Net.pings.get(Net.region, -1))
-	_region.relabel(words if ms < 0 else "%s %d ms" % [words, ms])
-
-
-## LA REGION SE PRESELECTIONNE AU PING, sans faire attendre qui reprend sa
-## session : on va ou la mesure PRECEDENTE a trouve nettement mieux. Un joueur
-## d'avant les regions repart d'Europe, ou est son terrier ; la mesure de fond
-## dira au lancement suivant s'il y a plus proche. Un choix fait a la main
-## n'est plus touche.
+## LE SERVEUR LE PLUS PROCHE, sans faire attendre qui reprend sa session : on
+## va ou la mesure PRECEDENTE a trouve nettement mieux, et la mesure de fond
+## (`_enter`) le redira pour la prochaine ile. Un serveur force dans les
+## reglages (Net.region_manual) n'est plus touche.
+##
+## LES REGIONS PARTAGENT LEURS COMPTES (2026-10-23) : changer de serveur ne
+## change plus de terrier, on peut donc toujours aller au plus proche — en
+## voyage aussi. Le serveur se rechoisit avant chaque ile
+## (Net.settle_for_island).
 func _settle_region() -> void:
 	if Net._override() != "":
-		return
-	if not Net.region_chosen():
-		if not Session.token.is_empty():
-			Net.choose_region("eu")
 		return
 	if not Net.region_manual and Net.region_best != "" and Net.region_best != Net.region:
 		Net.choose_region(Net.region_best)
@@ -594,7 +533,7 @@ func _settle_region() -> void:
 
 ## DEVANT LES PORTES, ON MESURE D'ABORD : la carotte et « on cherche le
 ## serveur le plus proche » a la place des planches, rien a presser. Puis le
-## plus proche est pris (sauf choix a la main) et tout sort ensemble.
+## plus proche est pris (sauf serveur force) et tout sort ensemble.
 func _find_region() -> void:
 	if Net._override() != "":
 		return
@@ -612,36 +551,6 @@ func _find_region() -> void:
 		Net.choose_region(best)
 	elif not Net.region_chosen():
 		Net.choose_region("eu")
-
-
-## LES REGIONS QU'ON PEUT CHOISIR : celles qui ont repondu a la sonde, plus
-## celle ou l'on est. Une region pas encore ouverte n'est jamais offerte.
-func _open_regions() -> Array[String]:
-	var open: Array[String] = []
-	for r in Net.REGIONS:
-		var code := String(r.code)
-		if code == Net.region or int(Net.pings.get(code, -1)) >= 0:
-			open.append(code)
-	return open
-
-
-## LE SELECTEUR DE SERVEUR : chaque region est un autre monde, avec un autre
-## compte. Si celle-ci a deja un jeton sur cet appareil, on le reprend, comme
-## au lancement ; sinon les portes restent offertes.
-func _on_region_pressed() -> void:
-	var open := _open_regions()
-	var n := open.size()
-	var at := maxi(0, open.find(Net.region))
-	Net.choose_region(open[(at + _region.press_side + n) % n], true)
-	_apply_region()
-	Analytics.track("region_pick", {"region": Net.region})
-	# CHANGER DE SERVEUR NE FAIT QUE CA (2026-10-21). Il reprenait aussitot le
-	# terrier que ce serveur connaissait (Asie et US empruntent celui
-	# d'Europe) : tout se grisait, le jeu partait, et pour changer autre chose
-	# il fallait se deconnecter. Le jeton de la region est garde ; c'est la
-	# porte invitee qui le reprend (`_on_guest`), plutot que d'en creer un
-	# second par-dessus.
-	Session.checking = false
 
 
 ## LA PORTE D'ENTREE : le wallet signe le defi du serveur et la session revient.
@@ -743,8 +652,8 @@ func _on_voyage() -> void:
 func _on_guest() -> void:
 	_busy(true)
 	_working(_guest, true)
-	# UN TERRIER DEJA LA sur ce serveur (choisi au selecteur, voir
-	# `_on_region_pressed`) : on le reprend. Refuse, le jeton est oublie et un
+	# UN TERRIER DEJA LA (un jeton garde que la reprise n'a pas pu verifier,
+	# serveur injoignable) : on le reprend. Refuse, le jeton est oublie et un
 	# invite neuf nait, comme avant.
 	if not Session.token.is_empty():
 		var back := await Session.restore()
@@ -879,7 +788,6 @@ func _busy(value: bool) -> void:
 	_google.disabled = value and not Session.google_waiting
 	_email.disabled = value
 	_lang.disabled = value
-	_region.disabled = value
 	if value:
 		_connect.disabled = true
 	else:
@@ -894,7 +802,6 @@ func _set_restoring(on: bool, words := "") -> void:
 	_connect.visible = not on and not _web2_doors
 	for door in [_google, _email, _or_keep]:
 		door.visible = _web2_doors and not on
-	_apply_region()
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
 	_status.add_theme_font_size_override("font_size", 16 if on else 12)
 	_say((words if words != "" else I18N.t("chrome.reconnecting")) if on else "", false)

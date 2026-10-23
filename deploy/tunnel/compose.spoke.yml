@@ -1,0 +1,22 @@
+# A REGION (sg, us), as a compose project of its own beside /opt/rabbit's:
+#   cd /opt/rabbit/tunnel && TUNNEL_ADDRESS=10.77.0.2/24 docker compose -f compose.spoke.yml up -d --build
+# The region's servers reach Europe's databases as eu-db:5432 (web3) and
+# eu-db:5433 (web2). No port is published: only the region's network sees it.
+name: rabbit-tunnel
+services:
+  tunnel:
+    build: .
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun]
+    environment:
+      ADDRESS: ${TUNNEL_ADDRESS:?10.77.0.2/24 for sg, 10.77.0.3/24 for us}
+      FORWARDS: "5432:10.77.0.1:5432 5433:10.77.0.1:5433"
+    volumes:
+      - ./keys:/keys
+    networks:
+      rabbit_default:
+        aliases: [eu-db]
+networks:
+  rabbit_default:
+    external: true

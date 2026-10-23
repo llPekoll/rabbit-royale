@@ -23,6 +23,7 @@ import { db, sql } from '@/lib/db';
 import { pushToPlayer } from '@/lib/game/raid-events';
 import { inventory, players, raidRuns, raids } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
+import { dropRaid, raidWritten } from '@/lib/game/raid-live';
 import { defenderRaidView } from '@/lib/game/defence';
 import { playerLook } from '@/lib/game/look';
 
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
+  // The raider's steps are written behind their answers (raid-live): the row
+  // struck must be the row as it stands.
+  await raidWritten(session.sub);
   const run = await db.query.raidRuns.findFirst({
     where: and(eq(raidRuns.defenderId, session.sub), isNull(raidRuns.endedAt)),
   });
@@ -63,6 +67,9 @@ export async function POST(req: Request) {
       .where(and(eq(inventory.playerId, session.sub), eq(inventory.kind, 'lightning')));
     return Response.json({ error: 'raid_over' }, { status: 409 });
   }
+  // The raider's server lets go of the raid: their next step reads the row,
+  // finds it struck, and is answered with the strike.
+  dropRaid(run.attackerId);
 
   await db.transaction(async (tx) => {
     // NO SHIELD. A struck raid took nothing, and losing carrots is what raises

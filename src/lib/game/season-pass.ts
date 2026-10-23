@@ -149,6 +149,8 @@ export interface HolderRow extends RankedHolder {
   name: string;
   avatar: string | null;
   wallet: string | null;
+  /** Carried so the look (look.ts) is read off the row, without a trip. */
+  equippedSkin: string | null;
 }
 
 /**
@@ -158,8 +160,8 @@ export interface HolderRow extends RankedHolder {
  * prize from someone who dug all month. Ties go to whoever bought first.
  */
 export async function rankedHolders(tx: Tx, seasonId: number, limit: number = PASS.PAYOUT_SHARES.length): Promise<HolderRow[]> {
-  const rows = await tx.execute<{ player_id: string; score: string; name: string; avatar: string | null; wallet: string | null }>(raw`
-    select sp.player_id, p.season_score::bigint as score, p.name, p.avatar, p.wallet
+  const rows = await tx.execute<{ player_id: string; score: string; name: string; avatar: string | null; wallet: string | null; equipped_skin: string | null }>(raw`
+    select sp.player_id, p.season_score::bigint as score, p.name, p.avatar, p.wallet, p.equipped_skin
     from season_passes sp join players p on p.id = sp.player_id
     where sp.season_id = ${seasonId} and p.season_score > 0
     order by p.season_score desc, sp.bought_at asc
@@ -167,6 +169,7 @@ export async function rankedHolders(tx: Tx, seasonId: number, limit: number = PA
   `);
   return [...rows].map((r) => ({
     playerId: r.player_id, score: Number(r.score), name: r.name, avatar: r.avatar, wallet: r.wallet,
+    equippedSkin: r.equipped_skin,
   }));
 }
 

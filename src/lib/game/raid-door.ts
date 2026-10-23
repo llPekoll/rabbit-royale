@@ -19,7 +19,7 @@
 import { and, eq, gt, inArray, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, raidRuns } from '@/lib/db/schema';
-import { connectedAmong, onlineAmong } from '@/lib/leaderboard';
+import { connectedAmong, onlineAmong } from '@/lib/presence';
 import { asleep, nothingToTake } from '@/lib/game/raid';
 import { gardenYield } from '@/lib/game/regen';
 import { RABBIT_LEVELS } from '@config/tuning';
@@ -74,14 +74,13 @@ export function doorOf(t: Target, cooldownLeftMs: number, now = Date.now()): Omi
  * the board says it once, at the RAID door.
  */
 export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<string, RaidDoor> | null> {
-  const me = await db.query.players.findFirst({ where: eq(players.id, viewerId), columns: { level: true, solo: true } });
-  if (!me || me.level < RABBIT_LEVELS.RAID_MIN || me.solo) return null;
   const others = [...new Set(ids)].filter((id) => id !== viewerId);
-  const doors = new Map<string, RaidDoor>();
-  if (others.length === 0) return doors;
-
   const now = Date.now();
-  const [rows, recent, connected, digging] = await Promise.all([
+  // The viewer is read WITH the doors, not before them: one round trip to a
+  // database that may be a continent away. A viewer who cannot raid wasted
+  // two small reads; everyone else saved a trip on every list.
+  const [me, rows, recent, connected, digging] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, viewerId), columns: { level: true, solo: true } }),
     db.select({
       id: players.id,
       level: players.level,
@@ -97,14 +96,14 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
       // last seen". Qualified by hand: on a one-table select drizzle writes
       // bare "id", which inside the subquery is the raid run's own uuid.
       takenSinceSeen: raw<boolean>`exists (select 1 from raid_runs r where r.defender_id = "players"."id" and r.started_at > "players"."last_seen_at" and r.carrots_looted > 0)`,
-    }).from(players).where(inArray(players.id, others)),
+    }).from(players).where(others.length ? inArray(players.id, others) : raw`false`),
     // My last WALKED raid on each of them inside the cooldown window — the
     // same rows POST measures from (`visited` longer than the entrance).
     db.select({ id: raidRuns.defenderId, at: raw<Date>`max(${raidRuns.startedAt})` })
       .from(raidRuns)
       .where(and(
         eq(raidRuns.attackerId, viewerId),
-        inArray(raidRuns.defenderId, others),
+        others.length ? inArray(raidRuns.defenderId, others) : raw`false`,
         gt(raidRuns.startedAt, new Date(now - RAID_RUN.COOLDOWN_MS)),
         raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
       ))
@@ -112,6 +111,8 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
     connectedAmong(others),
     onlineAmong(others),
   ]);
+  if (!me || me.level < RABBIT_LEVELS.RAID_MIN || me.solo) return null;
+  const doors = new Map<string, RaidDoor>();
   const lastRaid = new Map(recent.map((r) => [r.id, new Date(r.at).getTime()]));
   for (const p of rows) {
     const at = lastRaid.get(p.id);

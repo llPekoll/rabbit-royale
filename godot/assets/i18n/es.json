@@ -18,6 +18,11 @@
   "reopen": "La app se va a cerrar: vuelve a abrirla.",
   "restart": "Reiniciar"
  },
+ "elsewhere": {
+  "title": "Otro dispositivo",
+  "body": "Tu madriguera se acaba de abrir en otro dispositivo. Solo uno puede jugar a la vez.",
+  "playHere": "Jugar aquí"
+ },
  "consent": {
   "title": "Antes de cavar",
   "body": "¿Podemos medir cómo juegas? Las pantallas, los toques y el anuncio que te trajo. Nos muestra qué arreglar. No vendemos nada.",
@@ -91,7 +96,11 @@
    "finding": "Buscando el servidor más cercano...",
    "eu": "Europa",
    "sg": "Asia",
-   "us": "América"
+   "us": "América",
+   "auto": "Auto",
+   "setting": {
+    "$t": "Servidor: {0}"
+   }
   }
  },
  "chrome": {

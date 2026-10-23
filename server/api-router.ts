@@ -22,6 +22,9 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isWeb2, WEB3_ONLY_ROUTES } from '../src/lib/world';
+import { traced } from '../src/lib/db/trace';
+import { getSession } from '../src/lib/auth/jwt';
+import { groundChanged, raidWritten } from '../src/lib/game/raid-live';
 
 /** Un module de route, tel que Next l'attend. */
 type ModuleRoute = {
@@ -168,7 +171,20 @@ export async function servirApi(
     const hote = req.headers.host ?? 'localhost';
     const protocole = (req.headers['x-forwarded-proto'] as string) ?? 'http';
     const requete = await versRequest(req, `${protocole}://${hote}`);
-    const reponse = await handler(requete);
+    // LES RAIDS TENUS EN MEMOIRE (src/lib/game/raid-live.ts), des deux
+    // cotes de chaque requete, ici et pas route par route — une route qui
+    // oublierait laisserait un raideur traverser un mur, ou un joueur lire
+    // une ligne en retard. Sauf les routes du raid, qui s'en chargent.
+    const session = chemin.startsWith('/api/raid') ? null : await getSession(requete).catch(() => null);
+    // AVANT : un raid ecrit ses pas derriere ses reponses. Ce qu'il change
+    // (la jauge du raideur, la bombe declenchee chez le defenseur) est dans
+    // la base avant que l'un ou l'autre la lise ici.
+    if (session) await raidWritten(session.sub);
+    const reponse: Response = await traced(`${methode} ${chemin}`, () => handler(requete));
+    // APRES : un joueur qui ecrit a peut-etre change son terrier (une bombe,
+    // une planche, la disposition, la fumee) — les raids sur ce terrier le
+    // relisent au pas suivant.
+    if (session && methode !== 'GET' && reponse.ok) groundChanged(session.sub);
     // Banc local (RR_STAGE=1) : chaque appel, son statut, et la raison d'un refus.
     if (process.env.RR_STAGE === '1' && !chemin.startsWith('/api/tuning')) {
       const refus = reponse.status >= 400 ? ` ${(await reponse.clone().text()).slice(0, 200)}` : '';

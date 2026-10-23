@@ -22,7 +22,11 @@ export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
+  // The row and the sign-in doors together: one trip, not two.
+  const [player, identities] = await Promise.all([
+    db.query.players.findFirst({ where: eq(players.id, session.sub) }),
+    identitiesOf(session.sub),
+  ]);
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
 
   /**
@@ -55,8 +59,6 @@ export async function GET(req: Request) {
   const token = viaCookie
     ? await signSession({ sub: player.id, wallet: player.wallet, name: player.name })
     : null;
-
-  const identities = await identitiesOf(player.id);
 
   // `guest` rides alongside the row rather than being derived by the client
   // from a null wallet — one field, read the same way in every screen, and the

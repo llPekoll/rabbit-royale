@@ -23,6 +23,7 @@
  * never reach the other players. Log it, keep serving. The only thing allowed
  * to stop the process is a deliberate shutdown.
  */
+import { traced, TRACING } from '../src/lib/db/trace';
 
 /** How a handler failure is reported. Kept as one line so it greps cleanly. */
 function report(scope: string, err: unknown): void {
@@ -49,7 +50,7 @@ export function guard<A extends unknown[]>(
 ): (...args: A) => void {
   return (...args: A) => {
     try {
-      const out = handler(...args);
+      const out = TRACING ? traced(`socket ${scope}`, async () => handler(...args)) : handler(...args);
       if (out instanceof Promise) out.catch((e) => report(scope, e));
     } catch (e) {
       report(scope, e);

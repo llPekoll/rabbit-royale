@@ -18,18 +18,19 @@
  */
 import { and, desc, eq, gt, gte, inArray, isNull, ne, or, sql as raw } from 'drizzle-orm';
 import { db, sql } from '@/lib/db';
-import { pushToPlayer } from '@/lib/game/raid-events';
+import { deliveredHere, pushToPlayer, type PlayerPush } from '@/lib/game/raid-events';
 import { defenderRaidView } from '@/lib/game/defence';
-import { playerLook } from '@/lib/game/look';
+import { lookOf } from '@/lib/game/look';
 import { burrowCuts, inventory, players, raidRuns, raids, traps, fences } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth/jwt';
-import { connectedAmong, connectedIds, crownHolderId, onlineAmong } from '@/lib/leaderboard';
+import { crownHolderId } from '@/lib/leaderboard';
+import { connectedAmong, connectedIds, onlineAmong } from '@/lib/presence';
 import {
   asleep, awakeSince, distanceToField, nothingToTake, raiderView, settleRaid, trapClues,
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
 import { raidDoors } from '@/lib/game/raid-door';
-import { burrowNeighbors, entranceTile, burrowCell } from '@/game/burrow/board';
+import { burrowNeighbors, entranceTile, burrowCell, setBurrowEdits } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
 import { fencedSpans } from '@/lib/game/fences';
@@ -39,8 +40,12 @@ import { standingTraps } from '@/lib/game/traps';
 import { RABBIT_LEVELS } from '@config/tuning';
 import { RAID, RAID_RUN, TRAPS, raidFloor } from '@/lib/tuning/tables';
 import { currentEnergy, gardenAfterLoot, gardenYield } from '@/lib/game/regen';
-import { msToHave } from '@/lib/game/burrow';
+import { chargeEnergy, msToHave } from '@/lib/game/burrow';
 import { payEnergy, type EnergyCharge } from '@/lib/game/pay-crossing';
+import {
+  dropRaid, groundChanged, groundOf, heldRaid, holdRaid, loadOnce, raidWritten, raiderOf, writeBehind,
+  type Ground, type LiveRaid, type RaidRun, type Raider,
+} from '@/lib/game/raid-live';
 
 /**
  * THE TOLL, from the one tank (RAID_RUN.TOLL's note): paid on the first step,
@@ -63,20 +68,34 @@ const TOLL: EnergyCharge = {
   get need() { return raidFloor(); },
 };
 
-/** Everything the raid screen draws, for a raid in progress. */
-async function raidView(runId: string) {
-  const run = await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, runId) });
+/**
+ * Everything the raid screen draws, for a raid in progress.
+ *
+ * Takes the run row when the caller has it (a step just wrote it), and the
+ * ground and the raider when the caller has read them (`raid-live`'s
+ * loaders) — whatever is missing is read here, in parallel.
+ */
+async function raidView(runOrId: RaidRun | string, known: { ground?: Ground; raider?: Raider } = {}) {
+  const run = typeof runOrId === 'string'
+    ? await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, runOrId) })
+    : runOrId;
   if (!run) return null;
 
-  const defender = await db.query.players.findFirst({ where: eq(players.id, run.defenderId) });
-  if (!defender) return null;
-  const edits = await loadBurrowEdits(run.defenderId);
+  const [ground, raider] = await Promise.all([
+    known.ground ?? groundOf(run.defenderId),
+    known.raider ?? raiderOf(run.attackerId),
+  ]);
+  return viewOf(run, ground, raider);
+}
 
-  const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
-  // The walls, which are the one part of the defence the attacker is TOLD.
-  const walled = fencedSpans(
-    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
-  );
+/** The view itself, from rows in hand: no trip, for a raid held in memory. */
+function viewOf(run: RaidRun, ground: Ground, raider: Raider) {
+  const { defender, edits, mined, walled } = ground;
+  if (!defender) return null;
+  // The board functions below read the layout from the per-seed cache: lay
+  // THIS ground's on it, whatever was loaded there since.
+  setBurrowEdits(run.defenderId, edits);
+
   // The burrow's ground is grown from its OWNER's id — see game/burrow/board.
   // Nothing about the terrain crosses the wire: the raider's client rebuilds
   // the same homestead from the defender id it is sent below.
@@ -88,15 +107,7 @@ async function raidView(runId: string) {
   const smoked = smokeActive(defender);
   // THE TANK, for the one gauge: the raid spends the attacker's own energy,
   // and the medallion on the carrot pill reads it from here between steps.
-  const attacker = await db.query.players.findFirst({
-    where: eq(players.id, run.attackerId),
-    columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
-  });
-  const tank = attacker ? currentEnergy(attacker) : null;
-  const axes = await db.query.inventory.findFirst({
-    where: and(eq(inventory.playerId, run.attackerId), eq(inventory.kind, 'axe')),
-    columns: { qty: true },
-  });
+  const tank = raider.attacker ? currentEnergy(raider.attacker) : null;
   const axeUsed = run.cutAt !== null;
 
   return {
@@ -180,7 +191,7 @@ async function raidView(runId: string) {
      * accepts. No targets once it is used or the raid is over.
      */
     axe: {
-      held: axes?.qty ?? 0,
+      held: raider.axes,
       used: axeUsed,
       ...(axeUsed || run.endedAt ? { trees: [], planks: [] } : axeTargets(seed, walled, run.tile)),
     },
@@ -195,16 +206,25 @@ async function raidView(runId: string) {
  * whose owner is at home draws the intruder live — and one whose owner is not
  * hears nothing and loses nothing, the row being the truth either way.
  */
-async function tellDefender(runId: string): Promise<void> {
-  const run = await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, runId) });
-  if (!run) return;
-  const attacker = await db.query.players.findFirst({ where: eq(players.id, run.attackerId) });
-  if (!attacker) return;
-  await pushToPlayer(sql, {
+async function tellDefender(
+  run: RaidRun,
+  /** The raider's row, when the caller already holds it. */
+  attacker?: Attacker | null,
+): Promise<void> {
+  const who = attacker ?? await db.query.players.findFirst({ where: eq(players.id, run.attackerId) });
+  if (!who) return;
+  await pushToPlayer(sql, incomingPush(run, who));
+}
+
+type Attacker = { id: string; name: string; avatar: string | null; equippedSkin: string | null };
+
+/** The defender's push for this run, from the raider's row in hand. */
+function incomingPush(run: RaidRun, attacker: Attacker): PlayerPush {
+  return {
     to: run.defenderId,
     event: 'raid_incoming',
-    payload: defenderRaidView(run, attacker, await playerLook(attacker)),
-  });
+    payload: defenderRaidView(run, attacker, lookOf(attacker.avatar, attacker.equippedSkin)),
+  };
 }
 
 /**
@@ -225,28 +245,90 @@ async function recentlyStruck(attackerId: string) {
   return last;
 }
 
+/**
+ * WHO OWES ME (2026-10-11): whoever took something from me this week and
+ * has not been paid back since — the profile's REVENGE rows, same rule
+ * (profile.gd `_avenged_at`: a debt is settled by taking their carrots or
+ * their run). Offline and poor, they were on neither list below, and the
+ * user looked for their raider here and did not find them. First on the
+ * list: a feud beats a stranger's purse.
+ */
+function owedTo(viewerId: string) {
+  return db.selectDistinctOn([raids.attackerId], { id: raids.attackerId, at: raids.createdAt })
+    .from(raids)
+    .where(and(
+      eq(raids.defenderId, viewerId),
+      ne(raids.attackerId, viewerId),
+      gt(raids.createdAt, new Date(Date.now() - OWED_WINDOW_MS)),
+      or(ne(raids.kind, 'burrow'), gt(raids.carrotsLooted, 0)),
+      raw`not exists (select 1 from raids back where back.attacker_id = ${viewerId} and back.defender_id = ${raids.attackerId} and back.created_at > ${raids.createdAt} and (back.kind <> 'burrow' or back.carrots_looted > 0))`,
+    ))
+    .orderBy(raids.attackerId, desc(raids.createdAt));
+}
+
+/**
+ * The raider's open raid, as this process holds it (`raid-live`) — rebuilt
+ * from its row when it does not (a restart, a deploy): the run and the
+ * raider together, then the ground the run names. Null when none is open.
+ */
+function openRaidOf(attackerId: string): Promise<LiveRaid | null> {
+  return loadOnce(attackerId, async () => {
+    const [run, raider] = await Promise.all([
+      db.query.raidRuns.findFirst({
+        where: and(eq(raidRuns.attackerId, attackerId), isNull(raidRuns.endedAt)),
+        orderBy: desc(raidRuns.startedAt),
+      }),
+      raiderOf(attackerId),
+    ]);
+    if (!run) return null;
+    return { run, ground: await groundOf(run.defenderId), raider, tankRow: raider.attacker };
+  });
+}
+
+/** A held raid's ground, read again if the defender changed it since. */
+async function freshGround(raid: LiveRaid): Promise<Ground> {
+  if (!raid.ground) raid.ground = await groundOf(raid.run.defenderId);
+  return raid.ground;
+}
+
 export async function GET(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
   // A raid already in progress wins over anything else: an attacker who
-  // refreshes mid-crossing must land back where they were standing.
+  // refreshes mid-crossing must land back where they were standing. Held
+  // here, it is answered from memory.
+  const held = heldRaid(session.sub);
+  if (held) return Response.json({ raid: viewOf(held.run, await freshGround(held), held.raider) });
+  await raidWritten(session.sub);
 
-  const open = await db.query.raidRuns.findFirst({
-    where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
-    orderBy: desc(raidRuns.startedAt),
-  });
-  if (open) return Response.json({ raid: await raidView(open.id) });
+  // Everything this answer might need from the first trip, asked at once:
+  // the open raid, the struck one, who I am, who owes me, who is online. Most
+  // of it is wasted when a raid is open — a few small reads, against a round
+  // trip each to a database that may be on another continent.
+  const [open, struck, me, owedRows, online] = await Promise.all([
+    db.query.raidRuns.findFirst({
+      where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+      orderBy: desc(raidRuns.startedAt),
+    }),
+    recentlyStruck(session.sub),
+    db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } }),
+    owedTo(session.sub),
+    connectedIds(),
+  ]);
+  if (open) {
+    // Open in the row but not held here (a restart): hold it again.
+    const raid = await openRaidOf(session.sub);
+    if (raid) return Response.json({ raid: viewOf(raid.run, await freshGround(raid), raid.raider) });
+  }
 
   // No open raid, but one that was just ended BY LIGHTNING is still the
   // raider's news: answered as the finished raid it is, flagged `struck`, so
   // the client can play the shock. The client dismisses it by id on leaving.
-  const struck = await recentlyStruck(session.sub);
-  if (struck) return Response.json({ raid: await raidView(struck.id) });
+  if (struck) return Response.json({ raid: await raidView(struck) });
 
   // NO RAIDS BELOW RAID_MIN, either way (2026-09-23). A rabbit still climbing
   // the levels sees nobody to raid, and is on nobody's list.
-  const me = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } });
   if ((me?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
     return Response.json({ targets: [], locked: { level: me?.level ?? 1, need: RABBIT_LEVELS.RAID_MIN } });
   }
@@ -279,23 +361,8 @@ export async function GET(req: Request) {
     // A SOLO burrow is not on anyone's list — not even shown as shut.
     eq(players.solo, false),
   );
-  const liveIds = (await connectedIds()).filter((id) => id !== session.sub).slice(0, RAID_LIST.LIVE);
-  // WHO OWES ME (2026-10-11): whoever took something from me this week and
-  // has not been paid back since — the profile's REVENGE rows, same rule
-  // (profile.gd `_avenged_at`: a debt is settled by taking their carrots or
-  // their run). Offline and poor, they were on neither list below, and the
-  // user looked for their raider here and did not find them. First on the
-  // list: a feud beats a stranger's purse.
-  const owedIds = (await db.selectDistinctOn([raids.attackerId], { id: raids.attackerId, at: raids.createdAt })
-    .from(raids)
-    .where(and(
-      eq(raids.defenderId, session.sub),
-      ne(raids.attackerId, session.sub),
-      gt(raids.createdAt, new Date(Date.now() - OWED_WINDOW_MS)),
-      or(ne(raids.kind, 'burrow'), gt(raids.carrotsLooted, 0)),
-      raw`not exists (select 1 from raids back where back.attacker_id = ${session.sub} and back.defender_id = ${raids.attackerId} and back.created_at > ${raids.createdAt} and (back.kind <> 'burrow' or back.carrots_looted > 0))`,
-    ))
-    .orderBy(raids.attackerId, desc(raids.createdAt)))
+  const liveIds = online.filter((id) => id !== session.sub).slice(0, RAID_LIST.LIVE);
+  const owedIds = owedRows
     .sort((a, b) => b.at.getTime() - a.at.getTime())
     .slice(0, RAID_LIST.OWED)
     .map((r) => r.id);
@@ -423,11 +490,33 @@ export async function POST(req: Request) {
     return Response.json({ error: 'cannot_raid_yourself' }, { status: 400 });
   }
 
-  const defender = await db.query.players.findFirst({ where: eq(players.id, body.defenderId) });
+  // Every read the door makes, in one trip: the target's ground (row, layout,
+  // traps, fences — the view below draws from it), the raider, an open raid,
+  // the last walked one on this target, whether the target is online. The
+  // refusals below then cost nothing more, and an accepted raid one insert.
+  const defenderId = body.defenderId;
+  await raidWritten(session.sub);
+  const [ground, raiderSide, open, recent, connectedNow] = await Promise.all([
+    groundOf(defenderId),
+    raiderOf(session.sub),
+    db.query.raidRuns.findFirst({
+      where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+    }),
+    db.query.raidRuns.findFirst({
+      where: and(
+        eq(raidRuns.attackerId, session.sub),
+        eq(raidRuns.defenderId, defenderId),
+        raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
+      ),
+      orderBy: desc(raidRuns.startedAt),
+    }),
+    connectedAmong([defenderId]),
+  ]);
+  const defender = ground.defender;
   if (!defender) return Response.json({ error: 'unknown_player' }, { status: 404 });
 
   // Both ways: the target must have reached RAID_MIN, and so must the raider.
-  const raider = await db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } });
+  const raider = raiderSide.attacker;
   if (defender.level < RABBIT_LEVELS.RAID_MIN || (raider?.level ?? 1) < RABBIT_LEVELS.RAID_MIN) {
     return Response.json({ error: 'level_locked', need: RABBIT_LEVELS.RAID_MIN }, { status: 403 });
   }
@@ -452,7 +541,7 @@ export async function POST(req: Request) {
   // ASLEEP (RAID.ASLEEP_AFTER_MS), unless connected this very moment: a tenth
   // of the haul, and once per absence — a raid that already took something
   // since they were last seen is a shield until they come back.
-  const sleeping = asleep(defender.lastSeenAt, now) && !(await connectedAmong([defender.id])).has(defender.id);
+  const sleeping = asleep(defender.lastSeenAt, now) && !connectedNow.has(defender.id);
   if (nothingToTake(defender.stock, gardenYield(defender, now), sleeping)) {
     return Response.json({ error: 'target_shielded', bare: true }, { status: 400 });
   }
@@ -467,10 +556,13 @@ export async function POST(req: Request) {
 
   // One raid at a time. Two crossings of two burrows at once is a UI nobody
   // asked for and a scoring problem nobody wants.
-  const open = await db.query.raidRuns.findFirst({
-    where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
-  });
-  if (open) return Response.json({ error: 'raid_in_progress', raid: await raidView(open.id) }, { status: 409 });
+  const already = heldRaid(session.sub) ?? (open ? await openRaidOf(session.sub) : null);
+  if (already) {
+    return Response.json({
+      error: 'raid_in_progress',
+      raid: viewOf(already.run, await freshGround(already), already.raider),
+    }, { status: 409 });
+  }
 
   /**
    * Nobody gets farmed: one attack per victim per window.
@@ -490,14 +582,6 @@ export async function POST(req: Request) {
    * file (it is history, and `raidView` may still be answering for it), it
    * simply stops being the row the window is measured from.
    */
-  const recent = await db.query.raidRuns.findFirst({
-    where: and(
-      eq(raidRuns.attackerId, session.sub),
-      eq(raidRuns.defenderId, body.defenderId),
-      raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
-    ),
-    orderBy: desc(raidRuns.startedAt),
-  });
   if (recent && now - recent.startedAt.getTime() < RAID_RUN.COOLDOWN_MS) {
     return Response.json({
       error: 'cooldown',
@@ -517,10 +601,7 @@ export async function POST(req: Request) {
    * itself lands on the FIRST STEP (see the PATCH), so that opening a target
    * to look at it stays free.
    */
-  const attacker = await db.query.players.findFirst({
-    where: eq(players.id, session.sub),
-    columns: { energy: true, energyUpdatedAt: true, burrowLevel: true },
-  });
+  const attacker = raider;
   if (!attacker) return Response.json({ error: 'unknown_player' }, { status: 404 });
   if (currentEnergy(attacker, now) < TOLL.need) {
     return Response.json({
@@ -531,7 +612,7 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
-  await loadBurrowEdits(body.defenderId);
+  // The layout `groundOf` loaded above is what the entrance is read from.
   const start = entranceTile(body.defenderId);
   const [run] = await db.insert(raidRuns).values({
     attackerId: session.sub,
@@ -543,7 +624,7 @@ export async function POST(req: Request) {
     // the budget it spends it against, and zero here ends the raid.
     energy: Math.min(RAID_RUN.STAKE, currentEnergy(attacker, now)) - RAID_RUN.TOLL,
     visited: [start],
-  }).returning({ id: raidRuns.id });
+  }).returning();
 
   /**
    * THE DEFENDER IS NOT TOLD YET — the first STEP announces the raid.
@@ -560,7 +641,9 @@ export async function POST(req: Request) {
    * crossing begins when someone takes a step onto your ground.
    */
 
-  return Response.json({ raid: await raidView(run.id) });
+  // HELD FROM HERE ON (`raid-live`): the steps are answered from memory.
+  holdRaid({ run, ground, raider: raiderSide, tankRow: raiderSide.attacker });
+  return Response.json({ raid: viewOf(run, ground, raiderSide) });
 }
 
 /** `{ tile }` — one step. The server decides everything that follows. */
@@ -571,15 +654,15 @@ export async function PATCH(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { tile?: unknown; cut?: unknown };
   const to = Number(body.tile);
 
-  const run = await db.query.raidRuns.findFirst({
-    where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
-    orderBy: desc(raidRuns.startedAt),
-  });
-  if (!run) {
+  // THE RAID IN MEMORY (`raid-live`): held since the door, or rebuilt from
+  // its row when this process does not hold it. A step costs the database
+  // nothing while the raider waits.
+  const live = await openRaidOf(session.sub);
+  if (!live) {
     // The step that lands after the defender's strike: the raid it was meant
     // for is gone, and the answer is the strike, not a refusal.
     const struck = await recentlyStruck(session.sub);
-    if (struck) return Response.json({ raid: await raidView(struck.id), struck: true });
+    if (struck) return Response.json({ raid: await raidView(struck), struck: true });
     return Response.json({ error: 'no_raid' }, { status: 404 });
   }
   // A raid opened, then a run joined, then a step: the same hole from the
@@ -588,7 +671,42 @@ export async function PATCH(req: Request) {
     return Response.json({ error: 'on_island' }, { status: 409 });
   }
 
-  if (body.cut !== undefined) return cut(session.sub, run, body.cut);
+  if (body.cut !== undefined) {
+    // THE AXE is settled against the rows: the steps still on their way are
+    // written first, and the held raid is let go — the next step holds it
+    // again, with the tree down and the planks gone.
+    await raidWritten(session.sub);
+    dropRaid(session.sub);
+    const run = await db.query.raidRuns.findFirst({
+      where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+      orderBy: desc(raidRuns.startedAt),
+    });
+    if (!run) return Response.json({ error: 'no_raid' }, { status: 404 });
+    return cut(session.sub, run, body.cut);
+  }
+
+  return step(session.sub, live, to);
+}
+
+/**
+ * One step of a held raid.
+ *
+ * NOTHING IS AWAITED between reading the held raid and moving it: the checks,
+ * the step and what it changes happen in one go, so two taps cannot both
+ * leave the same tile — the second finds the raid already moved. The only
+ * waits are BEFORE that (the defender's ground, read again if they changed
+ * it; the tank, read again before refusing a first step), and each one sends
+ * the step back to the top.
+ */
+async function step(attackerId: string, live: LiveRaid, to: number, tankChecked = false): Promise<Response> {
+  const ground = await freshGround(live);
+  if (live.settling || heldRaid(attackerId) !== live) {
+    return Response.json({ error: 'step_conflict' }, { status: 409 });
+  }
+  const run = live.run;
+  const raider = live.raider;
+  const { walled, mined } = ground;
+  setBurrowEdits(run.defenderId, ground.edits);
 
   // Adjacency is checked SERVER-SIDE. `burrowNeighbors` already excludes walls
   // and off-board indices, so a client naming a distant or blocked tile is
@@ -598,10 +716,8 @@ export async function PATCH(req: Request) {
   // that binds — the view's `steps` is a convenience for drawing. A defender
   // who walls a side mid-raid stops the very next step, which is the right
   // answer: the wall is up when the foot lands, not when the screen loaded.
-  const walled = fencedSpans(
-    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
-  );
-  await loadBurrowEdits(run.defenderId);
+  // Read with the rest of the ground (`groundOf`) and held with the raid;
+  // a plank put up since the last step marked it stale (`freshGround`).
   if (!Number.isInteger(to) || !burrowNeighbors(run.defenderId, run.tile).includes(to)) {
     return Response.json({ error: 'not_adjacent' }, { status: 400 });
   }
@@ -612,20 +728,83 @@ export async function PATCH(req: Request) {
     return Response.json({ error: 'fenced' }, { status: 400 });
   }
 
+  // Only a STANDING trap can be stepped on, and it is found the same way the
+  // clues were built. Asking the same function twice is what keeps the board
+  // the raider reads and the board the server settles against identical.
+  const trap = standingTraps(run.defenderId, mined).find((t) => t.tile === to);
+  let energy = run.energy - RAID_RUN.STEP_COST;
+  let sprung = run.trapsSprung;
+  if (trap) {
+    energy -= TRAPS.DRAIN;
+    sprung += 1;
+  }
+
   /**
    * THE FIRST STEP PAYS THE CROSSING. `visited` opens holding the entrance
    * tile alone, so a length of 1 is a raid nobody has stepped into yet — the
    * same test the cooldown and the defender's alert use, so the three agree
    * on the instant a raid begins.
    *
-   * Charged BEFORE the step is written: a bar that cannot pay refuses the
-   * step and the raid stays where it stood, exactly as an unaffordable join
-   * leaves the player on the burrow. The POST already refused a bar short of
-   * this, so a refusal here is the rare race — a run joined from another tab
-   * between opening the target and stepping in.
+   * Charged before anything else is written: a bar that cannot pay refuses
+   * the step and the raid stays where it stood, exactly as an unaffordable
+   * join leaves the player on the burrow. The POST already refused a bar
+   * short of this, so a refusal here is the rare race — a run joined from
+   * another tab between opening the target and stepping in.
+   *
+   * THE STEP IS PAID FROM THE TANK, and the trap's drain with it — never
+   * refused (`floor`): the budget above is what decides when the raid ends,
+   * and it was cut to the tank at the door. ONE charge on the first step,
+   * toll and step together behind the toll's floor: the floor is the toll
+   * plus the longest walk, so whatever passes it pays both, and the tank ends
+   * where the two charges in a row left it.
    */
+  const stepCost = RAID_RUN.STEP_COST + (trap ? TRAPS.DRAIN : 0);
+  const firstStep = run.visited.length <= 1;
+  const charge: EnergyCharge = firstStep
+    ? { cost: TOLL.cost + stepCost, need: TOLL.need }
+    : { cost: stepCost, need: 0, floor: true };
+  const now = new Date();
+  const tank = raider.attacker ? chargeEnergy(raider.attacker, charge, now.getTime()) : null;
+  if (firstStep && !tank) {
+    // The tank in memory says no. It may be behind the row — a refill used
+    // since the door — so the row is asked once before refusing.
+    if (!tankChecked) {
+      live.raider = await raiderOf(attackerId);
+      return step(attackerId, live, to, true);
+    }
+    const row = raider.attacker;
+    return Response.json({
+      error: 'no_energy',
+      energy: row ? currentEnergy(row, now.getTime()) : 0,
+      need: TOLL.need,
+      nextRunInMs: row ? msToHave(row, TOLL.need, now.getTime()) : null,
+    }, { status: 400 });
+  }
+
+  const visited = [...run.visited, to];
+  const stepped: RaidRun = { ...run, tile: to, visited, energy: Math.max(0, energy), trapsSprung: sprung };
+  live.run = stepped;
+  if (tank && raider.attacker) live.raider = { ...raider, attacker: { ...raider.attacker, ...tank } };
+  // A sprung trap is REPAIRED, not replaced: it keeps its tile and rearms on
+  // TRAPS.REARM_MS. Deleting it was pay-to-repair — the defender bought the
+  // ground back every morning at the daily allowance's pace, while losing it
+  // at the attackers' pace. Stamping it also RESTARTS the clock on a trap
+  // sprung twice, which is what makes camping a known tile cost the raider
+  // the full rearm each time rather than only the first.
+  if (trap) live.ground = { ...ground, mined: mined.map((t) => (t.id === trap.id ? { ...t, sprungAt: now } : t)) };
+
+  const reachedField = burrowCell(run.defenderId, to) === 'field';
+  if (reachedField || energy <= 0) {
+    return settleLastStep(attackerId, live, { run, to, energy, sprung, trap, reachedField, now, charge });
+  }
+
+  // THE DEFENDER SEES IT NOW when they are connected to this server
+  // (`deliveredHere`); otherwise the push goes out with the row.
+  const push = raider.attacker ? incomingPush(stepped, raider.attacker) : null;
+  const toldHere = push ? deliveredHere(push) : false;
+
   /**
-   * CLAIM THE STEP before anything is paid or settled.
+   * THE ROW FOLLOWS, behind the answer and in step order (`writeBehind`).
    *
    * Two PATCHes for the same raid (a double tap, a retried request) used to
    * both read the same row: both saw a first step and paid the toll twice,
@@ -633,206 +812,246 @@ export async function PATCH(req: Request) {
    * rows, the walk refunded twice. The claim is a conditional write on the
    * position the step was read from: exactly one request moves the rabbit
    * off `run.tile`, the other finds the row changed and is told so.
-   */
-  const visited = [...run.visited, to];
-  const [claimed] = await db.update(raidRuns)
-    .set({ tile: to, visited })
-    .where(and(
-      eq(raidRuns.id, run.id),
-      isNull(raidRuns.endedAt),
-      eq(raidRuns.tile, run.tile),
-      raw`cardinality(${raidRuns.visited}) = ${run.visited.length}`,
-    ))
-    .returning({ id: raidRuns.id });
-  if (!claimed) return Response.json({ error: 'step_conflict' }, { status: 409 });
-
-  const firstStep = run.visited.length <= 1;
-  if (firstStep) {
-    const paid = await payEnergy(session.sub, TOLL);
-    if (!paid.ok) {
-      // Not paid, not walked: the claim is handed back.
-      await db.update(raidRuns).set({ tile: run.tile, visited: run.visited }).where(eq(raidRuns.id, run.id));
-      return Response.json({
-        error: 'no_energy',
-        energy: paid.energy,
-        need: TOLL.need,
-        nextRunInMs: paid.nextRunInMs,
-      }, { status: 400 });
-    }
-  }
-
-  const mined = await db.query.traps.findMany({ where: eq(traps.ownerId, run.defenderId) });
-  // Only a STANDING trap can be stepped on, and it is found the same way the
-  // clues above were built. Asking the same function twice is what keeps the
-  // board the raider reads and the board the server settles against identical.
-  const trap = standingTraps(run.defenderId, mined).find((t) => t.tile === to);
-
-  let energy = run.energy - RAID_RUN.STEP_COST;
-  let sprung = run.trapsSprung;
-  if (trap) {
-    energy -= TRAPS.DRAIN;
-    sprung += 1;
-    // A sprung trap is REPAIRED, not replaced: it keeps its tile and rearms on
-    // TRAPS.REARM_MS. Deleting it was pay-to-repair — the defender bought the
-    // ground back every morning at the daily allowance's pace, while losing it
-    // at the attackers' pace. Stamping it also RESTARTS the clock on a trap
-    // sprung twice, which is what makes camping a known tile cost the raider
-    // the full rearm each time rather than only the first.
-    await db.update(traps).set({ sprungAt: new Date() }).where(eq(traps.id, trap.id));
-  }
-  // THE STEP IS PAID FROM THE TANK, and the trap's drain with it — never
-  // refused (`floor`): the budget above is what decides when the raid ends,
-  // and it was cut to the tank at the door. The tank rides back on the view
-  // (`tank`) for the medallion.
-  await payEnergy(session.sub, {
-    cost: RAID_RUN.STEP_COST + (trap ? TRAPS.DRAIN : 0),
-    need: 0,
-    floor: true,
-  });
-
-  const reachedField = burrowCell(run.defenderId, to) === 'field';
-  const outOfEnergy = energy <= 0;
-
-  // Still walking.
-  if (!reachedField && !outOfEnergy) {
-    await db.update(raidRuns)
-      .set({ energy, trapsSprung: sprung })
-      .where(eq(raidRuns.id, run.id));
-    await tellDefender(run.id);
-    return Response.json({
-      raid: await raidView(run.id),
-      sprungTrap: !!trap,
-    });
-  }
-
-  // The raid is over, one way or the other. Settle it.
-  const now = new Date();
-  // The crown's purse is bigger (CROWN.LOOT_MULT). Read before the lock: it
-  // names a player, and holding a row lock across a scan of the table is how
-  // two raids deadlock.
-  const crowned = (await crownHolderId()) === run.defenderId;
-
-  /**
-   * ONE TRANSACTION, THE DEFENDER'S ROW LOCKED, THE RAID CLOSED EXACTLY ONCE.
    *
-   * The haul used to be computed from a defender row read outside the
-   * transaction, then debited with `greatest(0, …)` while the attacker was
-   * credited the full figure: two raids settling on the same burrow both
-   * computed from the same stock, the second pushed it under SAFE_FLOOR, and
-   * the attacker was paid carrots the defender no longer had. Now the row is
-   * read FOR UPDATE, the haul is computed from what it holds at that instant
-   * (a shield raised by the raid that settled first counts), and the raid row
-   * is closed with a guard on `endedAt` — a second settlement finds nothing
-   * to close and moves nothing.
+   * The held raid decides first now — in memory, one step at a time — and
+   * the claim stays as the row's own guard: a raid the row says has ended
+   * meanwhile (the defender's lightning) is not walked on, and is let go.
+   *
+   * The charge is written as a FLOOR charge whatever it was at the door: the
+   * step was taken, and a tank the row finds short by then (a race the held
+   * tank could not see) pays what it has rather than walking for free.
    */
-  const settled = await db.transaction(async (tx) => {
-    const [closed] = await tx.update(raidRuns).set({
-      tile: to, energy: Math.max(0, energy), visited, trapsSprung: sprung,
-      succeeded: reachedField,
-      endedAt: now,
-    }).where(and(eq(raidRuns.id, run.id), isNull(raidRuns.endedAt))).returning({ id: raidRuns.id });
-    if (!closed) return null;
-
-    const [defender] = await tx.select().from(players).where(eq(players.id, run.defenderId)).for('update');
-    if (!defender) return null;
-
-    // What is standing in the defender's garden right now: the purse a raid is
-    // for (RAID.GARDEN_LOOT_SHARE). Read once and settled against, so the clock
-    // below is set back from the same figure the haul was computed on.
-    const gardenPending = gardenYield(defender, now.getTime());
-    const outcome = settleRaid({
-      seed: run.defenderId,
-      endedAt: to,
-      defenderStock: defender.stock,
-      defenderGarden: gardenPending,
-      defenderLevel: defender.burrowLevel,
-      shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
-      crowned,
-      // Asleep when the raid STARTED: an owner who comes back mid-crossing
-      // does not turn a tenth into a full haul under the raider's feet.
-      asleep: asleep(defender.lastSeenAt, run.startedAt.getTime()),
-    }, Math.random, distanceToField(run.defenderId));
-
-    await tx.update(players).set({
-      // Only the STOCK part leaves the stock and the score: garden carrots were
-      // never in either yet (they land there at harvest), so the garden part
-      // is taken by setting the garden's clock back instead — see
-      // `gardenAfterLoot`. The row is locked and the haul computed from it, so
-      // this can no longer overdraw; `greatest` stays as a belt.
-      stock: raw`greatest(0, ${players.stock} - ${outcome.lootFromStock})`,
-      seasonScore: raw`greatest(0, ${players.seasonScore} - ${outcome.lootFromStock})`,
-      gardenCollectedAt: gardenAfterLoot(defender, gardenPending, outcome.lootFromGarden, now.getTime()),
-      // A SACKED burrow earns its owner the long shield. THE anti-churn rule:
-      // without it a player who logs off rich is farmed to zero by morning.
-      // Keyed on the raider reaching the carrot field, and ONLY WHEN SOMETHING
-      // WAS TAKEN (21 September 2026): a shield for a raid that took nothing is
-      // a reward for having nothing worth stealing.
-      ...(outcome.loot > 0 ? {
-        shieldedUntil: reachedField
-          ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
-          : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
-      } : {}),
-    }).where(eq(players.id, run.defenderId));
-
-    // The attacker's side: the whole haul into the stock, and the raid COUNTED
-    // either way ("Knock on a door" asks for a raid at any depth).
-    //
-    // THE SCORE IS TRANSFERRED, NOT MINTED: it moves by what left the
-    // defender's score — the stock part. The garden part was never scored on
-    // either side, so crediting it to the thief's score created season points
-    // out of nothing (GDD: "only theft moves it: stolen carrots leave your
-    // score and join the thief's").
-    await tx.update(players).set({
-      ...(outcome.loot > 0
-        ? {
-          stock: raw`${players.stock} + ${outcome.loot}`,
-          seasonScore: raw`${players.seasonScore} + ${outcome.lootFromStock}`,
-        }
-        : {}),
-      raidsPlayed: raw`${players.raidsPlayed} + 1`,
-    }).where(eq(players.id, session.sub));
-
-    await tx.update(raidRuns).set({ carrotsLooted: outcome.loot }).where(eq(raidRuns.id, run.id));
-
-    // The log the victim reads on their next visit. This is the only way
-    // somebody learns who emptied their burrow overnight.
-    await tx.insert(raids).values({
-      attackerId: session.sub,
-      defenderId: run.defenderId,
-      damage: outcome.damage,
-      result: outcome.loot > 0 ? 'looted' : outcome.damage > 0 ? 'damaged' : 'blocked',
-      carrotsLooted: outcome.loot,
-      scoreTransferred: outcome.lootFromStock,
-    });
-    return outcome;
+  writeBehind(attackerId, run.defenderId, async () => {
+    const [claimed] = await db.update(raidRuns)
+      .set({ tile: to, visited, energy: Math.max(0, energy), trapsSprung: sprung })
+      .where(and(
+        eq(raidRuns.id, run.id),
+        isNull(raidRuns.endedAt),
+        eq(raidRuns.tile, run.tile),
+        raw`cardinality(${raidRuns.visited}) = ${run.visited.length}`,
+      ))
+      .returning({ id: raidRuns.id });
+    if (!claimed) {
+      dropRaid(attackerId);
+      return;
+    }
+    const [paid] = await Promise.all([
+      payEnergy(attackerId, { cost: charge.cost, need: 0, floor: true }, heldRaid(attackerId)?.tankRow),
+      trap ? db.update(traps).set({ sprungAt: now }).where(eq(traps.id, trap.id)) : null,
+      push && !toldHere ? pushToPlayer(sql, push) : null,
+    ]);
+    const still = heldRaid(attackerId);
+    if (paid.ok && still) {
+      // Kept only over a row read whole: the regen rate rides on its level.
+      if (still.tankRow) still.tankRow = { ...still.tankRow, energy: paid.energy, energyUpdatedAt: paid.at };
+      // The row's tank wins over the prediction — unless a later step already
+      // predicted on top of it, whose own write will set it right in turn.
+      if (still.run === stepped && still.raider.attacker) {
+        still.raider = { ...still.raider, attacker: { ...still.raider.attacker, energy: paid.energy, energyUpdatedAt: paid.at } };
+      }
+    }
   });
-  if (!settled) return Response.json({ error: 'step_conflict' }, { status: 409 });
-  const outcome = settled;
-
-  // THE WALK COMES BACK AT THE FIELD (RAID_RUN.STEP_REFUND_AT_FIELD): the
-  // steps' cost, never a trap's, and only for a raid that got there. Paid
-  // into the tank with a negative charge, which `chargeEnergy` caps at the
-  // ceiling; `raidView` below reads the tank after it, so the medallion
-  // shows the refund on the same answer that shows the haul.
-  const refunded = reachedField
-    ? Math.round((visited.length - 1) * RAID_RUN.STEP_COST * RAID_RUN.STEP_REFUND_AT_FIELD)
-    : 0;
-  if (refunded > 0) await payEnergy(session.sub, { cost: -refunded, need: 0, floor: true });
-
-  await tellDefender(run.id);
 
   return Response.json({
-    raid: await raidView(run.id),
+    raid: viewOf(stepped, live.ground ?? ground, live.raider),
     sprungTrap: !!trap,
-    outcome: {
-      reachedField,
-      refunded,
-      loot: outcome.loot,
-      lootFromGarden: outcome.lootFromGarden,
-      damage: outcome.damage,
-      progress: outcome.progress,
-    },
   });
+}
+
+/**
+ * The step that ENDS the raid — the field reached, or the budget spent —
+ * settled against the database while the raider waits: the loot moves
+ * between two players, and that is decided by the rows, locked. The held
+ * raid is let go afterwards, whatever happens.
+ */
+async function settleLastStep(
+  attackerId: string,
+  live: LiveRaid,
+  last: {
+    run: RaidRun; to: number; energy: number; sprung: number;
+    trap: (typeof traps.$inferSelect) | undefined;
+    reachedField: boolean; now: Date; charge: EnergyCharge;
+  },
+): Promise<Response> {
+  const { run, to, energy, sprung, trap, reachedField, now, charge } = last;
+  const visited = [...run.visited, to];
+  live.settling = true;
+  try {
+    // The crown's purse is bigger (CROWN.LOOT_MULT). Read before the lock: it
+    // names a player, and holding a row lock across a scan of the table is how
+    // two raids deadlock. Sent now, so it is in by the time the lock is asked.
+    const crownedRead = crownHolderId().catch(() => null);
+    // The steps before this one land in the row first (THE ROW FOLLOWS above):
+    // at a player's pace they are in already.
+    await raidWritten(attackerId);
+    const raider = live.raider;
+    const groundNow = live.ground ?? undefined;
+
+    // THE WALK COMES BACK AT THE FIELD (RAID_RUN.STEP_REFUND_AT_FIELD): the
+    // steps' cost, never a trap's, and only for a raid that got there. Paid
+    // into the tank with a negative charge, which `chargeEnergy` caps at the
+    // ceiling — in the transaction below, after this step's own charge, so the
+    // medallion shows the refund on the same answer that shows the haul.
+    const refunded = reachedField
+      ? Math.round((visited.length - 1) * RAID_RUN.STEP_COST * RAID_RUN.STEP_REFUND_AT_FIELD)
+      : 0;
+
+    /**
+     * ONE TRANSACTION, THE DEFENDER'S ROW LOCKED, THE RAID CLOSED EXACTLY ONCE.
+     *
+     * The haul used to be computed from a defender row read outside the
+     * transaction, then debited with `greatest(0, …)` while the attacker was
+     * credited the full figure: two raids settling on the same burrow both
+     * computed from the same stock, the second pushed it under SAFE_FLOOR, and
+     * the attacker was paid carrots the defender no longer had. Now the row is
+     * read FOR UPDATE, the haul is computed from what it holds at that instant
+     * (a shield raised by the raid that settled first counts), and the raid row
+     * is closed with a guard on `endedAt` — a second settlement finds nothing
+     * to close and moves nothing.
+     *
+     * THE RAIDER'S ROW IS LOCKED WITH IT (2026-10-23), and this step's charge
+     * and the walk's refund are written in the transaction, from the row as it
+     * stands: two trips less than paying before and refunding after, on the
+     * one step a raider waits for. Both rows in ONE statement, ordered by id:
+     * two raiders settling on each other's burrows at the same instant lock in
+     * the same order, and neither waits on the other forever.
+     */
+    const settled = await db.transaction(async (tx) => {
+      const crowned = (await crownedRead) === run.defenderId;
+      // Close and lock in one trip: the statements of a transaction share one
+      // connection, so sent together they go out back to back (pipelined) and
+      // still run in this order. A close that finds the raid already ended
+      // returns nothing, and the lock it took dies with the transaction.
+      const [[closed], locked] = await Promise.all([
+        tx.update(raidRuns).set({
+          tile: to, energy: Math.max(0, energy), visited, trapsSprung: sprung,
+          succeeded: reachedField,
+          endedAt: now,
+        }).where(and(eq(raidRuns.id, run.id), isNull(raidRuns.endedAt))).returning({ id: raidRuns.id }),
+        tx.select().from(players)
+          .where(inArray(players.id, [run.defenderId, attackerId]))
+          .orderBy(players.id)
+          .for('update'),
+      ]);
+      if (!closed) return null;
+      const defender = locked.find((p) => p.id === run.defenderId);
+      const attacker = locked.find((p) => p.id === attackerId);
+      if (!defender || !attacker) return null;
+      // This step paid, as every step is (a floor charge, THE ROW FOLLOWS),
+      // then the walk handed back.
+      const stepped = chargeEnergy(attacker, { cost: charge.cost, need: 0, floor: true }, now.getTime())!;
+      const tank = refunded > 0
+        ? chargeEnergy({ ...attacker, ...stepped }, { cost: -refunded, need: 0, floor: true }, now.getTime())!
+        : stepped;
+
+      // What is standing in the defender's garden right now: the purse a raid is
+      // for (RAID.GARDEN_LOOT_SHARE). Read once and settled against, so the clock
+      // below is set back from the same figure the haul was computed on.
+      const gardenPending = gardenYield(defender, now.getTime());
+      const outcome = settleRaid({
+        seed: run.defenderId,
+        endedAt: to,
+        defenderStock: defender.stock,
+        defenderGarden: gardenPending,
+        defenderLevel: defender.burrowLevel,
+        shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
+        crowned,
+        // Asleep when the raid STARTED: an owner who comes back mid-crossing
+        // does not turn a tenth into a full haul under the raider's feet.
+        asleep: asleep(defender.lastSeenAt, run.startedAt.getTime()),
+      }, Math.random, distanceToField(run.defenderId));
+
+      // The writes below touch nothing the others read: pipelined, one trip.
+      await Promise.all([
+        tx.update(players).set({
+          // Only the STOCK part leaves the stock and the score: garden carrots were
+          // never in either yet (they land there at harvest), so the garden part
+          // is taken by setting the garden's clock back instead — see
+          // `gardenAfterLoot`. The row is locked and the haul computed from it, so
+          // this can no longer overdraw; `greatest` stays as a belt.
+          stock: raw`greatest(0, ${players.stock} - ${outcome.lootFromStock})`,
+          seasonScore: raw`greatest(0, ${players.seasonScore} - ${outcome.lootFromStock})`,
+          gardenCollectedAt: gardenAfterLoot(defender, gardenPending, outcome.lootFromGarden, now.getTime()),
+          // A SACKED burrow earns its owner the long shield. THE anti-churn rule:
+          // without it a player who logs off rich is farmed to zero by morning.
+          // Keyed on the raider reaching the carrot field, and ONLY WHEN SOMETHING
+          // WAS TAKEN (21 September 2026): a shield for a raid that took nothing is
+          // a reward for having nothing worth stealing.
+          ...(outcome.loot > 0 ? {
+            shieldedUntil: reachedField
+              ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
+              : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
+          } : {}),
+        }).where(eq(players.id, run.defenderId)),
+
+        // The attacker's side: the whole haul into the stock, and the raid COUNTED
+        // either way ("Knock on a door" asks for a raid at any depth).
+        //
+        // THE SCORE IS TRANSFERRED, NOT MINTED: it moves by what left the
+        // defender's score — the stock part. The garden part was never scored on
+        // either side, so crediting it to the thief's score created season points
+        // out of nothing (GDD: "only theft moves it: stolen carrots leave your
+        // score and join the thief's").
+        tx.update(players).set({
+          ...(outcome.loot > 0
+            ? {
+              stock: raw`${players.stock} + ${outcome.loot}`,
+              seasonScore: raw`${players.seasonScore} + ${outcome.lootFromStock}`,
+            }
+            : {}),
+          raidsPlayed: raw`${players.raidsPlayed} + 1`,
+          ...tank,
+        }).where(eq(players.id, attackerId)),
+
+        // A sprung trap is REPAIRED, not replaced (see the step above).
+        trap ? tx.update(traps).set({ sprungAt: now }).where(eq(traps.id, trap.id)) : null,
+
+        tx.update(raidRuns).set({ carrotsLooted: outcome.loot }).where(eq(raidRuns.id, run.id)),
+
+        // The log the victim reads on their next visit. This is the only way
+        // somebody learns who emptied their burrow overnight.
+        tx.insert(raids).values({
+          attackerId: attackerId,
+          defenderId: run.defenderId,
+          damage: outcome.damage,
+          result: outcome.loot > 0 ? 'looted' : outcome.damage > 0 ? 'damaged' : 'blocked',
+          carrotsLooted: outcome.loot,
+          scoreTransferred: outcome.lootFromStock,
+        }),
+      ]);
+      return { outcome, tank };
+    });
+    if (!settled) return Response.json({ error: 'step_conflict' }, { status: 409 });
+    const { outcome, tank } = settled;
+    const raiderEnd: Raider | undefined = raider.attacker
+      ? { ...raider, attacker: { ...raider.attacker, ...tank } }
+      : undefined;
+
+    const ended: RaidRun = {
+      ...run, tile: to, visited, energy: Math.max(0, energy), trapsSprung: sprung,
+      succeeded: reachedField, endedAt: now, carrotsLooted: outcome.loot,
+    };
+    // The defender hears it once the row is in, without the raider waiting
+    // on the telling (it never throws: see `pushToPlayer`).
+    void tellDefender(ended, raider.attacker);
+    const view = await raidView(ended, { ground: groundNow, raider: raiderEnd });
+
+    return Response.json({
+      raid: view,
+      sprungTrap: !!trap,
+      outcome: {
+        reachedField,
+        refunded,
+        loot: outcome.loot,
+        lootFromGarden: outcome.lootFromGarden,
+        damage: outcome.damage,
+        progress: outcome.progress,
+      },
+    });
+
+  } finally {
+    dropRaid(attackerId);
+  }
 }
 
 /**
@@ -858,23 +1077,43 @@ export async function DELETE(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
 
-  const run = await db.query.raidRuns.findFirst({
-    where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
-    orderBy: desc(raidRuns.startedAt),
-  });
+  // No step lands after the retreat (`settling` refuses them), the steps
+  // already taken reach the row before it is closed, and then the held raid
+  // is let go.
+  const held = heldRaid(session.sub);
+  const wasSettling = held?.settling;
+  if (held) held.settling = true;
+  await raidWritten(session.sub);
+  dropRaid(session.sub);
+  // The raider's row comes with the run: the defender's alert below names
+  // them, and read after it, it was one more trip. Held, both are in hand.
+  const [run, attacker] = held && !wasSettling
+    ? [held.run, held.raider.attacker]
+    : await Promise.all([
+      db.query.raidRuns.findFirst({
+        where: and(eq(raidRuns.attackerId, session.sub), isNull(raidRuns.endedAt)),
+        orderBy: desc(raidRuns.startedAt),
+      }),
+      db.query.players.findFirst({ where: eq(players.id, session.sub) }),
+    ]);
   // Already gone: report success rather than an error. A double-tap on Retreat
   // must not look like a failure.
   if (!run) return Response.json({ raid: null });
 
-  await db.update(raidRuns)
-    .set({ endedAt: new Date(), succeeded: false, carrotsLooted: 0 })
-    .where(eq(raidRuns.id, run.id));
+  // Closed only if still open: a last step settling at this very moment, or
+  // the defender's lightning, ended it already — and their ending stands.
+  const retreated: RaidRun = { ...run, endedAt: new Date(), succeeded: false, carrotsLooted: 0 };
+  const [closed] = await db.update(raidRuns)
+    .set({ endedAt: retreated.endedAt, succeeded: false, carrotsLooted: 0 })
+    .where(and(eq(raidRuns.id, run.id), isNull(raidRuns.endedAt)))
+    .returning({ id: raidRuns.id });
+  if (!closed) return Response.json({ raid: null });
   // The defender sees them turn back, rather than a rabbit that simply stops —
   // but only if they were ever told someone was coming. A raid abandoned
   // without a step was never announced (see the POST), so reporting the
   // retreat would be the first and only word the defender heard about it: a
   // rabbit appearing on their burrow purely in order to leave it.
-  if (run.visited.length > 1) await tellDefender(run.id);
+  if (run.visited.length > 1) await tellDefender(retreated, attacker);
 
   return Response.json({ raid: null });
 }
@@ -898,10 +1137,11 @@ async function cut(
   const side = typeof target.side === 'string' ? target.side : null;
   if (run.cutAt) return Response.json({ error: 'axe_used' }, { status: 409 });
 
-  const walled = fencedSpans(
-    await db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
-  );
-  await loadBurrowEdits(run.defenderId);
+  const [fenceRows] = await Promise.all([
+    db.query.fences.findMany({ where: eq(fences.ownerId, run.defenderId) }),
+    loadBurrowEdits(run.defenderId),
+  ]);
+  const walled = fencedSpans(fenceRows);
   const reach = axeTargets(run.defenderId, walled, run.tile);
   const isPlank = side !== null;
   const ok = Number.isInteger(tile) && (isPlank
@@ -955,6 +1195,12 @@ async function cut(
   if (outcome !== 'cut') {
     return Response.json({ error: outcome }, { status: outcome === 'axe_used' ? 409 : 400 });
   }
-  await tellDefender(run.id);
-  return Response.json({ raid: await raidView(run.id), cut: { tile, side } });
+  // The axe changed the row (`cutAt`) and the ground (a tree, planks): both
+  // read again, once, for the defender's alert and the view alike — and by
+  // any other raid on this burrow, at its next step.
+  groundChanged(run.defenderId);
+  const after = await db.query.raidRuns.findFirst({ where: eq(raidRuns.id, run.id) });
+  if (!after) return Response.json({ error: 'no_raid' }, { status: 404 });
+  const [, view] = await Promise.all([tellDefender(after), raidView(after)]);
+  return Response.json({ raid: view, cut: { tile, side } });
 }

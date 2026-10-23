@@ -39,19 +39,23 @@ export async function grantStartingKit(
   tx: typeof db | PgTransaction<never, never, never> = db,
 ): Promise<void> {
   const { BLOOP, ENERGY_PACK, FENCES, LIGHTNING } = await import('../../../config/tuning');
-  await (tx as typeof db)
-    .insert(inventory)
-    .values([
-      { playerId, kind: 'fence', qty: FENCES.STARTING },
-      { playerId, kind: 'lightning', qty: LIGHTNING.STARTING },
-      { playerId, kind: 'bloop', qty: BLOOP.STARTING },
-      { playerId, kind: 'energy', qty: ENERGY_PACK.STARTING },
-    ])
-    // Do NOTHING on conflict, never a set: a player who already has fences or
-    // bolts or bloops has played, and re-running this must not top them back up to the
-    // starting three — nor overwrite a bag they have spent down.
-    .onConflictDoNothing();
-  // Skips a burrow that already has a bomb or a plank standing, so a retried
-  // sign-in places it once.
-  await placeDefaultDefence(playerId, tx);
+  // The bag and the default defence together — one trip less on the first
+  // launch, to a database that may be on another continent.
+  await Promise.all([
+    (tx as typeof db)
+      .insert(inventory)
+      .values([
+        { playerId, kind: 'fence', qty: FENCES.STARTING },
+        { playerId, kind: 'lightning', qty: LIGHTNING.STARTING },
+        { playerId, kind: 'bloop', qty: BLOOP.STARTING },
+        { playerId, kind: 'energy', qty: ENERGY_PACK.STARTING },
+      ])
+      // Do NOTHING on conflict, never a set: a player who already has fences or
+      // bolts or bloops has played, and re-running this must not top them back up to the
+      // starting three — nor overwrite a bag they have spent down.
+      .onConflictDoNothing(),
+    // Skips a burrow that already has a bomb or a plank standing, so a retried
+    // sign-in places it once.
+    placeDefaultDefence(playerId, tx),
+  ]);
 }

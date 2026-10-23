@@ -26,6 +26,10 @@ var _solo_note: Label
 ## vide = la phrase par defaut de l'etat.
 var _solo_msg := ""
 var _solo_busy := false
+## LE SERVEUR (2026-10-23) : « Auto », le plus proche avant chaque ile, ou une
+## region forcee. Un toucher passe au suivant.
+var _server: Button
+var _server_words: Label
 var _words: Dictionary = {}
 
 
@@ -71,6 +75,22 @@ func _init(k: float = 0.7) -> void:
 	_words["quality"] = _say(27, 101, 304, 500, 46)
 	for i in 2:
 		_cards.append(_card(i, 32.0 + 337.0 * i, 354.0, 319.0 - 3.0 * i, 228.0))
+	# LE SERVEUR, sur la ligne du titre, entre le titre et les boutons du
+	# coin : le seul blanc du panneau ou « Serveur : Auto · Ameriques 213 ms »
+	# tient a 890 px (sous la qualite, il mordait sur son titre). Il remplace
+	# la planche de l'accueil. Rien a choisir contre un serveur nomme a la
+	# main (`--server=`).
+	_server = CampStyle.hit("Server")
+	_place(_server, 620, 10, 440, 42)
+	_server_words = CampStyle.text("", 20 * M * _k, CampStyle.COPPER)
+	_server_words.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_server_words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_server_words.clip_text = true
+	_server_words.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	Kit.fill(_server_words)
+	_server.add_child(_server_words)
+	_server.pressed.connect(_on_server_pressed)
+	_server.visible = Net._override() == ""
 
 	# Le mode solo.
 	_solo_box = Control.new()
@@ -115,6 +135,7 @@ func _ready() -> void:
 	_relabel()
 	I18N.locale_changed.connect(func(_c: String) -> void: _relabel())
 	PassState.shared().changed.connect(_reflect)
+	Net.region_changed.connect(func(_c: String) -> void: _reflect_server())
 
 
 # ── Les pieces, en coordonnees de la maquette 05 ─────────────────────────────
@@ -219,7 +240,46 @@ func _reflect() -> void:
 		frame.slice = Vector4i(c, c, c, c)
 		frame.edge = Vector4.ONE * c * _k
 		_cards[i].get_node("Check").visible = on
+	_reflect_server()
 	_reflect_solo(w)
+
+
+## « Serveur : Auto · Europe 45 ms », ou la region forcee et son ping.
+func _reflect_server() -> void:
+	var here := ""
+	if Net.region != "":
+		here = I18N.t("auth.region." + Net.region)
+		var ms := int(Net.pings.get(Net.region, -1))
+		if ms >= 0:
+			here += " %d ms" % ms
+	var choice := I18N.t("auth.region.auto") if Net.server_pick() == "auto" else here
+	if Net.server_pick() == "auto" and not here.is_empty():
+		choice += " · " + here
+	_server_words.text = I18N.f("auth.region.setting", [choice])
+	# Pas en pleine ile : elle vit sur ce serveur-ci, la socket ne le quitte
+	# pas avant le retour au terrier.
+	_server.disabled = GameSocket.wants_seat()
+	_server.modulate.a = 0.5 if _server.disabled else 1.0
+
+
+## Auto, puis chaque region qui a repondu a la derniere mesure (et celle ou
+## l'on est), puis Auto. Revenir a Auto va au plus proche (remesure si la
+## mesure a plus d'une minute).
+func _on_server_pressed() -> void:
+	if GameSocket.wants_seat():
+		return
+	var picks: Array[String] = ["auto"]
+	for r in Net.REGIONS:
+		var code := String(r.code)
+		if code == Net.region or int(Net.pings.get(code, -1)) >= 0:
+			picks.append(code)
+	var next := picks[(maxi(0, picks.find(Net.server_pick())) + 1) % picks.size()]
+	Analytics.track("region_pick", {"region": next})
+	Net.set_server_pick(next)
+	_reflect_server()
+	if next == "auto":
+		await Net.settle_for_island()
+		_reflect_server()
 
 
 ## LE MODE SOLO. Cache avant RAID_MIN : les iles des niveaux 1-2 sont deja a

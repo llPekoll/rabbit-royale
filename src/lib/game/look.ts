@@ -44,13 +44,21 @@ export async function skinsOf(ids: string[], tx: Tx = db): Promise<Map<string, s
  * The look of a page of players, by id. A failed skin lookup costs the skin,
  * never the screen: the rabbit falls back to its fur.
  */
-export async function looksOf(players: Array<{ id: string; avatar: string | null }>, tx: Tx = db): Promise<Map<string, string>> {
+export async function looksOf(
+  players: Array<{ id: string; avatar: string | null; equippedSkin?: string | null }>,
+  tx: Tx = db,
+): Promise<Map<string, string>> {
+  // A caller holding the whole row already holds the skin: no trip to fetch
+  // what is in its hand (one round trip less, per page, for a far database).
+  if (players.every((p) => p.equippedSkin !== undefined)) {
+    return new Map(players.map((p) => [p.id, lookOf(p.avatar, p.equippedSkin)]));
+  }
   const skins = await skinsOf(players.map((p) => p.id), tx).catch(() => new Map<string, string>());
   return new Map(players.map((p) => [p.id, lookOf(p.avatar, skins.get(p.id))]));
 }
 
 /** The look of one player. */
-export async function playerLook(player: { id: string; avatar: string | null }, tx: Tx = db): Promise<string> {
+export async function playerLook(player: { id: string; avatar: string | null; equippedSkin?: string | null }, tx: Tx = db): Promise<string> {
   return (await looksOf([player], tx)).get(player.id)!;
 }
 
