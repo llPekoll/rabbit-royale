@@ -136,6 +136,47 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'tune',
+        text: {
+          en: 'Raids: after a raid takes your carrots, nobody can raid you for 30 minutes — time to rearm and put your planks back. And a burrow can be robbed at most 3 times a day.',
+          fr: 'Raids : après un raid qui t’a pris des carottes, personne ne peut te piller pendant 30 minutes — le temps de réarmer et de reposer tes planches. Et un terrier ne peut être pillé que 3 fois par jour.',
+          zh: '掠夺：被掠夺走胡萝卜后，30 分钟内谁也不能再掠夺你——足够重新布雷、装回木板。每个洞穴每天最多被掠夺 3 次。',
+          'pt-BR': 'Saques: depois que um saque leva suas cenouras, ninguém pode te saquear por 30 minutos — tempo de rearmar e recolocar as placas. E uma toca pode ser saqueada no máximo 3 vezes por dia.',
+          vi: 'Cướp hang: sau khi bị cướp mất cà rốt, không ai được cướp bạn trong 30 phút — đủ để gài lại bom và dựng lại ván. Mỗi hang bị cướp tối đa 3 lần mỗi ngày.',
+          es: 'Saqueos: tras un saqueo que te quita zanahorias, nadie puede saquearte durante 30 minutos — tiempo para rearmar y volver a poner tus tablas. Y una madriguera solo puede ser saqueada 3 veces al día.',
+          it: 'Razzie: dopo una razzia che ti ruba carote, nessuno può razziarti per 30 minuti — il tempo di riarmare e rimettere le tavole. E una tana può essere razziata al massimo 3 volte al giorno.',
+        },
+      },
+      {
+        kind: 'tune',
+        text: {
+          en: 'Shields in your bag now raise themselves: once raids have taken 300 carrots from you in 2 hours, one goes up on its own for 6 hours.',
+          fr: 'Les boucliers de ton sac se lèvent tout seuls : dès que des raids t’ont pris 300 carottes en 2 heures, l’un d’eux s’active pour 6 heures.',
+          zh: '背包里的护盾现在会自动开启：2 小时内被掠夺 300 根胡萝卜后，会自动升起一个，持续 6 小时。',
+          'pt-BR': 'Os escudos da sua bolsa agora se ativam sozinhos: quando saques levarem 300 cenouras em 2 horas, um deles sobe por 6 horas.',
+          vi: 'Khiên trong túi giờ tự bật: khi bị cướp 300 cà rốt trong 2 giờ, một chiếc tự dựng lên trong 6 giờ.',
+          es: 'Los escudos de tu bolsa ahora se activan solos: en cuanto los saqueos te quitan 300 zanahorias en 2 horas, uno se levanta durante 6 horas.',
+          it: 'Gli scudi nella tua borsa ora si attivano da soli: quando le razzie ti hanno rubato 300 carote in 2 ore, uno si alza per 6 ore.',
+        },
+      },
+      {
+        kind: 'fix',
+        text: {
+          en: 'Only one raider at a time can walk into a burrow.',
+          fr: 'Un seul pillard à la fois peut entrer dans un terrier.',
+          zh: '同一时间只能有一个掠夺者进入洞穴。',
+          'pt-BR': 'Só um saqueador por vez pode entrar numa toca.',
+          vi: 'Mỗi lúc chỉ một kẻ cướp được vào hang.',
+          es: 'Solo un saqueador a la vez puede entrar en una madriguera.',
+          it: 'Un solo predone alla volta può entrare in una tana.',
+        },
+      },
+    ],
+  },
+  {
+    date: '2026-10-23',
+    items: [
+      {
         kind: 'fix',
         text: {
           en: 'The browser version starts again: it stopped on a black screen saying “null function”.',

@@ -30,6 +30,7 @@ import {
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
 import { raidDoors } from '@/lib/game/raid-door';
+import { autoShield, burrowBusy, restOf } from '@/lib/game/raid-guard';
 import { burrowNeighbors, entranceTile, burrowCell, setBurrowEdits } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
@@ -564,6 +565,17 @@ export async function POST(req: Request) {
     }, { status: 409 });
   }
 
+  // THE BURROW'S GUARD (lib/game/raid-guard): a breather after every raid that
+  // took something and a ceiling per day, whoever the raiders, and one raider
+  // at a time. The shield's refusal, so a client that knows one knows these.
+  const [rest, busy] = await Promise.all([
+    restOf([defender.id], now),
+    burrowBusy(defender.id, session.sub, now),
+  ]);
+  const restMs = rest.get(defender.id) ?? 0;
+  if (restMs > 0) return Response.json({ error: 'target_shielded', rest: true, retryInMs: restMs }, { status: 400 });
+  if (busy) return Response.json({ error: 'target_shielded', busy: true }, { status: 400 });
+
   /**
    * Nobody gets farmed: one attack per victim per window.
    *
@@ -1019,6 +1031,13 @@ async function settleLastStep(
           scoreTransferred: outcome.lootFromStock,
         }),
       ]);
+      // A SHIELD FROM THEIR BAG, if the window's raids have now taken enough
+      // (RAID.AUTO_SHIELD_LOSS) — after this haul is on its row, so it counts.
+      if (outcome.loot > 0) {
+        await autoShield(tx, run.defenderId, new Date(now.getTime() + (reachedField
+          ? RAID.BROKEN_SHIELD_MS
+          : RAID_RUN.SHIELD_AFTER_RAID_MS)), now);
+      }
       return { outcome, tank };
     });
     if (!settled) return Response.json({ error: 'step_conflict' }, { status: 409 });

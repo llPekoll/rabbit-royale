@@ -1222,6 +1222,32 @@ export const RAID_RUN = {
   /** Attacks on one victim per rolling window, so nobody is farmed. */
   COOLDOWN_MS: 60 * 60 * 1000,
   /**
+   * THE BURROW'S BREATHER (2026-10-23): after a raid that took carrots, NOBODY
+   * may raid that burrow for this long — COOLDOWN_MS is per raider, and two
+   * raiders (or one player on two accounts) walked the same path seconds
+   * apart: the first sprang the bomb and cut the plank, the second strolled
+   * in. Measured in Europe the week before: 31 such chains in 11 days, the
+   * second raid trap-free and at the 1 200 cap. Long enough to rearm and put a
+   * plank back; too short to protect anybody overnight (that is VICTIM_DAY_CAP).
+   */
+  VICTIM_REST_MS: 30 * 60 * 1000,
+  /**
+   * At most this many raids that TOOK carrots per burrow per rolling 24 h,
+   * whoever the raiders (2026-10-23). The free shield after a raid went to 0
+   * on 19 October and Rubio went from one raid a day to eleven. Replayed on
+   * the fortnight's real raids (tools/raid-shield-replay.ts): at 3, Rubio's
+   * worst day falls from 10 696 to 2 224, the region's daily theft by 29 %,
+   * and the top raider still makes ~2 400 a day.
+   */
+  VICTIM_DAY_CAP: 3,
+  /**
+   * ONE RAIDER AT A TIME on a burrow: a crossing opened by someone else less
+   * than this long ago holds the door. Without it the breather above is
+   * dodged by opening the second raid while the first is still walking.
+   * Bounded, so a raid abandoned without its DELETE cannot shut a burrow.
+   */
+  BUSY_MS: 10 * 60 * 1000,
+  /**
    * SOLO is closed for this long after your last WALKED raid (2026-10-02):
    * otherwise a raider strikes and pulls up the drawbridge before the victim
    * can answer. Two hours, the user's call — "sinon c'est trop facile".
@@ -1320,6 +1346,16 @@ export const RAID = {
   ONBOARDING_SHIELD_MS: 48 * 60 * 60 * 1000,
   /** Duration of a consumable shield item. */
   ITEM_SHIELD_MS: 6 * 60 * 60 * 1000,
+  /**
+   * THE SHIELD RAISES ITSELF (2026-10-23): when raids have taken this many
+   * carrots from a burrow inside AUTO_SHIELD_WINDOW_MS, a shield from the
+   * owner's bag goes up on its own, for ITEM_SHIELD_MS. The players being
+   * farmed had BOUGHT shields — GrimClover93 16, holding 15; Rubio 11, holding
+   * 14 — and lost thousands with them in the bag, because a shield only ever
+   * rose from the burrow screen. 0 turns it off.
+   */
+  AUTO_SHIELD_LOSS: 300,
+  AUTO_SHIELD_WINDOW_MS: 2 * 60 * 60 * 1000,
   /** Damage reduction while shielded (1 = immune). */
   SHIELD_REDUCTION: 1,
 } as const;

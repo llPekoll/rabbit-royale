@@ -11,7 +11,8 @@
  * that says "raid" is a door that opens:
  *
  *   self → level (both ways) → solo (both ways) → shield → nothing to take /
- *   asleep and already taken → my per-victim cooldown.
+ *   asleep and already taken → my per-victim cooldown, and the burrow's own
+ *   breather and daily ceiling (raid-guard), both read as a shield.
  *
  * Energy is not here: it is the viewer's, the same for every row, and the
  * door says so itself when pressed.
@@ -22,6 +23,7 @@ import { players, raidRuns } from '@/lib/db/schema';
 import { connectedAmong, onlineAmong } from '@/lib/presence';
 import { asleep, nothingToTake } from '@/lib/game/raid';
 import { gardenYield } from '@/lib/game/regen';
+import { restOf } from '@/lib/game/raid-guard';
 import { RABBIT_LEVELS } from '@config/tuning';
 import { RAID_RUN } from '@/lib/tuning/tables';
 
@@ -79,7 +81,7 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
   // The viewer is read WITH the doors, not before them: one round trip to a
   // database that may be a continent away. A viewer who cannot raid wasted
   // two small reads; everyone else saved a trip on every list.
-  const [me, rows, recent, connected, digging] = await Promise.all([
+  const [me, rows, recent, connected, digging, rest] = await Promise.all([
     db.query.players.findFirst({ where: eq(players.id, viewerId), columns: { level: true, solo: true } }),
     db.select({
       id: players.id,
@@ -110,13 +112,16 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
       .groupBy(raidRuns.defenderId),
     connectedAmong(others),
     onlineAmong(others),
+    // The burrow's own breather and daily ceiling (raid-guard): a wait like
+    // my cooldown, whoever raided them.
+    restOf(others, now),
   ]);
   if (!me || me.level < RABBIT_LEVELS.RAID_MIN || me.solo) return null;
   const doors = new Map<string, RaidDoor>();
   const lastRaid = new Map(recent.map((r) => [r.id, new Date(r.at).getTime()]));
   for (const p of rows) {
     const at = lastRaid.get(p.id);
-    const cooldownLeft = at ? Math.max(0, RAID_RUN.COOLDOWN_MS - (now - at)) : 0;
+    const cooldownLeft = Math.max(at ? Math.max(0, RAID_RUN.COOLDOWN_MS - (now - at)) : 0, rest.get(p.id) ?? 0);
     const door = doorOf({
       level: p.level,
       solo: p.solo,
