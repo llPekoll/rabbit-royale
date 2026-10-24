@@ -13,7 +13,10 @@
 #
 # Build on the deploy arch (the target VPS is amd64): from an arm64 dev box add
 # --platform=linux/amd64. Coolify builds on the host, so it matches natively.
-FROM oven/bun:1-alpine AS build
+# Pinned, not `1-alpine`: the compiled binary carries the builder's runtime,
+# and a floating tag stays whatever the build cache last pulled. 1.4.4 is the
+# first with the Brotli fix (CVE-2026-111497).
+FROM oven/bun:1.4.4-alpine AS build
 WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile

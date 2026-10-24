@@ -22,22 +22,22 @@
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
     "bs58": "^6.0.0",
-    "drizzle-orm": "^0.45.1",
-    "jose": "^6.2.3",
-    "postgres": "^3.4.8",
+    "drizzle-orm": "^0.45.4",
+    "jose": "^6.2.13",
+    "postgres": "^3.4.9",
     "react": "19.2.4",
-    "redis": "^5.10.0",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "redis": "^5.12.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "drizzle-kit": "^0.31.10",
-    "playwright": "^1.63.0",
-    "typescript": "^5",
-    "vite": "^8.0.0",
-    "vitest": "^4.1.9"
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "playwright": "^1.64.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   },
   "type": "module"
 }
