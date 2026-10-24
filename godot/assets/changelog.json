@@ -108,6 +108,36 @@
   },
   "releases": [
     {
+      "version": "v1.20",
+      "date": "2026-10-24",
+      "items": [
+        {
+          "kind": "new",
+          "text": {
+            "en": "A new look for the island and the burrow: hand-painted grass, coasts in relief and a painted sea with its foam.",
+            "fr": "Un nouveau look pour l’île et le terrier : herbe peinte à la main, côtes en relief et une mer peinte avec son écume.",
+            "zh": "小岛和洞穴换上新外观：手绘草地、立体海岸，还有带浪花的手绘大海。",
+            "pt-BR": "Um visual novo para a ilha e a toca: grama pintada à mão, costas em relevo e um mar pintado com sua espuma.",
+            "vi": "Diện mạo mới cho đảo và hang: cỏ vẽ tay, bờ biển nổi khối và mặt biển vẽ tay cùng bọt sóng.",
+            "es": "Un nuevo aspecto para la isla y la madriguera: hierba pintada a mano, costas en relieve y un mar pintado con su espuma.",
+            "it": "Un nuovo look per l’isola e la tana: erba dipinta a mano, coste in rilievo e un mare dipinto con la sua schiuma."
+          }
+        },
+        {
+          "kind": "tune",
+          "text": {
+            "en": "When you drag the island around, the camera now stays put until your rabbit reaches the edge of the screen.",
+            "fr": "Quand tu fais glisser l’île, la caméra ne bouge plus tant que ton lapin n’arrive pas au bord de l’écran.",
+            "zh": "拖动小岛后，镜头会保持不动，直到你的兔子走到屏幕边缘。",
+            "pt-BR": "Quando você arrasta a ilha, a câmera agora fica parada até seu coelho chegar à borda da tela.",
+            "vi": "Khi bạn kéo đảo, camera giờ đứng yên cho đến khi thỏ của bạn chạm mép màn hình.",
+            "es": "Cuando arrastras la isla, la cámara ya no se mueve hasta que tu conejo llega al borde de la pantalla.",
+            "it": "Quando trascini l’isola, la telecamera ora resta ferma finché il tuo coniglio non arriva al bordo dello schermo."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.19",
       "date": "2026-10-23",
       "items": [

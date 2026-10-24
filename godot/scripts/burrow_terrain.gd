@@ -108,10 +108,17 @@ const UNDERLAY := Color("#9bb94e")
 ## des gouttes d'ecume en sautent (`_open_shore`, ShoreSpray). Faux : le bord
 ## d'avant, pour le banc qui compare.
 var open_shore := true
-## Les gouttes, au-dessus de la motte (Z_BED).
+## Les gouttes, au-dessus de la motte (Z_BED). GrassTerrain les eteint : sa
+## mer peinte a sa propre ecume.
 const Z_SPRAY := 3
+var shore_spray := true
+## VRAI QUAND LE TERRAIN PEINT SA MER (GrassTerrain, apres `dress_shore`) : le
+## lieu eteint alors l'ecume d'Ocean, qui se poserait dessus.
+var paints_sea := false
 
 var map: BurrowMap
+## Intensite visuelle des pentes. Le jeu garde 1; le banc peut l'attenuer.
+var slope_shading := 1.0
 var _underlay: Polygon2D
 var _blocks: Array[Node2D] = []
 ## LE BLOC DE CHAQUE CASE, adressable — c'est ce dans quoi on monte un voile.
@@ -365,7 +372,7 @@ func build() -> void:
 				var warp := [px, _rock[FACE_ROW][bcol],
 					faces.call(col, row + 1), faces.call(col + 1, row)]
 				grass = Slopes.ramp_texture(
-					grass, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3])
+					grass, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3], slope_shading)
 				_warp_at[Vector2i(col, row)] = [ground, warp]
 			ground.texture = grass
 			ground.centered = false
@@ -380,7 +387,7 @@ func build() -> void:
 				_ground_at[Vector2i(col, row)] = ground
 
 			# LES GOUTTES, sur les cotes du rivage que la camera voit.
-			if open_shore:
+			if open_shore and shore_spray:
 				var south := map.level_at(col, row + 1) == 0
 				var east := map.level_at(col + 1, row) == 0
 				if south or east:
@@ -538,8 +545,29 @@ func set_sod_look(cell: Vector2i, look: int, fogged: bool) -> void:
 		return
 	var row := clampi(map.level_at(cell.x, cell.y) - 1, 0, TileView.DIG_TILE_TIERS - 1)
 	sod.texture = sod_texture(cell, row, look)
-	sod.modulate = TileView.sod_tint(cell) * TileView._fog_shade(fogged)
-	set_rise(cell, TileView.RAISED_RISE if look == TileView.Look.COVERED else TileView.PRESSED_RISE)
+	sod.modulate = sod_tint(cell) * TileView._fog_shade(fogged)
+	dress_sod(cell, sod, look)
+	set_rise(cell, sod_rise(look))
+
+
+## LES TROIS CROCHETS D'UNE MOTTE, pour l'ile (TileView) comme pour le
+## terrier : sa hauteur, sa nuance, et ce qu'on lui met en plus (la motte
+## de GrassTerrain).
+func sod_rise(look: int) -> float:
+	return TileView._rise_of(look)
+
+
+func sod_tint(cell: Vector2i) -> Color:
+	return TileView.sod_tint(cell)
+
+
+func dress_sod(_cell: Vector2i, _sod: Sprite2D, _look: int) -> void:
+	pass
+
+
+## LE RIVAGE, une fois les mottes posees. Rien ici : voir GrassTerrain.
+func dress_shore() -> void:
+	pass
 
 
 func has_sod(cell: Vector2i) -> bool:
@@ -575,7 +603,7 @@ func paint_field(cells: Array[Vector2i]) -> void:
 			var warp: Array = _warp_at[c][1]
 			if is_instance_valid(warped):
 				warped.texture = Slopes.ramp_texture(
-					sand, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3])
+					sand, warp[0], warp[1], BurrowMap.TIER_LIFT, warp[2], warp[3], slope_shading)
 		# LE CARRE DE JARDIN : la motte des cases de l'ile, en terre retournee,
 		# posee sur le sable. Le sable reste dessous : c'est lui qui se voit
 		# entre deux carres, comme un chemin.
@@ -667,7 +695,7 @@ func sod_texture(cell: Vector2i, row: int, look: int) -> Texture2D:
 	frame.atlas = TileView.DIG_TILE
 	frame.region = Rect2((maxi(form, 0) * 2 + look) * TILE, row * TILE, TILE, TILE)
 	if form < 0:
-		return _open_shore(cell, Slopes.ramp_texture(frame, lifts, null, 0, false, false))
+		return _open_shore(cell, Slopes.ramp_texture(frame, lifts, null, 0, false, false, slope_shading))
 	return _open_shore(cell, frame)
 
 

@@ -375,7 +375,9 @@ func _thrown(bomb: Vector2i, back: Vector2i, seq: int) -> void:
 ##
 ## LE VOL NE REBONDIT PAS : il continue sous la surface. Un rebond dit « sol »,
 ## et c'est toute la difference entre etre jete SUR quelque chose et DEDANS.
-func drown(toward: Vector2i, back: Vector2i, under_ms: int) -> void:
+## `spin` : pousse, il tombe en vrille ; parti de lui-meme (le saut rate du
+## clip, `leapt`), un simple saut — la vrille y faisait « hyper etrange ».
+func drown(toward: Vector2i, back: Vector2i, under_ms: int, spin: bool = true) -> void:
 	if _sprite == null:
 		return
 	_land()
@@ -389,13 +391,17 @@ func drown(toward: Vector2i, back: Vector2i, under_ms: int) -> void:
 	_under = true
 	_at = back
 	_home = back
-	_sprite.play("damage")
+	_sprite.play("damage" if spin else "move")
 	if not _sprite.animation_finished.is_connected(_rest):
 		_sprite.animation_finished.connect(_rest, CONNECT_ONE_SHOT)
-	_spin_from_belly(true)
+	if spin:
+		_spin_from_belly(true)
 	z_index = Z_AIR
 	var fall := DROWN_FALL
-	_flight = _arc(from, splash_at, 24.0 + span * 0.22, fall, 1)
+	# Pousse, il est lance haut ; parti de lui-meme, un saut a peine plus haut
+	# qu'un pas.
+	var height := 24.0 + span * 0.22 if spin else 8.0 + span * 0.06
+	_flight = _arc(from, splash_at, height, fall, 1 if spin else 0)
 	_hop = _flight
 	_flight.tween_callback(func() -> void:
 		# IL CASSE LA SURFACE : la gerbe sur cette image-la, pas avant.

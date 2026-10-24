@@ -14,7 +14,7 @@
 ; mesure ; le reste se posera dans ces memes blocs.
 
 [ext_resource type="Script" path="res://scripts/island.gd" id="1_island"]
-[ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
+[ext_resource type="Script" path="res://scripts/grass_terrain.gd" id="2_terrain"]
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="3_hints"]
 [ext_resource type="PackedScene" path="res://scenes/ocean.tscn" id="4_ocean"]
 [ext_resource type="Script" path="res://scripts/sky_light.gd" id="8_sky"]

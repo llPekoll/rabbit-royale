@@ -343,12 +343,13 @@ func build() -> void:
 			looks.append(terrain.sod_texture(cell, tier_row, i))
 		_looks[cell] = looks
 		fog.texture = looks[Look.COVERED]
-		fog.modulate = sod_tint(cell)
+		fog.modulate = terrain.sod_tint(cell)
 		terrain.mount_tile(cell, fog, Z_FOG)
+		terrain.dress_sod(cell, fog, Look.COVERED)
 		# LEVEE DES LA POSE : tout ce qu'on monte ensuite sur la case (X,
 		# chiffre, coffre, buisson) part de son dessus.
 		_look[cell] = Look.COVERED
-		terrain.set_rise(cell, RAISED_RISE)
+		terrain.set_rise(cell, terrain.sod_rise(Look.COVERED))
 		_fog[cell] = fog
 
 		# LE X, cache tant que la case n'est ni marquee ni enseignee. Un sprite
@@ -829,8 +830,9 @@ func _show_look(cell: Vector2i, look: int) -> void:
 	fog.visible = look != Look.DUG
 	if look != Look.DUG:
 		fog.texture = (_looks[cell] as Array)[look]
+		terrain.dress_sod(cell, fog, look)
 	if was != look:
-		terrain.set_rise(cell, _rise_of(look))
+		terrain.set_rise(cell, terrain.sod_rise(look))
 
 
 ## POSE OU LEVE LE BROUILLARD de chaque motte, d'apres ce qui est MONTRE (la
@@ -843,7 +845,7 @@ func _refresh_fog() -> void:
 			continue
 		_fogged[cell] = fogged
 		var fog: Sprite2D = _fog[cell]
-		var target := sod_tint(cell) * _fog_shade(fogged)
+		var target := terrain.sod_tint(cell) * _fog_shade(fogged)
 		var old: Tween = _fog_fades.get(cell)
 		if old != null and old.is_valid():
 			old.kill()
@@ -918,6 +920,7 @@ func _pop_tile(cell: Vector2i) -> void:
 	clod.position = fog.position
 	clod.z_index = fog.z_index
 	clod.modulate = fog.modulate
+	clod.material = fog.material
 	fog.get_parent().add_child(clod)
 	var tw := clod.create_tween().set_parallel()
 	tw.tween_property(clod, "position:y", clod.position.y - POP_RISE, POP_SECONDS) \

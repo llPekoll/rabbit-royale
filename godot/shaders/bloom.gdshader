@@ -13,8 +13,11 @@ render_mode blend_add, unshaded;
 
 uniform sampler2D screen : hint_screen_texture, filter_linear_mipmap;
 // Sous 1 : sans HDR 2D, aucune couleur ne depasse 1.0.
-uniform float threshold = 0.65;
-uniform float intensity = 0.25;
+// 0.65/0.25 jusqu'au 2026-10-24 : la nouvelle herbe (GrassTerrain) est plus
+// claire, ses cases creusees jaune-vert passaient toutes au-dessus du seuil et
+// l'ile entiere bavait (« le bloom est un peu trop fort »).
+uniform float threshold = 0.78;
+uniform float intensity = 0.18;
 // Mip 2 = 1/4 de la resolution, mip 4 = 1/16.
 uniform float near_lod = 2.0;
 uniform float far_lod = 4.0;

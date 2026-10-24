@@ -44,6 +44,16 @@ func build(map: BurrowMap, seed_text: String) -> void:
 	ducks.build()
 
 
+## L'ECUME ET LE DEGRADE SE TAISENT quand le terrain peint sa propre mer (GrassTerrain) : la
+## sienne borde deja la terre, celle-ci se poserait par-dessus.
+func quiet_foam(quiet: bool) -> void:
+	foam.visible = not quiet
+	foam.set_process(not quiet)
+	# Son degrade plein ecran aussi : la mer peinte le couvre entierement, et
+	# il coutait 1 a 2 i/s au Seeker pour rien.
+	($Sea as CanvasLayer).visible = not quiet
+
+
 func clear() -> void:
 	foam.clear()
 	rocks.clear()

@@ -57,6 +57,8 @@ func _ready() -> void:
 			await _duel()
 		"dodge":
 			await _dodge()
+		"slip":
+			await _slip()
 
 
 ## Un drapeau sans `=` : `_args` ne garde que `--cle=valeur` (et deux noms).
@@ -420,6 +422,147 @@ func _dodge() -> void:
 	_island._on_pushed({"playerId": RIVAL, "from": board.index_of(shore), "sea": board.index_of(away),
 		"to": board.index_of(_middle_from(shore, dir)), "drowned": true, "stunMs": 2600,
 		"pushedBy": "me"})
+
+
+## LA GLISSADE (la video du nouveau sol, 2026-10-24) : Shiro creuse au bord de
+## l'eau, Kuro arrive dans son dos et saute pour le faire tomber ; Shiro
+## l'esquive, et c'est Kuro, emporte par son elan, qui file a la mer. Personne
+## ne le pousse. Le meme beat se tourne sur l'ancien sol et sur le nouveau, a
+## l'image pres : le montage coupe de l'un a l'autre pendant le saut
+## (`[film] f=N leap`). `--zoom=` resserre le cadre.
+func _slip() -> void:
+	var board := _board()
+	var ok := func(c: Vector2i) -> bool:
+		return board.content.has(c) and board.content[c] in [IslandBoard.Content.EMPTY, IslandBoard.Content.CARROT]
+	var sea := func(c: Vector2i) -> bool:
+		return not board.map.is_land(c.x, c.y)
+	var start: Vector2i = _island.local_run.at
+	var best := {}
+	for c: Vector2i in board.content:
+		# Vers le sud ou l'est seulement : la camera voit la chute, pas un dos.
+		for dir in [Vector2i(1, 0), Vector2i(0, 1)]:
+			if not sea.call(c + dir) or not sea.call(c + dir * 2) or not ok.call(c):
+				continue
+			var mid: Vector2i = c - dir
+			if not ok.call(mid) or not ok.call(mid - dir) or not ok.call(mid - dir * 2):
+				continue
+			for perp in [Vector2i(dir.y, dir.x), Vector2i(-dir.y, -dir.x)]:
+				var side: Vector2i = c + perp
+				if not ok.call(side):
+					continue
+				var d: float = Vector2(c - start).length()
+				if best.is_empty() or d < float(best.d):
+					best = {"c": c, "dir": dir, "mid": mid, "side": side, "d": d}
+	if best.is_empty():
+		push_warning("[trailer] pas de rivage pour la glissade")
+		return
+	var shore: Vector2i = best.c
+	var dir: Vector2i = best.dir
+	var mid: Vector2i = best.mid
+	_put_me(best.side)
+	# `--bare` : le sol seul, sans la couche du HUD ni la barre du haut.
+	if _flag("bare"):
+		(_hud.get_parent().get_parent() as CanvasLayer).visible = false
+		(_island._compass.get_parent() as CanvasLayer).visible = false
+	if _flag("no-music"):
+		AudioServer.set_bus_mute(AudioServer.get_bus_index("Music"), true)
+	# L'ILE ENTIERE D'ABORD, puis le cadre plonge sur le rivage.
+	var view := get_viewport().get_visible_rect().size
+	var close := _close_shot([shore, best.side, shore + dir, mid - dir])
+	_held_cam = BurrowCamera.board(board.map, view.x, view.y)
+	process_priority = 100
+	_mark("start")
+	_island._add_rival({"playerId": RIVAL, "tile": board.index_of(mid - dir * 2), "alive": true}, false)
+	var r: IslandRabbit = _island._rivals.get(RIVAL)
+	r.set_plate("Kuro", false)
+	_paint_kuro(r)
+	await _wait(1.0)
+	_mark("zoom")
+	await _glide_cam(_held_cam, close, 2.2)
+	await _wait(0.3)
+	# Shiro joue : il creuse la case du bord, pour de vrai.
+	await _by_hand(_cell_on_screen(shore), func() -> void: _island._local_tap(shore))
+	_mark("dig")
+	# La main a fait son travail : elle sort du cadre, en bas a droite.
+	if _hand != null:
+		var sprite_hand: Sprite2D = _hand.get("_hand")
+		var away := get_viewport().get_visible_rect().size + Vector2(80, 80)
+		create_tween().tween_property(sprite_hand, "position", away, 0.7) \
+			.set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await _wait(1.2)
+	# Il regarde la mer. Kuro approche, a pas de loup.
+	var sprite: AnimatedSprite2D = _island._rabbit.get("_sprite")
+	sprite.flip_h = _cell_on_screen(shore + dir).x < _cell_on_screen(shore).x
+	r.send_to(mid - dir)
+	await _wait(0.9)
+	r.send_to(mid)
+	await _wait(0.8)
+	# Il s'elance — Shiro fait un pas de cote, au dernier moment.
+	_mark("leap")
+	r.send_to(shore)
+	Sound.play("hop", 0.8)
+	await _wait(0.12)
+	_island._rabbit.send_to(best.side)
+	_island.local_run.at = best.side
+	Sound.play("hop")
+	await _wait(HomeRabbit.HOP_SECONDS)
+	# Personne au bout du saut : l'elan l'emporte a la mer.
+	_mark("fall")
+	_island._on_pushed({"playerId": RIVAL, "from": board.index_of(shore), "sea": board.index_of(shore + dir),
+		"to": board.index_of(_middle_from(shore, dir)), "drowned": true, "stunMs": 2400,
+		"pushedBy": "", "leapt": true})
+	# Il remonte ; le cadre s'ouvre sur l'ile entiere.
+	await _wait(3.4)
+	_mark("wide")
+	_glide_cam(close, BurrowCamera.board(board.map, view.x, view.y), 2.6)
+
+
+## L'IMAGE DU FILM, pour le montage : au Movie Maker, une image dessinee est
+## une image du film.
+func _mark(what: String) -> void:
+	print("[film] f=%d %s" % [Engine.get_frames_drawn(), what])
+
+
+## Le cadre `--zoom=` fois plus serre que celui de l'ile, centre sur le
+## milieu de `cells`.
+func _close_shot(cells: Array[Vector2i]) -> BurrowCamera.Shot:
+	var map := _board().map
+	var focus := Vector2.ZERO
+	for c in cells:
+		focus += map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h())
+	focus /= cells.size()
+	var view := get_viewport().get_visible_rect().size
+	var z := _island.scale.x * float(_args().get("zoom", "1"))
+	return BurrowCamera.Shot.new(z, view * Vector2(0.5, 0.5) - focus * z)
+
+
+## Le cadre tenu glisse de `from` a `to`. L'echelle se lerpe en log : un zoom
+## lineaire accelere a l'arrivee.
+func _glide_cam(from: BurrowCamera.Shot, to: BurrowCamera.Shot, seconds: float) -> void:
+	var view := get_viewport().get_visible_rect().size
+	# Le point de l'ile au centre du cadre, aux deux bouts.
+	var a := (view * 0.5 - from.at) / from.scale
+	var b := (view * 0.5 - to.at) / to.scale
+	var tw := create_tween()
+	tw.tween_method(func(t: float) -> void:
+		var z := exp(lerpf(log(from.scale), log(to.scale), t))
+		_held_cam = BurrowCamera.Shot.new(z, view * 0.5 - a.lerp(b, t) * z),
+		0.0, 1.0, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+
+
+## LE CADRE TENU : l'ile recadre apres chaque pas (et borne au plateau) ; le
+## film garde le sien, reapplique apres elle a chaque image.
+var _held_cam: BurrowCamera.Shot
+
+func _process(_delta: float) -> void:
+	if _held_cam == null:
+		return
+	var tw: Tween = _island._cam_tween
+	if tw != null and tw.is_valid():
+		tw.kill()
+	_island.scale = Vector2(_held_cam.scale, _held_cam.scale)
+	_island.position = _held_cam.at
 
 
 ## `--hunt` : LE PILOTE QUI CHERCHE LES BOMBES. Il marche vers la bombe pas

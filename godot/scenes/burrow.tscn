@@ -7,7 +7,7 @@
 ; rochers et canards. Le terrier du web est pose sur l'eau.
 
 [ext_resource type="Script" path="res://scripts/burrow.gd" id="1_burrow"]
-[ext_resource type="Script" path="res://scripts/burrow_terrain.gd" id="2_terrain"]
+[ext_resource type="Script" path="res://scripts/grass_terrain.gd" id="2_terrain"]
 [ext_resource type="Script" path="res://scripts/burrow_props.gd" id="3_props"]
 [ext_resource type="Script" path="res://scripts/fence_view.gd" id="4_fence"]
 [ext_resource type="Script" path="res://scripts/placement_hints.gd" id="5_hints"]

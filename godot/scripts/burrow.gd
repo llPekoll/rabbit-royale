@@ -1350,6 +1350,8 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 		if not in_field.has(c) and not yard.has(c):
 			sod_cells.append(c)
 	_terrain.lay_sods(sod_cells)
+	# LE RIVAGE APRES LES MOTTES (voir island.gd).
+	_terrain.dress_shore()
 	# LE DECOR DEBOUT du serveur : un arbre est une case que personne ne
 	# traverse et qu'on ne mine pas — sans lui, la grille laisse un trou que
 	# rien n'explique.
@@ -1362,6 +1364,7 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	# (`${seed}:ducks`) : la mare d'un joueur est toujours la meme.
 	# AUTOUR DES ILOTS AUSSI : la carte de la mer les englobe.
 	_ocean.build(_landmarks.sea_map if _landmarks.sea_map != null else _terrain.map, str(seed_value))
+	_ocean.quiet_foam(_terrain.paints_sea)
 	_follow_level()
 	# ET LES CLOTURES BORDENT LE CHAMP QUI VIENT D'ETRE SEME, celui-la meme et
 	# pas un second tirage de la graine : elles viennent donc APRES le potager,

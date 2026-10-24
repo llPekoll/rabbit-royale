@@ -86,14 +86,17 @@ static func edge_y(col: int) -> int:
 ## `sides` dit de quels cotes la bande doit pendre — vers la mer, le rivage est
 ## le bord et pas une falaise, donc on n'y pend rien.
 static func ramp_texture(src: Texture2D, lifts: Array, rock: Texture2D,
-		band_rows: int, sw: bool, se: bool) -> Texture2D:
+		band_rows: int, sw: bool, se: bool, shade_strength: float = 1.0) -> Texture2D:
+	# Le banc d'art peut attenuer l'ombre sans changer les pixels de geometrie.
+	# Par defaut, conserver exactement l'eclairage des surfaces existantes.
+	shade_strength = clampf(shade_strength, 0.0, 1.0)
 	# Une AtlasTexture repond le RID de SA PLANCHE : sans la region, deux
 	# cases du meme jeu blob partageraient une entree du cache.
 	var region := (src as AtlasTexture).region if src is AtlasTexture else Rect2()
-	var key := "%d@%s:%d,%d,%d,%d:%d:%d:%s%s" % [
+	var key := "%d@%s:%d,%d,%d,%d:%d:%d:%s%s:%s" % [
 		src.get_rid().get_id(), region, lifts[0], lifts[1], lifts[2], lifts[3],
 		band_rows, rock.get_rid().get_id() if rock != null else 0,
-		"1" if sw else "0", "1" if se else "0"]
+		"1" if sw else "0", "1" if se else "0", shade_strength]
 	if _cache.has(key):
 		return _cache[key]
 
@@ -113,7 +116,7 @@ static func ramp_texture(src: Texture2D, lifts: Array, rock: Texture2D,
 			rock_img.convert(Image.FORMAT_RGBA8)
 			img = _ensure_band(img, rows, rock_img, sw, se)
 
-	img = _warp_to_ramp(img, lifts)
+	img = _warp_to_ramp(img, lifts, shade_strength)
 	var out := ImageTexture.create_from_image(img)
 	_cache[key] = out
 	return out
@@ -173,7 +176,7 @@ static func _ensure_band(src: Image, rows: int, rock: Image, sw: bool, se: bool)
 ## de facette ramene le plus pres. C'est une recherche et non une formule
 ## inverse parce que le deplacement n'est pas inversible analytiquement — la
 ## facette change selon le cote de la diagonale ou l'on tombe.
-static func _warp_to_ramp(src: Image, lifts: Array) -> Image:
+static func _warp_to_ramp(src: Image, lifts: Array, shade_strength: float = 1.0) -> Image:
 	var w := src.get_width()
 	var h := src.get_height()
 	var out := Image.create_empty(w, h, false, Image.FORMAT_RGBA8)
@@ -227,6 +230,7 @@ static func _warp_to_ramp(src: Image, lifts: Array) -> Image:
 					var nx: float = -f[1] / g
 					var ny: float = -f[2] / g
 					k = SLOPE_SHADE - SLOPE_FACING * (nx + ny) + SLOPE_SIDE * (nx - ny)
+					k = lerpf(1.0, k, shade_strength)
 			out.set_pixel(X, Y, Color(c.r * k, c.g * k, c.b * k, c.a))
 	return out
 

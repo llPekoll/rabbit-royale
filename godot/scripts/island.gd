@@ -604,6 +604,10 @@ func show_ground(seed_value: String) -> void:
 		for cell in IslandScenery.cells_in_front(chest):
 			_board.decor.erase(cell)
 	_tiles.build()
+	# LE RIVAGE APRES LES MOTTES, AVANT LE DECOR : les levres de la cote ne vont
+	# que sur une motte, et la mer cuit la silhouette du sol seul.
+	_terrain.dress_shore()
+	_ocean.quiet_foam(_terrain.paints_sea)
 
 	# LE DECOR DEBOUT — arbres, reperes, moutons, soldats. Rebati a chaque sol :
 	# le terrain jette ses blocs, et le decor monte dedans meurt avec eux.
@@ -712,6 +716,11 @@ func _wanted_cam() -> BurrowCamera.Shot:
 ## sol sous chaque pas ; un rebond en plus le faisait tanguer.
 const FOLLOW_MARGIN := 0.3
 const FOLLOW_SECONDS := 0.45
+## LE PLATEAU GLISSE A LA MAIN, la camera ne reprend qu'au BORD : avec le tiers,
+## le premier pas apres un glissement ramenait tout au milieu (« hyper relou »,
+## 2026-10-24). Le haut garde la bande du HUD, le bas celle des boutons.
+const EDGE_MARGIN_X := 0.1
+const EDGE_MARGIN_BOTTOM := 0.15
 
 
 func _keep_in_view() -> void:
@@ -721,8 +730,15 @@ func _keep_in_view() -> void:
 	var here := _me_cell()
 	var focus := _terrain.map.screen_of(here.x, here.y) + Vector2(0, Iso.half_h())
 	var on := position + focus * scale.x
-	if on.x > view.x * FOLLOW_MARGIN and on.x < view.x * (1.0 - FOLLOW_MARGIN) \
-			and on.y > view.y * FOLLOW_MARGIN and on.y < view.y * (1.0 - FOLLOW_MARGIN):
+	var side := FOLLOW_MARGIN
+	var top := FOLLOW_MARGIN
+	var bottom := FOLLOW_MARGIN
+	if _cam_moved_by_player:
+		side = EDGE_MARGIN_X
+		top = HUD_TOP + 0.04
+		bottom = EDGE_MARGIN_BOTTOM
+	if on.x > view.x * side and on.x < view.x * (1.0 - side) \
+			and on.y > view.y * top and on.y < view.y * (1.0 - bottom):
 		return
 	var shot := _clamp_cam(BurrowCamera.Shot.new(scale.x, view * 0.5 - focus * scale.x))
 	if _cam_tween != null and _cam_tween.is_valid():
@@ -1562,7 +1578,7 @@ func _on_pushed(d: Dictionary) -> void:
 		var from := _board.cell_of(int(d.get("from", 0)))
 		var sea := _board.cell_of(int(d.get("sea", d.get("from", 0))))
 		var toward := Vector2i(signi(sea.x - from.x), signi(sea.y - from.y))
-		r.drown(toward, to, stun)
+		r.drown(toward, to, stun, not bool(d.get("leapt", false)))
 		get_tree().create_timer(IslandRabbit.DROWN_FALL).timeout.connect(func() -> void:
 			Sound.play("hop", 0.55))
 	else:
