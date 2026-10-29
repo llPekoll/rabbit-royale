@@ -230,7 +230,7 @@ export const playerIdentities = pgTable('player_identities', {
  * feature. So the game keeps `id` (the secret it polls with), the browser
  * carries `state` (a different random, the only one Google ever sees), and the
  * callback writes the outcome into `result` for the game's next poll.
- * Short-lived; rows are read once and deleted.
+ * Short-lived: readable until HANDOFF_TTL_MS, then swept (lib/auth/handoff.ts).
  */
 export const authHandoffs = pgTable('auth_handoffs', {
   id: text('id').primaryKey(),

@@ -47,19 +47,23 @@ export async function finishHandoff(id: string, result: HandoffResult): Promise<
 }
 
 /**
- * The outcome, read ONCE: the row (and the token in it) is deleted as it is
- * handed over. `null` while the browser is still on its way.
+ * The outcome, as many times as the game asks until the handoff expires.
+ *
+ * NOT read-once, and that is the fix of 2026-10-29: on a phone the game sits
+ * in the background while the browser works, and Android may cut its waiting
+ * request after the server answered it. Deleting the row on that first answer
+ * lost the token for good — the next poll read "expired" and the player saw
+ * "sign-in failed" right under a browser saying "you are signed in". Only the
+ * game knows `id`, so a second read hands the same session to the same game;
+ * the sweep in startHandoff deletes the row once HANDOFF_TTL_MS has passed.
+ * `null` while the browser is still on its way.
  */
 export async function takeHandoff(id: string, now: Date = new Date()): Promise<HandoffResult | null> {
   const row = await db.query.authHandoffs.findFirst({ where: eq(authHandoffs.id, id) });
   if (!row) return { error: 'expired' };
-  if (row.result) {
-    await db.delete(authHandoffs).where(eq(authHandoffs.id, id));
-    return row.result as HandoffResult;
-  }
   if (now.getTime() - row.createdAt.getTime() > HANDOFF_TTL_MS) {
     await db.delete(authHandoffs).where(eq(authHandoffs.id, id));
     return { error: 'expired' };
   }
-  return null;
+  return (row.result as HandoffResult | null) ?? null;
 }

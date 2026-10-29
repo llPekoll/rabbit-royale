@@ -108,6 +108,24 @@
   },
   "releases": [
     {
+      "version": "v1.20.1",
+      "date": "2026-10-29",
+      "items": [
+        {
+          "kind": "fix",
+          "text": {
+            "en": "Signing in with Google on a phone no longer fails when you come back to the game.",
+            "fr": "La connexion Google sur téléphone n’échoue plus quand tu reviens dans le jeu.",
+            "zh": "在手机上用 Google 登录后返回游戏时，不会再登录失败。",
+            "pt-BR": "Entrar com o Google no celular não falha mais quando você volta para o jogo.",
+            "vi": "Đăng nhập Google trên điện thoại không còn thất bại khi bạn quay lại trò chơi.",
+            "es": "Iniciar sesión con Google en el móvil ya no falla al volver al juego.",
+            "it": "L’accesso con Google sul telefono non fallisce più quando torni nel gioco."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.20",
       "date": "2026-10-24",
       "items": [
