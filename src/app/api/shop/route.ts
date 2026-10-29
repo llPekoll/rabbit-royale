@@ -25,6 +25,9 @@ import { TRAPS } from '@/lib/tuning/tables';
 import { enabledTokens } from '@/lib/pay/tokens';
 import { tokenUsdPrices } from '@/lib/pay/rates';
 import { treasuryAddress } from '@/lib/pay/solana';
+import { playEnabled } from '@/lib/pay/play';
+import { isWeb2 } from '@/lib/world';
+import { STORE_PRODUCTS } from '@config/store';
 
 /** Everything the shop screen needs, in one round trip. */
 export async function shopState(playerId: string) {
@@ -107,6 +110,14 @@ export async function shopState(playerId: string) {
     tokens: money ? enabledTokens() : [],
     /** USD per whole token, per rail. Null when the money route is off. */
     rates,
+    /**
+     * What the stores sell here (web2, config/store.ts): the store's product
+     * id and the kind it opens into. Empty in web3, and while no Play account
+     * is configured. No price: the client shows the store's own, localized.
+     */
+    storeProducts: isWeb2() && playEnabled()
+      ? Object.entries(STORE_PRODUCTS).map(([id, p]) => ({ id, kind: p.kind, consumable: p.consumable }))
+      : [],
   };
 }
 

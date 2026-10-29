@@ -33,6 +33,15 @@ export function playPackage(): string {
 }
 
 /**
+ * The App Store app's bundle id (godot/export_presets.cfg, "iOS"): the
+ * audience of its Sign in with Apple tokens, and the scheme its Google sheet
+ * closes on (lib/auth/handoff.ts).
+ */
+export function appleBundleId(): string {
+  return process.env.APPLE_BUNDLE_ID?.trim() || 'pro.gravity5.rabbitroyale';
+}
+
+/**
  * The /api routes that only exist in the web3 world. The router answers 404
  * for them on a web2 deployment — a route that is not there, rather than a
  * refusal a store reviewer could read as "the crypto is just switched off".
@@ -46,4 +55,14 @@ export const WEB3_ONLY_ROUTES: ReadonlySet<string> = new Set([
   '/api/shop/claim',
   '/api/webhooks/alchemy',
   '/api/genesis',
+]);
+
+/**
+ * The /api routes that only exist in the web2 world: buying through Google
+ * Play and the App Store, and the App Store app's Sign in with Apple. The Seeker and sol.rabbit.rip pay in crypto, and a
+ * store purchase on a web3 burrow would be money landing in the wrong world.
+ */
+export const WEB2_ONLY_ROUTES: ReadonlySet<string> = new Set([
+  '/api/store/play',
+  '/api/auth/apple/native',
 ]);

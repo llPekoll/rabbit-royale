@@ -52,3 +52,10 @@ plugin-src/local.properties
 
 # L'APK sort dans ../dist, qui est le dossier de build du client web et a déjà
 # sa propre règle à la racine. Rappelé ici pour qui lit ce fichier seul.
+
+# LE PLUGIN iOS RabbitApple : les .a compilés (le nôtre et godot-cpp, 37 Mo)
+# et les objets de scons, refaits par tools/build-ios.sh. Même raison que les
+# AAR Android ci-dessus.
+addons/RabbitApple/bin/
+plugin-src/apple/.sconsign.dblite
+plugin-src/apple/src/*.o

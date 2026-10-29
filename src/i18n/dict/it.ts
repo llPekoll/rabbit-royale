@@ -72,6 +72,8 @@ export const it: Dict = {
     alreadyLinked: 'Questa tana ha già un wallet.',
     linkFailed: 'Impossibile collegare questo wallet',
     google: 'Google',
+    apple: 'Apple',
+    appleContinue: 'Continua con Apple',
     email: 'Email',
     googleWaiting: 'Completa nel browser...',
     offline: 'Gioca offline',
@@ -687,6 +689,12 @@ export const it: Dict = {
        lo steccato è l'unica difesa di cui gli si parla, quindi lo orienta. */
     fenced: 'Uno steccato blocca la strada. Giraci intorno.',
     payments_unavailable: 'I pagamenti con carta non sono ancora configurati.',
+    /* Google Play / App Store (web2, api/store/play). */
+    store_unavailable: 'Il negozio non è ancora aperto qui.',
+    store_unreachable: 'Google Play non risponde. Il tuo acquisto è al sicuro: riapri il negozio tra un minuto.',
+    pending: 'Pagamento in attesa. Arriva appena Google lo conferma.',
+    wrong_account: 'Questo acquisto appartiene a un\'altra tana.',
+    token_used: 'Quell\'acquisto è già stato usato.',
     quote_expired: 'Questo prezzo è scaduto. Riprova.',
     signature_already_used: 'Questo pagamento è già stato usato.',
     not_confirmed_yet: 'Conferma sulla chain in corso...',

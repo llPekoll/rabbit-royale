@@ -43,10 +43,11 @@ const STRIP_VISIBLE := 3
 
 ## Lu par le chrome (`_center_dialog`) : la boutique prend la vue.
 var fullscreen := true
-## LE MONDE WEB2 (net.gd WORLD) : tout se paie en carottes. Ni rails USDC /
-## SOL / SKR, ni onglet SKINS (ils se vendent en crypto ; les achats integres
-## viendront avec Play et l'App Store), ni rattrapage de paiement.
+## LE MONDE WEB2 (net.gd WORLD) : ni rails USDC / SOL / SKR, ni rattrapage de
+## paiement. Sur le build Play, un rail « store » (StorePay) vend les packs au
+## prix de Play, et l'onglet SKINS revient ; ailleurs tout reste en carottes.
 var _web2 := Net.WORLD == "web2"
+var _store: StorePay
 ## BANC SEULEMENT : les achats sont faits sur place et fetes, rien ne part.
 var demo := false
 
@@ -97,6 +98,8 @@ func _ready() -> void:
 	_state = ShopState.shared()
 	_skin_state = SkinState.shared()
 	_pay = Shop.UsdcPay.new()
+	if _web2:
+		_store = StorePay.shared()
 	var bg := ForestShopStyle.picture(ForestShopStyle.BACKDROP, false)
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -122,6 +125,8 @@ func _ready() -> void:
 	resized.connect(_layout)
 	for source: Signal in [_state.changed, Home.changed, _pay.changed, _skin_state.changed, PassState.shared().changed]:
 		source.connect(_queue)
+	if _store != null:
+		_store.changed.connect(_queue)
 	I18N.locale_changed.connect(func(_code: String) -> void: _queue())
 	_state.bought.connect(_celebrate)
 	closed.connect(func() -> void:
@@ -251,6 +256,16 @@ func _skin_tokens() -> Array:
 ## Le rail suit l'onglet : les skins ne se paient qu'en argent, et un rail
 ## qui n'est plus pris revient aux carottes.
 func _fix_rail() -> void:
+	if _web2:
+		if _page == "skins":
+			if not _store_sells_skins():
+				_page = "packs"
+			return
+		if _rail == "store" and (_page != "packs" or not _store_sells_packs()):
+			_rail = "carrots"
+		elif _rail != "carrots" and _rail != "store":
+			_rail = "carrots"
+		return
 	if _page == "skins":
 		var tokens := _skin_tokens()
 		if not tokens.has(_rail):
@@ -264,7 +279,8 @@ func _render() -> void:
 	_fix_rail()
 	var drawn := var_to_str([_page, _rail, _skin, _skin_top, _pose, _armed, I18N.locale, _state.shop, _state.stock(),
 		_state.busy, _state.note, _state.load_failed, _pay.stage, _pay.error, _skin_state.catalog,
-		_skin_state.busy, _skin_state.note, _skin_state.loading, PassState.shared().on()])
+		_skin_state.busy, _skin_state.note, _skin_state.loading, PassState.shared().on(),
+		_store.prices if _store != null else null, _store.buying if _store != null else ""])
 	if drawn == _drawn:
 		return
 	_drawn = drawn
@@ -306,7 +322,7 @@ func _head() -> void:
 	close.pressed.connect(func() -> void: closed.emit())
 	var tabs := ["packs", "items", "skins"]
 	var names := [I18N.t("shop.tabPacks"), I18N.t("shop.tabItems"), I18N.t("shop.tabSkins")]
-	if _web2:
+	if _web2 and not _store_sells_skins():
 		tabs.resize(2)
 		names.resize(2)
 	for i in tabs.size():
@@ -318,12 +334,13 @@ func _head() -> void:
 			_armed = ""
 			_queue())
 	var rails: Array = MONEY if _page == "skins" else ["carrots"] + MONEY
-	if _web2:
-		rails = []
 	var live: Array = _skin_tokens() if _page == "skins" else ["carrots"] + _live_tokens()
+	if _web2:
+		rails = ["carrots", "store"] if _page == "packs" and _store_sells_packs() else []
+		live = rails
 	for i in rails.size():
 		var key: String = rails[i]
-		var b := _button("" if key == "carrots" else key.to_upper(), Rect2(704 + i * 116, 62, 110, 46), "tab-on" if key == _rail else "tab-off", 13)
+		var b := _button("" if key == "carrots" else _rail_word(key), Rect2(704 + i * 116, 62, 110, 46), "tab-on" if key == _rail else "tab-off", 13)
 		b.name = "Rail_" + key
 		if key == "carrots":
 			_pixel(Kit.ICONS["carrot"], Rect2(42, 9, 27, 28), b)
@@ -336,6 +353,26 @@ func _head() -> void:
 			_rail = key
 			_armed = ""
 			_queue())
+
+
+## Le mot d'un rail d'argent : le jeton, ou la devise de Play (« EUR »).
+func _rail_word(key: String) -> String:
+	if key == "store":
+		return _store.currency() if _store != null else "STORE"
+	return key.to_upper()
+
+
+func _store_sells_packs() -> bool:
+	return _store != null and ShopState.PACKS.any(func(k: String) -> bool: return _store.sells(k))
+
+
+func _store_sells_skins() -> bool:
+	return _store != null and SKINS.any(func(k: String) -> bool: return _store.sells(_skin_kind(k)))
+
+
+## La sorte d'un skin, depuis sa cle (« pink-october » → skin_pink_october).
+static func _skin_kind(key: String) -> String:
+	return "skin_" + key.replace("-", "_")
 
 
 ## Pourquoi les rails d'argent sont eteints (la meme paire que le pied).
@@ -480,14 +517,19 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	var kind := String(it.get("kind", ""))
 	var item_name := I18N.t("items." + kind + ".name")
 	var pack := ShopState.PACKS.has(kind)
-	var money := _rail != "carrots" and _live_tokens().has(_rail)
+	var store := _rail == "store" and _store != null
+	var money := store or (_rail != "carrots" and _live_tokens().has(_rail))
 	var full := not bool(it.get("hasRoom", true))
 	var can_buy := _state.can_buy(it)
 	var dead := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE or (full if money else not can_buy)
+	if store:
+		dead = _state.busy or not _store.buying.is_empty() or not _store.sells(kind) or full
 	var capped := full and not money
 	var armed := _armed == kind and not dead
 	var words := I18N.group_digits(int(it.get("price", 0))) + "  "
-	if money:
+	if store:
+		words = _store.price_for(kind) if _store.buying != kind else I18N.shout(I18N.t("skins.wait"))
+	elif money:
 		words = Shop.money_label(float(it.get("usdc", 0.0)), _rail, _state.shop.get("rates", null))
 	elif capped:
 		var running := String(ShopState.COUNTS.get(kind, "carried")) == "time"
@@ -503,7 +545,9 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	if not money and not capped and not armed:
 		_pixel(Kit.ICONS["carrot"], Rect2(rect.size.x - 39, 11, 23, 25), b)
 	var carrot_price := I18N.f("shop.priceLabel", [I18N.group_digits(int(it.get("price", 0)))])
-	if money:
+	if store:
+		b.tooltip_text = _store.price_for(kind)
+	elif money:
 		b.tooltip_text = "$%.2f" % float(it.get("usdc", 0.0))
 	elif full:
 		b.tooltip_text = I18N.f("shop.capped", [item_name, carrot_price])
@@ -512,7 +556,11 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	else:
 		b.tooltip_text = I18N.f("shop.tooPoor", [item_name, carrot_price])
 	b.pressed.connect(func() -> void:
-		if money:
+		if store and demo:
+			_state.bought.emit(kind, 1)
+		elif store:
+			_store.buy(kind)
+		elif money:
 			_pay_money(kind)
 		elif _armed == kind:
 			_armed = ""
@@ -697,6 +745,9 @@ func _skins() -> void:
 		return
 	var owned := _skin_state.owns(_skin)
 	var equipped: bool = _skin_state.catalog.get("equipped") == _skin
+	if _web2:
+		_store_skin(owned, equipped)
+		return
 	var pending := bool(item.get("pending", false)) and not owned
 	var price := Shop.money_label(float(item.get("usdCents", 0)) / 100.0, _rail, _skin_state.catalog.get("rates", null))
 	_label(I18N.t("skins.owned") if owned else price, Rect2(853, 328, 298, 57), 28)
@@ -738,6 +789,33 @@ func _skins() -> void:
 	restore.pressed.connect(_skin_state.recover.bind(key))
 
 
+## LE SKIN AU PRIX DE PLAY (web2). Pas de confirmation en deux pressions :
+## la feuille de Play demande deja. Ni wallet ni rattrapage : Play rend ses
+## achats non reconnus au lancement (StorePay._recover).
+func _store_skin(owned: bool, equipped: bool) -> void:
+	var kind := _skin_kind(_skin)
+	var price := _store.price_for(kind)
+	_label(I18N.t("skins.owned") if owned else price, Rect2(853, 328, 298, 57), 28)
+	var words := I18N.t("skins.equipped") if equipped else I18N.t("skins.equip")
+	if not owned:
+		words = I18N.t("skins.wait") if _store.buying == kind else I18N.t("skins.buy")
+	if _skin_state.busy:
+		words = I18N.t("skins.wait")
+	var action := _button(I18N.shout(words), Rect2(854, 408, 294, 66), "tab-on" if owned else "action", 21)
+	action.name = "SkinPrice"
+	action.disabled = _skin_state.busy or equipped or (not owned and (not _store.buying.is_empty() or not _store.sells(kind)))
+	if action.disabled:
+		action.modulate.a = 0.75
+	var key := _skin
+	action.pressed.connect(func() -> void:
+		if owned:
+			_skin_state.equip(key)
+		elif demo:
+			_skin_state.buy(key, "store")
+		else:
+			_store.buy(kind))
+
+
 ## Une fleche du carrousel : un cran vers le haut (-1) ou le bas (1).
 func _arrow(name: String, rect: Rect2, dir: int, live: bool) -> void:
 	var b := _button("", rect, "tab-off")
@@ -762,7 +840,10 @@ func _arrow(name: String, rect: Rect2, dir: int, live: bool) -> void:
 func _foot() -> void:
 	var words := ""
 	var bad := false
-	if _page == "skins":
+	if _page == "skins" and _web2:
+		words = _skin_state.note
+		bad = _skin_state.failed
+	elif _page == "skins":
 		var item := _skin_state.item(_skin)
 		var owned := _skin_state.owns(_skin)
 		words = _skin_state.note

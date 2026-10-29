@@ -84,6 +84,14 @@ class RabbitFirebasePlugin(godot: Godot) : GodotPlugin(godot) {
 			SignalInfo("push_permission", Boolean::class.javaObjectType)
 
 		/**
+		 * `(idToken, error)` de googleSignIn, l'un des deux vide. error :
+		 * "cancelled" (le joueur a fermé la feuille), "no_credential",
+		 * "unavailable" (pas d'activité), "failed" (le reste, dit au logcat).
+		 */
+		private val SIG_GOOGLE =
+			SignalInfo("google_signed_in", String::class.java, String::class.java)
+
+		/**
 		 * Le plugin vivant, pour RabbitMessagingService.onNewToken. Le service
 		 * et le plugin partagent le processus mais pas de référence ; ce champ
 		 * est le seul pont, et il est nul dès que l'activité est détruite.
@@ -207,7 +215,7 @@ class RabbitFirebasePlugin(godot: Godot) : GodotPlugin(godot) {
 	override fun getPluginName() = PLUGIN_NAME
 
 	override fun getPluginSignals(): MutableSet<SignalInfo> =
-		mutableSetOf(SIG_TOKEN, SIG_OPENED, SIG_PERMISSION)
+		mutableSetOf(SIG_TOKEN, SIG_OPENED, SIG_PERMISSION, SIG_GOOGLE)
 
 	/**
 	 * Le premier moment où GDScript écoute : Main::start() a rendu la main,
@@ -241,6 +249,23 @@ class RabbitFirebasePlugin(godot: Godot) : GodotPlugin(godot) {
 	/** Firebase a-t-il été configuré au build ? Faux = tout est no-op. */
 	@UsedByGodot
 	fun isAvailable(): Boolean = firebaseReady
+
+	// ─── Connexion Google (web2) ────────────────────────────────────────────
+
+	/**
+	 * Ouvre la feuille de comptes Google d'Android ; la réponse arrive sur
+	 * google_signed_in. Voir GoogleSignIn.kt. Toujours une réponse, même sans
+	 * activité : la façade l'attend avec `await`.
+	 */
+	@UsedByGodot
+	fun googleSignIn(webClientId: String) {
+		val activity = getActivity() ?: return emitSignal(SIG_GOOGLE.name, "", "unavailable")
+		activity.runOnUiThread {
+			GoogleSignIn.start(activity, webClientId) { token, error ->
+				emitSignal(SIG_GOOGLE.name, token, error)
+			}
+		}
+	}
 
 	// ─── Analytics ──────────────────────────────────────────────────────────
 

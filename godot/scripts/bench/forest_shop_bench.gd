@@ -5,6 +5,7 @@ extends Control
 ## Godot --path godot scenes/bench/forest_shop_bench.tscn --
 ##   --size=1280x720 --ui-scale=1 --verify --out=/private/tmp/forest-shop
 ##   [--page=packs|items|skins] [--lang=fr]
+##   [--world=web2 --store]  le monde web2 avec des prix Play factices (StorePay.fake)
 const ITEMS := ["energy", "trap", "lightning", "shield", "bloop", "fence", "smoke", "axe"]
 const COUNTS := {"energy": 2, "trap": 3, "lightning": 0, "shield": 4, "bloop": 0, "fence": 4, "smoke": 0, "axe": 1}
 const RATES := {"usdc": 1.0, "sol": 152.4, "skr": 0.031}
@@ -17,20 +18,32 @@ var _failures := 0
 
 func _ready() -> void:
 	var page := "packs"
+	var rail := "carrots"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out = arg.trim_prefix("--out=")
 		elif arg.begins_with("--page="):
 			page = arg.trim_prefix("--page=")
+		elif arg.begins_with("--rail="):
+			rail = arg.trim_prefix("--rail=")
 		elif arg.begins_with("--lang="):
 			I18N.locale = arg.trim_prefix("--lang=")
 			I18N._apply_theme_face()
 	# The purchase reveal lands on this root: keep it on the pixel.
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_fixtures()
+	if "--store" in OS.get_cmdline_user_args():
+		StorePay.shared().fake({
+			"pack_shiro_stash": ["shiro_stash", true, "1,79 €"], "pack_kuro_tantrum": ["kuro_tantrum", true, "1,19 €"],
+			"pack_refill_3": ["refill_3", true, "2,39 €"], "pack_refill_10": ["refill_10", true, "7,99 €"],
+			"skin_kappa": ["skin_kappa", false, "1,99 €"], "skin_pink_october": ["skin_pink_october", false, "0,99 €"],
+			"skin_eclipse": ["skin_solflare", false, "0,99 €"], "skin_carrot": ["skin_carrot", false, "0,99 €"],
+			"skin_violet": ["skin_solana", false, "0,99 €"],
+		})
 	_shop = ForestShop.new()
 	_shop.demo = true
 	_shop._page = page
+	_shop._rail = rail
 	Kit.fill(_shop)
 	add_child(_shop)
 	_shop.closed.connect(func() -> void: get_tree().quit())

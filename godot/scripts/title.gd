@@ -91,6 +91,13 @@ const TIP_PAD_Y := 10.0
 ## ~260 px.
 var _google: SignInButton
 var _email: SignInButton
+## APPLE (2026-10-29), l'app iOS seulement : la regle 4.8 de l'App Store
+## l'exige des qu'on propose Google. Le logo seul, en tete de la meme rangee
+## (Apple | Google | Email) : la colonne n'a pas une ligne de plus a donner.
+## `--apple-door` le montre sur le bureau, pour les captures.
+var _apple: SignInButton
+var _apple_door := _web2_doors and (Session.apple_available()
+	or OS.get_cmdline_user_args().has("--apple-door"))
 ## « ou garde ton terrier avec », entre JOUER et les portes d'un compte.
 var _or_keep: Label
 ## HISTOIRE (2026-10-15) : rouvre le livre de Shiro (IntroBook), dans le coin
@@ -126,8 +133,11 @@ var _tip_timer: Timer
 func _ready() -> void:
 	_google = SignInButton.make("google", I18N.t("auth.google"))
 	_email = SignInButton.make("email", I18N.t("auth.email"))
+	_apple = SignInButton.make("apple", "")
+	_ask.add_child(_apple)
 	_ask.add_child(_google)
 	_ask.add_child(_email)
+	_apple.visible = _apple_door
 	_google.visible = _web2_doors
 	_email.visible = _web2_doors
 	_voyage = _alt_door("Voyage")
@@ -159,6 +169,7 @@ func _ready() -> void:
 		# La taille de mot de CONNECT WALLET, dont l'invite prend la place.
 		_guest.board = PlankButton.Board.GOLD
 		_guest.label_size = _connect.label_size
+	_apple.pressed.connect(_on_apple)
 	_google.pressed.connect(_on_google)
 	_email.pressed.connect(_on_email)
 	_guest.pressed.connect(_on_guest)
@@ -170,6 +181,7 @@ func _ready() -> void:
 
 	# La cascade de la vague, dans l'ordre de lecture de la colonne.
 	_connect.wave_delay = WAVE_STEPS[0]
+	_apple.wave_delay = WAVE_STEPS[0] + 0.02
 	_google.wave_delay = WAVE_STEPS[0] + 0.035
 	_email.wave_delay = WAVE_STEPS[0] + 0.05
 	_guest.wave_delay = WAVE_STEPS[1]
@@ -383,17 +395,18 @@ func _measure() -> void:
 		if node == gold:
 			y += 4.0
 		if node == gold and _web2_doors:
-			# « ou garde ton terrier avec », puis Google | Email cote a cote,
-			# boutons blancs de site (SignInButton), la largeur partagee.
+			# « ou garde ton terrier avec », puis (Apple |) Google | Email cote a
+			# cote, boutons blancs de site (SignInButton), la largeur partagee.
 			_or_keep.position = Vector2(0.0, y - 2.0)
 			_or_keep.size = Vector2(column, OR_H)
 			y += OR_H
-			var half := (w - 8.0) * 0.5
-			for i in 2:
-				var alt: SignInButton = [_google, _email][i]
-				alt.position = Vector2((column - w) * 0.5 + i * (half + 8.0), y)
-				alt.custom_minimum_size = Vector2(half, ALT_H)
-				alt.size = Vector2(half, ALT_H)
+			var alts: Array = [_apple, _google, _email] if _apple_door else [_google, _email]
+			var part: float = (w - 8.0 * (alts.size() - 1)) / alts.size()
+			for i in alts.size():
+				var alt: SignInButton = alts[i]
+				alt.position = Vector2((column - w) * 0.5 + i * (part + 8.0), y)
+				alt.custom_minimum_size = Vector2(part, ALT_H)
+				alt.size = Vector2(part, ALT_H)
 			y += ALT_ROW
 		# La ligne d'erreur s'insere entre les portes et la langue, et
 		# seulement quand elle a quelque chose a dire.
@@ -630,6 +643,18 @@ func _on_google() -> void:
 		_say("", false)
 
 
+## APPLE : la feuille d'Apple au-dessus du jeu, sans page (Session).
+func _on_apple() -> void:
+	_apple.wiggle()
+	_say("", false)
+	_busy(true)
+	var ok := await Session.continue_with_apple()
+	_busy(false)
+	if ok:
+		Analytics.track("login", {"method": "apple"})
+		_enter()
+
+
 ## EMAIL : le dialogue demande l'adresse puis le code, et adopte la session.
 func _on_email() -> void:
 	_email.wiggle()
@@ -786,6 +811,7 @@ func _busy(value: bool) -> void:
 	_voyage.disabled = value
 	# Google reste pressable pendant SON attente : c'est le bouton Annuler.
 	_google.disabled = value and not Session.google_waiting
+	_apple.disabled = value
 	_email.disabled = value
 	_lang.disabled = value
 	if value:
@@ -802,6 +828,7 @@ func _set_restoring(on: bool, words := "") -> void:
 	_connect.visible = not on and not _web2_doors
 	for door in [_google, _email, _or_keep]:
 		door.visible = _web2_doors and not on
+	_apple.visible = _apple_door and not on
 	# Plus grand que la ligne d'erreur (12) : c'est le seul mot de l'ecran.
 	_status.add_theme_font_size_override("font_size", 16 if on else 12)
 	_say((words if words != "" else I18N.t("chrome.reconnecting")) if on else "", false)

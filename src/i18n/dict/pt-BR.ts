@@ -73,6 +73,8 @@ export const ptBR: Dict = {
     alreadyLinked: 'Esta toca já tem uma carteira.',
     linkFailed: 'Não foi possível conectar essa carteira',
     google: 'Google',
+    apple: 'Apple',
+    appleContinue: 'Continuar com a Apple',
     email: 'E-mail',
     googleWaiting: 'Termine no navegador...',
     offline: 'Jogar offline',
@@ -692,6 +694,12 @@ export const ptBR: Dict = {
        a cerca é a única defesa que ele enxerga, então ela o orienta. */
     fenced: 'Uma cerca bloqueia o caminho. Contorne.',
     payments_unavailable: 'Pagamento com cartão ainda não está configurado.',
+    /* Google Play / App Store (web2, api/store/play). */
+    store_unavailable: 'A loja ainda não está aberta aqui.',
+    store_unreachable: 'O Google Play não responde. Sua compra está segura: reabra a loja em um minuto.',
+    pending: 'Pagamento pendente. Chega assim que o Google confirmar.',
+    wrong_account: 'Esta compra pertence a outra toca.',
+    token_used: 'Essa compra já foi usada.',
     quote_expired: 'Essa cotação expirou. Tente de novo.',
     signature_already_used: 'Esse pagamento já foi usado.',
     not_confirmed_yet: 'Ainda confirmando na rede...',

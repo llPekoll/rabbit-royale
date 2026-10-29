@@ -52,7 +52,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/RabbitFirebase/plugin.cfg", "res://addons/RabbitMWA/plugin.cfg")
+enabled=PackedStringArray("res://addons/GodotGooglePlayBilling/plugin.cfg", "res://addons/RabbitFirebase/plugin.cfg", "res://addons/RabbitMWA/plugin.cfg")
 
 [gui]
 

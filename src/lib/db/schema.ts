@@ -29,7 +29,8 @@ import { sql } from 'drizzle-orm';
  */
 export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare', 'axe', 'skin_pink_october', 'skin_kappa']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
-export const currencyEnum = pgEnum('currency', ['carrots', 'usdc']);
+/** `iap`: paid through Google Play or the App Store (web2, store_purchases). */
+export const currencyEnum = pgEnum('currency', ['carrots', 'usdc', 'iap']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed', 'failed', 'expired']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
@@ -211,7 +212,7 @@ export const loginNonces = pgTable('login_nonces', {
  * Google sign-in land on the burrow an email code made (both are verified).
  */
 export const playerIdentities = pgTable('player_identities', {
-  provider: text('provider').notNull(),           // 'google' | 'email'
+  provider: text('provider').notNull(),           // 'google' | 'email' | 'apple'
   subject: text('subject').notNull(),
   playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
   email: text('email'),
@@ -685,6 +686,39 @@ export const payments = pgTable('payments', {
   uniqueIndex('payments_reference_idx').on(t.reference),
   index('payments_player_idx').on(t.playerId, t.createdAt),
   uniqueIndex('payments_pending_purchase_idx').on(t.purchaseKey).where(sql`${t.status} = 'pending'`),
+]);
+
+/**
+ * A purchase made in a STORE (Google Play, later the App Store), web2 only.
+ *
+ * Unlike `payments` there is no quote: the store takes the money first and
+ * hands the client a token, and this row is written only once the server has
+ * asked the store about that token itself (src/lib/pay/play.ts). `token` is
+ * UNIQUE — Play's purchaseToken, Apple's transaction id — and that constraint
+ * is what stops one purchase being credited twice, across retries, devices
+ * and accounts. Do not remove it.
+ *
+ * `refundedAt`: set when the store says the money went back (voided
+ * purchases); the item is not taken back, the row is the record.
+ */
+export const storePurchases = pgTable('store_purchases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
+  /** 'play' or 'apple'. */
+  platform: text('platform').notNull(),
+  /** The store's product id (config/store.ts). */
+  productId: text('product_id').notNull(),
+  kind: itemKindEnum('kind').notNull(),
+  qty: integer('qty').notNull().default(1),
+  token: text('token').notNull(),
+  /** The store's order number (GPA.xxxx on Play), what support is asked about. */
+  orderId: text('order_id'),
+  purchasedAt: timestamp('purchased_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  refundedAt: timestamp('refunded_at', { withTimezone: true }),
+}, (t) => [
+  uniqueIndex('store_purchases_token_idx').on(t.platform, t.token),
+  index('store_purchases_player_idx').on(t.playerId, t.createdAt),
 ]);
 
 /** Permanent cosmetics. Their payment and ownership commit together. */

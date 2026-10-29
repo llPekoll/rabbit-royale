@@ -77,6 +77,8 @@ export const vi: Dict = {
     alreadyLinked: 'Hang này đã có ví rồi.',
     linkFailed: 'Không kết nối được ví này',
     google: 'Google',
+    apple: 'Apple',
+    appleContinue: 'Tiếp tục với Apple',
     email: 'Email',
     googleWaiting: 'Hoàn tất trong trình duyệt...',
     offline: 'Chơi ngoại tuyến',
@@ -693,6 +695,12 @@ export const vi: Dict = {
     /* Le refus du PILLARD, depuis raid/route.ts : il l'oriente. */
     fenced: 'Hàng rào chắn đường. Đi vòng.',
     payments_unavailable: 'Thanh toán bằng thẻ chưa được thiết lập.',
+    /* Google Play / App Store (web2, api/store/play). */
+    store_unavailable: 'Cửa hàng chưa mở ở đây.',
+    store_unreachable: 'Google Play không phản hồi. Giao dịch của bạn vẫn an toàn: mở lại cửa hàng sau một phút.',
+    pending: 'Thanh toán đang chờ. Sẽ đến ngay khi Google xác nhận.',
+    wrong_account: 'Giao dịch này thuộc về một hang khác.',
+    token_used: 'Giao dịch đó đã được dùng.',
     quote_expired: 'Báo giá đã hết hạn. Thử lại.',
     signature_already_used: 'Khoản thanh toán này đã được dùng.',
     not_confirmed_yet: 'Vẫn đang xác nhận trên chuỗi...',

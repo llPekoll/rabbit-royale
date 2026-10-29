@@ -3,15 +3,21 @@
  *
  * The game never talks to Google: it opens the system browser on the URL this
  * builds, and Google redirects to OUR callback, which trades the code for the
- * player's identity with the client secret. No SDK and no native plugin — the
- * APK is a shell and a plugin would mean resubmitting it — and the same code
- * serves the Seeker, the web build and, later, iOS.
+ * player's identity with the client secret. The same code serves the web
+ * build and, later, iOS.
+ *
+ * The Play app does NOT go through the browser (2026-10-29): Android's own
+ * sign-in sheet hands it an id_token, which api/auth/google/native checks with
+ * verifyGoogleIdToken. Chrome can be sent back to the app but never closed, so
+ * the browser door left a "You are signed in" tab behind on every sign-in.
  *
  * Each region answers its own callback (`ws.rabbit.rip`, `ws-sg…`, `ws-us…`):
  * accounts are per region, so the region that started the sign-in is the one
  * that must finish it. All three callbacks are registered on the one OAuth
  * client.
  */
+
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -58,9 +64,7 @@ export interface GoogleIdentity {
  *
  * The id_token comes straight from Google's token endpoint over TLS, in
  * exchange for our secret, so its signature need not be checked again (OIDC
- * Core §3.1.3.7); its audience, issuer and expiry still are. An address
- * Google has not verified is dropped rather than trusted: it is what would
- * let someone claim another player's email burrow.
+ * Core §3.1.3.7); its audience, issuer and expiry still are.
  */
 export async function exchangeGoogleCode(code: string, origin: string): Promise<GoogleIdentity> {
   const res = await fetch(TOKEN_URL, {
@@ -78,14 +82,42 @@ export async function exchangeGoogleCode(code: string, origin: string): Promise<
   const { id_token } = (await res.json()) as { id_token?: string };
   if (!id_token) throw new Error('google token: no id_token');
 
-  const claims = JSON.parse(Buffer.from(id_token.split('.')[1] ?? '', 'base64url').toString('utf8')) as {
-    sub?: string; aud?: string; iss?: string; exp?: number; email?: string; email_verified?: boolean | string;
-  };
-  if (!claims.sub) throw new Error('google id_token: no sub');
+  const claims = JSON.parse(Buffer.from(id_token.split('.')[1] ?? '', 'base64url').toString('utf8')) as GoogleClaims;
   if (claims.aud !== process.env.GOOGLE_CLIENT_ID) throw new Error('google id_token: wrong audience');
   if (!ISSUERS.includes(claims.iss ?? '')) throw new Error('google id_token: wrong issuer');
   if (!claims.exp || claims.exp * 1000 < Date.now()) throw new Error('google id_token: expired');
+  return identityOf(claims);
+}
 
+interface GoogleClaims {
+  sub?: string; aud?: string | string[]; iss?: string; exp?: number; email?: string; email_verified?: boolean | string;
+}
+
+/**
+ * An address Google has not verified is dropped rather than trusted: it is
+ * what would let someone claim another player's email burrow.
+ */
+function identityOf(claims: GoogleClaims): GoogleIdentity {
+  if (!claims.sub) throw new Error('google id_token: no sub');
   const verified = claims.email_verified === true || claims.email_verified === 'true';
   return { sub: claims.sub, email: verified && claims.email ? claims.email.toLowerCase() : null };
+}
+
+const GOOGLE_KEYS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+
+/**
+ * Who signed in, from an id_token the GAME hands us — the Play app's native
+ * sign-in (Credential Manager, api/auth/google/native), where no browser and
+ * no code exchange are involved. This one did not come from Google over our
+ * own TLS, so unlike exchangeGoogleCode its signature IS checked, against
+ * Google's published keys. Its audience is the same WEB client: the app asks
+ * Google for a token "for the server" (serverClientId), and the Android client
+ * registered beside it only vouches for the app's package and signature.
+ */
+export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentity> {
+  const { payload } = await jwtVerify(idToken, GOOGLE_KEYS, {
+    issuer: ISSUERS,
+    audience: process.env.GOOGLE_CLIENT_ID!,
+  });
+  return identityOf(payload as GoogleClaims);
 }

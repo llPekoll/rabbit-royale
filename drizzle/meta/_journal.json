@@ -281,6 +281,13 @@
       "when": 1793293457119,
       "tag": "0039_auth_return_to",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793293807316,
+      "tag": "0040_store_purchases",
+      "breakpoints": true
     }
   ]
 }

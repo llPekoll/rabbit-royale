@@ -194,11 +194,16 @@ const GOOGLE_WAIT_SECONDS := 600.0
 ## sa reponse sur /api/auth/handoff, une requete tenue ~20 s, relancee jusqu'a
 ## ce que le navigateur ait fini. Le jeton passe TOUJOURS par cette attente.
 ##
-## Sur l'app Play (web2 Android, 2026-10-29), le serveur renvoie en plus Chrome
-## DANS l'app une fois Google passe (`return: android`, ReturnToGameActivity du
-## plugin RabbitFirebase) : le joueur n'a plus a revenir a la main. Ce lien ne
-## fait que ramener le jeu devant ; une app trop vieille pour le connaitre
-## laisse Chrome sur la page « reviens au jeu », avec un bouton.
+## L'APP iOS (2026-10-29) non plus : la page Google s'ouvre dans une feuille
+## ASWebAuthenticationSession (plugin RabbitApple) qui se referme seule, et
+## « Continuer avec Apple » a la sienne, sans page (continue_with_apple).
+##
+## L'APP PLAY (web2 Android, 2026-10-29) NE PASSE PAS PAR LE NAVIGATEUR : la
+## feuille de comptes d'Android s'ouvre au-dessus du jeu (_google_native).
+## Chrome, lui, restait ouvert derriere chaque connexion. Le navigateur ne sert
+## plus qu'en repli, quand la feuille ne peut pas s'ouvrir ; le serveur y
+## renvoie alors Chrome DANS l'app une fois Google passe (`return: android`,
+## ReturnToGameActivity du plugin RabbitFirebase).
 ##
 ## Une requete ratee pendant l'attente (l'app passee en arriere-plan le temps
 ## du navigateur, le reseau qui change) n'arrete RIEN : on redemande, et le
@@ -206,11 +211,18 @@ const GOOGLE_WAIT_SECONDS := 600.0
 func continue_with_google(link := false) -> bool:
 	if busy:
 		return false
+	if Net.WORLD == "web2" and Engine.has_singleton(FIREBASE):
+		var native := await _google_native(link)
+		if native != "browser":
+			return native == "ok"
 	busy = true
 	google_waiting = true
 	_google_cancelled = false
 	var body := {"link": link}
-	if Net.WORLD == "web2" and OS.get_name() == "Android":
+	var apple = _apple()
+	if apple != null:
+		body["return"] = "ios"
+	elif Net.WORLD == "web2" and OS.get_name() == "Android":
 		body["return"] = "android"
 	var start: Answer = await Net.post_json("/api/auth/google/start", body, token if link else "")
 	if not start.ok:
@@ -220,7 +232,15 @@ func continue_with_google(link := false) -> bool:
 		return false
 
 	var handoff := String(start.body.get("handoff", ""))
-	OS.shell_open(String(start.body.get("url", "")))
+	var url := String(start.body.get("url", ""))
+	var scheme := String(start.body.get("scheme", ""))
+	if apple != null and not scheme.is_empty():
+		# iOS : la page Google dans une feuille qui se referme seule quand le
+		# serveur redirige vers `scheme://` ; la fermer a la main = annuler.
+		apple.web_done.connect(_on_google_sheet, CONNECT_ONE_SHOT)
+		apple.open_auth_session(url, scheme)
+	else:
+		OS.shell_open(url)
 	var until := Time.get_ticks_msec() + int(GOOGLE_WAIT_SECONDS * 1000.0)
 	var outcome: Dictionary = {}
 	while not _google_cancelled and Time.get_ticks_msec() < until:
@@ -245,6 +265,108 @@ func continue_with_google(link := false) -> bool:
 		return false
 	_adopt(outcome)
 	return true
+
+
+const FIREBASE := "RabbitFirebase"
+
+## Le plugin iOS RabbitApple (plugin-src/apple), garde le temps de la session :
+## une feuille ouverte doit retrouver qui l'attend.
+var _apple_auth: RefCounted
+
+
+## L'objet AppleAuth sur l'app iOS du monde web2, null partout ailleurs (la
+## classe n'existe que dans l'export iOS).
+func _apple() -> RefCounted:
+	if Net.WORLD != "web2" or not ClassDB.class_exists("AppleAuth"):
+		return null
+	if _apple_auth == null:
+		_apple_auth = ClassDB.instantiate("AppleAuth")
+	return _apple_auth
+
+
+## « CONTINUER AVEC APPLE » existe-t-il ici ? L'app iOS seulement — et la
+## regle 4.8 de l'App Store l'y exige, a cote de Google.
+func apple_available() -> bool:
+	return _apple() != null
+
+
+## LA FEUILLE APPLE (ASAuthorizationController) : aucun navigateur. Apple rend
+## un identityToken signe, que /api/auth/apple/native verifie.
+func continue_with_apple(link := false) -> bool:
+	var apple = _apple()
+	if busy or apple == null:
+		return false
+	busy = true
+	apple.sign_in_with_apple()
+	var sheet: Array = await apple.apple_done
+	var identity_token := String(sheet[0])
+	var error := String(sheet[3])
+	if error == "cancelled" or identity_token.is_empty():
+		busy = false
+		if error != "cancelled":
+			failed.emit(_explain("apple_failed"))
+		return false
+	var answer: Answer = await Net.post_json("/api/auth/apple/native", {
+		"identityToken": identity_token,
+		"authorizationCode": String(sheet[1]),
+		"link": link,
+	}, token if link else "")
+	busy = false
+	if not answer.ok:
+		failed.emit(_explain(answer.error(), answer.body))
+		return false
+	_adopt(answer.body)
+	return true
+
+signal _google_sheet_closed(id_token: String, error: String)
+
+
+## LA FEUILLE GOOGLE D'ANDROID (RabbitFirebase.googleSignIn, Credential
+## Manager) : un id_token adresse au client WEB du serveur, que
+## /api/auth/google/native verifie et echange contre une session.
+## Rend "ok", "stop" (refus deja dit, ou le joueur a ferme la feuille) ou
+## "browser" : la feuille ne peut pas servir ici (client Android pas declare
+## chez Google, aucun compte, serveur trop vieux) et le navigateur prend le
+## relais — la raison exacte est au logcat (tag du plugin).
+func _google_native(link: bool) -> String:
+	busy = true
+	var conf: Answer = await Net.get_json("/api/auth/google/native")
+	var client_id := String(conf.body.get("clientId", "")) if conf.ok else ""
+	if client_id.is_empty():
+		busy = false
+		return "browser"
+
+	var plugin := Engine.get_singleton(FIREBASE)
+	plugin.connect("google_signed_in",
+		func(id_token: String, error: String) -> void: _google_sheet_closed.emit(id_token, error),
+		CONNECT_ONE_SHOT)
+	plugin.googleSignIn(client_id)
+	var sheet: Array = await _google_sheet_closed
+	var id_token := String(sheet[0])
+	var error := String(sheet[1])
+	if error == "cancelled":
+		busy = false
+		return "stop"
+	if id_token.is_empty():
+		push_warning("[session] feuille Google : %s, repli navigateur" % error)
+		busy = false
+		return "browser"
+
+	var answer: Answer = await Net.post_json("/api/auth/google/native",
+		{"idToken": id_token, "link": link}, token if link else "")
+	busy = false
+	if not answer.ok:
+		failed.emit(_explain(answer.error(), answer.body))
+		return "stop"
+	_adopt(answer.body)
+	return "ok"
+
+
+## La feuille Google d'iOS s'est fermee : seule (le serveur a fini, la
+## reponse arrive par l'attente), ou a la main, et c'est une annulation.
+func _on_google_sheet(_url: String, error: String) -> void:
+	if not error.is_empty():
+		cancel_google()
 
 
 ## Le joueur a presse ANNULER : la boucle s'arrete a la reponse suivante. La
@@ -398,7 +520,7 @@ func _explain(reason: String, body: Dictionary = {}) -> String:
 			return I18N.t("auth.signInCancelled")
 		"google_unavailable", "email_unavailable":
 			return I18N.t("auth.unavailable")
-		"google_failed":
+		"google_failed", "apple_failed":
 			return I18N.t("auth.signInFailed")
 		_:
 			return reason

@@ -686,6 +686,9 @@ func _build_profile() -> void:
 		var mail := String(idn["email"]) if idn.get("email") != null else ""
 		said.append(I18N.t("auth." + kind) + (" · " + mail if not mail.is_empty() else ""))
 	var doors := ["google", "email"] if _web2 else ["wallet"]
+	# L'app iOS : Apple aussi, en tete (regle 4.8 de l'App Store).
+	if _web2 and Session.apple_available():
+		doors.push_front("apple")
 	# HORS LIGNE (voyageur.gd), rien a lier : le terrier vit sur l'appareil,
 	# et la section le dit.
 	if Voyageur.active:
@@ -744,6 +747,8 @@ func _build_profile() -> void:
 				b.pressed.connect(_on_connect_wallet)
 			"google":
 				b.pressed.connect(_on_link_google)
+			"apple":
+				b.pressed.connect(_on_link_apple)
 			"email":
 				b.pressed.connect(func() -> void: EmailDialog.open(true))
 	_connect_error = _say("", 1000, 548, 248, 28, 15, CampStyle.BAD) if compact else _say("", 772, 482, 480, 24, 15, CampStyle.BAD)
@@ -771,7 +776,7 @@ func _provider(kind: String, x: float, y: float, w: float = 149.0) -> Button:
 	bg.size = b.size
 	b.add_child(bg)
 	var o := Vector2(x, y)
-	_icon({"google": "icon-google", "email": "icon-mail", "wallet": "icon-wallet"}[kind], x + 22, y + 10, 37, 37, b, o)
+	_icon({"google": "icon-google", "email": "icon-mail", "wallet": "icon-wallet", "apple": "icon-apple"}[kind], x + 22, y + 10, 37, 37, b, o)
 	_say(I18N.t("profile.walletShort" if kind == "wallet" else "auth." + kind), x + 66, y, w - 70, 56, 20, CampStyle.TEXT, false, b, o)
 	return b
 
@@ -1432,6 +1437,16 @@ func _on_link_google() -> void:
 		_say_connect("")
 
 
+## UN INVITE SAUVE SON TERRIER PAR APPLE (l'app iOS) : la feuille d'Apple.
+func _on_link_apple() -> void:
+	if Session.busy:
+		return
+	_say_connect("")
+	var ok := await Session.continue_with_apple(true)
+	if ok and is_inside_tree():
+		closed.emit()
+
+
 ## SUPPRIMER LE COMPTE, en deux pressions. Le serveur efface tout, puis
 ## retour a l'accueil comme une deconnexion.
 func _on_delete_account() -> void:
@@ -1542,6 +1557,9 @@ func _what_line(r: Dictionary) -> String:
 ## « 0.0008 SOL », jamais « $0.84 » (son `cost` est en lamports). Memes
 ## decimales que les prix de l'etal (Shop.RAIL_PLACES).
 func _price_of(p: Dictionary) -> String:
+	# Un achat Play / App Store (web2) : le palier choisi, en micro-dollars.
+	if String(p.get("currency", "")) == "iap":
+		return I18N.f("profile.usd", ["%.2f" % (float(p.get("cost", 0)) / 1000000.0)])
 	if String(p.get("currency", "")) != "usdc":
 		return I18N.f("profile.spent", [I18N.group_digits(float(p.get("cost", 0)))])
 	var token := String(p.get("token", "usdc"))

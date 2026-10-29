@@ -1,0 +1,23 @@
+; LE PLUGIN iOS (2026-10-29) : la feuille « Se connecter avec Apple » et la
+; feuille web qui se referme seule (plugin-src/apple). iOS SEULEMENT : ailleurs
+; la classe AppleAuth n'existe pas, et Session le sait (ClassDB.class_exists).
+;   cd plugin-src/apple && scons platform=ios target=template_release
+;   cd plugin-src/apple && scons platform=ios target=template_debug
+[configuration]
+
+entry_symbol = "rabbit_apple_init"
+compatibility_minimum = "4.7"
+
+[libraries]
+
+ios.debug = "res://addons/RabbitApple/bin/librabbitapple.ios.template_debug.a"
+ios.release = "res://addons/RabbitApple/bin/librabbitapple.ios.template_release.a"
+
+[dependencies]
+
+ios.debug = {
+  "res://addons/RabbitApple/bin/libgodot-cpp.ios.template_debug.a": ""
+}
+ios.release = {
+  "res://addons/RabbitApple/bin/libgodot-cpp.ios.template_release.a": ""
+}

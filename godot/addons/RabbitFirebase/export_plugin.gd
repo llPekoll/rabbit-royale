@@ -76,8 +76,12 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	## plantage du moteur — sans rien qui le signale. Le build-id qu'il exige
 	## au lancement est dans l'AAR (plugin-src/firebase/build.gradle.kts,
 	## CrashlyticsBuildId), pas dans un plugin Gradle à appliquer ici.
+	##
+	## LA CONNEXION GOOGLE SANS NAVIGATEUR (GoogleSignIn.kt) : web2 seulement.
+	## Le Seeker ne se connecte pas par Google, et sa classe n'est chargée qu'au
+	## premier appel. MÊMES VERSIONS que build.gradle.kts.
 	func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
-		return PackedStringArray([
+		var deps := PackedStringArray([
 			"platform(com.google.firebase:firebase-bom:%s)" % FIREBASE_BOM,
 			"com.google.firebase:firebase-analytics",
 			"com.google.firebase:firebase-messaging",
@@ -85,6 +89,13 @@ class AndroidExportPlugin extends EditorExportPlugin:
 			"com.google.firebase:firebase-crashlytics-ndk",
 			"androidx.core:core:1.13.1",
 		])
+		if _web2():
+			deps.append_array([
+				"androidx.credentials:credentials:1.5.0",
+				"androidx.credentials:credentials-play-services-auth:1.5.0",
+				"com.google.android.libraries.identity.googleid:googleid:1.1.1",
+			])
+		return deps
 
 	func _get_name() -> String:
 		return PLUGIN_NAME

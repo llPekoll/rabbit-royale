@@ -57,9 +57,10 @@ export interface GrantResult {
  * and a chest is not a purchase. No receipt is written without one.
  */
 export interface Receipt {
-  currency: 'carrots' | 'usdc';
+  currency: 'carrots' | 'usdc' | 'iap';
   /** Whole carrots, or USDC base units (6 dp = micro-dollars) — whichever
-   *  `currency` names. A SOL or SKR payment is converted (see `paidUsdcUnits`):
+   *  `currency` names; `iap` counts micro-dollars too (the store tier we
+   *  picked, config/store.ts). A SOL or SKR payment is converted (see `paidUsdcUnits`):
    *  the rail and its native amount stay on the linked `payments` row. */
   cost: number;
   /** The payment row that funded it. Money only. */

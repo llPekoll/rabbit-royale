@@ -22,6 +22,9 @@ const ICONS := {
 	# monde reconnait (art-source/google-g-20261020, rendu du SVG de Google).
 	"google": preload("res://assets/ui/google-g.png"),
 	"email": preload("res://assets/ui/camp/icon-mail.png"),
+	# Le symbole SF apple.logo (art-source : rendu par apple_logo.swift), noir
+	# sur blanc : le bouton « logo seul » des regles d'Apple.
+	"apple": preload("res://assets/ui/apple-logo.png"),
 }
 
 ## Ignore : la vague de l'accueil anime les planches, pas ces boutons.
@@ -59,7 +62,9 @@ func _build(kind: String, words: String) -> void:
 	add_child(row)
 	_icon = TextureRect.new()
 	_icon.texture = ICONS.get(kind)
-	_icon.custom_minimum_size = Vector2(ICON_PX, ICON_PX)
+	# Seul dans son bouton, le logo prend la place du mot.
+	var px := ICON_PX if not words.is_empty() else ICON_PX * 1.25
+	_icon.custom_minimum_size = Vector2(px, px)
 	_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -73,11 +78,14 @@ func _build(kind: String, words: String) -> void:
 	_label.add_theme_font_size_override("font_size", 13)
 	_label.add_theme_color_override("font_color", INK)
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label.visible = not words.is_empty()
 	row.add_child(_label)
 
 
+## Sans mots, le logo seul (Apple) : le mot vide prendrait encore sa place.
 func relabel(words: String) -> void:
 	_label.text = words
+	_label.visible = not words.is_empty()
 
 
 ## Le meme refus que la planche : le bouton tremble.

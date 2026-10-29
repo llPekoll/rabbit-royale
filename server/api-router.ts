@@ -21,7 +21,7 @@
  * commits (e0a9c75, 3e83909, 4c7b0b6) restes sur ca5237c.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { isWeb2, WEB3_ONLY_ROUTES } from '../src/lib/world';
+import { isWeb2, WEB2_ONLY_ROUTES, WEB3_ONLY_ROUTES } from '../src/lib/world';
 import { traced } from '../src/lib/db/trace';
 import { getSession } from '../src/lib/auth/jwt';
 import { groundChanged, raidWritten } from '../src/lib/game/raid-live';
@@ -44,11 +44,13 @@ type ModuleRoute = {
  */
 const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/auth/abandon': () => import('../src/app/api/auth/abandon/route'),
+  '/api/auth/apple/native': () => import('../src/app/api/auth/apple/native/route'),
   '/api/auth/challenge': () => import('../src/app/api/auth/challenge/route'),
   '/api/auth/delete': () => import('../src/app/api/auth/delete/route'),
   '/api/auth/email/start': () => import('../src/app/api/auth/email/start/route'),
   '/api/auth/email/verify': () => import('../src/app/api/auth/email/verify/route'),
   '/api/auth/google/callback': () => import('../src/app/api/auth/google/callback/route'),
+  '/api/auth/google/native': () => import('../src/app/api/auth/google/native/route'),
   '/api/auth/google/start': () => import('../src/app/api/auth/google/start/route'),
   '/api/auth/guest': () => import('../src/app/api/auth/guest/route'),
   '/api/auth/handoff': () => import('../src/app/api/auth/handoff/route'),
@@ -76,6 +78,7 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/shop/pay/failed': () => import('../src/app/api/shop/pay/failed/route'),
   '/api/shop/claim': () => import('../src/app/api/shop/claim/route'),
   '/api/snack': () => import('../src/app/api/snack/route'),
+  '/api/store/play': () => import('../src/app/api/store/play/route'),
   '/api/traps': () => import('../src/app/api/traps/route'),
   '/api/webhooks/alchemy': () => import('../src/app/api/webhooks/alchemy/route'),
 };
@@ -138,9 +141,10 @@ export async function servirApi(
   const charger = ROUTES[chemin];
   if (!charger) return false;
 
-  // LE MONDE WEB2 n'a pas ces routes (src/lib/world.ts) : un 404, comme une
-  // route qui n'existe pas, plutot qu'un refus.
-  if (isWeb2() && WEB3_ONLY_ROUTES.has(chemin)) {
+  // LE MONDE WEB2 n'a pas ces routes, ni le web3 celles des stores
+  // (src/lib/world.ts) : un 404, comme une route qui n'existe pas, plutot
+  // qu'un refus.
+  if (isWeb2() ? WEB3_ONLY_ROUTES.has(chemin) : WEB2_ONLY_ROUTES.has(chemin)) {
     res.writeHead(404, { 'Content-Type': 'application/json' })
       .end(JSON.stringify({ error: 'not_found' }));
     return true;

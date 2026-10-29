@@ -126,6 +126,8 @@ services:
       GOOGLE_CLIENT_ID: ${WEB2_GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${WEB2_GOOGLE_CLIENT_SECRET:-}
       JENVOIE_API_KEY: ${WEB2_JENVOIE_API_KEY:-}
+      # Google Play purchases (lib/pay/play.ts): the service account JSON, base64.
+      PLAY_SERVICE_ACCOUNT: ${WEB2_PLAY_SERVICE_ACCOUNT:-}
     depends_on:
       migrate-web2:
         condition: service_completed_successfully

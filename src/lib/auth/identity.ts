@@ -20,11 +20,11 @@ import { playerIdentities, players } from '../db/schema';
 import { mintPlayer } from './guest';
 import { signSession } from './jwt';
 
-export type Provider = 'google' | 'email';
+export type Provider = 'google' | 'email' | 'apple';
 
 export interface ProvenIdentity {
   provider: Provider;
-  /** Google's `sub`, or the lower-cased address for 'email'. */
+  /** Google's or Apple's `sub`, or the lower-cased address for 'email'. */
   subject: string;
   /** Verified address, lower-cased. */
   email: string | null;
@@ -174,4 +174,20 @@ export async function sessionFor(playerId: string): Promise<{
       identities: await identitiesOf(p.id),
     },
   };
+}
+
+/**
+ * A proven identity, as every sign-in door answers it: sign in (`linkTo`
+ * null), or attach it to the signed-in player. A refusal is `{ error }`, with
+ * `takenBy` when the identity already opens another burrow.
+ */
+export async function identityOutcome(linkTo: string | null, idn: ProvenIdentity): Promise<Record<string, unknown>> {
+  if (linkTo) {
+    const linked = await linkIdentity(linkTo, idn);
+    return linked.ok
+      ? { ...(await sessionFor(linkTo)), linked: idn.provider, email: idn.email }
+      : { error: linked.reason, ...('takenBy' in linked ? { takenBy: linked.takenBy } : {}) };
+  }
+  const { playerId, created } = await signInWithIdentity(idn);
+  return { ...(await sessionFor(playerId)), created };
 }

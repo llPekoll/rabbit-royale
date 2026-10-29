@@ -69,6 +69,8 @@ export const fr: Dict = {
     alreadyLinked: 'Ce terrier a déjà un portefeuille.',
     linkFailed: 'Impossible de connecter ce portefeuille',
     google: 'Google',
+    apple: 'Apple',
+    appleContinue: 'Continuer avec Apple',
     email: 'Email',
     googleWaiting: 'Termine dans ton navigateur...',
     offline: 'Jouer hors ligne',
@@ -688,6 +690,12 @@ export const fr: Dict = {
        une clôture est la seule défense dont on lui parle, alors elle l’oriente. */
     fenced: 'Une clôture bloque le passage. Contourne.',
     payments_unavailable: 'Le paiement par carte n’est pas encore en place.',
+    /* Google Play / App Store (web2, api/store/play). */
+    store_unavailable: 'La boutique n’est pas encore ouverte ici.',
+    store_unreachable: 'Google Play ne répond pas. Ton achat est en sécurité : rouvre la boutique dans une minute.',
+    pending: 'Paiement en attente. Il arrive dès que Google le confirme.',
+    wrong_account: 'Cet achat appartient à un autre terrier.',
+    token_used: 'Cet achat a déjà servi.',
     quote_expired: 'Ce prix a expiré. Réessaie.',
     signature_already_used: 'Ce paiement a déjà servi.',
     not_confirmed_yet: 'Confirmation sur la chaîne en cours...',

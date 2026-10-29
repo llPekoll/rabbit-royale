@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+# LE PLUGIN iOS RabbitApple (GDExtension) : la feuille Apple et la feuille web
+# qui se referme seule. Voir src/apple_auth.mm.
+#
+#   GODOT_CPP=~/work/ton/godot-cpp scons platform=ios target=template_release
+#   GODOT_CPP=~/work/ton/godot-cpp scons platform=ios target=template_debug
+#
+# godot-cpp (github.com/godotengine/godot-cpp) vit HORS du repo, comme le
+# modèle Android : il se clone, il ne se versionne pas. Les .a sortent dans
+# addons/RabbitApple/bin/ (ignoré, comme les AAR Android).
+import os
+
+godot_cpp = os.path.expanduser(os.environ.get("GODOT_CPP", "~/work/ton/godot-cpp"))
+env = SConscript(os.path.join(godot_cpp, "SConstruct"), {"api_version": "4.7"})
+
+if env["platform"] != "ios":
+    raise SystemExit("RabbitApple : platform=ios seulement")
+
+env.Append(CPPPATH=["src/"])
+# -fmodules (+ -fcxx-modules en Objective-C++) : les #import système deviennent des modules, et l'objet porte
+# lui-même « lier AuthenticationServices » (autolink) : le projet Xcode que
+# Godot écrit n'a rien à en savoir.
+env.Append(CCFLAGS=["-fobjc-arc", "-fmodules", "-fcxx-modules"])
+lib = env.StaticLibrary(
+    "../../addons/RabbitApple/bin/librabbitapple.ios.{}.a".format(env["target"]),
+    source=Glob("src/*.cpp") + Glob("src/*.mm"),
+)
+Default(lib)
+
+# La bibliothèque godot-cpp, à côté : rabbit_apple.gdextension la déclare en
+# dépendance, et l'export iOS la lie avec la nôtre.
+cpp = env.Command(
+    "../../addons/RabbitApple/bin/libgodot-cpp.ios.{}.a".format(env["target"]),
+    os.path.join(godot_cpp, "bin", "libgodot-cpp.ios.{}.universal.a".format(env["target"])),
+    Copy("$TARGET", "$SOURCE"),
+)
+Default(cpp)

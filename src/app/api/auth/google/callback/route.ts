@@ -7,12 +7,13 @@
  * through its own waiting request.
  *
  * The Play app (handoff.returnTo 'android') is not left on that page: the
- * answer is a redirect into the app, with the page as Chrome's fallback.
+ * answer is a redirect into the app, with the page as Chrome's fallback. The
+ * iOS app ('ios') gets the redirect that closes its sign-in sheet.
  */
 import { authOrigin, exchangeGoogleCode } from '@/lib/auth/google';
-import { androidReturnUrl, finishHandoff, handoffByState, type HandoffResult } from '@/lib/auth/handoff';
-import { linkIdentity, sessionFor, signInWithIdentity } from '@/lib/auth/identity';
-import { playPackage } from '@/lib/world';
+import { androidReturnUrl, appleReturnUrl, finishHandoff, handoffByState, type HandoffResult } from '@/lib/auth/handoff';
+import { identityOutcome } from '@/lib/auth/identity';
+import { appleBundleId, playPackage } from '@/lib/world';
 
 type Outcome = 'signed_in' | 'cancelled' | 'failed';
 
@@ -38,8 +39,17 @@ ${close}</body></html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
 
-/** Done: the page, or for the Play app a redirect into it (the page behind). */
+/**
+ * Done: the page; for the Play app a redirect into it (the page behind); for
+ * the iOS app the URL that closes its sheet.
+ */
 function finish(req: Request, outcome: Outcome, returnTo: string | null): Response {
+  if (returnTo === 'ios') {
+    return new Response(null, {
+      status: 302,
+      headers: { Location: appleReturnUrl(appleBundleId()), 'Cache-Control': 'no-store' },
+    });
+  }
   if (returnTo !== 'android') return page(...WORDS[outcome]);
   const fallback = `${authOrigin(req)}/api/auth/google/callback?shown=${outcome}&app=android`;
   return new Response(null, {
@@ -71,16 +81,8 @@ export async function GET(req: Request) {
   let result: HandoffResult;
   try {
     const g = await exchangeGoogleCode(code, authOrigin(req));
-    const idn = { provider: 'google' as const, subject: g.sub, email: g.email };
-    if (handoff.mode === 'link' && handoff.playerId) {
-      const linked = await linkIdentity(handoff.playerId, idn);
-      result = linked.ok
-        ? { ...(await sessionFor(handoff.playerId)), linked: 'google', email: g.email }
-        : { error: linked.reason, ...('takenBy' in linked ? { takenBy: linked.takenBy } : {}) };
-    } else {
-      const { playerId, created } = await signInWithIdentity(idn);
-      result = { ...(await sessionFor(playerId)), created };
-    }
+    const linkTo = handoff.mode === 'link' ? handoff.playerId : null;
+    result = await identityOutcome(linkTo, { provider: 'google', subject: g.sub, email: g.email });
   } catch (e) {
     console.error('[google] callback :', e);
     result = { error: 'google_failed' };

@@ -157,6 +157,10 @@ func _ready() -> void:
 	Session.changed.connect(_on_session_changed)
 	if Session.signed_in() and not _fake:
 		refresh()
+	# Le build Play rattrape ses achats non credites des le lancement, pas a
+	# la premiere ouverture de l'etal (store_pay.gd).
+	if StorePay.supported():
+		StorePay.shared()
 
 
 ## Ce que la boutique dit va sous la barre du haut, comme ce que dit le

@@ -75,6 +75,8 @@ export const zh: Dict = {
     alreadyLinked: '该兔窝已绑定钱包。',
     linkFailed: '无法连接该钱包',
     google: 'Google',
+    apple: 'Apple',
+    appleContinue: '通过 Apple 继续',
     email: '邮箱',
     googleWaiting: '请在浏览器中完成...',
     offline: '离线游玩',
@@ -687,6 +689,12 @@ export const zh: Dict = {
        the one defence they are told about, so it points them somewhere. */
     fenced: '有栅栏挡路。绕过去。',
     payments_unavailable: '刷卡支付尚未开通。',
+    /* Google Play / App Store (web2, api/store/play). */
+    store_unavailable: '这里的商店还没开放。',
+    store_unreachable: 'Google Play 没有响应。你的购买是安全的：一分钟后再打开商店。',
+    pending: '付款处理中。Google 确认后立即到账。',
+    wrong_account: '这笔购买属于另一个洞穴。',
+    token_used: '这笔购买已经用过了。',
     quote_expired: '报价已过期。请重试。',
     signature_already_used: '该笔支付已被使用。',
     not_confirmed_yet: '仍在链上确认...',

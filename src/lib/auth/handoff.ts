@@ -15,6 +15,11 @@
  * browser back INTO the app (androidReturnUrl) instead of leaving the player on
  * a page that says "go back". The app still collects the token by polling —
  * the redirect only brings it to the front, it carries nothing.
+ *
+ * `returnTo: 'ios'` (the App Store app): the game opens Google in an
+ * ASWebAuthenticationSession (RabbitApple plugin), a sheet over the game that
+ * closes ITSELF the moment a page goes to `<bundle id>://…`. The callback
+ * redirects there (appleReturnUrl), so no Safari tab is ever left behind.
  */
 import { randomBytes } from 'node:crypto';
 import { eq, lt } from 'drizzle-orm';
@@ -27,10 +32,10 @@ export const HANDOFF_TTL_MS = 10 * 60 * 1000;
 export type HandoffResult = Record<string, unknown>;
 
 /** Where the browser goes once the sign-in is written: an app, or nowhere. */
-export type HandoffReturn = 'android';
+export type HandoffReturn = 'android' | 'ios';
 
 export function isHandoffReturn(v: unknown): v is HandoffReturn {
-  return v === 'android';
+  return v === 'android' || v === 'ios';
 }
 
 export async function startHandoff(
@@ -92,4 +97,13 @@ export async function takeHandoff(id: string, now: Date = new Date()): Promise<H
 export function androidReturnUrl(pkg: string, fallback?: string): string {
   const extra = fallback ? `S.browser_fallback_url=${encodeURIComponent(fallback)};` : '';
   return `intent://signed-in#Intent;scheme=${pkg};package=${pkg};${extra}end`;
+}
+
+/**
+ * Where the iOS sheet closes: any URL on the app's own scheme ends the
+ * ASWebAuthenticationSession (callbackURLScheme, apple_auth.mm). It needs no
+ * Info.plist entry, and carries nothing either.
+ */
+export function appleReturnUrl(bundleId: string): string {
+  return `${bundleId}://signed-in`;
 }

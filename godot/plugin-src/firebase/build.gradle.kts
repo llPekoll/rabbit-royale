@@ -101,6 +101,12 @@ dependencies {
 	// déjà en transitif, mais une dépendance qu'on importe sans la déclarer
 	// disparaît le jour où celui qui l'apportait change d'avis.
 	implementation("androidx.core:core:1.13.1")
+
+	// La connexion Google sans navigateur (GoogleSignIn.kt), web2 seulement à
+	// l'export. MÊMES VERSIONS que addons/RabbitFirebase/export_plugin.gd.
+	implementation("androidx.credentials:credentials:1.5.0")
+	implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+	implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 }
 
 /**
