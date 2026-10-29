@@ -63,7 +63,12 @@ android {
 		// 23 : il ne contraint rien ici.
 		minSdk = 24
 		setProperty("archivesBaseName", pluginName)
+		// Le retour de la connexion Google dans le jeu (ReturnToGameActivity) :
+		// le web2 seul se connecte par Google, l'activité dort dans l'AAR web3.
+		resValue("bool", "rr_return_to_game", web2.toString())
 	}
+
+	buildFeatures { resValues = true }
 
 	compileOptions {
 		sourceCompatibility = JavaVersion.VERSION_17

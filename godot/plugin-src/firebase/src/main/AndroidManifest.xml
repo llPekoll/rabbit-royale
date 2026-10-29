@@ -49,6 +49,30 @@
             android:value="rip.rabbit.godot.firebase.RabbitFirebasePlugin" />
 
         <!--
+          LE RETOUR DE « CONTINUER AVEC GOOGLE » (ReturnToGameActivity.kt).
+
+          Le schéma est l'identifiant de l'app (${applicationId}, remplacé à la
+          fusion) : unique sans rien inventer, et le serveur le connaît déjà
+          (PLAY_PACKAGE_NAME). exported=true : c'est Chrome qui l'ouvre. Allumée
+          par l'AAR web2 seulement (rr_return_to_game, build.gradle.kts).
+        -->
+        <activity
+            android:name="rip.rabbit.godot.firebase.ReturnToGameActivity"
+            android:enabled="@bool/rr_return_to_game"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:host="signed-in" />
+            </intent-filter>
+        </activity>
+
+        <!--
           exported=false : seul Google Play services lui parle, et il passe par
           l'intent-filter, pas par un appel explicite d'une autre app.
         -->

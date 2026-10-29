@@ -1,0 +1,1 @@
+ALTER TABLE "auth_handoffs" ADD COLUMN "return_to" text;

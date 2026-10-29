@@ -192,18 +192,27 @@ const GOOGLE_WAIT_SECONDS := 600.0
 ## « CONTINUER AVEC GOOGLE », fait par le serveur (lib/auth/google.ts) : on
 ## ouvre le navigateur du systeme sur l'adresse qu'il donne, puis on attend
 ## sa reponse sur /api/auth/handoff, une requete tenue ~20 s, relancee jusqu'a
-## ce que le navigateur ait fini. Pas de lien profond `rabbitroyale://` : il
-## faudrait le declarer dans l'APK, et l'APK est une coque (boot.gd).
+## ce que le navigateur ait fini. Le jeton passe TOUJOURS par cette attente.
+##
+## Sur l'app Play (web2 Android, 2026-10-29), le serveur renvoie en plus Chrome
+## DANS l'app une fois Google passe (`return: android`, ReturnToGameActivity du
+## plugin RabbitFirebase) : le joueur n'a plus a revenir a la main. Ce lien ne
+## fait que ramener le jeu devant ; une app trop vieille pour le connaitre
+## laisse Chrome sur la page « reviens au jeu », avec un bouton.
 ##
 ## Une requete ratee pendant l'attente (l'app passee en arriere-plan le temps
-## du navigateur, le reseau qui change) n'arrete RIEN : on redemande.
+## du navigateur, le reseau qui change) n'arrete RIEN : on redemande, et le
+## serveur garde la reponse jusqu'a ce que le relais expire.
 func continue_with_google(link := false) -> bool:
 	if busy:
 		return false
 	busy = true
 	google_waiting = true
 	_google_cancelled = false
-	var start: Answer = await Net.post_json("/api/auth/google/start", {"link": link}, token if link else "")
+	var body := {"link": link}
+	if Net.WORLD == "web2" and OS.get_name() == "Android":
+		body["return"] = "android"
+	var start: Answer = await Net.post_json("/api/auth/google/start", body, token if link else "")
 	if not start.ok:
 		busy = false
 		google_waiting = false

@@ -231,6 +231,8 @@ export const playerIdentities = pgTable('player_identities', {
  * carries `state` (a different random, the only one Google ever sees), and the
  * callback writes the outcome into `result` for the game's next poll.
  * Short-lived: readable until HANDOFF_TTL_MS, then swept (lib/auth/handoff.ts).
+ * The Play app (2026-10-29) does declare a deep link, but only to be brought
+ * back to the front (`returnTo`); the token still travels by the poll.
  */
 export const authHandoffs = pgTable('auth_handoffs', {
   id: text('id').primaryKey(),
@@ -239,6 +241,8 @@ export const authHandoffs = pgTable('auth_handoffs', {
   mode: text('mode').notNull(),
   playerId: text('player_id').references(() => players.id, { onDelete: 'cascade' }),
   result: jsonb('result'),
+  /** 'android': send the browser back into the Play app once done. */
+  returnTo: text('return_to'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex('auth_handoffs_state_idx').on(t.state),

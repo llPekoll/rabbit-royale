@@ -24,6 +24,15 @@ export function isWeb2(): boolean {
 }
 
 /**
+ * The Play app's package (godot/export_presets.cfg, "Android Play (web2)").
+ * Its deep link brings a Google sign-in back into the app (lib/auth/handoff.ts),
+ * and the Play Developer API names the app by it.
+ */
+export function playPackage(): string {
+  return process.env.PLAY_PACKAGE_NAME?.trim() || 'pro.gravity5.rabbitroyale';
+}
+
+/**
  * The /api routes that only exist in the web3 world. The router answers 404
  * for them on a web2 deployment — a route that is not there, rather than a
  * refusal a store reviewer could read as "the crypto is just switched off".

@@ -274,6 +274,13 @@
       "when": 1792510591762,
       "tag": "0038_kappa_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793293457119,
+      "tag": "0039_auth_return_to",
+      "breakpoints": true
     }
   ]
 }
