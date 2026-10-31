@@ -235,6 +235,7 @@ class RabbitFirebasePlugin(godot: Godot) : GodotPlugin(godot) {
 	 * n'offre pas d'autre crochet onNewIntent aux plugins.
 	 */
 	override fun onMainResume() {
+		if (updateAsked) getActivity()?.let { StoreUpdate.check(it, resumeOnly = true) }
 		val path = getActivity()?.intent?.let(::takePath)
 		if (!path.isNullOrEmpty()) {
 			Log.i(TAG, "push_opened: $path")
@@ -265,6 +266,24 @@ class RabbitFirebasePlugin(godot: Godot) : GodotPlugin(godot) {
 				emitSignal(SIG_GOOGLE.name, token, error)
 			}
 		}
+	}
+
+	// ─── Mise à jour depuis le store (web2) ─────────────────────────────────
+
+	/** Une mise à jour lancée : la reprendre à chaque retour au premier plan. */
+	@Volatile
+	private var updateAsked = false
+
+	/**
+	 * Play a-t-il une version plus récente ? Si oui, son écran de mise à jour
+	 * s'ouvre par-dessus le jeu. Voir StoreUpdate.kt. Rien à attendre côté
+	 * GDScript : Play relance le jeu une fois installé.
+	 */
+	@UsedByGodot
+	fun checkStoreUpdate() {
+		val activity = getActivity() ?: return
+		updateAsked = true
+		activity.runOnUiThread { StoreUpdate.check(activity) }
 	}
 
 	// ─── Analytics ──────────────────────────────────────────────────────────

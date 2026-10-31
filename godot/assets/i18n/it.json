@@ -16,7 +16,9 @@
   "title": "Nuova versione",
   "body": "Rabbit Royale è appena stato aggiornato. Riavvia il gioco per continuare a scavare.",
   "reopen": "L’app si chiuderà: riaprila.",
-  "restart": "Riavvia"
+  "restart": "Riavvia",
+  "storeBody": "È disponibile una nuova versione di Rabbit Royale sull'App Store.",
+  "storeButton": "Aggiorna"
  },
  "elsewhere": {
   "title": "Altro dispositivo",
@@ -860,6 +862,21 @@
    "$t": "{0} non è fuori al momento"
   }
  },
+ "gold": {
+  "title": "Gold",
+  "body": "Il Gold compra tutto nel negozio: oggetti, pacchetti e skin.",
+  "amount": {
+   "$t": "{0} Gold"
+  },
+  "bonus": {
+   "$t": "+{0}%"
+  },
+  "inApp": "Il Gold si compra nell'app.",
+  "need": "Gold insufficiente: scegli un sacchetto.",
+  "got": {
+   "$t": "+{0} Gold"
+  }
+ },
  "shop": {
   "title": "NEGOZIO",
   "shed": "NEGOZIO",
@@ -1114,11 +1131,15 @@
   },
   "paid": {
    "$t": "-{0} 🥕"
+  },
+  "paidGold": {
+   "$t": "-{0} Gold"
   }
  },
  "shopErrors": {
   "fallback": "Non ha funzionato.",
   "insufficient_carrots": "Carote insufficienti.",
+  "insufficient_gold": "Gold insufficiente.",
   "inventory_full": "Il tuo zaino ne è pieno.",
   "bag_full": "Uno di quegli oggetti non entra nel tuo zaino.",
   "daily_energy_limit": "Niente più ricariche oggi. L’orto cresce lo stesso.",

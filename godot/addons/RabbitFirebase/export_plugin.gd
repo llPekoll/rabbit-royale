@@ -77,7 +77,8 @@ class AndroidExportPlugin extends EditorExportPlugin:
 	## au lancement est dans l'AAR (plugin-src/firebase/build.gradle.kts,
 	## CrashlyticsBuildId), pas dans un plugin Gradle à appliquer ici.
 	##
-	## LA CONNEXION GOOGLE SANS NAVIGATEUR (GoogleSignIn.kt) : web2 seulement.
+	## LA CONNEXION GOOGLE SANS NAVIGATEUR (GoogleSignIn.kt) et LA MISE À JOUR
+	## DEPUIS LE JEU (StoreUpdate.kt) : web2 seulement.
 	## Le Seeker ne se connecte pas par Google, et sa classe n'est chargée qu'au
 	## premier appel. MÊMES VERSIONS que build.gradle.kts.
 	func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
@@ -94,6 +95,8 @@ class AndroidExportPlugin extends EditorExportPlugin:
 				"androidx.credentials:credentials:1.5.0",
 				"androidx.credentials:credentials-play-services-auth:1.5.0",
 				"com.google.android.libraries.identity.googleid:googleid:1.1.1",
+				# La mise à jour de l'app depuis le jeu (StoreUpdate.kt).
+				"com.google.android.play:app-update:2.1.0",
 			])
 		return deps
 

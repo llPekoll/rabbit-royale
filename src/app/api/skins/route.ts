@@ -6,6 +6,8 @@ import { SKINS, ownedSkinKeys } from '@/lib/game/skins';
 import { lookOf } from '@/lib/game/look';
 import { payEnabled } from '@/lib/pay/solana';
 import { enabledTokens } from '@/lib/pay/tokens';
+import { goldPrice } from '@/lib/game/gold';
+import { isWeb2 } from '@/lib/world';
 import { tokenUsdPrices } from '@/lib/pay/rates';
 
 /** Read-only: recovery uses the existing POST /api/shop/claim. */
@@ -26,6 +28,8 @@ export async function GET(req: Request) {
   return Response.json({
     skins: SKINS.filter((skin) => skin.onSale).map((skin) => ({
       ...skin, owned: owned.includes(skin.key), equipped: player.equippedSkin === skin.key,
+      // Web2 sells skins for gold (lib/game/gold.ts).
+      ...(isWeb2() ? { gold: goldPrice(skin.kind) } : {}),
       pending: pending.some((payment) => payment.kind === skin.kind),
     })),
     owned, equipped: player.equippedSkin, look: lookOf(player.avatar, player.equippedSkin),

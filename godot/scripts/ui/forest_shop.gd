@@ -44,8 +44,9 @@ const STRIP_VISIBLE := 3
 ## Lu par le chrome (`_center_dialog`) : la boutique prend la vue.
 var fullscreen := true
 ## LE MONDE WEB2 (net.gd WORLD) : ni rails USDC / SOL / SKR, ni rattrapage de
-## paiement. Sur le build Play, un rail « store » (StorePay) vend les packs au
-## prix de Play, et l'onglet SKINS revient ; ailleurs tout reste en carottes.
+## paiement. A la place, le GOLD (lib/game/gold.ts) : une bourse a cote des
+## carottes, un rail « gold » sur les objets et les packs, et l'onglet SKINS
+## en Gold. Le Gold s'achete en sachets chez Play (GoldDialog, StorePay).
 var _web2 := Net.WORLD == "web2"
 var _store: StorePay
 ## BANC SEULEMENT : les achats sont faits sur place et fetes, rien ne part.
@@ -258,12 +259,10 @@ func _skin_tokens() -> Array:
 func _fix_rail() -> void:
 	if _web2:
 		if _page == "skins":
-			if not _store_sells_skins():
+			if not _gold_on():
 				_page = "packs"
 			return
-		if _rail == "store" and (_page != "packs" or not _store_sells_packs()):
-			_rail = "carrots"
-		elif _rail != "carrots" and _rail != "store":
+		if _rail != "carrots" and (_rail != "gold" or not _gold_on()):
 			_rail = "carrots"
 		return
 	if _page == "skins":
@@ -280,7 +279,7 @@ func _render() -> void:
 	var drawn := var_to_str([_page, _rail, _skin, _skin_top, _pose, _armed, I18N.locale, _state.shop, _state.stock(),
 		_state.busy, _state.note, _state.load_failed, _pay.stage, _pay.error, _skin_state.catalog,
 		_skin_state.busy, _skin_state.note, _skin_state.loading, PassState.shared().on(),
-		_store.prices if _store != null else null, _store.buying if _store != null else ""])
+		_store.prices if _store != null else null, _store.buying if _store != null else "", _state.gold()])
 	if drawn == _drawn:
 		return
 	_drawn = drawn
@@ -312,6 +311,14 @@ func _head() -> void:
 	_pixel(Kit.ICONS["carrot"], Rect2(940, -15, 36, 34))
 	_purse = _label(I18N.group_digits(_state.stock()), Rect2(987, -20, 118, 54), 22)
 	_purse.name = "Purse"
+	if _gold_on():
+		# LA BOURSE DE GOLD, a gauche des carottes : la toucher ouvre les sachets.
+		var gold := _button("", Rect2(689, -22, 214, 56), "tab-off", 22)
+		gold.name = "GoldPurse"
+		gold.tooltip_text = I18N.t("gold.title")
+		_pixel(Kit.ICONS["gold"], Rect2(25, 10, 36, 34), gold)
+		_label(I18N.group_digits(_state.gold()), Rect2(72, 2, 118, 52), 22, ForestShopStyle.CREAM, gold)
+		gold.pressed.connect(func() -> void: GoldDialog.ask_on(self))
 	var close := TextureButton.new()
 	close.name = "Close"
 	close.texture_normal = ForestShopStyle.texture("close")
@@ -322,7 +329,7 @@ func _head() -> void:
 	close.pressed.connect(func() -> void: closed.emit())
 	var tabs := ["packs", "items", "skins"]
 	var names := [I18N.t("shop.tabPacks"), I18N.t("shop.tabItems"), I18N.t("shop.tabSkins")]
-	if _web2 and not _store_sells_skins():
+	if _web2 and not _gold_on():
 		tabs.resize(2)
 		names.resize(2)
 	for i in tabs.size():
@@ -336,14 +343,14 @@ func _head() -> void:
 	var rails: Array = MONEY if _page == "skins" else ["carrots"] + MONEY
 	var live: Array = _skin_tokens() if _page == "skins" else ["carrots"] + _live_tokens()
 	if _web2:
-		rails = ["carrots", "store"] if _page == "packs" and _store_sells_packs() else []
+		rails = ["carrots", "gold"] if _gold_on() and _page != "skins" else []
 		live = rails
 	for i in rails.size():
 		var key: String = rails[i]
 		var b := _button("" if key == "carrots" else _rail_word(key), Rect2(704 + i * 116, 62, 110, 46), "tab-on" if key == _rail else "tab-off", 13)
 		b.name = "Rail_" + key
-		if key == "carrots":
-			_pixel(Kit.ICONS["carrot"], Rect2(42, 9, 27, 28), b)
+		if key == "carrots" or key == "gold":
+			_pixel(Kit.ICONS[key if key == "gold" else "carrot"], Rect2(41, 8, 28, 30) if key == "gold" else Rect2(42, 9, 27, 28), b)
 		if not live.has(key):
 			b.disabled = true
 			b.modulate.a = 0.5
@@ -355,19 +362,26 @@ func _head() -> void:
 			_queue())
 
 
-## Le mot d'un rail d'argent : le jeton, ou la devise de Play (« EUR »).
+## Le mot d'un rail d'argent : le jeton ; rien pour les carottes et le Gold,
+## dont l'icone dit tout.
 func _rail_word(key: String) -> String:
-	if key == "store":
-		return _store.currency() if _store != null else "STORE"
+	if key == "gold":
+		return ""
 	return key.to_upper()
 
 
-func _store_sells_packs() -> bool:
-	return _store != null and ShopState.PACKS.any(func(k: String) -> bool: return _store.sells(k))
+## LE GOLD EST-IL LA ? (web2) Des sachets en vente ici (build Play), ou deja
+## du Gold dans la bourse a depenser ; le banc, toujours.
+func _gold_on() -> bool:
+	if not _web2:
+		return false
+	return demo or _state.gold() > 0 or (_store != null and not _store.sachets().is_empty())
 
 
-func _store_sells_skins() -> bool:
-	return _store != null and SKINS.any(func(k: String) -> bool: return _store.sells(_skin_kind(k)))
+## « ≈ 0,25 € » : le prix en vraie monnaie d'un prix en Gold (vide sans Play).
+func _gold_money(gold: int) -> String:
+	var money := _store.money(gold) if _store != null else ""
+	return "" if money.is_empty() else "≈ " + money
 
 
 ## La sorte d'un skin, depuis sa cle (« pink-october » → skin_pink_october).
@@ -517,18 +531,22 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	var kind := String(it.get("kind", ""))
 	var item_name := I18N.t("items." + kind + ".name")
 	var pack := ShopState.PACKS.has(kind)
-	var store := _rail == "store" and _store != null
-	var money := store or (_rail != "carrots" and _live_tokens().has(_rail))
+	var gold := _rail == "gold" and _web2
+	var gold_price := ShopState.gold_price(it)
+	var money := gold or (_rail != "carrots" and _live_tokens().has(_rail))
 	var full := not bool(it.get("hasRoom", true))
 	var can_buy := _state.can_buy(it)
 	var dead := _state.busy or _pay.stage != Shop.UsdcPay.Stage.IDLE or (full if money else not can_buy)
-	if store:
-		dead = _state.busy or not _store.buying.is_empty() or not _store.sells(kind) or full
+	if gold:
+		# Une bourse trop maigre n'eteint rien : la pression ouvre les sachets.
+		dead = _state.busy or full or gold_price < 0
 	var capped := full and not money
 	var armed := _armed == kind and not dead
 	var words := I18N.group_digits(int(it.get("price", 0))) + "  "
-	if store:
-		words = _store.price_for(kind) if _store.buying != kind else I18N.shout(I18N.t("skins.wait"))
+	if gold:
+		var worth := _gold_money(gold_price)
+		# Les espaces de tete laissent la place a la piece, posee a gauche.
+		words = "     " + I18N.group_digits(gold_price) + ("" if worth.is_empty() else "  " + worth)
 	elif money:
 		words = Shop.money_label(float(it.get("usdc", 0.0)), _rail, _state.shop.get("rates", null))
 	elif capped:
@@ -537,16 +555,18 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	if armed:
 		words = I18N.shout(I18N.t("shop.confirmBuy"))
 	var face := "tab-on" if money or armed else ("tab-off" if dead else "action")
-	var b := _button(words, rect, face, 20, parent)
+	var b := _button(words, rect, face, 17 if gold and not armed else 20, parent)
 	b.name = "Price"
 	b.disabled = dead
 	if dead:
 		b.modulate.a = 0.75
 	if not money and not capped and not armed:
 		_pixel(Kit.ICONS["carrot"], Rect2(rect.size.x - 39, 11, 23, 25), b)
+	elif gold and not armed:
+		_pixel(Kit.ICONS["gold"], Rect2(12, (rect.size.y - 26.0) * 0.5, 27, 26), b)
 	var carrot_price := I18N.f("shop.priceLabel", [I18N.group_digits(int(it.get("price", 0)))])
-	if store:
-		b.tooltip_text = _store.price_for(kind)
+	if gold:
+		b.tooltip_text = I18N.f("gold.amount", [I18N.group_digits(gold_price)]) + " " + _gold_money(gold_price)
 	elif money:
 		b.tooltip_text = "$%.2f" % float(it.get("usdc", 0.0))
 	elif full:
@@ -556,10 +576,8 @@ func _price(it: Dictionary, rect: Rect2, parent: Control) -> void:
 	else:
 		b.tooltip_text = I18N.f("shop.tooPoor", [item_name, carrot_price])
 	b.pressed.connect(func() -> void:
-		if store and demo:
-			_state.bought.emit(kind, 1)
-		elif store:
-			_store.buy(kind)
+		if gold:
+			_pay_gold(kind, gold_price)
 		elif money:
 			_pay_money(kind)
 		elif _armed == kind:
@@ -585,6 +603,23 @@ func _buy(kind: String) -> void:
 		_fake_buy(kind)
 		return
 	await _state.buy(kind)
+	_queue()
+
+
+## EN GOLD : deux pressions comme en carottes ; sans assez de Gold, la
+## premiere ouvre les sachets.
+func _pay_gold(kind: String, price: int) -> void:
+	if _state.gold() < price and not demo:
+		GoldDialog.ask_on(self, true)
+		return
+	if _armed != kind:
+		_arm(kind)
+		return
+	_armed = ""
+	if demo:
+		_state.bought.emit(kind, 1)
+		return
+	await _state.buy(kind, 1, "gold")
 	_queue()
 
 
@@ -789,31 +824,40 @@ func _skins() -> void:
 	restore.pressed.connect(_skin_state.recover.bind(key))
 
 
-## LE SKIN AU PRIX DE PLAY (web2). Pas de confirmation en deux pressions :
-## la feuille de Play demande deja. Ni wallet ni rattrapage : Play rend ses
-## achats non reconnus au lancement (StorePay._recover).
+## LE SKIN EN GOLD (web2). Deux pressions, comme en carottes ; sans assez de
+## Gold, la premiere ouvre les sachets.
 func _store_skin(owned: bool, equipped: bool) -> void:
-	var kind := _skin_kind(_skin)
-	var price := _store.price_for(kind)
-	_label(I18N.t("skins.owned") if owned else price, Rect2(853, 328, 298, 57), 28)
+	var price := int(_skin_state.item(_skin).get("gold", _skin_state.item(_skin).get("usdCents", 0)))
+	var worth := _gold_money(price)
+	if owned:
+		_label(I18N.t("skins.owned"), Rect2(853, 328, 298, 57), 28)
+	else:
+		_pixel(Kit.ICONS["gold"], Rect2(866, 337, 40, 38))
+		_label(I18N.group_digits(price), Rect2(912, 328, 120, 57), 28)
+		if not worth.is_empty():
+			_label(worth, Rect2(1030, 328, 120, 57), 14, ForestShopStyle.MUTED)
+	var armed := _armed == "skin:" + _skin
 	var words := I18N.t("skins.equipped") if equipped else I18N.t("skins.equip")
 	if not owned:
-		words = I18N.t("skins.wait") if _store.buying == kind else I18N.t("skins.buy")
+		words = I18N.t("skins.confirm" if armed else "skins.buy")
 	if _skin_state.busy:
 		words = I18N.t("skins.wait")
 	var action := _button(I18N.shout(words), Rect2(854, 408, 294, 66), "tab-on" if owned else "action", 21)
 	action.name = "SkinPrice"
-	action.disabled = _skin_state.busy or equipped or (not owned and (not _store.buying.is_empty() or not _store.sells(kind)))
+	action.disabled = _skin_state.busy or equipped
 	if action.disabled:
 		action.modulate.a = 0.75
 	var key := _skin
 	action.pressed.connect(func() -> void:
 		if owned:
 			_skin_state.equip(key)
-		elif demo:
-			_skin_state.buy(key, "store")
+		elif _state.gold() < price and not demo:
+			GoldDialog.ask_on(self, true)
+		elif _armed == "skin:" + key:
+			_armed = ""
+			_skin_state.buy(key, "gold")
 		else:
-			_store.buy(kind))
+			_arm("skin:" + key))
 
 
 ## Une fleche du carrousel : un cran vers le haut (-1) ou le bas (1).

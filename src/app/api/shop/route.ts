@@ -26,7 +26,10 @@ import { enabledTokens } from '@/lib/pay/tokens';
 import { tokenUsdPrices } from '@/lib/pay/rates';
 import { treasuryAddress } from '@/lib/pay/solana';
 import { playEnabled } from '@/lib/pay/play';
+import { STRIPE_CURRENCY, stripeEnabled, stripeTestMode } from '@/lib/pay/stripe';
 import { isWeb2 } from '@/lib/world';
+import { goldPrice, isGoldKind, type GoldKind } from '@/lib/game/gold';
+import { isSkinKind, ownsSkin, skinForKind, skinSaleBlocker } from '@/lib/game/skins';
 import { STORE_PRODUCTS } from '@config/store';
 
 /** Everything the shop screen needs, in one round trip. */
@@ -72,11 +75,16 @@ export async function shopState(playerId: string) {
   const armed = armedTraps(placedRows).length;
   const coming = rearmingTraps(placedRows);
 
+  // Web2 prices everything in gold too (lib/game/gold.ts): the shelf says it.
+  const web2 = isWeb2();
+  const withGold = <T extends { kind: GoldKind }>(row: T) => (web2 ? { ...row, gold: goldPrice(row.kind) } : row);
   return {
     stock: player.stock,
-    items: shopShelf(bag, player.stock),
+    /** Web2: the gold in the purse. Absent in web3, which has no gold. */
+    ...(web2 ? { gold: player.gold } : {}),
+    items: shopShelf(bag, player.stock).map(withGold),
     /** The packs (SHOP_PACKS), with what is inside each. */
-    packs: packShelf(bag, player.stock),
+    packs: packShelf(bag, player.stock).map(withGold),
     traps: {
       held: availableTraps(player),
       placed,
@@ -111,12 +119,18 @@ export async function shopState(playerId: string) {
     /** USD per whole token, per rail. Null when the money route is off. */
     rates,
     /**
-     * What the stores sell here (web2, config/store.ts): the store's product
-     * id and the kind it opens into. Empty in web3, and while no Play account
-     * is configured. No price: the client shows the store's own, localized.
+     * What the stores sell here (web2, config/store.ts): sachets of gold, by
+     * the store's product id, with the gold each credits. Empty in web3, and
+     * while no store is configured. The apps show their store's own localized
+     * price; the web build (Stripe) shows `web`, the euros Stripe charges.
      */
-    storeProducts: isWeb2() && playEnabled()
-      ? Object.entries(STORE_PRODUCTS).map(([id, p]) => ({ id, kind: p.kind, consumable: p.consumable }))
+    storeProducts: web2 && (playEnabled() || stripeEnabled())
+      ? Object.entries(STORE_PRODUCTS).map(([id, p]) => ({
+        id, kind: p.kind, qty: p.qty, consumable: p.consumable,
+        /** The extra gold over 1 gold = 1 cent, in % (« +20 % »). */
+        bonus: Math.max(0, Math.round((p.qty / p.usdCents - 1) * 100)),
+        ...(stripeEnabled() ? { web: { currency: STRIPE_CURRENCY.toUpperCase(), cents: p.usdCents, test: stripeTestMode() } } : {}),
+      }))
       : [],
   };
 }
@@ -137,7 +151,8 @@ export async function GET(req: Request) {
   return Response.json(state);
 }
 
-/** `{ kind, qty? }` — buys with CARROTS. Money goes through api/shop/pay. */
+/** `{ kind, qty?, currency? }` — buys with CARROTS, or with GOLD in web2
+ *  (`currency: 'gold'`, skins too). USDC goes through api/shop/pay. */
 export async function POST(req: Request) {
   const session = await getSession(req);
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
@@ -146,7 +161,11 @@ export async function POST(req: Request) {
   // prix que celui montré au joueur un instant plus tôt.
   refreshTuningIfStale();
 
-  const body = (await req.json().catch(() => ({}))) as { kind?: unknown; qty?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { kind?: unknown; qty?: unknown; currency?: unknown };
+  if (body.currency === 'gold') {
+    if (!isWeb2()) return Response.json({ error: 'unknown_currency' }, { status: 400 });
+    return buyWithGold(session.sub, body.kind, body.qty);
+  }
   // isShopKind, not isItemKind: the enum now also carries the chest-only garden
   // boosts, and those have no price. Guarding on the wider set would let a
   // crafted POST reach `itemPrice` with a kind that has no entry.
@@ -219,4 +238,45 @@ export async function POST(req: Request) {
 
   const state = await shopState(session.sub);
   return Response.json({ bought: granted, spent: cost, ...state });
+}
+
+/**
+ * GOLD (web2). The carrot purchase's twin: the same blockers (bag ceilings,
+ * a skin owned once), the same locked row, the same grant — but the debit is
+ * gold, and skins are on the shelf too. No stock check: gold is not carrots.
+ */
+async function buyWithGold(playerId: string, rawKind: unknown, rawQty: unknown) {
+  if (!isGoldKind(rawKind)) return Response.json({ error: 'unknown_item' }, { status: 400 });
+  const kind = rawKind;
+  const qty = rawQty === undefined ? 1 : Number(rawQty);
+  const cost = goldPrice(kind, Number.isInteger(qty) && qty > 0 ? qty : 1);
+
+  const outcome = await db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(players).where(eq(players.id, playerId)).for('update');
+    if (!locked) return { error: 'unknown player' } as const;
+    const bag = holdings(await tx.query.inventory.findMany({ where: eq(inventory.playerId, playerId) }), locked);
+    const blocker = isSkinKind(kind)
+      ? skinSaleBlocker(qty, await ownsSkin(playerId, skinForKind(kind).key, tx), skinForKind(kind).onSale)
+      : isPackKind(kind) ? packBlocker(kind, qty, bag) : purchaseBlocker(kind, qty, bag);
+    if (blocker) return { error: blocker, have: locked.gold } as const;
+
+    const [charged] = await tx
+      .update(players)
+      .set({ gold: raw`${players.gold} - ${cost}` })
+      .where(and(eq(players.id, playerId), raw`${players.gold} >= ${cost}`))
+      .returning({ gold: players.gold });
+    if (!charged) return { error: 'insufficient_gold', have: locked.gold } as const;
+
+    const granted = await grantItem(tx, playerId, kind, qty, Date.now(), { currency: 'gold', cost });
+    return { granted } as const;
+  });
+
+  if (!('granted' in outcome)) {
+    return Response.json(
+      { error: outcome.error, need: cost, have: 'have' in outcome ? outcome.have : 0 },
+      { status: outcome.error === 'unknown player' ? 404 : 400 },
+    );
+  }
+  const state = await shopState(playerId);
+  return Response.json({ bought: outcome.granted, spent: cost, currency: 'gold', ...state });
 }

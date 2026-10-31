@@ -16,7 +16,9 @@
   "title": "新版本",
   "body": "Rabbit Royale 刚刚更新。重启游戏继续挖吧。",
   "reopen": "应用将关闭：请重新打开。",
-  "restart": "重启"
+  "restart": "重启",
+  "storeBody": "App Store 上有新版 Rabbit Royale。",
+  "storeButton": "更新"
  },
  "elsewhere": {
   "title": "其他设备",
@@ -804,6 +806,21 @@
    "$t": "{0}现在不在外面"
   }
  },
+ "gold": {
+  "title": "Gold",
+  "body": "Gold 可以购买商店里的一切：道具、礼包和皮肤。",
+  "amount": {
+   "$t": "{0} Gold"
+  },
+  "bonus": {
+   "$t": "+{0}%"
+  },
+  "inApp": "Gold 可在应用内购买。",
+  "need": "Gold 不足：请选择一袋。",
+  "got": {
+   "$t": "+{0} Gold"
+  }
+ },
  "shop": {
   "title": "商店",
   "shed": "商店",
@@ -954,11 +971,15 @@
   },
   "paid": {
    "$t": "-{0} 🥕"
+  },
+  "paidGold": {
+   "$t": "-{0} Gold"
   }
  },
  "shopErrors": {
   "fallback": "没成功。",
   "insufficient_carrots": "胡萝卜不够。",
+  "insufficient_gold": "Gold 不足。",
   "inventory_full": "你的背包装满了。",
   "bag_full": "有一件东西背包装不下。",
   "daily_energy_limit": "今天不能再补了。菜园照样在长。",

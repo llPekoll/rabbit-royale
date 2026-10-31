@@ -819,7 +819,11 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 	} else {
 		setStatusMode('progress');
-		engine.startGame({
+		// UNE PAGE PEUT FAIRE ATTENDRE LE DEPART (`window.rrBeforeStart`, une
+		// promesse) : rabbit.rip/play/ y regarde d'abord si ce navigateur
+		// porte un terrier d'avant le demenagement (site/play/move.js).
+		const ready = window.rrBeforeStart ? window.rrBeforeStart() : Promise.resolve();
+		ready.then(() => engine.startGame({
 			// UNE SORTIE EN ERREUR du moteur (un abandon que Godot a vu venir) :
 			// rapportee comme fatale. Les abandons brutaux passent par
 			// window.onerror, plus haut.
@@ -842,7 +846,7 @@ const engine = new Engine(GODOT_CONFIG);
 					statusProgress.classList.add('busy');
 				}
 			},
-		}).then(() => {
+		})).then(() => {
 			setStatusMode('hidden');
 		}, displayFailureNotice);
 	}

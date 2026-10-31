@@ -16,7 +16,9 @@
   "title": "Phiên bản mới",
   "body": "Rabbit Royale vừa được cập nhật. Khởi động lại trò chơi để tiếp tục đào.",
   "reopen": "Ứng dụng sẽ đóng: hãy mở lại.",
-  "restart": "Khởi động lại"
+  "restart": "Khởi động lại",
+  "storeBody": "Đã có phiên bản Rabbit Royale mới trên App Store.",
+  "storeButton": "Cập nhật"
  },
  "elsewhere": {
   "title": "Thiết bị khác",
@@ -804,6 +806,21 @@
    "$t": "{0} hiện không ra ngoài"
   }
  },
+ "gold": {
+  "title": "Gold",
+  "body": "Gold mua được mọi thứ trong cửa hàng: vật phẩm, gói và skin.",
+  "amount": {
+   "$t": "{0} Gold"
+  },
+  "bonus": {
+   "$t": "+{0}%"
+  },
+  "inApp": "Gold được bán trong ứng dụng.",
+  "need": "Không đủ Gold: hãy chọn một túi.",
+  "got": {
+   "$t": "+{0} Gold"
+  }
+ },
  "shop": {
   "title": "CỬA HÀNG",
   "shed": "CỬA HÀNG",
@@ -1052,11 +1069,15 @@
   },
   "paid": {
    "$t": "-{0} 🥕"
+  },
+  "paidGold": {
+   "$t": "-{0} Gold"
   }
  },
  "shopErrors": {
   "fallback": "Không được rồi.",
   "insufficient_carrots": "Không đủ cà rốt.",
+  "insufficient_gold": "Không đủ Gold.",
   "inventory_full": "Túi của bạn đầy món này rồi.",
   "bag_full": "Một món trong gói không còn chỗ trong túi.",
   "daily_energy_limit": "Hôm nay hết lượt nạp. Vườn vẫn lớn.",

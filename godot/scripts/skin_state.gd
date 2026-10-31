@@ -118,6 +118,13 @@ func buy(key: String, rail: String) -> void:
 	if _fake:
 		catalog["owned"].append(key)
 		skin["owned"] = true
+	elif rail == "gold":
+		# Web2 : le Gold de la bourse, par l'etal (POST /api/shop).
+		var shop := ShopState.shared()
+		var res := await shop.buy(String(skin["kind"]), 1, "gold")
+		note = shop.note if res.is_empty() else ""
+		failed = res.is_empty()
+		await refresh()
 	else:
 		var token := Session.token
 		await _pay.pay(String(skin["kind"]), 1, rail)

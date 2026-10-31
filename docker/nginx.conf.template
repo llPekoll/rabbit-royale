@@ -20,7 +20,8 @@
 # installees qui les ont en dur (godot/scripts/boot.gd, book_voice.gd) :
 # /play/android/ (le pack), /play/voice/ (la voix des livres) et les
 # fichiers Firebase de /play/ (un ancien abonnement aux notifications). Le
-# reste de /play/ est une page de passage vers sol.rabbit.rip (site/play/).
+# reste de /play/ est le jeu WEB2 depuis le 2026-10-30 (avant : une page de
+# passage) ; site/play/move.js y conduit encore un terrier d'avant.
 
 server {
   listen 3010 default_server;
@@ -182,7 +183,9 @@ server {
 # les styles qu'elle partage avec l'accueil du web3 sont lus dans son arbre.
 server {
   listen 3010;
-  server_name rabbit.rip www.rabbit.rip;
+  # WEB2_HOSTS : d'autres noms servis comme la vitrine (le stage :
+  # stage.rabbit.rip). Vide en prod.
+  server_name rabbit.rip www.rabbit.rip ${WEB2_HOSTS};
   root /usr/share/nginx/html/site;
   index index.html;
 
@@ -220,11 +223,24 @@ server {
     add_header Cache-Control "no-cache";
   }
 
-  # Le reste de /play/ : la page de passage, jamais en cache (elle lit la
-  # session du joueur a chaque visite).
-  location /play/ {
-    try_files /play/index.html =404;
+  # LE JEU WEB2 (2026-10-30), memes regles que le jeu du web3 : les gros
+  # fichiers compresses au build et revalides, la page et move.js jamais en
+  # cache. Le reste de /play/ retombe sur la page du jeu.
+  location ~ ^/play/index\.(wasm|pck|js|audio\.worklet\.js|audio\.position\.worklet\.js)$ {
+    types {
+      application/wasm wasm;
+      application/octet-stream pck;
+      application/javascript js;
+    }
+    gzip_static on;
     add_header Cache-Control "no-cache";
+  }
+  location ~ ^/play/(index\.html|move\.js)?$ {
+    try_files $uri /play/index.html;
+    add_header Cache-Control "no-cache";
+  }
+  location /play/ {
+    try_files $uri /play/index.html;
   }
 
   # Ce qui n'appartient qu'au web3 garde ses anciens liens (deck envoye aux

@@ -27,10 +27,11 @@ import { sql } from 'drizzle-orm';
  * So are the shop's packs (`shiro_stash`, `kuro_tantrum`, SHOP_PACKS): the
  * receipt names the pack, the bag receives what is inside it.
  */
-export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare', 'axe', 'skin_pink_october', 'skin_kappa']);
+export const itemKindEnum = pgEnum('item_kind', ['bomb', 'shield', 'lightning', 'trap', 'energy', 'smoke', 'mirage', 'water', 'fertiliser', 'fence', 'bloop', 'season_pass', 'shiro_stash', 'kuro_tantrum', 'skin_solana', 'skin_noir_violet', 'skin_carrot', 'refill_3', 'refill_10', 'skin_solflare', 'axe', 'skin_pink_october', 'skin_kappa', 'gold']);
 /** What a purchase was paid with. Both routes buy the same goods — see SHOP. */
-/** `iap`: paid through Google Play or the App Store (web2, store_purchases). */
-export const currencyEnum = pgEnum('currency', ['carrots', 'usdc', 'iap']);
+/** `iap`: paid through Google Play or the App Store (web2, store_purchases).
+ *  `gold`: paid with the web2 coin (lib/game/gold.ts), `cost` in whole gold. */
+export const currencyEnum = pgEnum('currency', ['carrots', 'usdc', 'iap', 'gold']);
 /** A USDC payment's life: quoted → paid → credited, or abandoned. */
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'confirmed', 'failed', 'expired']);
 export const raidResultEnum = pgEnum('raid_result', ['damaged', 'looted', 'blocked']);
@@ -84,6 +85,9 @@ export const players = pgTable('players', {
   seasonScore: bigint('season_score', { mode: 'number' }).notNull().default(0),
   /** Never reset, never stolen. Drives island-tier unlocks. */
   lifetimeCarrots: bigint('lifetime_carrots', { mode: 'number' }).notNull().default(0),
+  /** Gold, the web2 coin bought from the stores (lib/game/gold.ts). Never
+   *  raided, never reset: it is the player's money. */
+  gold: bigint('gold', { mode: 'number' }).notNull().default(0),
 
   burrowLevel: integer('burrow_level').notNull().default(1),
   /** What the owner rearranged on their burrow — trees, house, potager — on
@@ -704,7 +708,7 @@ export const payments = pgTable('payments', {
 export const storePurchases = pgTable('store_purchases', {
   id: uuid('id').primaryKey().defaultRandom(),
   playerId: text('player_id').notNull().references(() => players.id, { onDelete: 'cascade' }),
-  /** 'play' or 'apple'. */
+  /** 'play', 'apple' or 'stripe' (token = the Checkout Session id). */
   platform: text('platform').notNull(),
   /** The store's product id (config/store.ts). */
   productId: text('product_id').notNull(),

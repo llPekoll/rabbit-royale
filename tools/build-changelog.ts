@@ -79,6 +79,7 @@ function releaseHtml(r: Release, i: number): string {
   const ui = CHANGELOG_UI.en;
   const version = versionAt(i);
   const items = r.items
+    .filter((item) => !item.web2)
     .map((item) => `<li><span class="chip ${item.kind}">${esc(ui.kinds[item.kind])}</span><span>${esc(item.text.en)}</span></li>`)
     .join('\n          ');
   return `      <article class="release" id="${version}">
@@ -97,7 +98,8 @@ function pageHtml(): string {
   const ui = CHANGELOG_UI.en;
   const data = JSON.stringify({
     ui: CHANGELOG_UI,
-    releases: CHANGELOG.map((r, i) => ({ version: versionAt(i), date: r.date, items: r.items })),
+    // The page lives on the web3 site (sol.rabbit.rip): web2-only lines stay out.
+    releases: CHANGELOG.map((r, i) => ({ version: versionAt(i), date: r.date, items: r.items.filter((item) => !item.web2) })),
   }).replace(/</g, '\\u003c');
   return `<!doctype html>
 <!--

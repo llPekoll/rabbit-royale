@@ -32,6 +32,9 @@ export const ptBR: Dict = {
     body: 'Rabbit Royale acabou de ser atualizado. Reinicie o jogo para continuar cavando.',
     reopen: 'O app vai fechar: abra de novo.',
     restart: 'Reiniciar',
+    /** A newer version on the App Store (godot/scripts/store_update.gd, iOS). */
+    storeBody: 'Uma nova versão de Rabbit Royale está na App Store.',
+    storeButton: 'Atualizar',
   },
   elsewhere: {
     title: 'Outro aparelho',
@@ -591,6 +594,21 @@ export const ptBR: Dict = {
     notOut: (name) => `${name} não está lá fora agora`,
   },
 
+  /** GOLD, the web2 coin bought in pouches (src/lib/game/gold.ts, gold_dialog.gd). */
+  gold: {
+    title: 'Gold',
+    body: 'O Gold compra tudo na loja: itens, pacotes e skins.',
+    /** A pouch's gold: « 550 Gold ». */
+    amount: (n) => `${n} Gold`,
+    /** The extra gold of a bigger pouch. */
+    bonus: (n) => `+${n}%`,
+    /** Where no store sells it (web, desktop). */
+    inApp: 'O Gold é vendido no app.',
+    /** A price in gold the purse cannot pay: the pouches open. */
+    need: 'Gold insuficiente: escolha um saquinho.',
+    /** A pouch credited. */
+    got: (n) => `+${n} Gold`,
+  },
   shop: {
     title: 'LOJA',
     shed: 'LOJA',
@@ -660,11 +678,13 @@ export const ptBR: Dict = {
     boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} machados afiados` : 'Machado afiado'}. ${paid}`,
     boughtPack: (name, paid) => `${name}: tudo na bolsa. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
+    paidGold: (spent) => `-${spent} Gold`,
   },
 
   shopErrors: {
     fallback: 'Não deu certo.',
     insufficient_carrots: 'Cenouras insuficientes.',
+    insufficient_gold: 'Gold insuficiente.',
     inventory_full: 'Sua bolsa está cheia desses.',
     bag_full: 'Um dos itens não cabe mais na sua bolsa.',
     daily_energy_limit: 'Sem mais recargas hoje. A horta continua crescendo.',

@@ -59,10 +59,13 @@ export const WEB3_ONLY_ROUTES: ReadonlySet<string> = new Set([
 
 /**
  * The /api routes that only exist in the web2 world: buying through Google
- * Play and the App Store, and the App Store app's Sign in with Apple. The Seeker and sol.rabbit.rip pay in crypto, and a
+ * Play, the App Store and Stripe (the web build), and the App Store app's
+ * Sign in with Apple. The Seeker and sol.rabbit.rip pay in crypto, and a
  * store purchase on a web3 burrow would be money landing in the wrong world.
  */
 export const WEB2_ONLY_ROUTES: ReadonlySet<string> = new Set([
   '/api/store/play',
+  '/api/store/stripe',
+  '/api/store/stripe/webhook',
   '/api/auth/apple/native',
 ]);

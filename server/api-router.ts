@@ -79,6 +79,8 @@ const ROUTES: Record<string, () => Promise<ModuleRoute>> = {
   '/api/shop/claim': () => import('../src/app/api/shop/claim/route'),
   '/api/snack': () => import('../src/app/api/snack/route'),
   '/api/store/play': () => import('../src/app/api/store/play/route'),
+  '/api/store/stripe': () => import('../src/app/api/store/stripe/route'),
+  '/api/store/stripe/webhook': () => import('../src/app/api/store/stripe/webhook/route'),
   '/api/traps': () => import('../src/app/api/traps/route'),
   '/api/webhooks/alchemy': () => import('../src/app/api/webhooks/alchemy/route'),
 };

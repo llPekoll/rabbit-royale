@@ -31,15 +31,15 @@ const SEEN_PATH := "user://changelog.cfg"
 static var _seen_cache := -2
 
 
-## Le monde web2 ne lit pas les lignes `web3` (NFT, wallet, crypto) : la
-## version reste, sa ligne disparait.
+## Chaque monde ne lit que ses lignes : le web2 saute les `web3` (NFT,
+## wallet, crypto), le web3 les `web2` (Gold, stores). La version reste, sa
+## ligne disparait.
 static func releases() -> Array:
 	var all: Array = (DATA as JSON).data.get("releases", [])
-	if Net.WORLD != "web2":
-		return all
+	var other := "web3" if Net.WORLD == "web2" else "web2"
 	return all.map(func(r: Dictionary) -> Dictionary:
 		var kept := r.duplicate()
-		kept["items"] = (r["items"] as Array).filter(func(item: Dictionary) -> bool: return not bool(item.get("web3", false)))
+		kept["items"] = (r["items"] as Array).filter(func(item: Dictionary) -> bool: return not bool(item.get(other, false)))
 		return kept)
 
 

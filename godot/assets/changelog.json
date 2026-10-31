@@ -108,6 +108,38 @@
   },
   "releases": [
     {
+      "version": "v1.21",
+      "date": "2026-10-31",
+      "items": [
+        {
+          "kind": "new",
+          "web2": true,
+          "text": {
+            "en": "Gold arrives: one coin that buys everything in the shop — items, packs and skins. Get it in pouches, with up to 30% extra on the big ones.",
+            "fr": "Voici le Gold : une seule pièce qui achète tout dans la boutique — objets, packs et skins. Il s’achète en sachets, jusqu’à 30 % offerts sur les gros.",
+            "zh": "金币来了：一种货币就能买下商店里的一切——道具、礼包和皮肤。按袋购买，大袋最多多送 30%。",
+            "pt-BR": "Chegou o Gold: uma moeda que compra tudo na loja — itens, pacotes e skins. Vem em sacolas, com até 30% a mais nas grandes.",
+            "vi": "Gold đã đến: một đồng xu mua được mọi thứ trong cửa hàng — vật phẩm, gói và skin. Mua theo túi, túi lớn được tặng thêm đến 30%.",
+            "es": "Llega el Gold: una sola moneda que lo compra todo en la tienda — objetos, packs y skins. Se compra en bolsas, con hasta un 30 % extra en las grandes.",
+            "it": "Arriva il Gold: una sola moneta che compra tutto nel negozio — oggetti, pack e skin. Si compra in sacchetti, fino al 30% in più su quelli grandi."
+          }
+        },
+        {
+          "kind": "new",
+          "web2": true,
+          "text": {
+            "en": "Play in your browser at rabbit.rip/play — same burrow as the app.",
+            "fr": "Joue dans ton navigateur sur rabbit.rip/play — le même terrier que dans l’app.",
+            "zh": "在浏览器里玩：rabbit.rip/play——和应用里是同一个洞穴。",
+            "pt-BR": "Jogue no navegador em rabbit.rip/play — a mesma toca do app.",
+            "vi": "Chơi ngay trên trình duyệt tại rabbit.rip/play — cùng một hang với ứng dụng.",
+            "es": "Juega en tu navegador en rabbit.rip/play — la misma madriguera que en la app.",
+            "it": "Gioca nel browser su rabbit.rip/play — la stessa tana dell’app."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.20.1",
       "date": "2026-10-29",
       "items": [

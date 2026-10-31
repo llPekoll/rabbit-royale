@@ -2,12 +2,14 @@ class_name StorePay
 extends Node
 ## PAYER PAR GOOGLE PLAY (le monde web2, build « Android Play (web2) »).
 ##
-## Le pendant de Shop.UsdcPay pour les stores, dans l'autre ordre : Play
-## prend l'argent D'ABORD et rend un jeton, le serveur demande a Play ce que
-## vaut ce jeton (api/store/play) et credite. Donc :
+## Play ne vend que des SACHETS DE GOLD (config/store.ts, 2026-10-30) : le
+## Gold paie ensuite tout l'etal (ShopState.buy en "gold"). Le pendant de
+## Shop.UsdcPay pour les stores, dans l'autre ordre : Play prend l'argent
+## D'ABORD et rend un jeton, le serveur demande a Play ce que vaut ce jeton
+## (api/store/play) et credite. Donc :
 ##
-##   1. PUT  /api/store/play  : le serveur dit si l'achat est permis (skin deja
-##      a soi, sac trop plein pour le pack). Une fois Play paye, plus de refus.
+##   1. PUT  /api/store/play  : le serveur dit si l'achat est permis. Une fois
+##      Play paye, plus de refus.
 ##   2. La feuille de Play, liee au joueur (`set_obfuscated_account_id`, le
 ##      sha256 de son id : le serveur refuse un jeton lie a un autre terrier).
 ##   3. POST /api/store/play  : credite, puis le pack est CONSOMME (rachetable),
@@ -19,11 +21,19 @@ extends Node
 ## un jeton qu'une fois. Une coupure entre le paiement et le credit se rattrape
 ## au lancement suivant.
 ##
+## SUR LE WEB (rabbit.rip/play/, export « Web (web2) ») : les MEMES sachets,
+## payes sur la page de Stripe (api/store/stripe, 2026-10-30). Pas de feuille :
+## le jeu part sur Stripe et en revient avec `?gold=done&session_id=cs_…`,
+## que `_web_return` fait crediter. Le webhook de Stripe credite aussi si le
+## joueur ne revient pas ; le serveur ne compte la session qu'une fois. Le
+## prix est celui que Stripe facture, en euros (`web` de /api/shop).
+##
 ## PAS UN AUTOLOAD (comme ShopState) : project.godot ne bouge pas. Hors du
-## build Play il n'y a pas de singleton Java, et tout ici repond « pas en
-## vente » : les prix restent en carottes.
+## build Play et du web web2, tout ici repond « pas en vente ».
 
 signal changed
+## Un sachet credite : la bourse vient de prendre `qty` Gold.
+signal got_gold(qty: int)
 
 static var current: StorePay
 
@@ -33,30 +43,38 @@ const SINGLETON := "GodotGooglePlayBilling"
 var prices: Dictionary = {}
 ## L'offre complete (micros, devise), pour l'analytics.
 var _offers: Dictionary = {}
-## id du produit → {kind, consumable}, tel que le serveur le vend (/api/shop).
+## id du produit → {kind, qty, consumable}, tel que le serveur le vend (/api/shop).
 var _products: Dictionary = {}
 var _client: BillingClient
 var _connected := false
-## La sorte dont la feuille de Play est ouverte : la carte reste grisee.
+## Le sachet dont la feuille de Play est ouverte : sa ligne reste grisee.
 var buying := ""
 ## Les jetons deja envoyes au serveur dans cette session.
 var _settling: Dictionary = {}
+## Un retour de Stripe en cours de credit.
+var _returning := false
 
 
-## BANC SEULEMENT (forest_shop_bench --store) : un catalogue et des prix
-## donnes, connecte, sans Play. id → [sorte, consommable, prix affiche].
+## BANC SEULEMENT (forest_shop_bench --store) : des sachets et leurs prix
+## donnes, connecte, sans Play. id → [gold, prix affiche, micros, bonus].
 func fake(listing: Dictionary, currency_code := "EUR") -> void:
 	_connected = true
 	for id: String in listing:
 		var row: Array = listing[id]
-		_products[id] = {"kind": String(row[0]), "consumable": bool(row[1])}
-		prices[id] = String(row[2])
-		_offers[id] = {"formatted_price": String(row[2]), "price_currency_code": currency_code}
+		_products[id] = {"kind": "gold", "qty": int(row[0]), "bonus": int(row[3]) if row.size() > 3 else 0, "consumable": true}
+		prices[id] = String(row[1])
+		_offers[id] = {"formatted_price": String(row[1]), "price_currency_code": currency_code,
+			"price_amount_micros": int(row[2])}
 	changed.emit()
 
 
 static func supported() -> bool:
-	return Net.WORLD == "web2" and Engine.has_singleton(SINGLETON)
+	return Net.WORLD == "web2" and (Engine.has_singleton(SINGLETON) or web())
+
+
+## Le jeu du navigateur : Stripe au lieu de Play.
+static func web() -> bool:
+	return Net.WORLD == "web2" and OS.has_feature("web")
 
 
 static func shared() -> StorePay:
@@ -69,6 +87,12 @@ static func shared() -> StorePay:
 
 func _ready() -> void:
 	if not supported():
+		return
+	if web():
+		ShopState.shared().changed.connect(_read_catalog)
+		Session.changed.connect(_web_return)
+		_read_catalog()
+		_web_return()
 		return
 	_client = BillingClient.new()
 	add_child(_client)
@@ -87,30 +111,59 @@ func _ready() -> void:
 	_client.start_connection()
 
 
-## En vente ici, avec un prix de Play a montrer ?
-func sells(kind: String) -> bool:
-	var id := id_for(kind)
-	return _connected and not id.is_empty() and prices.has(id)
-
-
-func id_for(kind: String) -> String:
+## LES SACHETS EN VENTE ICI, avec leur prix de Play : [{id, qty, price}],
+## du plus petit au plus gros. Vide hors du build Play, ou avant les prix.
+func sachets() -> Array:
+	var list: Array = []
+	if not _connected:
+		return list
 	for id: String in _products:
-		if String(_products[id].get("kind", "")) == kind:
-			return id
-	return ""
+		if prices.has(id):
+			list.push_back({"id": id, "qty": int(_products[id].get("qty", 0)), "price": String(prices[id])})
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["qty"]) < int(b["qty"]))
+	return list
 
 
-func price_for(kind: String) -> String:
-	return String(prices.get(id_for(kind), ""))
+## Le bonus d'un sachet, en % (« +20 % ») : le serveur le compte sur
+## 1 Gold = 1 centime (config/store.ts), 0 pour le plus petit.
+func bonus(id: String) -> int:
+	return int(_products.get(id, {}).get("bonus", 0))
 
 
-## La devise de Play pour ce joueur (« EUR »), le mot du rail.
-func currency() -> String:
-	for id: String in _offers:
-		var code := String(_offers[id].get("price_currency_code", ""))
-		if not code.is_empty():
-			return code
-	return "STORE"
+## CE QUE VAUT `gold` EN VRAIE MONNAIE, au prix du plus petit sachet, dans
+## la devise et l'ecriture de Play (« 0,25 € ») : l'UE demande ce prix a cote
+## de tout prix en monnaie de jeu (principes CPC, mars 2025). Vide sans prix.
+func money(gold: int) -> String:
+	var all := sachets()
+	if all.is_empty():
+		return ""
+	var base: Dictionary = all[0]
+	var offer: Dictionary = _offers.get(base["id"], {})
+	var micros := float(offer.get("price_amount_micros", 0))
+	if micros <= 0.0 or int(base["qty"]) <= 0:
+		return ""
+	return reprice(String(base["price"]), micros / 1000000.0 / float(base["qty"]) * gold)
+
+
+## « 0,99 € » re-ecrit pour une autre somme, en gardant devise, symbole et
+## separateur decimal de Play (« 0,25 € », « $0.25 », « 25 ₫ »).
+static func reprice(formatted: String, value: float) -> String:
+	var rx := RegEx.create_from_string("\\d[\\d.,\\s\\x{00A0}\\x{202F}]*\\d|\\d")
+	var m := rx.search(formatted)
+	if m == null:
+		return formatted
+	var digits := m.get_string()
+	var comma := digits.contains(",") and (not digits.contains(".") or digits.rfind(",") > digits.rfind("."))
+	var decimals := 0
+	var sep_at := digits.rfind("," if comma else ".")
+	if sep_at >= 0 and digits.length() - sep_at - 1 <= 2:
+		decimals = digits.length() - sep_at - 1
+	var text := String.num(value, decimals) if decimals > 0 else str(roundi(value))
+	if decimals > 0:
+		var parts := text.split(".")
+		var frac := (parts[1] if parts.size() > 1 else "").rpad(decimals, "0")
+		text = parts[0] + ("," if comma else ".") + frac
+	return formatted.substr(0, m.get_start()) + text + formatted.substr(m.get_end())
 
 
 ## Ce que le serveur vend (`storeProducts` de /api/shop). Relu a chaque etal :
@@ -127,8 +180,19 @@ func _read_catalog() -> void:
 		if id.is_empty():
 			continue
 		fresh = fresh or not _products.has(id)
-		_products[id] = {"kind": String(p.get("kind", "")), "consumable": bool(p.get("consumable", true))}
-	if fresh and _connected:
+		_products[id] = {"kind": String(p.get("kind", "")), "qty": int(p.get("qty", 0)),
+			"bonus": int(p.get("bonus", 0)), "consumable": bool(p.get("consumable", true))}
+		var price: Variant = p.get("web")
+		if web() and price is Dictionary:
+			var cents := int(price.get("cents", 0))
+			var code := String(price.get("currency", "EUR"))
+			prices[id] = euros(cents, I18N.locale) if code == "EUR" else "%s %.2f" % [code, cents / 100.0]
+			_offers[id] = {"formatted_price": prices[id], "price_currency_code": code,
+				"price_amount_micros": cents * 10000}
+	if web():
+		_connected = not prices.is_empty()
+		changed.emit()
+	elif fresh and _connected:
 		_query_prices()
 
 
@@ -177,20 +241,40 @@ static func _offer_of(d: Dictionary) -> Dictionary:
 	return {}
 
 
-## ACHETER. Rend quand la feuille de Play est ouverte ; le credit arrive par
-## `on_purchase_updated`, puis ShopState.bought comme un achat en carottes.
-func buy(kind: String) -> void:
-	var id := id_for(kind)
-	if not sells(kind) or not buying.is_empty() or not Session.signed_in():
+## Des centimes d'euro ecrits comme on les lit dans cette langue :
+## « 4,99 € » (fr, es, it, pt-BR, vi), « €4.99 » (en, zh).
+static func euros(cents: int, lang: String) -> String:
+	var whole := "%d" % floori(cents / 100.0)
+	var frac := "%02d" % (cents % 100)
+	if lang in ["en", "zh"]:
+		return "€%s.%s" % [whole, frac]
+	return "%s,%s €" % [whole, frac]
+
+
+## ACHETER UN SACHET. Rend quand la feuille de Play est ouverte ; le Gold
+## arrive par `on_purchase_updated`, dans la bourse de ShopState. Sur le web,
+## le jeu PART sur la page de Stripe (meme onglet : une fenetre ouverte hors
+## du geste du joueur serait bloquee) et le Gold arrive au retour.
+func buy(id: String) -> void:
+	if not _connected or not prices.has(id) or not buying.is_empty() or not Session.signed_in():
 		return
-	buying = kind
+	buying = id
 	changed.emit()
+	if web():
+		var page: Answer = await Net.post_json("/api/store/stripe", {"productId": id, "locale": I18N.locale}, Session.token)
+		var url := String(page.body.get("url", "")) if page.ok else ""
+		if not url.begins_with("https://"):
+			_fail(page.error() if not page.ok or page.body.has("error") else "store_unavailable")
+			return
+		Analytics.track("begin_checkout", {"item_id": id, "rail": "stripe"})
+		JavaScriptBridge.eval("window.location.assign(%s)" % JSON.stringify(url), true)
+		return
 	var check: Answer = await Net.send_json("/api/store/play", HTTPClient.METHOD_PUT, {"productId": id}, Session.token)
 	if not check.ok or check.body.has("error"):
 		_fail(check.error())
 		return
 	_client.set_obfuscated_account_id(String(Session.player.get("id", "")).sha256_text())
-	Analytics.track("begin_checkout", {"item_id": kind, "rail": "play"})
+	Analytics.track("begin_checkout", {"item_id": id, "rail": "play"})
 	var launched: Dictionary = _client.purchase(id)
 	var code := int(launched.get("response_code", BillingClient.BillingResponseCode.OK))
 	if code != BillingClient.BillingResponseCode.OK:
@@ -263,23 +347,62 @@ func _settle(p: Dictionary) -> void:
 		_client.consume_purchase(token)
 	elif not bool(p.get("is_acknowledged", false)):
 		_client.acknowledge_purchase(token)
+	_credited(res.body, id, "play", String(p.get("order_id", "")))
+
+
+## LE GOLD EST DANS LA BOURSE (Play ou Stripe) : l'etal relu, le mot, l'analytics.
+func _credited(body: Dictionary, id: String, rail: String, order: String) -> void:
 	var shop := ShopState.shared()
-	shop.shop = res.body
+	shop.shop = body
 	shop.refresh()
 	Home.refresh()
 	_done()
-	var bought: Dictionary = res.body.get("bought", {})
-	var kind := String(bought.get("kind", _products.get(id, {}).get("kind", "")))
-	if not bool(res.body.get("alreadyCredited", false)):
+	var bought: Dictionary = body.get("bought", {})
+	if not bool(body.get("alreadyCredited", false)):
 		var offer: Dictionary = _offers.get(id, {})
 		Analytics.track("purchase", {"currency": String(offer.get("price_currency_code", "USD")),
-			"value": float(offer.get("price_amount_micros", 0)) / 1000000.0, "item_id": kind,
-			"rail": "play", "transaction_id": String(p.get("order_id", ""))})
-		shop.bought.emit(kind, int(bought.get("qty", 1)))
-		# Un skin a sa propre fete (silhouette, eclair), comme paye en crypto.
-		for skin: Variant in SkinState.shared().catalog.get("skins", []):
-			if skin is Dictionary and String(skin.get("kind", "")) == kind:
-				SkinState.celebrate(String(skin.get("key", "")))
+			"value": float(offer.get("price_amount_micros", 0)) / 1000000.0, "item_id": id,
+			"rail": rail, "transaction_id": order})
+		Analytics.track("earn_virtual_currency", {"virtual_currency_name": "gold", "value": int(bought.get("qty", 0))})
+		shop.noted.emit(I18N.f("gold.got", [I18N.group_digits(int(bought.get("qty", 0)))]), false)
+		got_gold.emit(int(bought.get("qty", 0)))
+
+
+## DE RETOUR DE STRIPE : `?gold=done&session_id=cs_…` dans l'adresse. Le
+## serveur lit la session chez Stripe et credite (une fois, meme si le webhook
+## est passe avant). Une reponse a refaire (Stripe muet, paiement lent) garde
+## l'adresse : un rechargement redemande ; le webhook, lui, n'attend pas.
+func _web_return() -> void:
+	if not web() or _returning or not Session.signed_in():
+		return
+	var query := str(JavaScriptBridge.eval("location.search", true))
+	var args := {}
+	for pair in query.trim_prefix("?").split("&", false):
+		var kv := pair.split("=", true, 1)
+		args[kv[0].uri_decode()] = kv[1].uri_decode() if kv.size() > 1 else ""
+	var state := String(args.get("gold", ""))
+	if state.is_empty():
+		return
+	var session_id := String(args.get("session_id", ""))
+	if state != "done" or not session_id.begins_with("cs_"):
+		_clean_address()
+		return
+	_returning = true
+	var res: Answer = await Net.get_json("/api/store/stripe?session=" + session_id.uri_encode(), Session.token)
+	_returning = false
+	if not res.ok or res.body.has("error"):
+		if not bool(res.body.get("retry", false)):
+			_clean_address()
+		_fail(res.error(), "stripe return %s" % res.error())
+		return
+	_clean_address()
+	var bought: Dictionary = res.body.get("bought", {})
+	var id := "gold_%d" % int(bought.get("qty", 0))
+	_credited(res.body, id, "stripe", session_id)
+
+
+func _clean_address() -> void:
+	JavaScriptBridge.eval("history.replaceState(null, '', location.pathname + location.hash)", true)
 
 
 func _done() -> void:

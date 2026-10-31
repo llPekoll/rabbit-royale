@@ -288,6 +288,13 @@
       "when": 1793293807316,
       "tag": "0040_store_purchases",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793371212603,
+      "tag": "0041_gold",
+      "breakpoints": true
     }
   ]
 }

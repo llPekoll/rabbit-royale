@@ -5,11 +5,13 @@ extends Control
 ## Godot --path godot scenes/bench/forest_shop_bench.tscn --
 ##   --size=1280x720 --ui-scale=1 --verify --out=/private/tmp/forest-shop
 ##   [--page=packs|items|skins] [--lang=fr]
-##   [--world=web2 --store]  le monde web2 avec des prix Play factices (StorePay.fake)
+##   [--world=web2 --store]  le monde web2 : Gold et sachets Play factices (StorePay.fake)
+##   [--gold-dialog]  et la fenetre des sachets ouverte par-dessus
 const ITEMS := ["energy", "trap", "lightning", "shield", "bloop", "fence", "smoke", "axe"]
 const COUNTS := {"energy": 2, "trap": 3, "lightning": 0, "shield": 4, "bloop": 0, "fence": 4, "smoke": 0, "axe": 1}
 const RATES := {"usdc": 1.0, "sol": 152.4, "skr": 0.031}
 const STOCK := 1240
+const GOLD := 120
 
 var _shop: ForestShop
 var _out := "/private/tmp/forest-shop"
@@ -33,12 +35,11 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_fixtures()
 	if "--store" in OS.get_cmdline_user_args():
+		# Les sachets de Gold, aux prix de Play (gold, prix affiche, micros).
 		StorePay.shared().fake({
-			"pack_shiro_stash": ["shiro_stash", true, "1,79 €"], "pack_kuro_tantrum": ["kuro_tantrum", true, "1,19 €"],
-			"pack_refill_3": ["refill_3", true, "2,39 €"], "pack_refill_10": ["refill_10", true, "7,99 €"],
-			"skin_kappa": ["skin_kappa", false, "1,99 €"], "skin_pink_october": ["skin_pink_october", false, "0,99 €"],
-			"skin_eclipse": ["skin_solflare", false, "0,99 €"], "skin_carrot": ["skin_carrot", false, "0,99 €"],
-			"skin_violet": ["skin_solana", false, "0,99 €"],
+			"gold_100": [100, "0,99 €", 990000, 0], "gold_550": [550, "4,99 €", 4990000, 10],
+			"gold_1200": [1200, "9,99 €", 9990000, 20], "gold_2500": [2500, "19,99 €", 19990000, 25],
+			"gold_6500": [6500, "49,99 €", 49990000, 30],
 		})
 	_shop = ForestShop.new()
 	_shop.demo = true
@@ -49,6 +50,8 @@ func _ready() -> void:
 	_shop.closed.connect(func() -> void: get_tree().quit())
 	DeskScale.follow(get_window())
 	DevShot.arm(self)
+	if "--gold-dialog" in OS.get_cmdline_user_args():
+		GoldDialog.ask_on(_shop, true)
 	if "--verify" in OS.get_cmdline_user_args():
 		_verify.call_deferred()
 
@@ -60,6 +63,7 @@ func _fixtures() -> void:
 	for kind: String in ITEMS:
 		items.append({"kind": kind, "price": Tuning.i("SHOP.PRICES." + kind),
 			"usdc": float(Tuning.table("SHOP.USDC_PRICES")[kind]),
+			"gold": roundi(float(Tuning.table("SHOP.USDC_PRICES")[kind]) * 100.0),
 			"held": COUNTS[kind], "cap": 20, "hasRoom": COUNTS[kind] < 20})
 	var packs: Array = []
 	for key: String in ShopState.PACKS:
@@ -71,10 +75,12 @@ func _fixtures() -> void:
 			total += Tuning.i("SHOP.PRICES." + kind) * int(line["qty"])
 			usd += float(Tuning.table("SHOP.USDC_PRICES")[kind]) * int(line["qty"])
 		packs.append({"kind": key, "price": roundi(total * 0.8 / 10.0) * 10, "usdc": snappedf(usd * 0.8, 0.01),
+			"gold": roundi(snappedf(usd * 0.8, 0.01) * 100.0),
 			"discount": 0.2, "items": lines, "hasRoom": true})
 	var shop := ShopState.shared()
 	shop.fake(items, {}, true, packs)
 	shop.shop["stock"] = STOCK
+	shop.shop["gold"] = GOLD
 	shop.shop["rates"] = RATES
 	PassState.shared().fake({})
 	SkinState.shared().fake({

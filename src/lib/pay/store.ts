@@ -8,7 +8,7 @@
  *
  *   storeBlocker   may this player buy this product? (asked BEFORE the
  *                  store's sheet opens: once the store has the money, a sale
- *                  is never refused)
+ *                  is never refused) — every product is gold now
  *   creditStore…   deliver it, once per store token, in one transaction
  *
  * The token is the store's own name for one purchase: Play's purchaseToken,
@@ -18,30 +18,20 @@
  */
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { inventory, players, storePurchases } from '@/lib/db/schema';
-import { holdings } from '@/lib/game/inventory';
+import { players, storePurchases } from '@/lib/db/schema';
 import { grantItem } from '@/lib/game/grant';
-import { isPackKind, packBlocker } from '@/lib/game/packs';
-import { isSkinKind, ownsSkin, skinForKind } from '@/lib/game/skins';
 import { STORE_PRODUCTS, type StoreProductId } from '@config/store';
 
-export type StorePlatform = 'play' | 'apple';
+export type StorePlatform = 'play' | 'apple' | 'stripe';
 
-/** Why this player cannot buy `productId` right now, or null. */
-export async function storeBlocker(playerId: string, productId: StoreProductId): Promise<string | null> {
-  const { kind } = STORE_PRODUCTS[productId];
-  if (isSkinKind(kind)) {
-    return await ownsSkin(playerId, skinForKind(kind).key) ? 'skin_owned' : null;
-  }
-  if (isPackKind(kind)) {
-    const [player, rows] = await Promise.all([
-      db.query.players.findFirst({ where: eq(players.id, playerId) }),
-      db.query.inventory.findMany({ where: eq(inventory.playerId, playerId) }),
-    ]);
-    if (!player) return 'unknown_player';
-    return packBlocker(kind, 1, holdings(rows, player));
-  }
-  return 'unknown_item';
+/**
+ * Why this player cannot buy `productId` right now, or null. Every product is
+ * a sachet of gold (config/store.ts), and gold has no ceiling: only a player
+ * who does not exist is refused.
+ */
+export async function storeBlocker(playerId: string, _productId: StoreProductId): Promise<string | null> {
+  const player = await db.query.players.findFirst({ where: eq(players.id, playerId), columns: { id: true } });
+  return player ? null : 'unknown_player';
 }
 
 /** A token this store already credited: to whom. */

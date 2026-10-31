@@ -242,19 +242,23 @@ func claim() -> void:
 ## ACHETER EN CAROTTES. La reponse porte le nouvel etal, donc rien n'est
 ## devine. Rend la reponse du serveur, ou {} sur un refus — qui a deja ete
 ## dit par `noted`.
-func buy(kind: String, qty: int = 1) -> Dictionary:
+## `currency` : "carrots", ou "gold" dans le monde web2 (skins compris).
+func buy(kind: String, qty: int = 1, currency := "carrots") -> Dictionary:
 	if busy or not Session.signed_in() or _fake:
 		return {}
 	busy = true
 	_say("", false)
-	var answer: Answer = await Net.post_json("/api/shop", {"kind": kind, "qty": qty}, Session.token)
+	var ask := {"kind": kind, "qty": qty}
+	if currency == "gold":
+		ask["currency"] = "gold"
+	var answer: Answer = await Net.post_json("/api/shop", ask, Session.token)
 	busy = false
 	var res: Dictionary = answer.body
 	if res.has("error") or not answer.ok:
-		Analytics.track("purchase_refused", {"item_id": kind, "quantity": qty, "currency": "carrots", "code": answer.error()})
+		Analytics.track("purchase_refused", {"item_id": kind, "quantity": qty, "currency": currency, "code": answer.error()})
 		_say(message(answer.error()), true)
 		return {}
-	Analytics.track("spend_virtual_currency", {"virtual_currency_name": "carrots", "value": int(res.get("spent", 0)), "item_name": kind, "quantity": qty})
+	Analytics.track("spend_virtual_currency", {"virtual_currency_name": currency, "value": int(res.get("spent", 0)), "item_name": kind, "quantity": qty})
 	shop = res
 	# Un achat de piege change aussi ce que le sol permet.
 	if kind == "trap":
@@ -266,7 +270,7 @@ func buy(kind: String, qty: int = 1) -> Dictionary:
 		Home.burrow["stock"] = int(res["stock"])
 		Home.changed.emit()
 	Home.refresh()
-	_say(receipt(kind, qty, int(res.get("spent", 0))), false)
+	_say(receipt(kind, qty, int(res.get("spent", 0)), currency), false)
 	bought.emit(kind, qty)
 	return res
 
@@ -413,8 +417,8 @@ func message(code: String) -> String:
 
 ## CE QUE DIT UN ACHAT REUSSI (use-shop.ts `purchaseNote`) : nomme par objet,
 ## parce que « 1 objet achete » est un recu et ceci est un jeu.
-func receipt(kind: String, qty: int, spent: int) -> String:
-	var paid := I18N.f("shop.paid", [I18N.group_digits(spent)])
+func receipt(kind: String, qty: int, spent: int, currency := "carrots") -> String:
+	var paid := I18N.f("shop.paidGold" if currency == "gold" else "shop.paid", [I18N.group_digits(spent)])
 	match kind:
 		"energy":
 			return I18N.f("shop.boughtEnergy", [paid])
@@ -501,6 +505,17 @@ func stock() -> int:
 	if not Home.burrow.is_empty():
 		return int(Home.burrow.get("stock", 0))
 	return int(shop.get("stock", 0))
+
+
+## LE GOLD DE LA BOURSE (monde web2, lib/game/gold.ts) : la monnaie achetee
+## au store. Absent en web3.
+func gold() -> int:
+	return int(shop.get("gold", 0))
+
+
+## Le prix en Gold d'une ligne de l'etal (objet ou pack) ; -1 hors web2.
+static func gold_price(it: Dictionary) -> int:
+	return int(it.get("gold", -1))
 
 
 ## PEUT-ON L'ACHETER EN CAROTTES, maintenant (inventory.ts `canBuy`) : le

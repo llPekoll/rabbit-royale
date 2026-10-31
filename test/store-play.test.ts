@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { accountTag, judgePlayPurchase } from '@/lib/pay/play';
 import { STORE_PRODUCTS, isStoreProductId } from '@config/store';
-import { isPackKind } from '@/lib/game/packs';
-import { SKINS, isSkinKind } from '@/lib/game/skins';
+import { PACK_KINDS } from '@/lib/game/packs';
+import { SHOP_KINDS } from '@/lib/game/inventory';
+import { SKINS } from '@/lib/game/skins';
+import { GOLD_PER_USD, goldPrice, isGoldKind } from '@/lib/game/gold';
 import { WEB2_ONLY_ROUTES, WEB3_ONLY_ROUTES } from '@/lib/world';
 
 describe('Play purchases (lib/pay/play.ts)', () => {
@@ -36,17 +38,36 @@ describe('Play purchases (lib/pay/play.ts)', () => {
 });
 
 describe('store catalog (config/store.ts)', () => {
-  it('sells packs and skins on sale, with Play-valid ids and no crypto words', () => {
-    for (const [id, p] of Object.entries(STORE_PRODUCTS)) {
+  it('sells sachets of gold only, bigger ones with a bonus, under Play-valid ids', () => {
+    let perDollar = 0;
+    for (const [id, p] of Object.entries(STORE_PRODUCTS).sort((a, b) => a[1].usdCents - b[1].usdCents)) {
       expect(id).toMatch(/^[a-z0-9][a-z0-9_.]*$/);
-      expect(id).not.toMatch(/solana|solflare|usdc|crypto/);
-      expect(isPackKind(p.kind) || isSkinKind(p.kind)).toBe(true);
-      expect(p.consumable).toBe(isPackKind(p.kind));
-      if (isSkinKind(p.kind)) expect(SKINS.find((s) => s.kind === p.kind)!.onSale).toBe(true);
+      expect(id).not.toMatch(/solana|solflare|usdc|crypto|coin|token/);
+      expect(p.kind).toBe('gold');
+      expect(p.consumable).toBe(true);
+      // The App Store's lowest price point.
+      expect(p.usdCents).toBeGreaterThanOrEqual(29);
+      // Never less gold per dollar than the sachet below, never under 1 gold = 1 cent.
+      const rate = p.qty / p.usdCents;
+      expect(rate).toBeGreaterThanOrEqual(Math.max(perDollar, 100 / GOLD_PER_USD));
+      perDollar = rate;
     }
-    expect(isStoreProductId('pack_refill_3')).toBe(true);
+    expect(isStoreProductId('gold_550')).toBe(true);
     expect(isStoreProductId('season_pass')).toBe(false);
     expect(isStoreProductId('toString')).toBe(false);
+  });
+
+  it('prices everything money buys in gold, at 1 gold = 1 cent', () => {
+    expect(goldPrice('bloop')).toBe(10);
+    expect(goldPrice('trap', 2)).toBe(50);
+    expect(goldPrice('skin_kappa')).toBe(199);
+    for (const kind of [...SHOP_KINDS, ...PACK_KINDS]) {
+      expect(isGoldKind(kind)).toBe(true);
+      expect(goldPrice(kind)).toBeGreaterThan(0);
+    }
+    for (const skin of SKINS.filter((s) => s.onSale)) expect(goldPrice(skin.kind)).toBe(skin.usdCents);
+    expect(isGoldKind('season_pass')).toBe(false);
+    expect(isGoldKind('gold')).toBe(false);
   });
 
   it('keeps the store route out of web3, and the crypto ones out of web2', () => {

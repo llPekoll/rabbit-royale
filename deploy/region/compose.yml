@@ -128,6 +128,10 @@ services:
       JENVOIE_API_KEY: ${WEB2_JENVOIE_API_KEY:-}
       # Google Play purchases (lib/pay/play.ts): the service account JSON, base64.
       PLAY_SERVICE_ACCOUNT: ${WEB2_PLAY_SERVICE_ACCOUNT:-}
+      # Gold on the web (lib/pay/stripe.ts): the game here opens Stripe's page
+      # and credits on the way back. The webhook is Europe's alone (one base).
+      STRIPE_SECRET_KEY: ${WEB2_STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${WEB2_STRIPE_WEBHOOK_SECRET:-}
     depends_on:
       migrate-web2:
         condition: service_completed_successfully

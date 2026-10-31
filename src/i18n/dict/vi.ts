@@ -36,6 +36,9 @@ export const vi: Dict = {
     body: 'Rabbit Royale vừa được cập nhật. Khởi động lại trò chơi để tiếp tục đào.',
     reopen: 'Ứng dụng sẽ đóng: hãy mở lại.',
     restart: 'Khởi động lại',
+    /** A newer version on the App Store (godot/scripts/store_update.gd, iOS). */
+    storeBody: 'Đã có phiên bản Rabbit Royale mới trên App Store.',
+    storeButton: 'Cập nhật',
   },
   elsewhere: {
     title: 'Thiết bị khác',
@@ -595,6 +598,21 @@ export const vi: Dict = {
     notOut: (name) => `${name} hiện không ra ngoài`,
   },
 
+  /** GOLD, the web2 coin bought in pouches (src/lib/game/gold.ts, gold_dialog.gd). */
+  gold: {
+    title: 'Gold',
+    body: 'Gold mua được mọi thứ trong cửa hàng: vật phẩm, gói và skin.',
+    /** A pouch's gold: « 550 Gold ». */
+    amount: (n) => `${n} Gold`,
+    /** The extra gold of a bigger pouch. */
+    bonus: (n) => `+${n}%`,
+    /** Where no store sells it (web, desktop). */
+    inApp: 'Gold được bán trong ứng dụng.',
+    /** A price in gold the purse cannot pay: the pouches open. */
+    need: 'Không đủ Gold: hãy chọn một túi.',
+    /** A pouch credited. */
+    got: (n) => `+${n} Gold`,
+  },
   shop: {
     title: 'CỬA HÀNG',
     shed: 'CỬA HÀNG',
@@ -663,11 +681,13 @@ export const vi: Dict = {
     boughtAxe: (n: number, paid: string) => `Đã mài ${n > 1 ? `${n} cái rìu` : 'rìu'}. ${paid}`,
     boughtPack: (name, paid) => `${name} đã vào túi. ${paid}`,
     paid: (spent) => `-${spent} 🥕`,
+    paidGold: (spent) => `-${spent} Gold`,
   },
 
   shopErrors: {
     fallback: 'Không được rồi.',
     insufficient_carrots: 'Không đủ cà rốt.',
+    insufficient_gold: 'Không đủ Gold.',
     inventory_full: 'Túi của bạn đầy món này rồi.',
     bag_full: 'Một món trong gói không còn chỗ trong túi.',
     daily_energy_limit: 'Hôm nay hết lượt nạp. Vườn vẫn lớn.',

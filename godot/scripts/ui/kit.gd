@@ -85,6 +85,7 @@ const SCROLL := preload("res://assets/ui/scroll.png")
 const ICONS := {
 	"bolt": preload("res://assets/ui/icons/bolt.webp"),
 	"carrot": preload("res://assets/ui/icons/carrot.webp"),
+	"gold": preload("res://assets/ui/icons/gold.png"),
 	"fertiliser": preload("res://assets/ui/icons/fertiliser.webp"),
 	"garden": preload("res://assets/ui/icons/garden.webp"),
 	"shield": preload("res://assets/ui/icons/shield.webp"),

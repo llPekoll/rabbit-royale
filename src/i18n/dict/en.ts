@@ -47,6 +47,9 @@ export const en = {
     body: 'Rabbit Royale was just updated. Restart the game to keep digging.',
     reopen: 'The app will close: open it again.',
     restart: 'Restart',
+    /** A newer version on the App Store (godot/scripts/store_update.gd, iOS). */
+    storeBody: 'A new version of Rabbit Royale is on the App Store.',
+    storeButton: 'Update',
   },
   elsewhere: {
     /** Another device opened this account (godot/scripts/ui/elsewhere_dialog.gd):
@@ -723,6 +726,21 @@ export const en = {
   },
 
   /* ── The shop and the shed ────────────────────────────────────────────── */
+  /** GOLD, the web2 coin bought in pouches (src/lib/game/gold.ts, gold_dialog.gd). */
+  gold: {
+    title: 'Gold',
+    body: 'Gold buys anything in the shop: items, packs and skins.',
+    /** A pouch's gold: « 550 Gold ». */
+    amount: (n: string) => `${n} Gold`,
+    /** The extra gold of a bigger pouch. */
+    bonus: (n: number) => `+${n}%`,
+    /** Where no store sells it (web, desktop). */
+    inApp: 'Gold can be bought in the app.',
+    /** A price in gold the purse cannot pay: the pouches open. */
+    need: 'Not enough Gold: pick a pouch.',
+    /** A pouch credited. */
+    got: (n: string) => `+${n} Gold`,
+  },
   shop: {
     title: 'SHOP',
     shed: 'SHOP',
@@ -808,12 +826,14 @@ export const en = {
     /* Plain ASCII '-', not a minus sign: the pixel face cannot draw U+2212 and
        it renders as a blank box on the device. See test/pixel-font-glyphs. */
     paid: (spent: number) => `-${spent} 🥕`,
+    paidGold: (spent: number) => `-${spent} Gold`,
   },
 
   /* ── Refusals, keyed by the code the server sends ─────────────────────── */
   shopErrors: {
     fallback: 'That did not work.',
     insufficient_carrots: 'Not enough carrots.',
+    insufficient_gold: 'Not enough Gold.',
     inventory_full: 'Your bag is full of those.',
     bag_full: 'One of those would not fit in your bag.',
     daily_energy_limit: 'No more refills today. The garden still grows.',

@@ -188,6 +188,9 @@ func _ready() -> void:
 	_voyage.wave_delay = WAVE_STEPS[1] + 0.07
 	_lang.wave_delay = WAVE_STEPS[2]
 
+	# Une version plus recente sur le store ? (app Play / iOS, StoreUpdate)
+	StoreUpdate.check(self)
+
 	_tip_timer = Timer.new()
 	_tip_timer.wait_time = TIP_SECONDS
 	_tip_timer.timeout.connect(_roll_tip)

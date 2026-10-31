@@ -68,6 +68,18 @@ RUN mkdir -p dist/web/play \
 # sont copies a la main. Le worker DOIT etre sous /play/ pour avoir la portee
 # /play/ (un worker ne peut pas viser plus haut que son dossier sans en-tete).
 RUN cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web/play/
+# LE JEU WEB2, POUR RABBIT.RIP/PLAY/ (2026-10-30) : l'export « Web (web2) »,
+# le monde des stores (serveurs ws2-*, Gold vendu par Stripe). Meme moteur,
+# autre pack. move.js (site/play/) passe AVANT le depart du moteur : un
+# navigateur qui porte encore un terrier web3 d'avant le demenagement du
+# 2026-10-19 y est conduit (window.rrBeforeStart, godot/web/shell.html).
+RUN mkdir -p dist/web2/play \
+  && godot --headless --path godot --export-release "Web (web2)" ../dist/web2/play/index.html \
+  && test -s dist/web2/play/index.wasm && test -s dist/web2/play/index.pck \
+  && sed -i 's|</head>|<script src="move.js"></script></head>|' dist/web2/play/index.html \
+  && grep -q 'move.js' dist/web2/play/index.html \
+  && cp godot/web/firebase-config.js godot/web/firebase-messaging-sw.js dist/web2/play/ \
+  && gzip -k -9 dist/web2/play/index.wasm dist/web2/play/index.pck dist/web2/play/index.js
 # LA VOIX DE MAMAN (2026-10-17), HORS DU PACK : un `.gdignore` la tient hors
 # de l'export, et le jeu ne telecharge que la langue du joueur, a l'ouverture
 # d'un livre (godot/scripts/intro/book_voice.gd). Le web ET l'Android la
@@ -114,6 +126,9 @@ COPY landing /usr/share/nginx/html/web3
 # confidentialite et conditions du web2, mentions legales, suppression de
 # compte, la page de passage de /play/). L'art, elle le lit dans web3/.
 COPY site /usr/share/nginx/html/site
+# Le jeu web2 par-dessus, sous /play/ (sa page remplace l'ancienne page de
+# passage ; move.js, venu de site/play/, en garde le role).
+COPY --from=build /app/dist/web2/play /usr/share/nginx/html/site/play
 # `templates/*.template` : l'entrypoint de l'image nginx y substitue les
 # variables d'environnement au demarrage et ecrit le resultat dans conf.d.
 # C'est ce qui permet de pointer l'API sans reconstruire l'image.
@@ -135,7 +150,10 @@ ENV DNS_RESOLVER="1.1.1.1 8.8.8.8"
 # L'entrypoint substitue TOUTES les $variables par defaut — y compris celles
 # de nginx ($host, $request_uri, $remote_addr), qu'il viderait. On lui dit de
 # ne toucher qu'aux notres.
-ENV NGINX_ENVSUBST_FILTER='(API_UPSTREAM|AMONT_HOTE|DNS_RESOLVER)'
+ENV NGINX_ENVSUBST_FILTER='(API_UPSTREAM|AMONT_HOTE|DNS_RESOLVER|WEB2_HOSTS)'
+# D'AUTRES NOMS POUR LA VITRINE WEB2 que rabbit.rip : le stage y met
+# stage.rabbit.rip, pour y jouer le web2 (et Stripe en mode test).
+ENV WEB2_HOSTS=
 # Deduit API_UPSTREAM_HOST de l'URL ci-dessus. Le `10-` le fait passer avant
 # le `20-envsubst` de l'image, qui lira la variable ainsi posee.
 COPY docker/entrypoint-amont.sh /docker-entrypoint.d/10-amont.sh

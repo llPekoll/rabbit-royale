@@ -37,7 +37,7 @@ import {
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
 export interface GrantResult {
-  kind: ItemKind | PassKind | PackKind | SkinKind;
+  kind: ItemKind | PassKind | PackKind | SkinKind | 'gold';
   /** What was actually DELIVERED — less than asked only for a gift that hit
    *  the bag's ceiling (a sale is always delivered in full). */
   qty: number;
@@ -57,10 +57,10 @@ export interface GrantResult {
  * and a chest is not a purchase. No receipt is written without one.
  */
 export interface Receipt {
-  currency: 'carrots' | 'usdc' | 'iap';
+  currency: 'carrots' | 'usdc' | 'iap' | 'gold';
   /** Whole carrots, or USDC base units (6 dp = micro-dollars) — whichever
    *  `currency` names; `iap` counts micro-dollars too (the store tier we
-   *  picked, config/store.ts). A SOL or SKR payment is converted (see `paidUsdcUnits`):
+   *  picked, config/store.ts); `gold` counts whole gold. A SOL or SKR payment is converted (see `paidUsdcUnits`):
    *  the rail and its native amount stay on the linked `payments` row. */
   cost: number;
   /** The payment row that funded it. Money only. */
@@ -96,7 +96,7 @@ export function paidUsdcUnits(p: { token: string; amount: number; usdPrice: stri
 export async function grantItem(
   tx: Tx,
   playerId: string,
-  kind: ItemKind | PassKind | PackKind | SkinKind,
+  kind: ItemKind | PassKind | PackKind | SkinKind | 'gold',
   qty: number,
   now = Date.now(),
   receipt?: Receipt,
@@ -116,6 +116,14 @@ export async function grantItem(
       cost: receipt.cost,
       paymentId: receipt.paymentId ?? null,
     });
+  }
+
+  // A SACHET of gold (web2, bought from a store): the coins land on the row.
+  if (kind === 'gold') {
+    await tx.update(players)
+      .set({ gold: raw`${players.gold} + ${qty}` })
+      .where(eq(players.id, playerId));
+    return { kind, qty, energy: null };
   }
 
   if (isSkinKind(kind)) {

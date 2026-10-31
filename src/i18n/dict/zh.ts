@@ -34,6 +34,9 @@ export const zh: Dict = {
     body: 'Rabbit Royale 刚刚更新。重启游戏继续挖吧。',
     reopen: '应用将关闭：请重新打开。',
     restart: '重启',
+    /** A newer version on the App Store (godot/scripts/store_update.gd, iOS). */
+    storeBody: 'App Store 上有新版 Rabbit Royale。',
+    storeButton: '更新',
   },
   elsewhere: {
     title: '其他设备',
@@ -593,6 +596,21 @@ export const zh: Dict = {
     notOut: (name) => `${name}现在不在外面`,
   },
 
+  /** GOLD, the web2 coin bought in pouches (src/lib/game/gold.ts, gold_dialog.gd). */
+  gold: {
+    title: 'Gold',
+    body: 'Gold 可以购买商店里的一切：道具、礼包和皮肤。',
+    /** A pouch's gold: « 550 Gold ». */
+    amount: (n) => `${n} Gold`,
+    /** The extra gold of a bigger pouch. */
+    bonus: (n) => `+${n}%`,
+    /** Where no store sells it (web, desktop). */
+    inApp: 'Gold 可在应用内购买。',
+    /** A price in gold the purse cannot pay: the pouches open. */
+    need: 'Gold 不足：请选择一袋。',
+    /** A pouch credited. */
+    got: (n) => `+${n} Gold`,
+  },
   shop: {
     title: '商店',
     shed: '商店',
@@ -656,11 +674,13 @@ export const zh: Dict = {
     boughtAxe: (n: number, paid: string) => `${n > 1 ? `${n} 把斧头` : '斧头'}已磨好。${paid}`,
     boughtPack: (name, paid) => `${name}已放进背包。${paid}`,
     paid: (spent) => `-${spent} 🥕`,
+    paidGold: (spent) => `-${spent} Gold`,
   },
 
   shopErrors: {
     fallback: '没成功。',
     insufficient_carrots: '胡萝卜不够。',
+    insufficient_gold: 'Gold 不足。',
     inventory_full: '你的背包装满了。',
     bag_full: '有一件东西背包装不下。',
     daily_energy_limit: '今天不能再补了。菜园照样在长。',
