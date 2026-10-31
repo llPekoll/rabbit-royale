@@ -102,10 +102,12 @@ jobs:
             # The back office's agent is not the game's: its own repo
             # (rabbit-royale-admin) runs it as compose project rabbit-admin.
             docker compose pull migrate rr-ws migrate-web2 rr-ws-web2
-            # :latest on the VPS = what runs now. A hand-made `docker compose
-            # up -d` (adding a secret to .env) has no RR_WS_IMAGE and falls back
-            # to :latest — which otherwise stays on whatever image came first
+            # :latest on the VPS = what runs now. A compose up typed by hand
+            # (adding a secret to .env) has no RR_WS_IMAGE and falls back to
+            # :latest, which otherwise stays on whatever image came first
             # (2026-10-29: SG/US web2 went back to an old build that way).
+            # NO BACKTICKS in this script: it is a double-quoted string, and
+            # the runner would execute them before ssh sends it.
             docker tag ${IMAGE}:${TAG} ${IMAGE}:latest
             docker compose up -d --remove-orphans
             # The Caddyfile is a mounted file: a running Caddy reads it again
