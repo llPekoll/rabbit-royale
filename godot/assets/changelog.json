@@ -108,6 +108,38 @@
   },
   "releases": [
     {
+      "version": "v1.21.1",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "kind": "fix",
+          "web2": true,
+          "text": {
+            "en": "Prices in euros (and other currencies) now show their sign instead of empty boxes.",
+            "fr": "Les prix en euros (et dans les autres monnaies) affichent leur signe au lieu de petits carrés.",
+            "zh": "欧元（及其他货币）价格现在会显示货币符号，不再是空白方块。",
+            "pt-BR": "Preços em euros (e outras moedas) agora mostram o símbolo em vez de quadradinhos.",
+            "vi": "Giá bằng euro (và các loại tiền khác) giờ hiện đúng ký hiệu thay vì ô vuông trống.",
+            "es": "Los precios en euros (y otras monedas) muestran su símbolo en lugar de cuadraditos.",
+            "it": "I prezzi in euro (e in altre valute) mostrano il simbolo invece di quadratini vuoti."
+          }
+        },
+        {
+          "kind": "fix",
+          "web2": true,
+          "text": {
+            "en": "After signing in with Google or email, the screen now shows that your burrow is loading.",
+            "fr": "Après la connexion avec Google ou par email, l’écran montre que ton terrier charge.",
+            "zh": "用 Google 或邮箱登录后，界面会显示你的洞穴正在加载。",
+            "pt-BR": "Depois de entrar com Google ou e-mail, a tela mostra que sua toca está carregando.",
+            "vi": "Sau khi đăng nhập bằng Google hoặc email, màn hình sẽ cho thấy hang của bạn đang tải.",
+            "es": "Tras iniciar sesión con Google o email, la pantalla muestra que tu madriguera se está cargando.",
+            "it": "Dopo l’accesso con Google o email, lo schermo mostra che la tua tana si sta caricando."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.21",
       "date": "2026-10-31",
       "items": [
