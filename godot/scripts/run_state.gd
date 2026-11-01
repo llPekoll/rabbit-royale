@@ -203,6 +203,15 @@ var _last_beat := ""
 var _caption_timer: Timer
 var _recap_timer: Timer
 var _recap_pending: Dictionary = {}
+## LE NAUFRAGE QUI NE FINIT PAS (bug #1, 2026-11-01) : l'ile a coule, la fin
+## de manche n'est jamais arrivee (elle partait vers un autre onglet, ou la
+## socket s'est reconnectee pendant), et le joueur regardait la mer, BACK
+## grise. Apres SINK_GRACE_MS on la redemande ; ASK_GRACE_MS plus tard on
+## rentre quand meme — la manche est deja banquee par le serveur.
+const SINK_GRACE_MS := 6000
+const ASK_GRACE_MS := 4000
+var _sink_timer: Timer
+var _sink_asked := false
 var _flag_nothing_timer: Timer
 var _fake_me := ""
 var _wired := false
@@ -211,6 +220,7 @@ var _wired := false
 func _init() -> void:
 	_caption_timer = _timer(_on_caption_timeout)
 	_recap_timer = _timer(_on_recap_timeout)
+	_sink_timer = _timer(_on_sink_timeout)
 	_flag_nothing_timer = _timer(_on_flag_nothing_timeout)
 	_wire()
 
@@ -302,6 +312,7 @@ func join(_pick: Variant = null) -> void:
 	spectating = ""
 	GameSocket.join(PlaySettings.seat_choice())
 	_recap_timer.stop()
+	_sink_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
 	_set_shoved({})
@@ -316,6 +327,7 @@ func go_home() -> void:
 		erupting_ms = 0
 		erupting_changed.emit(0)
 	_recap_timer.stop()
+	_sink_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
 	leave()
@@ -363,6 +375,7 @@ func spectate(player_id: String) -> void:
 	spectating = player_id
 	# Une autre ile, un autre public : rien de la run d'avant ne reste a l'ecran.
 	_recap_timer.stop()
+	_sink_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
 	_set_shoved({})
@@ -592,6 +605,10 @@ func _on_event(name: String, data: Variant) -> void:
 		"eruption":
 			erupting_ms = int(d.get("durationMs", 0))
 			erupting_changed.emit(erupting_ms)
+			# Un lapin deja tombe (bombe, a sec) a eu sa fin de manche : rien a attendre.
+			if erupting_ms > 0 and spectating.is_empty() and bool(me().get("alive", true)):
+				_sink_asked = false
+				_start(_sink_timer, erupting_ms + SINK_GRACE_MS)
 		"run_record":
 			record = {"tier": String(d.get("tier", "")), "carrots": int(d.get("carrots", 0)),
 				"previous": int(d.get("previous", 0)), "at": Time.get_ticks_msec()}
@@ -632,6 +649,7 @@ func _on_island(snap: Dictionary) -> void:
 		if r is Dictionary:
 			rabbits[String(r.get("playerId", ""))] = _with_stun(r)
 	_recap_timer.stop()
+	_sink_timer.stop()
 	_recap_pending = {}
 	_set_recap({})
 	_caption = ""
@@ -719,6 +737,7 @@ func _on_run_over(r: Dictionary) -> void:
 	# ici en attendant qu'une main lui en donne une.)
 	GameSocket._want_seat = false
 	_recap_timer.stop()
+	_sink_timer.stop()
 	# PAS DE MORT, PAS DE CARTE (2026-09-23) : l'ile videe finit comme le
 	# tutoriel — le lapin saute, l'ile coule, on rentre ; a sec, le lapin
 	# s'endort et le monde passe au gris (island.gd `_end_run`). `erupting_ms`
@@ -740,6 +759,20 @@ func _on_run_over(r: Dictionary) -> void:
 			Home.refresh(), CONNECT_ONE_SHOT)
 	Analytics.run_ended(r, digs)
 	run_ended.emit(r)
+
+
+func _on_sink_timeout() -> void:
+	if erupting_ms <= 0 or island.is_empty() or not spectating.is_empty():
+		return
+	if not _sink_asked:
+		Net.trace("ile coulee sans fin de manche : on la redemande")
+		_sink_asked = true
+		GameSocket.ask_run_over()
+		_start(_sink_timer, ASK_GRACE_MS)
+		return
+	Net.trace("ile coulee sans fin de manche : retour au terrier")
+	_on_run_over({"cleared": true, "carrots": int(me().get("carrots", 0))})
+	Home.refresh()
 
 
 func _on_recap_timeout() -> void:

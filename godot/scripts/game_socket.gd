@@ -360,6 +360,14 @@ func leave() -> void:
 		_io.emit("leave")
 
 
+## L'ILE A COULE ET LA FIN DE MANCHE N'EST PAS VENUE (bug #1) : le serveur
+## garde le recap quelques minutes et le renvoie sur `run_over_ask`.
+func ask_run_over() -> void:
+	Net.trace("socket > run_over_ask (live=%s)" % str(is_live()))
+	if is_live():
+		_io.emit("run_over_ask")
+
+
 ## Un pas, un drapeau, un éclair, une bombe : tout ce qui se joue à la tuile.
 ## Aucun n'attend de réponse directe — le serveur répond par un événement à
 ## tout le monde, ce qui est exactement ce qu'il faut pour que les autres

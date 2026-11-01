@@ -442,20 +442,27 @@ async function erupt(live: LiveIsland) {
       if (leveledUp && level === 2) {
         await tutorialReward(rabbit.playerId).catch((e) => console.error('[tutorialReward]', e));
       }
-      const socket = socketOf(rabbit.playerId);
-      const sd = socket?.data as SocketData | undefined;
-      if (!socket || !sd || sd.islandId !== live.island.id) continue;
-      socket.emit('run_over', {
+      // EVERY socket of this player that sits on this island, not the first
+      // one `socketOf` finds: with a second tab, the Seeker app or a socket a
+      // reconnect left behind, the first was often not the one playing, and
+      // the player watched the sea forever (bug #1, 2026-11-01).
+      const seated = socketsOf(rabbit.playerId)
+        .filter((s) => (s.data as SocketData).islandId === live.island.id);
+      const sd = seated[0]?.data as SocketData | undefined;
+      const over = {
         carrots: rabbit.carrots,
-        tilesDug: sd.tilesDug ?? 0,
-        bombsHit: sd.bombsHit ?? 0,
-        durationMs: Date.now() - (sd.runStartedAt ?? Date.now()),
+        tilesDug: sd?.tilesDug ?? 0,
+        bombsHit: sd?.bombsHit ?? 0,
+        durationMs: Date.now() - (sd?.runStartedAt ?? Date.now()),
         cleared: true,
         level,
         leveledUp,
         // The tutorial's reward, said so the burrow can celebrate it.
         reward: leveledUp && level === 2 ? TUTORIAL_REWARD.CARROTS : 0,
-      });
+      };
+      // Kept a few minutes for a client that never heard it (`run_over_ask`).
+      eruptedRuns.set(rabbit.playerId, { over, at: Date.now() });
+      for (const socket of seated) socket.emit('run_over', over);
       // Not `sd.islandId = undefined`: the recap's "Again" goes through
       // `restart`, which needs the id to leave the room and say `restarting`.
       // A deleted island is a fine thing for it to find nothing under.
@@ -483,6 +490,24 @@ function levelStill(rabbit: Rabbit): { level: number; leveledUp: false } {
 }
 
 /** The socket currently holding a player's seat, if any. */
+/** Every socket this player has open: tabs, devices, a reconnect's leftover. */
+function socketsOf(playerId: string): Socket[] {
+  return [...io.sockets.sockets.values()].filter((s) => (s.data as SocketData).playerId === playerId);
+}
+
+/**
+ * THE RECAP OF AN ISLAND THAT SANK, kept for ERUPTED_KEEP_MS: a client that
+ * watched the island go and never got its `run_over` (its socket was not the
+ * one seated, or it reconnected during the sinking) asks with `run_over_ask`
+ * instead of staring at the sea. Read once.
+ */
+const ERUPTED_KEEP_MS = 5 * 60_000;
+const eruptedRuns = new Map<string, { over: Record<string, unknown>; at: number }>();
+setInterval(() => {
+  const old = Date.now() - ERUPTED_KEEP_MS;
+  for (const [id, e] of eruptedRuns) if (e.at < old) eruptedRuns.delete(id);
+}, 60_000).unref();
+
 function socketOf(playerId: string): Socket | undefined {
   for (const s of io.sockets.sockets.values()) {
     if ((s.data as SocketData).playerId === playerId) return s;
@@ -1899,6 +1924,17 @@ io.on('connection', (socket: Socket) => {
    * says a run can only ever ADD to the burrow, so carrying them home has to
    * be worth exactly as much as running the tank dry.
    */
+  // THE SINKING THAT NEVER ENDED (bug #1): the client saw `eruption` and no
+  // `run_over` came. The run was banked by `erupt` all the same; this hands
+  // back its recap. Nothing kept: the client goes home on its own.
+  socket.on('run_over_ask', guard('run_over_ask', async () => {
+    if (!data.playerId) return;
+    const kept = eruptedRuns.get(data.playerId);
+    if (!kept || Date.now() - kept.at > ERUPTED_KEEP_MS) return;
+    eruptedRuns.delete(data.playerId);
+    socket.emit('run_over', kept.over);
+  }));
+
   socket.on('leave', guard('leave', async () => {
     if (!data.playerId || !data.islandId) return;
     const live = store.get(data.islandId);
