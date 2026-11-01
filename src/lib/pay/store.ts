@@ -15,8 +15,11 @@
  * Apple's transactionId. The unique index (platform, token) on
  * store_purchases is what makes a retry, a restore at launch or a double tap
  * credit once.
+ *
+ * And the way back: a store that gives the money back (a refund, a
+ * chargeback) takes the sachet back with `takeBackStorePurchase`.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, sql as raw } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, storePurchases } from '@/lib/db/schema';
 import { grantItem } from '@/lib/game/grant';
@@ -76,5 +79,39 @@ export async function creditStorePurchase(p: PaidPurchase) {
       // A tester's purchase is free: kept at 0 so it never reads as revenue.
       cost: p.test ? 0 : product.usdCents * 10_000,
     });
+  });
+}
+
+/**
+ * Take back a sachet its store gave the money back for — a refund, a
+ * chargeback — once per purchase (store_purchases.refunded_at).
+ *
+ * The gold comes off the balance IN FULL, even below zero: a player who bought
+ * 6,500, spent it and asked the bank for the money back owes the game what they
+ * spent, and a balance below zero buys nothing until a new sachet covers it.
+ * What the gold already bought stays (taking a skin back would be a second,
+ * harder rule for the same debt).
+ *
+ * Found by the store's token (Play's purchaseToken, Apple's transactionId) or
+ * by its order number (Stripe's PaymentIntent, which a charge names). Null
+ * when this base never credited it, or already took it back.
+ */
+export async function takeBackStorePurchase(
+  platform: StorePlatform,
+  by: { token: string } | { orderId: string },
+): Promise<{ playerId: string; productId: string; qty: number } | null> {
+  const which = 'token' in by ? eq(storePurchases.token, by.token) : eq(storePurchases.orderId, by.orderId);
+  return db.transaction(async (tx) => {
+    const [row] = await tx.update(storePurchases)
+      .set({ refundedAt: new Date() })
+      .where(and(eq(storePurchases.platform, platform), which, isNull(storePurchases.refundedAt)))
+      .returning({ playerId: storePurchases.playerId, productId: storePurchases.productId, kind: storePurchases.kind, qty: storePurchases.qty });
+    if (!row) return null;
+    if (row.kind === 'gold') {
+      await tx.update(players)
+        .set({ gold: raw`${players.gold} - ${row.qty}` })
+        .where(eq(players.id, row.playerId));
+    }
+    return { playerId: row.playerId, productId: row.productId, qty: row.qty };
   });
 }

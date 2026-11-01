@@ -66,6 +66,7 @@ import {
 } from '../src/lib/presence';
 import { purgeOrphanGuests } from '../src/lib/auth/abandon';
 import { PRICE_REFRESH_MS, refreshTokenPrices } from '../src/lib/pay/rates';
+import { sweepVoidedPlay } from '../src/lib/pay/play';
 import { guard, installProcessGuards, optional } from './resilience';
 import { pushEnabled } from '../src/lib/notify/fcm';
 import { pushRaidEvent } from '../src/lib/notify/raid';
@@ -2176,6 +2177,16 @@ const sweepGuests = guard('sweep-guests', async () => {
 });
 setTimeout(sweepGuests, 15_000);
 setInterval(sweepGuests, GUEST_SWEEP_MS);
+
+/**
+ * Gold bought on Play and refunded since: taken back (lib/pay/play.ts). Web2
+ * only, and only with a Play account; Stripe tells us by webhook instead.
+ */
+if (isWeb2()) {
+  const voidedSweep = guard('play-voided', () => sweepVoidedPlay());
+  setTimeout(voidedSweep, 60_000);
+  setInterval(voidedSweep, 60 * 60_000).unref();
+}
 
 /**
  * The last line of defence.

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountTag, judgePlayPurchase } from '@/lib/pay/play';
 import { STORE_PRODUCTS, isStoreProductId } from '@config/store';
 import { PACK_KINDS } from '@/lib/game/packs';
@@ -87,5 +87,45 @@ describe('the route without a Play account', () => {
     const { parseServiceAccount } = await import('@/lib/notify/fcm');
     const json = JSON.stringify({ client_email: 'a@b.iam.gserviceaccount.com', private_key: 'x\\ny' });
     expect(parseServiceAccount(Buffer.from(json).toString('base64'))?.private_key).toBe('x\ny');
+  });
+});
+
+describe('Play refunds (voided purchases)', () => {
+  const real = globalThis.fetch;
+  const before = process.env.PLAY_SERVICE_ACCOUNT;
+  afterEach(() => {
+    globalThis.fetch = real;
+    if (before === undefined) delete process.env.PLAY_SERVICE_ACCOUNT;
+    else process.env.PLAY_SERVICE_ACCOUNT = before;
+  });
+
+  it('reads every page of voided tokens since the given time', async () => {
+    const { generateKeyPairSync } = await import('node:crypto');
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    process.env.PLAY_SERVICE_ACCOUNT = JSON.stringify({
+      client_email: 'play-billing@x.iam.gserviceaccount.com',
+      private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    });
+    const asked: URL[] = [];
+    globalThis.fetch = (async (url: string | URL) => {
+      const u = new URL(String(url));
+      if (u.host === 'oauth2.googleapis.com') return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }));
+      asked.push(u);
+      return new Response(JSON.stringify(u.searchParams.get('token')
+        ? { voidedPurchases: [{ purchaseToken: 'b' }] }
+        : { voidedPurchases: [{ purchaseToken: 'a' }, {}], tokenPagination: { nextPageToken: 'p2' } }));
+    }) as unknown as typeof fetch;
+    vi.resetModules();
+    const { voidedPlayTokens } = await import('@/lib/pay/play');
+    expect(await voidedPlayTokens(1_800_000_000_000)).toEqual(['a', 'b']);
+    expect(asked[0].pathname).toMatch(/\/applications\/pro\.gravity5\.rabbitroyale\/purchases\/voidedpurchases$/);
+    expect(asked[0].searchParams.get('startTime')).toBe('1800000000000');
+    expect(asked[1].searchParams.get('token')).toBe('p2');
+
+    // Google says no (the 403 of a service account without rights): nothing, retried next sweep.
+    globalThis.fetch = (async (url: string | URL) => String(url).includes('oauth2')
+      ? new Response(JSON.stringify({ access_token: 't' }))
+      : new Response('{"error":{"code":403}}', { status: 403 })) as unknown as typeof fetch;
+    expect(await voidedPlayTokens(0)).toBeNull();
   });
 });

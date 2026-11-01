@@ -180,6 +180,36 @@ export async function readCheckout(sessionId: string): Promise<CheckoutVerdict> 
   };
 }
 
+export type ReversalVerdict =
+  | { ok: true; orderId: string }
+  | { ok: false; reason: 'not_reversed' | 'not_ours' | 'store_unreachable' };
+
+/**
+ * Money Stripe gave back, read from Stripe itself as `readCheckout` reads a
+ * payment: a charge REFUNDED IN FULL (`charge.refunded` also fires for a
+ * partial refund, which is a gesture made by hand on the dashboard and takes
+ * nothing back), or a dispute the bank opened (`charge.dispute.created`: the
+ * money is held from that moment, and a chargeback lost weeks later would come
+ * after the gold was spent). Names the PaymentIntent, the order number a
+ * credited sachet keeps (store_purchases.order_id).
+ */
+export async function readReversal(id: string): Promise<ReversalVerdict> {
+  const path = /^ch_[A-Za-z0-9]{10,200}$/.test(id) ? `/charges/${id}`
+    : /^(dp|du)_[A-Za-z0-9]{10,200}$/.test(id) ? `/disputes/${id}`
+    : null;
+  if (!path) return { ok: false, reason: 'not_ours' };
+  let o: Record<string, unknown>;
+  try {
+    o = await stripe('GET', path);
+  } catch (e) {
+    console.error('[stripe]', (e as Error).message);
+    return { ok: false, reason: 'store_unreachable' };
+  }
+  if (typeof o.payment_intent !== 'string') return { ok: false, reason: 'not_ours' };
+  if (path.startsWith('/charges/') && o.refunded !== true) return { ok: false, reason: 'not_reversed' };
+  return { ok: true, orderId: o.payment_intent };
+}
+
 /**
  * A webhook delivery genuinely from Stripe: `Stripe-Signature` is
  * `t=<unix>,v1=<hex hmac of "t.body">`, over the RAW body. No secret = closed.

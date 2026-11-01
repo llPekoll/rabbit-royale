@@ -7,8 +7,13 @@
  * the player comes back with it (../route.ts). It covers the player who paid
  * and closed the tab, and the slow methods Stripe confirms later.
  *
+ * And the way back: a charge refunded in full or disputed takes the sachet's
+ * gold back (takeBackStorePurchase), again only once Stripe itself says so
+ * (readReversal).
+ *
  * Endpoint to declare in Stripe (Developers → Webhooks), events
- * checkout.session.completed and checkout.session.async_payment_succeeded:
+ * checkout.session.completed, checkout.session.async_payment_succeeded,
+ * charge.refunded and charge.dispute.created:
  *   https://ws2.rabbit.rip/api/store/stripe/webhook        (prod, live key)
  *   https://ws2-stage.rabbit.rip/api/store/stripe/webhook  (stage, test key)
  * Its signing secret goes in STRIPE_WEBHOOK_SECRET.
@@ -16,10 +21,11 @@
  * Always 200 once signed, even for a session it cannot credit: a non-2xx makes
  * Stripe retry for three days something that will never change.
  */
-import { isCheckoutId, readCheckout, stripeEnabled, webhookSigned } from '@/lib/pay/stripe';
-import { creditStorePurchase } from '@/lib/pay/store';
+import { isCheckoutId, readCheckout, readReversal, stripeEnabled, webhookSigned } from '@/lib/pay/stripe';
+import { creditStorePurchase, takeBackStorePurchase } from '@/lib/pay/store';
 
 const CREDITING = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded']);
+const REVERSING = new Set(['charge.refunded', 'charge.dispute.created']);
 
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -33,6 +39,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
   const id = event.data?.object?.id;
+  if (REVERSING.has(event.type ?? '') && typeof id === 'string') return takeBack(id);
   if (!CREDITING.has(event.type ?? '') || !isCheckoutId(id)) return Response.json({ ok: true });
 
   const verdict = await readCheckout(id);
@@ -56,4 +63,13 @@ export async function POST(req: Request) {
     console.error('[stripe] webhook credit', id, (e as Error).message);
     return Response.json({ ok: true, skipped: 'credit_failed' });
   }
+}
+
+async function takeBack(id: string) {
+  const verdict = await readReversal(id);
+  if (!verdict.ok && verdict.reason === 'store_unreachable') return Response.json({ retry: true }, { status: 503 });
+  if (!verdict.ok) return Response.json({ ok: true, skipped: verdict.reason });
+  const taken = await takeBackStorePurchase('stripe', { orderId: verdict.orderId });
+  if (taken) console.log('[stripe] took back', taken.qty, 'gold from', taken.playerId, 'for', verdict.orderId);
+  return Response.json({ ok: true, takenBack: taken !== null });
 }

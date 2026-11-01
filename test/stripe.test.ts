@@ -111,3 +111,50 @@ describe('stripe checkout reading', () => {
     expect(sent.get('cancel_url')).toBeNull();
   });
 });
+
+describe('stripe money given back', () => {
+  const real = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = real; delete process.env.STRIPE_SECRET_KEY; });
+  const answer = (body: Record<string, unknown>, status = 200) => {
+    const asked: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      asked.push(String(url));
+      return new Response(JSON.stringify(body), { status });
+    }) as unknown as typeof fetch;
+    return asked;
+  };
+
+  it('takes back a charge refunded in full, by its PaymentIntent', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const { readReversal } = await import('@/lib/pay/stripe');
+    const asked = answer({ id: 'ch_abcdefghijkl', refunded: true, payment_intent: 'pi_1' });
+    expect(await readReversal('ch_abcdefghijkl')).toEqual({ ok: true, orderId: 'pi_1' });
+    expect(asked[0]).toMatch(/\/v1\/charges\/ch_abcdefghijkl$/);
+  });
+
+  it('leaves a partial refund alone', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const { readReversal } = await import('@/lib/pay/stripe');
+    answer({ id: 'ch_abcdefghijkl', refunded: false, amount_refunded: 100, payment_intent: 'pi_1' });
+    expect(await readReversal('ch_abcdefghijkl')).toEqual({ ok: false, reason: 'not_reversed' });
+  });
+
+  it('takes back a disputed payment as soon as the bank opens it', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const { readReversal } = await import('@/lib/pay/stripe');
+    const asked = answer({ id: 'dp_abcdefghijkl', status: 'needs_response', payment_intent: 'pi_2' });
+    expect(await readReversal('dp_abcdefghijkl')).toEqual({ ok: true, orderId: 'pi_2' });
+    expect(asked[0]).toMatch(/\/v1\/disputes\/dp_abcdefghijkl$/);
+  });
+
+  it('asks Stripe nothing for an id it does not know, retries when Stripe is down', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    const { readReversal } = await import('@/lib/pay/stripe');
+    const asked = answer({});
+    expect(await readReversal('cs_test_abcdefghijkl')).toEqual({ ok: false, reason: 'not_ours' });
+    expect(await readReversal('ch_../../v1/customers')).toEqual({ ok: false, reason: 'not_ours' });
+    expect(asked).toHaveLength(0);
+    answer({ error: { message: 'down' } }, 500);
+    expect(await readReversal('ch_abcdefghijkl')).toEqual({ ok: false, reason: 'store_unreachable' });
+  });
+});

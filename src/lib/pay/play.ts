@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto';
 import { importPKCS8, SignJWT } from 'jose';
 import { parseServiceAccount } from '@/lib/notify/fcm';
 import { playPackage } from '@/lib/world';
+import { takeBackStorePurchase } from './store';
 
 type ServiceAccount = NonNullable<ReturnType<typeof parseServiceAccount>>;
 
@@ -183,4 +184,64 @@ export async function acknowledgePlayPurchase(productId: string, token: string):
   } catch (err) {
     console.warn('[play] acknowledge unreachable', err);
   }
+}
+
+/** How far back each sweep reads: two days, so a sweep missed (a deploy, a
+ *  Google outage) is caught by the next. Taking back is idempotent. */
+const VOIDED_LOOKBACK_MS = 2 * 24 * 60 * 60_000;
+
+/**
+ * The purchase tokens Play gave the money back for since `since` — refunds
+ * (by us, by Google, by the player within 48 h) and chargebacks — read from
+ * the Voided Purchases API, page after page. Null when Play could not be
+ * asked: the next sweep tries again.
+ */
+export async function voidedPlayTokens(since: number): Promise<string[] | null> {
+  const tokens: string[] = [];
+  let page: string | undefined;
+  try {
+    do {
+      const url = new URL(`${API}/${encodeURIComponent(playPackage())}/purchases/voidedpurchases`);
+      url.searchParams.set('startTime', String(since));
+      url.searchParams.set('maxResults', '1000');
+      if (page) url.searchParams.set('token', page);
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${await accessToken()}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        console.warn(`[play] voided ${res.status}: ${(await res.text()).slice(0, 300)}`);
+        return null;
+      }
+      const body = (await res.json()) as {
+        voidedPurchases?: { purchaseToken?: string }[];
+        tokenPagination?: { nextPageToken?: string };
+      };
+      for (const v of body.voidedPurchases ?? []) if (v.purchaseToken) tokens.push(v.purchaseToken);
+      page = body.tokenPagination?.nextPageToken;
+    } while (page);
+  } catch (err) {
+    console.warn('[play] voided unreachable', err);
+    return null;
+  }
+  return tokens;
+}
+
+/**
+ * Take back every sachet Play voided lately (store.ts). Play does not call
+ * us: its only push is a Pub/Sub topic, which this server does not have, so
+ * rr-ws asks every hour (server/index.ts). Each region asks; the first to
+ * reach a token takes it back, the others find it done.
+ */
+export async function sweepVoidedPlay(now = Date.now()): Promise<number> {
+  if (!playEnabled()) return 0;
+  const tokens = await voidedPlayTokens(now - VOIDED_LOOKBACK_MS);
+  let taken = 0;
+  for (const token of tokens ?? []) {
+    const back = await takeBackStorePurchase('play', { token });
+    if (!back) continue;
+    taken++;
+    console.log('[play] took back', back.qty, 'gold from', back.playerId);
+  }
+  return taken;
 }
