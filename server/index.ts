@@ -29,7 +29,7 @@ import { servirApi } from './api-router';
 import { cascadeAround, chestProgress, chestRng, publicView } from '../src/lib/game/island';
 import { firstIslandSeed, isFirstIsland, levelSeed } from '../src/lib/game/first-island';
 import { flagTile, resolveMove, setGenesisGate, spawnRabbit, teachingHold } from '../src/lib/game/run';
-import { awardGenesis, genesisOpen, warmGenesis } from '../src/lib/genesis/award';
+import { awardGenesis, genesisOpen, releaseExpiredHeld, warmGenesis } from '../src/lib/genesis/award';
 import { sendPending } from '../src/lib/genesis/send';
 import { isWeb2 } from '../src/lib/world';
 import { mirageActive, planMirage, shownAdjacent } from '../src/lib/game/mirage';
@@ -1819,8 +1819,8 @@ io.on('connection', (socket: Socket) => {
     socket.emit('move_result', out);
 
     // AN RR GENESIS PIECE: a real asset, drawn from the game wallet now, its
-    // ceremony sent the moment it is in hand — or, for a player without a
-    // wallet, what they missed (src/lib/genesis/award.ts).
+    // ceremony sent the moment it is in hand — for a guest too, whose piece
+    // is held until they link a wallet (src/lib/genesis/award.ts).
     if (out.dig?.nft) {
       const runId = rabbit.run?.id;
       void awardGenesis(data.playerId, runId, to).then((award) => {
@@ -2278,6 +2278,9 @@ if (!isWeb2()) {
   void readStock();
   setInterval(() => { void readStock(); }, 5 * 60_000).unref();
   setInterval(() => { void sendPending(); }, 15_000).unref();
+  // Les pieces gardees pour un invite qui n'a jamais lie de wallet retournent
+  // au stock apres GENESIS_HOLD_DAYS (award.ts).
+  setInterval(() => { void releaseExpiredHeld().catch((e) => console.error('[genesis] release failed', String(e))); }, 60 * 60_000).unref();
 }
 
 /**

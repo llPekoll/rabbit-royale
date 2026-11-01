@@ -1566,7 +1566,8 @@
   "genesis": "RR GENESIS",
   "axe": "RÌU",
   "pieceSent": "CỦA BẠN - ĐANG GỬI VÀO VÍ CỦA BẠN",
-  "pieceMissed": "TỪNG CÓ MỘT MẢNH Ở ĐÂY - KẾT NỐI VÍ ĐỂ GIỮ MẢNH TIẾP THEO"
+  "pieceMissed": "TỪNG CÓ MỘT MẢNH Ở ĐÂY - KẾT NỐI VÍ ĐỂ GIỮ MẢNH TIẾP THEO",
+  "pieceHeld": "CỦA BẠN - ĐƯỢC GIỮ ĐẾN KHI BẠN KẾT NỐI VÍ"
  },
  "skins": {
   "carrotDescription": "Bộ lông cam. Đôi tai xanh. Tươi mới từ vườn.",
@@ -1612,6 +1613,8 @@
   "genesisEmpty": "Chưa có mảnh nào. Cứ bốn rương vương miện thì một rương giấu một mảnh RR Genesis.",
   "genesisFailed": "Không tải được các mảnh của bạn.",
   "genesisSending": "Đang gửi vào ví của bạn",
+  "genesisHeld": "Chờ nhận",
+  "genesisHeldHint": "Đang giữ cho bạn: kết nối ví là chúng được gửi ngay.",
   "genesisSent": "Trong ví của bạn",
   "genesisGuest": "Kết nối ví: các mảnh bạn thắng sẽ vào thẳng ví.",
   "name": "Tên",

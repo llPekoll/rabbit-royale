@@ -14,7 +14,7 @@ import { db } from '@/lib/db';
 import { genesisPieces, players, runs } from '@/lib/db/schema';
 import { RABBIT_WALLET, RR_GENESIS_COLLECTION, heldBy, isTransient, liveChain, rarityOf, secretKeyBytes, type GenesisChain } from '@/lib/genesis/chain';
 import STOCK from '@/lib/genesis/stock.json';
-import { awardGenesis, genesisOpen, setGenesisChain, warmGenesis } from '@/lib/genesis/award';
+import { awardGenesis, claimHeld, GENESIS_HOLD_DAYS, genesisOpen, releaseExpiredHeld, setGenesisChain, warmGenesis } from '@/lib/genesis/award';
 import { sendPending } from '@/lib/genesis/send';
 
 const addr = () => Keypair.generate().publicKey.toBase58();
@@ -197,9 +197,43 @@ describe.skipIf(!enabled)('award and send (local DB, fake chain)', () => {
     expect(genesisOpen()).toBe(false);
   });
 
-  it('tells a guest what they missed, and keeps nothing for them', async () => {
-    expect(await awardGenesis(guest.id, undefined, nextTile())).toEqual({ kind: 'missed' });
-    expect(await rowsOf(guest.id)).toHaveLength(0);
+  it("holds a guest's piece: theirs, sent nowhere until they link a wallet", async () => {
+    const award = await awardGenesis(guest.id, undefined, nextTile());
+    expect(award.kind).toBe('won');
+    const piece = award.kind === 'won' ? award.piece : null;
+    expect(piece).toMatchObject({ status: 'held', assetId: expect.any(String) });
+    await age(piece!.id);
+    await sendPending(50);
+    const [row] = await rowsOf(guest.id);
+    expect(row).toMatchObject({ status: 'held', wallet: null });
+    expect(chain.transfers).toHaveLength(0);
+  });
+
+  it('sends the held pieces to the wallet a guest links', async () => {
+    const award = await awardGenesis(guest.id, undefined, nextTile());
+    const id = award.kind === 'won' ? award.piece.id : '';
+    await age(id);
+    const wallet = addr();
+    expect(await claimHeld(guest.id, wallet)).toBeGreaterThanOrEqual(1);
+    await sendPending(50);
+    const [row] = await db.select().from(genesisPieces).where(eq(genesisPieces.id, id));
+    expect(row).toMatchObject({ status: 'sent', wallet });
+    expect(chain.owners.get(row.assetId!)).toBe(wallet);
+    expect(await claimHeld(guest.id, wallet)).toBe(0);
+  });
+
+  it('puts a piece nobody claimed back in stock after the hold', async () => {
+    const award = await awardGenesis(guest.id, undefined, nextTile());
+    const asset = award.kind === 'won' ? award.piece.assetId! : '';
+    const id = award.kind === 'won' ? award.piece.id : '';
+    const now = new Date();
+    expect(await releaseExpiredHeld(now)).toBe(0);
+    await db.update(genesisPieces).set({ wonAt: new Date(now.getTime() - (GENESIS_HOLD_DAYS + 1) * 86_400_000) }).where(eq(genesisPieces.id, id));
+    expect(await releaseExpiredHeld(now)).toBeGreaterThanOrEqual(1);
+    expect((await rowsOf(guest.id)).some((r) => r.id === id)).toBe(false);
+    // The asset never left the game wallet: free again for the next chest.
+    expect(chain.owners.get(asset)).toBe(game);
+    expect(await db.select().from(genesisPieces).where(eq(genesisPieces.assetId, asset))).toHaveLength(0);
   });
 
   it('gives a wallet player a real piece, once per tile even when the dig replays', async () => {

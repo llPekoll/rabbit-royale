@@ -9,16 +9,18 @@
  * follows at once in the background (`sendPending`), and keeps trying until
  * the chain shows the piece in the player's wallet.
  *
- * A player WITHOUT a wallet wins nothing: the piece would have nowhere to go,
- * and holding it for a guest who may never come back is a promise the game
- * cannot see through. They are told what was in the chest instead — the
- * reason to connect one.
+ * A GUEST'S PIECE IS HELD (2026-11-01 — the ceremony told them they had won
+ * it, and they believed it): the asset is taken for them at once, the row
+ * waits in 'held' with no wallet, and `claimHeld` sends it the day they link
+ * one. A guest who never comes back does not lock it forever:
+ * `releaseExpiredHeld` drops the row after GENESIS_HOLD_DAYS and the asset is
+ * back in stock — the game wallet never moved it.
  *
  * `genesisOpen()` is what the roll asks first (src/lib/game/run.ts): once the
  * game wallet is empty no chest draws a piece, rather than promising one there
  * is no asset for.
  */
-import { and, eq, inArray, isNull, asc } from 'drizzle-orm';
+import { and, eq, inArray, isNull, asc, lt } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { genesisPieces, players } from '@/lib/db/schema';
 import { isWeb2 } from '@/lib/world';
@@ -129,7 +131,7 @@ export async function viewOf(row: Row): Promise<PieceView> {
  * regions sharing the wallet would, if they shared a database — they do not,
  * which is why the sender reads the owner on chain before every transfer).
  */
-export async function assign(row: Row, skip: ReadonlySet<string> = new Set()): Promise<Row | null> {
+export async function assign(row: Row, skip: ReadonlySet<string> = new Set(), status: 'sending' | 'held' = 'sending'): Promise<Row | null> {
   const c = genesisChain();
   if (!c) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -150,7 +152,7 @@ export async function assign(row: Row, skip: ReadonlySet<string> = new Set()): P
       }
       try {
         const [updated] = await db.update(genesisPieces)
-          .set({ assetId: asset, name: look.name, imageUrl: look.imageUrl, rarity: look.rarity, status: 'sending', lastError: null })
+          .set({ assetId: asset, name: look.name, imageUrl: look.imageUrl, rarity: look.rarity, status, lastError: null })
           .where(eq(genesisPieces.id, row.id))
           .returning();
         stock = stock.filter((a) => a !== asset);
@@ -172,16 +174,18 @@ export async function awardGenesis(playerId: string, runId: string | undefined, 
   if (isWeb2()) return { kind: 'none' };
   try {
     const [p] = await db.select({ wallet: players.wallet }).from(players).where(eq(players.id, playerId));
-    if (!p?.wallet) return { kind: 'missed' };
+    if (!p) return { kind: 'none' };
+    // Pas de wallet : la piece est gardee pour lui (claimHeld).
+    const wallet = p.wallet ?? null;
     const [inserted] = await db.insert(genesisPieces)
-      .values({ playerId, runId: runId ?? null, tile, wallet: p.wallet })
+      .values({ playerId, runId: runId ?? null, tile, wallet, status: wallet ? 'sending' : 'held' })
       .onConflictDoNothing()
       .returning();
     // A replayed dig finds the row its first pass wrote.
     const row = inserted ?? (await db.select().from(genesisPieces)
       .where(and(eq(genesisPieces.playerId, playerId), runId ? eq(genesisPieces.runId, runId) : isNull(genesisPieces.runId), eq(genesisPieces.tile, tile))))[0];
     if (!row) return { kind: 'none' };
-    const ready = row.assetId ? row : await assign(row);
+    const ready = row.assetId ? row : await assign(row, new Set(), wallet ? 'sending' : 'held');
     if (!ready) {
       await db.update(genesisPieces).set({ status: 'failed', lastError: 'the game wallet is empty' }).where(eq(genesisPieces.id, row.id));
       console.error('[genesis] a piece was rolled but the game wallet is empty', playerId);
@@ -199,4 +203,39 @@ export async function awardGenesis(playerId: string, runId: string | undefined, 
 export async function owed(limit = 10): Promise<Row[]> {
   return db.select().from(genesisPieces).where(eq(genesisPieces.status, 'sending'))
     .orderBy(asc(genesisPieces.wonAt)).limit(limit);
+}
+
+/** How long a guest's piece waits for a wallet before it goes back to stock. */
+export const GENESIS_HOLD_DAYS = 30;
+
+/**
+ * A guest just proved a wallet (`/api/auth/link`): every piece held for them
+ * leaves for it. Called on the proof itself, so even a wallet that already
+ * digs for another burrow receives what this one won — the signature says the
+ * pieces reach their owner. Returns how many are now on their way.
+ */
+export async function claimHeld(playerId: string, wallet: string): Promise<number> {
+  const rows = await db.update(genesisPieces)
+    .set({ wallet, status: 'sending', lastError: null })
+    .where(and(eq(genesisPieces.playerId, playerId), eq(genesisPieces.status, 'held')))
+    .returning({ id: genesisPieces.id });
+  if (rows.length) console.log('[genesis] claimed', rows.length, 'held piece(s) for', playerId, '->', wallet);
+  return rows.length;
+}
+
+/**
+ * Pieces held longer than GENESIS_HOLD_DAYS go back to stock: the row is
+ * dropped, and its asset — still in the game wallet, never sent — is free for
+ * the next crown chest. Returns how many were released.
+ */
+export async function releaseExpiredHeld(now: Date = new Date()): Promise<number> {
+  const before = new Date(now.getTime() - GENESIS_HOLD_DAYS * 86_400_000);
+  const rows = await db.delete(genesisPieces)
+    .where(and(eq(genesisPieces.status, 'held'), lt(genesisPieces.wonAt, before)))
+    .returning({ asset: genesisPieces.assetId });
+  if (rows.length) {
+    console.log('[genesis] released', rows.length, 'unclaimed piece(s) back to stock');
+    stockAt = 0;
+  }
+  return rows.length;
 }

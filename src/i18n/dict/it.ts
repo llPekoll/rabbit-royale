@@ -1011,6 +1011,7 @@ export const it: Dict = {
     axe: 'ASCIA',
     pieceSent: 'È TUO - IN VIAGGIO VERSO IL TUO WALLET',
     pieceMissed: 'QUI C’ERA UN PEZZO - COLLEGA UN WALLET PER TENERE IL PROSSIMO',
+    pieceHeld: 'È TUO - CUSTODITO FINCHÉ NON COLLEGHI UN WALLET',
   },
 
   skins: {
@@ -1058,6 +1059,8 @@ export const it: Dict = {
     genesisEmpty: 'Ancora nessun pezzo. Un forziere corona su quattro nasconde un pezzo RR Genesis.',
     genesisFailed: 'Impossibile caricare i tuoi pezzi.',
     genesisSending: 'In viaggio verso il tuo wallet',
+    genesisHeld: 'Da riscattare',
+    genesisHeldHint: 'Custoditi per te: collega un wallet e ci arrivano subito.',
     genesisSent: 'Nel tuo wallet',
     genesisGuest: 'Collega un wallet: i pezzi che vinci finiscono direttamente lì.',
     name: 'Nome',

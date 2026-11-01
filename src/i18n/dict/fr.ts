@@ -1018,6 +1018,7 @@ export const fr: Dict = {
     axe: 'HACHE',
     pieceSent: 'À TOI - EN ROUTE VERS TON WALLET',
     pieceMissed: 'UNE PIÈCE ÉTAIT LÀ - CONNECTE UN WALLET POUR GARDER LA PROCHAINE',
+    pieceHeld: 'À TOI - GARDÉE JUSQU\'À CE QUE TU CONNECTES UN WALLET',
   },
 
   skins: {
@@ -1067,6 +1068,8 @@ export const fr: Dict = {
     genesisEmpty: 'Aucune pièce pour l’instant. Un coffre couronne sur quatre cache une pièce RR Genesis.',
     genesisFailed: 'Impossible de charger tes pièces.',
     genesisSending: 'En route vers ton wallet',
+    genesisHeld: 'À réclamer',
+    genesisHeldHint: 'Gardées pour toi : connecte un wallet et elles y partent aussitôt.',
     genesisSent: 'Dans ton wallet',
     genesisGuest: 'Connecte un wallet : les pièces que tu gagnes y vont directement.',
     name: 'Nom',

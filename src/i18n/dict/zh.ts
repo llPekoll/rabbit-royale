@@ -1004,6 +1004,7 @@ export const zh: Dict = {
     axe: '斧头',
     pieceSent: '归你了 - 正在发送到你的钱包',
     pieceMissed: '这里曾有一块碎片 - 连接钱包，下次就能留下',
+    pieceHeld: '归你了 - 连接钱包前为你保留',
   },
 
   skins: {
@@ -1053,6 +1054,8 @@ export const zh: Dict = {
     genesisEmpty: '还没有碎片。每四个皇冠宝箱就有一个藏着 RR Genesis 碎片。',
     genesisFailed: '无法加载你的碎片。',
     genesisSending: '正在发送到你的钱包',
+    genesisHeld: '待领取',
+    genesisHeldHint: '为你保留：连接钱包后立即发送。',
     genesisSent: '已在你的钱包中',
     genesisGuest: '连接钱包：你赢得的碎片会直接进入钱包。',
     name: '名字',

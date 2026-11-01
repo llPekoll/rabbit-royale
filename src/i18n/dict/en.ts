@@ -1228,6 +1228,7 @@ export const en = {
     axe: 'AXE',
     pieceSent: 'YOURS - ON ITS WAY TO YOUR WALLET',
     pieceMissed: 'A PIECE WAS IN HERE - CONNECT A WALLET TO KEEP THE NEXT ONE',
+    pieceHeld: 'YOURS - KEPT FOR YOU UNTIL YOU CONNECT A WALLET',
   },
 
   /* ── The profile ──────────────────────────────────────────────────────── */
@@ -1278,6 +1279,8 @@ export const en = {
     genesisEmpty: 'No piece yet. One crown chest in four hides an RR Genesis piece.',
     genesisFailed: 'Could not load your pieces.',
     genesisSending: 'On its way to your wallet',
+    genesisHeld: 'To claim',
+    genesisHeldHint: 'Kept for you: connect a wallet and they go straight into it.',
     genesisSent: 'In your wallet',
     genesisGuest: 'Connect a wallet: the pieces you win go straight into it.',
     name: 'Name',

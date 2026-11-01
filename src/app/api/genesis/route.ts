@@ -3,8 +3,8 @@
  * each with its image (base64 PNG) and where its transfer stands.
  *
  * Web3 only (WEB3_ONLY_ROUTES): the web2 world never draws a piece and answers
- * 404 here. `wallet` says whether this player can win one at all — a guest is
- * shown how to, not an empty shelf.
+ * 404 here. `wallet` is null for a guest: their pieces come back 'held',
+ * kept until they link a wallet (src/lib/genesis/award.ts `claimHeld`).
  */
 import { desc, eq, isNotNull, and } from 'drizzle-orm';
 import { db } from '@/lib/db';

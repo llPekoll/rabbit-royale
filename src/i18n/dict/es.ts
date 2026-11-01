@@ -997,6 +997,7 @@ export const es: Dict = {
     axe: 'HACHA',
     pieceSent: 'ES TUYA - DE CAMINO A TU BILLETERA',
     pieceMissed: 'AQUÍ HABÍA UNA PIEZA - CONECTA UNA BILLETERA PARA QUEDARTE LA PRÓXIMA',
+    pieceHeld: 'ES TUYA - GUARDADA HASTA QUE CONECTES UNA BILLETERA',
   },
 
   skins: {
@@ -1044,6 +1045,8 @@ export const es: Dict = {
     genesisEmpty: 'Aún no tienes ninguna. Uno de cada cuatro cofres corona esconde una pieza RR Genesis.',
     genesisFailed: 'No se pudieron cargar tus piezas.',
     genesisSending: 'De camino a tu billetera',
+    genesisHeld: 'Por reclamar',
+    genesisHeldHint: 'Guardadas para ti: conecta una billetera y llegan al instante.',
     genesisSent: 'En tu billetera',
     genesisGuest: 'Conecta una billetera: las piezas que ganes van directo a ella.',
     name: 'Nombre',

@@ -1020,6 +1020,7 @@ export const ptBR: Dict = {
     axe: 'MACHADO',
     pieceSent: 'É SUA - A CAMINHO DA SUA CARTEIRA',
     pieceMissed: 'TINHA UMA PEÇA AQUI - CONECTE UMA CARTEIRA PARA FICAR COM A PRÓXIMA',
+    pieceHeld: 'É SUA - GUARDADA ATÉ VOCÊ CONECTAR UMA CARTEIRA',
   },
 
   skins: {
@@ -1069,6 +1070,8 @@ export const ptBR: Dict = {
     genesisEmpty: 'Nenhuma peça ainda. Um baú coroa em cada quatro esconde uma peça RR Genesis.',
     genesisFailed: 'Não foi possível carregar suas peças.',
     genesisSending: 'A caminho da sua carteira',
+    genesisHeld: 'A resgatar',
+    genesisHeldHint: 'Guardadas para você: conecte uma carteira e elas vão na hora.',
     genesisSent: 'Na sua carteira',
     genesisGuest: 'Conecte uma carteira: as peças que você ganhar vão direto para ela.',
     name: 'Nome',

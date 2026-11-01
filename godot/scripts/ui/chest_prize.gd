@@ -193,10 +193,12 @@ static func announce(prize: Dictionary, mount := true) -> Control:
 
 ## LA PIECE RR GENESIS, telle que le serveur l'a tiree (`genesis`, apres le
 ## pas qui l'a roulee — src/lib/genesis/award.ts) :
-##   {kind: "won", piece: {name, rarity, image (PNG en base64), ...}} — la
-##   vraie piece, son image, son nom, en route vers le wallet du joueur ;
-##   {kind: "missed"} — un joueur sans wallet : la piece etait la, il ne la
-##   garde pas, et on lui dit comment garder la prochaine.
+##   {kind: "won", piece: {name, rarity, image (PNG en base64), status, ...}}
+##   — la vraie piece, son image, son nom, en route vers le wallet du joueur ;
+##   pour un invite, status "held" : gardee pour lui jusqu'a ce qu'il lie un
+##   wallet (2026-11-01) ;
+##   {kind: "missed"} — l'ancienne regle (invite = rate), gardee pour un
+##   serveur pas encore a jour.
 ## « Du moment ou il est gagne, il est gagne » (2026-10-20) : plus de piece
 ## scellee, l'image est celle de l'actif on-chain.
 static func genesis(award: Dictionary, mount := true) -> Control:
@@ -209,7 +211,8 @@ static func genesis(award: Dictionary, mount := true) -> Control:
 		var r := String(piece.get("rarity", ""))
 		it.rarity = r if ACCENT.has(r) else "legendary"
 		it.stamp_text = String(piece.get("name", I18N.t("chest.genesis"))).to_upper()
-		it.caption_text = I18N.t("chest.pieceSent")
+		var held := String(piece.get("status", "")) == "held"
+		it.caption_text = I18N.t("chest.pieceHeld" if held else "chest.pieceSent")
 	else:
 		it.art = GENESIS
 		it.rarity = "legendary"

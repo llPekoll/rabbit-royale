@@ -47,14 +47,16 @@ func _ready() -> void:
 	codex.position = Vector2(Kit.EDGE, Kit.EDGE)
 	codex.size = Vector2(half.x, view.y) - Vector2(2.0 * Kit.EDGE, 2.0 * Kit.EDGE)
 
-	# La piece RR Genesis d'un coffre couronne. `--genesis=missed` : celle
-	# qu'un joueur sans wallet rate ; `--piece=<png>` : l'image d'une vraie
+	# La piece RR Genesis d'un coffre couronne. `--genesis=held` : celle
+	# gardee pour un invite ; `--genesis=missed` : l'ancienne regle ; `--piece=<png>` : l'image d'une vraie
 	# piece (sans elle, la piece scellee).
 	var right_top := _cell(Vector2(half.x, 0.0), half)
 	var award := {"kind": "won", "piece": {"name": "RR Genesis #0129", "rarity": "rare", "image": ""}}
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--genesis=missed":
 			award = {"kind": "missed"}
+		elif arg == "--genesis=held":
+			award["piece"]["status"] = "held"
 		elif arg.begins_with("--piece=") and award.has("piece"):
 			award["piece"]["image"] = Marshalls.raw_to_base64(FileAccess.get_file_as_bytes(arg.trim_prefix("--piece=")))
 	var prize: Control = ChestPrize.genesis(award, false)

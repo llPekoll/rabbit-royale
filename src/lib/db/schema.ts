@@ -737,12 +737,14 @@ export const playerSkins = pgTable('player_skins', {
  * RR GENESIS PIECES won in crown chests (web3 only — the web2 world never
  * draws one). A piece is a real Metaplex Core asset of the RR Genesis
  * collection, taken from the game's wallet the moment the chest opens and sent
- * straight to the winner's wallet (src/lib/genesis). Only a player with a
- * wallet wins one: a guest is told what they missed, and nothing is kept.
+ * straight to the winner's wallet (src/lib/genesis). A GUEST'S piece is held
+ * for them (2026-11-01, « gardée en attente ») : no `wallet` yet, status
+ * 'held', until they link one — then it leaves like any other — or until
+ * GENESIS_HOLD_DAYS pass and the row is dropped, its asset back in stock.
  *
- * `status`: 'sending' until the chain shows the asset in `wallet`, then
- * 'sent' with the transfer's `signature`; 'failed' only when the game wallet
- * has nothing left to give. One row per (run, tile) and per asset: a replayed
+ * `status`: 'held' while a guest has no wallet; 'sending' until the chain
+ * shows the asset in `wallet`, then 'sent' with the transfer's `signature`;
+ * 'failed' only when the game wallet has nothing left to give. One row per (run, tile) and per asset: a replayed
  * dig or two regions drawing at once cannot hand the same piece out twice.
  */
 export const genesisPieces = pgTable('genesis_pieces', {
@@ -757,8 +759,8 @@ export const genesisPieces = pgTable('genesis_pieces', {
   imageUrl: text('image_url'),
   /** The piece's own rarity trait (Common / Rare / Epic / Legendary). */
   rarity: text('rarity'),
-  /** Where it goes: the player's wallet when the piece was won. */
-  wallet: text('wallet').notNull(),
+  /** Where it goes: the player's wallet — null while a guest's piece is held. */
+  wallet: text('wallet'),
   status: text('status').notNull().default('sending'),
   signature: text('signature'),
   attempts: integer('attempts').notNull().default(0),

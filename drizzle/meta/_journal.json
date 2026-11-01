@@ -295,6 +295,13 @@
       "when": 1793371212603,
       "tag": "0041_gold",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793565091104,
+      "tag": "0042_genesis_held",
+      "breakpoints": true
     }
   ]
 }

@@ -52,9 +52,13 @@ export async function sendPending(limit = 10): Promise<SendReport> {
           if (!given) { await note('the game wallet is empty'); out.waiting++; continue; }
           row = given;
         }
+        // Une piece gardee pour un invite n'a nulle part ou aller : claimHeld
+        // la passe en 'sending' avec son wallet. Ici, par securite.
+        if (!row.wallet) { out.waiting++; continue; }
+        const to = row.wallet;
         const asset = row.assetId!;
         const owner = await c.ownerOf(asset);
-        if (owner === row.wallet) {
+        if (owner === to) {
           await db.update(genesisPieces).set({ status: 'sent', sentAt: new Date(), lastError: null }).where(eq(genesisPieces.id, row.id));
           out.sent++;
           continue;
@@ -67,11 +71,11 @@ export async function sendPending(limit = 10): Promise<SendReport> {
           out.moved++;
           continue;
         }
-        const signature = await c.transfer(asset, row.wallet);
+        const signature = await c.transfer(asset, to);
         await db.update(genesisPieces)
           .set({ status: 'sent', signature, sentAt: new Date(), attempts: row.attempts + 1, lastError: null })
           .where(eq(genesisPieces.id, row.id));
-        console.log('[genesis] sent', asset, 'to', row.wallet, signature);
+        console.log('[genesis] sent', asset, 'to', to, signature);
         out.sent++;
       } catch (e) {
         if (!isTransient(e)) console.error('[genesis] send failed', row.id, row.assetId, e);

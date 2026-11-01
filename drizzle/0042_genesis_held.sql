@@ -1,0 +1,1 @@
+ALTER TABLE "genesis_pieces" ALTER COLUMN "wallet" DROP NOT NULL;

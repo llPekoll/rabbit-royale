@@ -190,9 +190,14 @@ func _only(which: String) -> void:
 				profile.show_player({"id": "guest:bench", "name": "Thistle", "wallet": null, "guest": true, "avatar": "orange"})
 			profile.show_history(_fake_history())
 			# `genesis` : l'onglet des pieces ; `--empty` sans aucune piece,
-			# `--nowallet` un joueur sans wallet ; `--piece=<png>` l'image.
-			profile.show_genesis([] if "--empty" in args or "--nowallet" in args else _fake_genesis(),
-				"" if "--nowallet" in args else "7fAvPhZnGi4UuwoiAoDhzDtjjv2ZZF8CxQkBfNxbZ3FR")
+			# `--nowallet` un joueur sans wallet ; `--held` un invite et les
+			# pieces gardees pour lui ; `--piece=<png>` l'image.
+			var pieces := [] if "--empty" in args or "--nowallet" in args else _fake_genesis()
+			if "--held" in args:
+				pieces = pieces.slice(0, 2)
+				for p in pieces:
+					p["status"] = "held"
+			profile.show_genesis(pieces, "" if "--nowallet" in args or "--held" in args else "7fAvPhZnGi4UuwoiAoDhzDtjjv2ZZF8CxQkBfNxbZ3FR")
 			d = profile
 		"email", "email-code":
 			var mail := EmailDialog.new()

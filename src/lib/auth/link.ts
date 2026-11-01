@@ -27,6 +27,7 @@ import { db } from '../db';
 import { players } from '../db/schema';
 import { isSolanaAddress } from './signature';
 import { verifyLoginChallenge } from './wallet-login';
+import { claimHeld } from '../genesis/award';
 
 export type LinkResult =
   | { ok: true; playerId: string; wallet: string; name: string }
@@ -84,6 +85,11 @@ export async function linkWalletToPlayer(
    */
   const proven = await verifyLoginChallenge(address, signatureB58, now);
   if (!proven) return { ok: false, reason: 'invalid_signature' };
+
+  // LES PIECES GENESIS GARDEES pour cet invite partent sur le wallet qu'il
+  // vient de prouver — meme s'il creuse deja pour un autre terrier : la
+  // signature dit a qui elles reviennent (src/lib/genesis/award.ts).
+  await claimHeld(playerId, address).catch((e) => console.error('[genesis] claim failed', playerId, e));
 
   // The NAME travels with the refusal: "that wallet already has a burrow" is
   // a fact about somebody the player cannot see, and "...called Thistle" is

@@ -511,8 +511,9 @@ func _relabel_tabs() -> void:
 ## quatre : un vrai actif de la collection, tire du wallet du jeu et envoye
 ## au wallet du joueur (src/lib/genesis). Chaque carte montre la piece telle
 ## qu'elle est on-chain — son image, son nom, sa rarete — et ou en est
-## l'envoi ; la toucher ouvre l'actif dans l'explorateur. Sans wallet, rien
-## ne se gagne : l'onglet le dit plutot que d'afficher une etagere vide.
+## l'envoi ; la toucher ouvre l'actif dans l'explorateur. Un invite garde
+## ses pieces (« held ») jusqu'a ce qu'il lie un wallet ; sans aucune piece,
+## l'onglet lui dit comment en gagner plutot que d'afficher une etagere vide.
 func _build_genesis() -> void:
 	if _genesis == null:
 		_say(I18N.t("profile.genesisFailed" if _genesis_failed else "profile.loading"), 320, 200, 930, 40, 18, CampStyle.BAD if _genesis_failed else CampStyle.MUTED)
@@ -532,10 +533,17 @@ func _build_genesis() -> void:
 		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		return
+	# Un invite et ses pieces gardees : la phrase entiere sous la grille, la
+	# carte n'a la place que pour « en attente d'un wallet ».
+	var waiting := _genesis_wallet.is_empty()
+	if waiting:
+		var hint := _say(I18N.t("profile.genesisHeldHint"), 345, 566, 878, 40, 18, CampStyle.COPPER)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	_put(scroll, 318, 200, 932, 410)
+	_put(scroll, 318, 200, 932, 356 if waiting else 410)
 	TouchScroll.attach(scroll)
 	_scroll = scroll
 	var grid := GridContainer.new()
@@ -566,7 +574,9 @@ func _genesis_card(p: Dictionary) -> Control:
 	var rarity := String(p.get("rarity", ""))
 	var kind := _say(rarity.capitalize(), 8, 160, 160, 22, 15, ChestPrize.ACCENT.get(rarity, CampStyle.MUTED), false, card, o)
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var state := _say(I18N.t("profile.genesisSent" if sent else "profile.genesisSending"), 8, 186, 160, 34, 14, CampStyle.GOOD if sent else CampStyle.COPPER, false, card, o)
+	var held := String(p.get("status", "")) == "held"
+	var words := "profile.genesisSent" if sent else ("profile.genesisHeld" if held else "profile.genesisSending")
+	var state := _say(I18N.t(words), 8, 186, 160, 34, 14, CampStyle.GOOD if sent else CampStyle.COPPER, false, card, o)
 	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var asset := String(p.get("assetId", ""))
