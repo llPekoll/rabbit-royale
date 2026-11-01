@@ -203,6 +203,15 @@ server {
     root /usr/share/nginx/html/web3;
   }
 
+  # LA PREUVE D'IDENTITE DE LA COQUE SEEKER (2026-11-01) : son plugin wallet
+  # se presente au wallet comme https://rabbit.rip (identityUri de
+  # RabbitMwaPlugin.kt), et Backpack refuse une app que ce domaine ne
+  # reconnait pas. Le fichier vit dans landing/.well-known/.
+  location = /.well-known/assetlinks.json {
+    root /usr/share/nginx/html/web3;
+    default_type application/json;
+  }
+
   # LES COQUES SEEKER : memes fichiers et memes regles de cache que sur le
   # site du web3 (voir le premier serveur).
   location = /play/android/manifest.json {

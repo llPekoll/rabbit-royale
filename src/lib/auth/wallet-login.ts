@@ -12,6 +12,7 @@
  * cannot be replayed.
  */
 import { randomBytes } from 'node:crypto';
+import bs58 from 'bs58';
 import { eq, or } from 'drizzle-orm';
 import { db } from '../db';
 import { loginNonces, players } from '../db/schema';
@@ -57,12 +58,43 @@ export async function verifyLoginChallenge(
   const row = await db.query.loginNonces.findFirst({
     where: eq(loginNonces.address, address),
   });
-  if (!row?.nonce) return false;
+  if (!row?.nonce) return refused(address, 'no challenge');
 
   await db.delete(loginNonces).where(eq(loginNonces.address, address));
 
-  if (now.getTime() - row.issuedAt.getTime() > LOGIN_NONCE_TTL_MS) return false;
-  return verifySignature(address, loginMessage(row.nonce), signatureB58);
+  if (now.getTime() - row.issuedAt.getTime() > LOGIN_NONCE_TTL_MS) return refused(address, 'challenge expired');
+  const message = loginMessage(row.nonce);
+  if (verifySignature(address, message, signatureB58)) return true;
+  return refused(address, signatureShape(message, signatureB58));
+}
+
+/**
+ * WHY A WALLET WAS TURNED AWAY, in the server log only (2026-11-01: a Backpack
+ * player approved in the wallet, then read "sign-in failed" in the game). The
+ * client keeps its one message; the log says which half broke, so the next
+ * report can be read instead of guessed.
+ */
+function refused(address: string, why: string): false {
+  console.warn(`[auth] wallet refused ${address.slice(0, 4)}…${address.slice(-4)}: ${why}`);
+  return false;
+}
+
+/**
+ * What the signature looked like. `tail of the message` is the tell of a
+ * wallet whose signed payload puts the signature FIRST: the MWA client cuts
+ * the 64 bytes after the message and hands back the message's own end.
+ */
+export function signatureShape(message: string, signatureB58: string): string {
+  let sig: Uint8Array;
+  try {
+    sig = bs58.decode(signatureB58);
+  } catch {
+    return `signature not base58 (${signatureB58.length} chars)`;
+  }
+  if (sig.length !== 64) return `signature of ${sig.length} bytes`;
+  const tail = Buffer.from(message, 'utf8').subarray(-64);
+  if (tail.length === 64 && Buffer.from(sig).equals(tail)) return 'signature is the tail of the message';
+  return 'signature does not match';
 }
 
 /**

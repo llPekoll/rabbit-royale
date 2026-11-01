@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "rip.rabbit.royale",
+      "sha256_cert_fingerprints": ["9B:39:A0:DD:29:18:5F:5A:E8:10:F3:8E:A9:82:11:7C:80:41:62:AE:5A:1A:76:D0:3A:8D:51:5C:BF:CE:59:8C"]
+    }
+  }
+]
