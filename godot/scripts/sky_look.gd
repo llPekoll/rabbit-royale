@@ -77,7 +77,12 @@ const AIR_MOTES_ON := true
 ## du panneau (PlaySettings.pretty, BEAU / FLUIDE) allume ou eteint rais,
 ## ombres et bloom, eteints par defaut pour les perfs. Ces deux constantes disent ce que le jeu a le
 ## droit de montrer ; l'option dit ce que le joueur veut voir.
-const RAYS_IN_AIR := true
+##
+## CACHES POUR L'INSTANT, 2026-11-01 (le user : « vire les… cache les pour
+## l'instant ») : plus de rais, meme en BEAU. Rien n'est supprime — remettre
+## `true` les ramene tels quels, avec le reglage des rais plus bas. L'option
+## garde les ombres et le bloom.
+const RAYS_IN_AIR := false
 
 ## LES OMBRES DE NUAGES sur le terrain (cloud_shadows.gdshader), sous la meme
 ## option que les rais.
