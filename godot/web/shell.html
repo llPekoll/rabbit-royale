@@ -377,7 +377,13 @@ window.rrWalletWeb = (function () {
 		sign: function (message, cb) {
 			const w = provider();
 			if (!w) return setTimeout(function () { cb('', ''); }, 0);
-			Promise.resolve(w.signMessage(new TextEncoder().encode(message), 'utf8'))
+			// Le 2e argument n'est pas le meme partout : Phantom et Solflare
+			// y lisent l'affichage ('utf8'), Backpack le COMPTE qui signe
+			// (signMessage(msg, publicKey?)). Lui passer 'utf8' signait pour
+			// une cle qui n'existe pas : approuve dans le wallet, refuse ici
+			// (2026-11-01, un joueur web).
+			const bytes = new TextEncoder().encode(message);
+			Promise.resolve(w.isBackpack ? w.signMessage(bytes) : w.signMessage(bytes, 'utf8'))
 				.then(function (r) {
 					const sig = (r && r.signature) || r;
 					cb(typeof sig === 'string' ? sig : base58(new Uint8Array(sig)), '');

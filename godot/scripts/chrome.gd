@@ -1313,11 +1313,22 @@ func _offer_wallet() -> void:
 			Sound.deny()
 			return
 		link.disabled = true
+		# L'ECHEC SE DIT (2026-11-01) : la fenetre se fermait sur un refus du
+		# serveur comme sur un succes, et le joueur ne savait pas quoi
+		# rapporter. Un tableau : la lambda le garde par reference.
+		var refusal := [""]
+		var heard := func(message: String) -> void: refusal[0] = message
+		Session.failed.connect(heard)
 		var address := await Wallet.address()
-		if not address.is_empty():
+		if address.is_empty():
+			refusal[0] = Wallet.last_error
+		else:
 			var signer := func(message: String) -> String: return await Wallet.sign(message)
 			if await Session.link_wallet(address, signer):
 				toast(I18N.t("auth.offerDone"))
+		Session.failed.disconnect(heard)
+		if not String(refusal[0]).is_empty():
+			toast(String(refusal[0]), true)
 		Analytics.track("wallet_offer", {"linked": not bool(Session.player.get("guest", true))})
 		dialog.close_requested())
 	row.add_child(link)

@@ -172,7 +172,12 @@ func _sign_challenge(address: String, signer: Callable) -> String:
 
 	var signature := await signer.call(message) as String
 	# Empty is a REFUSAL, not a failure: the player closed the wallet sheet.
-	# Nothing to report — they know what they just did.
+	# Nothing to report — they know what they just did. UNLESS the wallet said
+	# why (Wallet.last_error stays empty on a plain refusal): a player who
+	# approved in the wallet and then saw nothing here had no way to tell us
+	# what broke (2026-11-01).
+	if signature.is_empty() and not Wallet.last_error.is_empty():
+		failed.emit(Wallet.last_error)
 	return signature
 
 
