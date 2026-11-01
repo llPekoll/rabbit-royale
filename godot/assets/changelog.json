@@ -108,9 +108,22 @@
   },
   "releases": [
     {
-      "version": "v1.21.1",
+      "version": "v1.22",
       "date": "2026-11-01",
       "items": [
+        {
+          "kind": "new",
+          "web2": true,
+          "text": {
+            "en": "Buying Gold in the browser no longer leaves the game: pay right over your burrow.",
+            "fr": "Acheter du Gold dans le navigateur ne fait plus quitter le jeu : tu paies par-dessus ton terrier.",
+            "zh": "在浏览器中购买金币不再离开游戏：直接在你的洞穴上方完成付款。",
+            "pt-BR": "Comprar Gold no navegador não tira mais você do jogo: pague por cima da sua toca.",
+            "vi": "Mua Gold trên trình duyệt không còn rời khỏi trò chơi: thanh toán ngay trên hang của bạn.",
+            "es": "Comprar Gold en el navegador ya no te saca del juego: paga encima de tu madriguera.",
+            "it": "Comprare Gold nel browser non ti fa più uscire dal gioco: paghi sopra la tua tana."
+          }
+        },
         {
           "kind": "fix",
           "web2": true,

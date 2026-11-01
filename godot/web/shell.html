@@ -387,6 +387,99 @@ window.rrWalletWeb = (function () {
 	};
 })();
 		</script>
+
+		<script>
+/* LE GOLD PAYE SANS QUITTER LE JEU, pour store_pay.gd (web2, 2026-11-01).
+   Le formulaire de Stripe (Checkout « embedded », une iframe de Stripe) monte
+   dans un voile PAR-DESSUS le canevas : le jeu tourne dessous et ne recharge
+   pas. Avant, il partait sur la page de Stripe et revenait de zero.
+     open(cle, secret, cb) -> cb('complete' | 'closed' | 'error:<raison>'),
+                              jamais synchrone (cf. rrWalletWeb)
+   Stripe.js est charge au PREMIER achat (js.stripe.com, il ne se copie pas),
+   jamais au boot. Une seule session embarquee a la fois chez Stripe : la
+   precedente est detruite avant d'en monter une autre. Un moyen de paiement
+   qui doit passer par sa banque (iDEAL...) emmene encore la page, et revient
+   par ?gold=done&session_id= comme avant. */
+window.rrStripeCheckout = (function () {
+	let loading = null;
+	let stripe = null;
+	let stripeKey = '';
+	let current = null;
+	function load() {
+		if (window.Stripe) return Promise.resolve();
+		loading = loading || new Promise(function (resolve, reject) {
+			const s = document.createElement('script');
+			s.src = 'https://js.stripe.com/v3/';
+			s.onload = function () { resolve(); };
+			s.onerror = function () { loading = null; reject(new Error('could not load Stripe')); };
+			document.head.appendChild(s);
+		});
+		return loading;
+	}
+	function finish(mine, state) {
+		if (current !== mine) return;
+		current = null;
+		try { if (mine.checkout) mine.checkout.destroy(); } catch (e) {}
+		mine.root.remove();
+		setTimeout(function () { mine.cb(state); }, 0);
+	}
+	function veil() {
+		const root = document.createElement('div');
+		root.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(12,9,6,.78);'
+			+ 'display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+		const box = document.createElement('div');
+		box.style.cssText = 'position:relative;width:min(480px,100%);max-height:100%;overflow-y:auto;'
+			+ 'touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#fff;border-radius:12px;';
+		const wait = document.createElement('div');
+		wait.textContent = '...';
+		wait.style.cssText = 'padding:48px 0;text-align:center;font:24px sans-serif;color:#888;';
+		box.appendChild(wait);
+		const close = document.createElement('button');
+		close.type = 'button';
+		close.textContent = '\u00d7';
+		close.setAttribute('aria-label', 'Close');
+		close.style.cssText = 'position:fixed;top:12px;right:12px;width:44px;height:44px;border:0;'
+			+ 'border-radius:22px;background:#fff;color:#222;font:28px/44px sans-serif;cursor:pointer;';
+		root.appendChild(box);
+		root.appendChild(close);
+		document.body.appendChild(root);
+		return { root: root, box: box, wait: wait, close: close };
+	}
+	return {
+		open: function (key, secret, cb) {
+			if (current) finish(current, 'closed');
+			const v = veil();
+			const mine = { root: v.root, cb: cb, checkout: null };
+			current = mine;
+			v.close.onclick = function () { finish(mine, 'closed'); };
+			load()
+				.then(function () {
+					if (!stripe || stripeKey !== key) {
+						stripe = window.Stripe(key);
+						stripeKey = key;
+					}
+					return stripe.initEmbeddedCheckout({
+						fetchClientSecret: function () { return Promise.resolve(secret); },
+						onComplete: function () { finish(mine, 'complete'); },
+					});
+				})
+				.then(function (checkout) {
+					if (current !== mine) {
+						checkout.destroy();
+						return;
+					}
+					mine.checkout = checkout;
+					v.wait.remove();
+					checkout.mount(v.box);
+				})
+				.catch(function (e) {
+					console.warn('[stripe] embedded checkout failed', e);
+					finish(mine, 'error:' + String((e && e.message) || e));
+				});
+		},
+	};
+})();
+		</script>
 		<!-- La config web de Firebase (publique), copiee a cote de index.html
 		     par le Dockerfile. Placeholders « TODO » : tout reste muet. -->
 		<script src="firebase-config.js"></script>

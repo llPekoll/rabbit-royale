@@ -22,9 +22,12 @@ extends Node
 ## au lancement suivant.
 ##
 ## SUR LE WEB (rabbit.rip/play/, export « Web (web2) ») : les MEMES sachets,
-## payes sur la page de Stripe (api/store/stripe, 2026-10-30). Pas de feuille :
-## le jeu part sur Stripe et en revient avec `?gold=done&session_id=cs_…`,
-## que `_web_return` fait crediter. Le webhook de Stripe credite aussi si le
+## payes chez Stripe (api/store/stripe, 2026-10-30). Depuis le 2026-11-01 le
+## formulaire de Stripe s'ouvre PAR-DESSUS le jeu (window.rrStripeCheckout,
+## web/shell.html) : le jeu ne recharge plus, `_on_checkout` fait crediter.
+## Sans cle publique cote serveur (ou une banque a visiter), le jeu part
+## encore sur Stripe et en revient avec `?gold=done&session_id=cs_…`, que
+## `_web_return` fait crediter. Le webhook de Stripe credite aussi si le
 ## joueur ne revient pas ; le serveur ne compte la session qu'une fois. Le
 ## prix est celui que Stripe facture, en euros (`web` de /api/shop).
 ##
@@ -53,6 +56,12 @@ var buying := ""
 var _settling: Dictionary = {}
 ## Un retour de Stripe en cours de credit.
 var _returning := false
+## Le formulaire de Stripe par-dessus le jeu (web/shell.html) ; null sur une
+## page d'avant, qui part alors sur la page de Stripe.
+var _checkout: JavaScriptObject
+var _checkout_cb: JavaScriptObject
+## La session du formulaire ouvert.
+var _checkout_session := ""
 
 
 ## BANC SEULEMENT (forest_shop_bench --store) : des sachets et leurs prix
@@ -89,6 +98,9 @@ func _ready() -> void:
 	if not supported():
 		return
 	if web():
+		_checkout = JavaScriptBridge.get_interface("rrStripeCheckout")
+		if _checkout != null:
+			_checkout_cb = JavaScriptBridge.create_callback(_on_checkout)
 		ShopState.shared().changed.connect(_read_catalog)
 		Session.changed.connect(_web_return)
 		_read_catalog()
@@ -253,15 +265,24 @@ static func euros(cents: int, lang: String) -> String:
 
 ## ACHETER UN SACHET. Rend quand la feuille de Play est ouverte ; le Gold
 ## arrive par `on_purchase_updated`, dans la bourse de ShopState. Sur le web,
-## le jeu PART sur la page de Stripe (meme onglet : une fenetre ouverte hors
-## du geste du joueur serait bloquee) et le Gold arrive au retour.
+## le formulaire de Stripe s'ouvre par-dessus le jeu et le Gold arrive par
+## `_on_checkout` ; sans lui, le jeu PART sur la page de Stripe (meme onglet :
+## une fenetre ouverte hors du geste du joueur serait bloquee) et le Gold
+## arrive au retour.
 func buy(id: String) -> void:
 	if not _connected or not prices.has(id) or not buying.is_empty() or not Session.signed_in():
 		return
 	buying = id
 	changed.emit()
 	if web():
-		var page: Answer = await Net.post_json("/api/store/stripe", {"productId": id, "locale": I18N.locale}, Session.token)
+		var page: Answer = await Net.post_json("/api/store/stripe",
+			{"productId": id, "locale": I18N.locale, "embedded": _checkout != null}, Session.token)
+		var secret := String(page.body.get("clientSecret", "")) if page.ok else ""
+		if not secret.is_empty():
+			Analytics.track("begin_checkout", {"item_id": id, "rail": "stripe"})
+			_checkout_session = String(page.body.get("sessionId", ""))
+			_checkout.open(String(page.body.get("publishableKey", "")), secret, _checkout_cb)
+			return
 		var url := String(page.body.get("url", "")) if page.ok else ""
 		if not url.begins_with("https://"):
 			_fail(page.error() if not page.ok or page.body.has("error") else "store_unavailable")
@@ -368,6 +389,18 @@ func _credited(body: Dictionary, id: String, rail: String, order: String) -> voi
 		got_gold.emit(int(bought.get("qty", 0)))
 
 
+## LE FORMULAIRE SE FERME : paye ('complete'), ferme par la croix ('closed',
+## rien a dire) ou en panne ('error:…', Stripe.js injoignable).
+func _on_checkout(args: Array) -> void:
+	var state := String(args[0]) if args.size() > 0 else ""
+	if state == "complete":
+		_credit_stripe(_checkout_session, false)
+	elif state.begins_with("error"):
+		_fail("store_unavailable", "stripe embedded " + state.left(80))
+	else:
+		_done()
+
+
 ## DE RETOUR DE STRIPE : `?gold=done&session_id=cs_…` dans l'adresse. Le
 ## serveur lit la session chez Stripe et credite (une fois, meme si le webhook
 ## est passe avant). Une reponse a refaire (Stripe muet, paiement lent) garde
@@ -387,15 +420,32 @@ func _web_return() -> void:
 	if state != "done" or not session_id.begins_with("cs_"):
 		_clean_address()
 		return
+	_credit_stripe(session_id, true)
+
+
+## CREDITER UNE SESSION STRIPE payee. Stripe qui tarde a dire « paye » (une
+## reponse `retry`) : on redemande quelques fois, puis le webhook prend le
+## relais et le Gold apparait a la prochaine lecture de l'etal.
+func _credit_stripe(session_id: String, from_address: bool) -> void:
+	if _returning or not session_id.begins_with("cs_"):
+		_done()
+		return
 	_returning = true
-	var res: Answer = await Net.get_json("/api/store/stripe?session=" + session_id.uri_encode(), Session.token)
+	var res: Answer
+	for attempt in 5:
+		if attempt > 0:
+			await get_tree().create_timer(2.0).timeout
+		res = await Net.get_json("/api/store/stripe?session=" + session_id.uri_encode(), Session.token)
+		if res.ok and not res.body.has("error") or not bool(res.body.get("retry", false)):
+			break
 	_returning = false
 	if not res.ok or res.body.has("error"):
-		if not bool(res.body.get("retry", false)):
+		if from_address and not bool(res.body.get("retry", false)):
 			_clean_address()
 		_fail(res.error(), "stripe return %s" % res.error())
 		return
-	_clean_address()
+	if from_address:
+		_clean_address()
 	var bought: Dictionary = res.body.get("bought", {})
 	var id := "gold_%d" % int(bought.get("qty", 0))
 	_credited(res.body, id, "stripe", session_id)

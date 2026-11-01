@@ -1,7 +1,9 @@
 /**
  * Buying gold on the web (web2, rabbit.rip/play/), through Stripe Checkout.
  *
- *   POST /api/store/stripe  { productId, locale }  → { url } Stripe's page
+ *   POST /api/store/stripe  { productId, locale, embedded? }
+ *        → { url } Stripe's page, or with `embedded` (and a publishable key)
+ *          { sessionId, clientSecret, publishableKey } for the form over the game
  *   GET  /api/store/stripe?session=cs_…            → back from it: credit
  *
  * The same sachets as Play (config/store.ts), the same credit
@@ -11,7 +13,7 @@
  * alreadyCredited.
  */
 import { getSession } from '@/lib/auth/jwt';
-import { createCheckout, isCheckoutId, readCheckout, stripeEnabled } from '@/lib/pay/stripe';
+import { createCheckout, isCheckoutId, publishableKey, readCheckout, stripeEnabled } from '@/lib/pay/stripe';
 import { creditStorePurchase, creditedTo, storeBlocker } from '@/lib/pay/store';
 import { overLimit, tooMany } from '@/lib/rate-limit';
 import { STORE_PRODUCTS, isStoreProductId } from '@config/store';
@@ -22,12 +24,18 @@ export async function POST(req: Request) {
   if (!session) return Response.json({ error: 'unauthenticated' }, { status: 401 });
   if (await overLimit('store-check', session.sub, 30)) return tooMany();
   if (!stripeEnabled()) return Response.json({ error: 'store_unavailable' }, { status: 503 });
-  const { productId, locale } = (await req.json().catch(() => ({}))) as { productId?: unknown; locale?: unknown };
+  const { productId, locale, embedded } = (await req.json().catch(() => ({}))) as {
+    productId?: unknown;
+    locale?: unknown;
+    embedded?: unknown;
+  };
   if (!isStoreProductId(productId)) return Response.json({ error: 'unknown_item' }, { status: 400 });
   const blocker = await storeBlocker(session.sub, productId);
   if (blocker) return Response.json({ error: blocker }, { status: 400 });
   try {
-    const page = await createCheckout(session.sub, productId, typeof locale === 'string' ? locale : '');
+    const pk = embedded === true ? publishableKey() : '';
+    const page = await createCheckout(session.sub, productId, typeof locale === 'string' ? locale : '', pk !== '');
+    if (pk) return Response.json({ sessionId: page.id, clientSecret: page.clientSecret, publishableKey: pk });
     return Response.json({ url: page.url });
   } catch (e) {
     console.error('[stripe]', (e as Error).message);

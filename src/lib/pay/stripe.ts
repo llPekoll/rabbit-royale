@@ -2,9 +2,13 @@
  * Stripe Checkout, the server's half (web2, the game on rabbit.rip/play/).
  *
  * The web build has no store sheet: it sells the SAME sachets of gold as Play
- * (config/store.ts) through a page Stripe hosts. The game asks us for that
- * page (`createCheckout`), leaves for it, and comes back with the session id
- * in its address; Stripe also tells us by webhook. Neither the browser nor
+ * (config/store.ts) through Stripe Checkout. Since 2026-11-01 the form is
+ * EMBEDDED: Stripe's iframe opens over the game (window.rrStripeCheckout,
+ * godot/web/shell.html) and the game never reloads. A card pays in place;
+ * only a bank that must be visited (iDEAL, Bancontact…) takes the page away,
+ * and it comes back with the session id in its address, as the hosted page
+ * did. Without a publishable key, or for a build from before, the game still
+ * leaves for the page Stripe hosts. Stripe also tells us by webhook. Neither the browser nor
  * the webhook body is believed: both only name a Checkout Session, and the
  * server reads that session from Stripe itself (`readCheckout`) before
  * crediting — paid, for which sachet, to which player, all from Stripe.
@@ -27,6 +31,8 @@
  *   STRIPE_WEBHOOK_SECRET  whsec_… of the endpoint /api/store/stripe/webhook.
  *                          Absent: the webhook is CLOSED, the return still
  *                          credits.
+ *   STRIPE_PUBLISHABLE_KEY pk_live_… / pk_test_…, public, for Stripe.js in the
+ *                          page. Absent: the hosted page, as before.
  *   STRIPE_RETURN_URL      where Stripe sends the player back, the game's page:
  *                          https://rabbit.rip/play/ by default,
  *                          https://stage.rabbit.rip/play/ on the stage.
@@ -48,6 +54,12 @@ function secretKey(): string {
 
 export function stripeEnabled(): boolean {
   return secretKey().startsWith('sk_');
+}
+
+/** The key Stripe.js opens the embedded form with ('' = hosted page only). */
+export function publishableKey(): string {
+  const k = process.env.STRIPE_PUBLISHABLE_KEY?.trim() ?? '';
+  return k.startsWith('pk_') ? k : '';
 }
 
 /** A test key: Stripe's test mode, no real money (the stage). */
@@ -83,21 +95,29 @@ async function stripe(method: 'GET' | 'POST', path: string, form?: URLSearchPara
 }
 
 /**
- * Stripe's page for one sachet, bound to this player. `locale` is the game's
- * language when Stripe has it ('auto' otherwise: the browser's).
+ * Stripe's checkout for one sachet, bound to this player. `locale` is the
+ * game's language when Stripe has it ('auto' otherwise: the browser's).
+ * `embedded`: a form for Stripe.js over the game (its `clientSecret`), which
+ * leaves the page only for a payment method that must (redirect_on_completion
+ * 'if_required'); otherwise the page Stripe hosts (its `url`).
+ *
+ * 'embedded' is the ui_mode of the account's API version (2026-11-01); newer
+ * versions call it 'embedded_page' and refuse this one.
  */
-export async function createCheckout(playerId: string, productId: StoreProductId, locale: string) {
+export async function createCheckout(playerId: string, productId: StoreProductId, locale: string, embedded = false) {
   const p = STORE_PRODUCTS[productId];
   const back = new URL(returnUrl());
   const done = new URL(back);
   done.searchParams.set('gold', 'done');
   const cancel = new URL(back);
   cancel.searchParams.set('gold', 'cancel');
+  // Stripe fills {CHECKOUT_SESSION_ID} itself: the braces must reach it raw.
+  const doneUrl = `${done.toString()}&session_id={CHECKOUT_SESSION_ID}`;
   const form = new URLSearchParams({
     mode: 'payment',
-    // Stripe fills {CHECKOUT_SESSION_ID} itself: the braces must reach it raw.
-    success_url: `${done.toString()}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: cancel.toString(),
+    ...(embedded
+      ? { ui_mode: 'embedded', redirect_on_completion: 'if_required', return_url: doneUrl }
+      : { success_url: doneUrl, cancel_url: cancel.toString() }),
     client_reference_id: playerId,
     'metadata[playerId]': playerId,
     'metadata[productId]': productId,
@@ -114,7 +134,7 @@ export async function createCheckout(playerId: string, productId: StoreProductId
     'payment_intent_data[description]': `Rabbit Royale — ${sachetName(productId)}`,
   });
   const s = await stripe('POST', '/checkout/sessions', form);
-  return { id: String(s.id), url: String(s.url) };
+  return { id: String(s.id), url: String(s.url ?? ''), clientSecret: String(s.client_secret ?? '') };
 }
 
 /** Stripe Checkout's languages that the game also speaks (src/i18n). */

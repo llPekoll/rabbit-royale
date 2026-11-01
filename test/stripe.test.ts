@@ -85,12 +85,29 @@ describe('stripe checkout reading', () => {
       return new Response(JSON.stringify({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' }));
     }) as unknown as typeof fetch;
     const { createCheckout } = await import('@/lib/pay/stripe');
-    expect(await createCheckout('p1', 'gold_1200', 'fr')).toEqual({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
+    expect(await createCheckout('p1', 'gold_1200', 'fr')).toMatchObject({ id: 'cs_test_1', url: 'https://checkout.stripe.com/c/pay/cs_test_1' });
     expect(sent.get('line_items[0][price_data][unit_amount]')).toBe('999');
     expect(sent.get('line_items[0][price_data][currency]')).toBe('eur');
     expect(sent.get('success_url')).toBe('https://rabbit.rip/play/?gold=done&session_id={CHECKOUT_SESSION_ID}');
     expect(sent.get('cancel_url')).toBe('https://rabbit.rip/play/?gold=cancel');
     expect(sent.get('locale')).toBe('fr');
     expect(sent.get('metadata[playerId]')).toBe('p1');
+    expect(sent.get('ui_mode')).toBeNull();
+  });
+
+  it('embeds the form over the game, leaving only for a bank that must', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x';
+    let sent = new URLSearchParams();
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      sent = init.body as URLSearchParams;
+      return new Response(JSON.stringify({ id: 'cs_test_1', client_secret: 'cs_test_1_secret_x', url: null }));
+    }) as unknown as typeof fetch;
+    const { createCheckout } = await import('@/lib/pay/stripe');
+    expect(await createCheckout('p1', 'gold_100', 'en', true)).toEqual({ id: 'cs_test_1', url: '', clientSecret: 'cs_test_1_secret_x' });
+    expect(sent.get('ui_mode')).toBe('embedded');
+    expect(sent.get('redirect_on_completion')).toBe('if_required');
+    expect(sent.get('return_url')).toBe('https://rabbit.rip/play/?gold=done&session_id={CHECKOUT_SESSION_ID}');
+    expect(sent.get('success_url')).toBeNull();
+    expect(sent.get('cancel_url')).toBeNull();
   });
 });
