@@ -47,6 +47,17 @@ const CASES: ReadonlyArray<readonly [string, string, number]> = [
   ['lv7:fx32', 'g', 0],
   ['lv9:fx46', 'h', 0],
   ['lv8:fx365', 'i', 0],
+  // SMALL islands of their own (levels 3 to 6 since 2026-11-01), in a box
+  // under MIN_SIDE: twins, horseshoe, archipelago, snake, atoll, free coast.
+  ['lv3:a7', 'j', 0],
+  ['lv3:b3', 'k', 0],
+  ['lv3:c9', 'l', 0],
+  ['lv3:d1', 'm', 0],
+  ['lv4:d1', 'n', 0],
+  ['lv4:e5', 'o', 0],
+  ['lv5:a7', 'p', 0],
+  ['lv5:d1', 'q', 0],
+  ['lv6:f2', 'r', 0],
 ];
 
 const LETTER = { empty: 'E', carrot: 'C', golden: 'G', bomb: 'B', chest: 'K' } as const;

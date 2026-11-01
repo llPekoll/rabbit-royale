@@ -7,6 +7,8 @@
  "BIG_ISLANDS": {
   "SHAPE_CHANCE": 0.35,
   "MIN_SIDE": 32,
+  "SMALL_BELOW": 600,
+  "SMALL_MIN_SIDE": 12,
   "MAX_SIDE": 76,
   "MIN_FILL": 0.9,
   "MAX_TRIES": 5,
@@ -682,7 +684,11 @@
     "goldenShare": 0.06,
     "xGain": 3,
     "land": 0.2,
-    "chests": 3
+    "chests": 3,
+    "big": [
+     150,
+     200
+    ]
    },
    {
     "level": 4,
@@ -693,7 +699,11 @@
     "goldenShare": 0.08,
     "xGain": 3,
     "land": 0.25,
-    "chests": 3
+    "chests": 3,
+    "big": [
+     190,
+     240
+    ]
    },
    {
     "level": 5,
@@ -704,7 +714,11 @@
     "goldenShare": 0.09,
     "xGain": 3,
     "land": 0.3,
-    "chests": 4
+    "chests": 4,
+    "big": [
+     230,
+     290
+    ]
    },
    {
     "level": 6,
@@ -715,7 +729,11 @@
     "goldenShare": 0.11,
     "xGain": 2,
     "land": 0.36,
-    "chests": 5
+    "chests": 5,
+    "big": [
+     280,
+     340
+    ]
    },
    {
     "level": 7,
@@ -800,6 +818,8 @@
   "BROKEN_SHIELD_MS": 57600000,
   "ONBOARDING_SHIELD_MS": 172800000,
   "ITEM_SHIELD_MS": 21600000,
+  "AUTO_SHIELD_LOSS": 300,
+  "AUTO_SHIELD_WINDOW_MS": 7200000,
   "SHIELD_REDUCTION": 1
  },
  "RAID_RUN": {
@@ -815,6 +835,9 @@
   "MIN_LOOT_FRACTION": 0.15,
   "SHORT_LOOT_SPAN": 0.25,
   "COOLDOWN_MS": 3600000,
+  "VICTIM_REST_MS": 1800000,
+  "VICTIM_DAY_CAP": 3,
+  "BUSY_MS": 600000,
   "SOLO_AFTER_RAID_MS": 7200000,
   "SHIELD_AFTER_RAID_MS": 43200000
  },

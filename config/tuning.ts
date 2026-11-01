@@ -548,7 +548,8 @@ export interface LevelRow {
   /** Chests dealt on the rim: the island ends on the last one. */
   readonly chests: number;
   /**
-   * A BIG ISLAND of its own (2026-10-09): the tile count the island is cut to,
+   * AN ISLAND of its own (2026-10-09 from level 7, 2026-11-01 from level 3):
+   * the tile count the island is cut to,
    * drawn between the two bounds from its seed. Absent = the shared ground
    * (`ISLAND_GROUND`) cut to `land`. See BIG_ISLANDS.
    */
@@ -582,10 +583,10 @@ export const RABBIT_LEVELS = {
   LADDER: [
     { level: 1,  tier: 'Meadow',  seats: 1, bombDensity: 0.10, carrotDensity: 0.28, goldenShare: 0.05, xGain: 3, land: 0.12, chests: 2 },
     { level: 2,  tier: 'Meadow',  seats: 1, bombDensity: 0.12, carrotDensity: 0.29, goldenShare: 0.06, xGain: 3, land: 0.16, chests: 2 },
-    { level: 3,  tier: 'Meadow',  seats: 2, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3, land: 0.20, chests: 3 },
-    { level: 4,  tier: 'Thicket', seats: 2, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3 },
-    { level: 5,  tier: 'Thicket', seats: 2, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4 },
-    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5 },
+    { level: 3,  tier: 'Meadow',  seats: 2, bombDensity: 0.14, carrotDensity: 0.30, goldenShare: 0.06, xGain: 3, land: 0.20, chests: 3, big: [150, 200] },
+    { level: 4,  tier: 'Thicket', seats: 2, bombDensity: 0.15, carrotDensity: 0.32, goldenShare: 0.08, xGain: 3, land: 0.25, chests: 3, big: [190, 240] },
+    { level: 5,  tier: 'Thicket', seats: 2, bombDensity: 0.17, carrotDensity: 0.34, goldenShare: 0.09, xGain: 3, land: 0.30, chests: 4, big: [230, 290] },
+    { level: 6,  tier: 'Ashland', seats: 2, bombDensity: 0.18, carrotDensity: 0.36, goldenShare: 0.11, xGain: 2, land: 0.36, chests: 5, big: [280, 340] },
     { level: 7,  tier: 'Ashland', seats: 4, bombDensity: 0.16, carrotDensity: 0.38, goldenShare: 0.13, xGain: 2, land: 0.42, chests: 6, big: [650, 850], carrotGain: 1, goldenGain: 3 },
     { level: 8,  tier: 'Caldera', seats: 4, bombDensity: 0.17, carrotDensity: 0.40, goldenShare: 0.15, xGain: 2, land: 0.50, chests: 7, big: [800, 1000], carrotGain: 1, goldenGain: 3 },
     { level: 9,  tier: 'Caldera', seats: 4, bombDensity: 0.18, carrotDensity: 0.41, goldenShare: 0.16, xGain: 2, land: 0.56, chests: 8, big: [950, 1200], carrotGain: 1, goldenGain: 3 },
@@ -595,6 +596,11 @@ export const RABBIT_LEVELS = {
 
 /**
  * THE BIG ISLANDS — from level 7 on, every island is its own (2026-10-09).
+ * AND FROM LEVEL 3 SINCE 2026-11-01 (the user: « il faut changer 3-6, juste
+ * varier la forme de l'ile, pas toujours avoir la meme »): rows 3 to 6 carry
+ * `big` at about the size they had on the shared ground (~170 → ~305 tiles),
+ * in a smaller box (SMALL_MIN_SIDE). Levels 1 and 2, alone, keep the shared
+ * ground; so does the tutorial.
  *
  * A player said the game was monotonous, and the pictures agreed: levels 1 to
  * 7 were one coastline growing, and level 10 was the same 530 tiles forever.
@@ -645,6 +651,14 @@ export const BIG_ISLANDS = {
   SHAPE_CHANCE: 0.35,
   /** Box side bounds, in cells. The grid travels with the seed, never the wire. */
   MIN_SIDE: 32,
+  /**
+   * THE SMALL ONES (levels 3 to 6, 2026-11-01): an island of fewer than
+   * SMALL_BELOW tiles may sit in a box down to SMALL_MIN_SIDE. MIN_SIDE was
+   * sized for 650 tiles and up; a 170-tile island in a 32x32 box would be cut
+   * to half the box, three times its level.
+   */
+  SMALL_BELOW: 600,
+  SMALL_MIN_SIDE: 12,
   MAX_SIDE: 76,
   /** The cutter re-cuts a bigger box until the island holds this share of its count. */
   MIN_FILL: 0.9,

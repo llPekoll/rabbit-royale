@@ -1,6 +1,7 @@
 extends RefCounted
 class_name BigIsland
-## LES GRANDES ILES — une ile a elle des le niveau 7 (BIG_ISLANDS).
+## LES GRANDES ILES — une ile a elle des le niveau 7 (BIG_ISLANDS), et des le
+## niveau 3 depuis le 2026-11-01, petite, dans une boite plus petite.
 ##
 ## Porte de src/lib/game/big-island.ts, A LA LETTRE : le serveur et le client
 ## taillent la cote depuis la seule graine, donc chaque tirage, chaque arrondi
@@ -55,9 +56,16 @@ static func plan(seed_value: String, level: int) -> Dictionary:
 const PROBE_SIDE := 48
 
 
-static func _clamp_side(n: int) -> int:
+## La plus petite boite d'un plan : SMALL_MIN_SIDE sous SMALL_BELOW cases
+## (niveaux 3 a 6, 2026-11-01), MIN_SIDE au-dessus. `minSide`.
+static func _min_side(target: int) -> int:
 	var big: Dictionary = _table()
-	return mini(int(big.MAX_SIDE), maxi(int(big.MIN_SIDE), n))
+	return int(big.SMALL_MIN_SIDE) if target < int(big.SMALL_BELOW) else int(big.MIN_SIDE)
+
+
+static func _clamp_side(n: int, lo: int) -> int:
+	var big: Dictionary = _table()
+	return mini(int(big.MAX_SIDE), maxi(lo, n))
 
 
 static func _land_cells(map: IslandMap) -> int:
@@ -100,16 +108,17 @@ static func size(seed_value: String, p: Dictionary, rise: float) -> Dictionary:
 	var shaped := not (p.parts as Array).is_empty()
 	var width: int
 	var height: int
+	var lo := _min_side(int(p.target))
 	if shaped:
 		# Depuis la couverture de la silhouette elle-meme, mesuree sur une
 		# boite d'essai : un serpent maigre demande plus grand qu'une etoile.
 		var share := _silhouette_share(PROBE_SIDE, PROBE_SIDE, p.parts)
-		width = _clamp_side(ceili(sqrt(float(p.target) / (share * 0.9))))
+		width = _clamp_side(ceili(sqrt(float(p.target) / (share * 0.9))), lo)
 		height = width
 	else:
 		var area := float(p.target) / float(p.land)
-		width = _clamp_side(roundi(sqrt(area * float(p.aspect))))
-		height = _clamp_side(roundi(sqrt(area / float(p.aspect))))
+		width = _clamp_side(roundi(sqrt(area * float(p.aspect))), lo)
+		height = _clamp_side(roundi(sqrt(area / float(p.aspect))), lo)
 	var cut := _cut_for(p, width, height)
 	for tries in range(1, int(big.MAX_TRIES)):
 		# UN SEUL PALIER SUFFIT A COMPTER : les plateaux viennent apres la cote,
@@ -123,7 +132,7 @@ static func size(seed_value: String, p: Dictionary, rise: float) -> Dictionary:
 		if width >= int(big.MAX_SIDE) and height >= int(big.MAX_SIDE):
 			break
 		var grow := sqrt(float(p.target) / float(maxi(1, cells)))
-		width = _clamp_side(maxi(width + 2, ceili(width * grow)))
-		height = width if shaped else _clamp_side(maxi(height + 2, ceili(height * grow)))
+		width = _clamp_side(maxi(width + 2, ceili(width * grow)), lo)
+		height = width if shaped else _clamp_side(maxi(height + 2, ceili(height * grow)), lo)
 		cut = _cut_for(p, width, height)
 	return cut

@@ -1,5 +1,6 @@
 /**
- * THE BIG ISLANDS — an island of its own from level 7 on (BIG_ISLANDS).
+ * THE BIG ISLANDS — an island of its own from level 7 on (BIG_ISLANDS), and
+ * from level 3 since 2026-11-01, small, in a smaller box (SMALL_MIN_SIDE).
  *
  * Below that row every ladder island is cut from the one shared ground
  * (`ISLAND_GROUND`), 32x32. From it, the island's OWN seed cuts its coast:
@@ -76,7 +77,10 @@ export function bigPlan(seed: string, level: number | undefined): BigPlan | null
 /** The box a silhouette's coverage is first measured on. */
 const PROBE_SIDE = 48;
 
-const clampSide = (n: number) => Math.min(BIG_ISLANDS.MAX_SIDE, Math.max(BIG_ISLANDS.MIN_SIDE, n));
+/** The smallest box a plan may sit in: SMALL_MIN_SIDE under SMALL_BELOW tiles (levels 3-6). */
+const minSide = (target: number) => (target < BIG_ISLANDS.SMALL_BELOW ? BIG_ISLANDS.SMALL_MIN_SIDE : BIG_ISLANDS.MIN_SIDE);
+
+const clampSide = (n: number, lo: number) => Math.min(BIG_ISLANDS.MAX_SIDE, Math.max(lo, n));
 
 function landCells(map: IslandMap): number {
   let n = 0;
@@ -117,17 +121,18 @@ export function sizeBigGround(
 ): BigCut {
   let width: number;
   let height: number;
+  const lo = minSide(plan.target);
   if (plan.parts) {
     // From the outline's own coverage, measured on a nominal box: a thin
     // snake asks for a bigger box than a fat star, and starting there spares
     // most of the re-cuts.
     const share = silhouetteShare(PROBE_SIDE, PROBE_SIDE, plan.parts);
-    width = clampSide(Math.ceil(Math.sqrt(plan.target / (share * 0.9))));
+    width = clampSide(Math.ceil(Math.sqrt(plan.target / (share * 0.9))), lo);
     height = width;
   } else {
     const area = plan.target / plan.land;
-    width = clampSide(Math.round(Math.sqrt(area * plan.aspect)));
-    height = clampSide(Math.round(Math.sqrt(area / plan.aspect)));
+    width = clampSide(Math.round(Math.sqrt(area * plan.aspect)), lo);
+    height = clampSide(Math.round(Math.sqrt(area / plan.aspect)), lo);
   }
   let cut = cutFor(plan, width, height);
   for (let tries = 1; tries < BIG_ISLANDS.MAX_TRIES; tries++) {
@@ -138,8 +143,8 @@ export function sizeBigGround(
     if (cells >= plan.target * BIG_ISLANDS.MIN_FILL) break;
     if (width >= BIG_ISLANDS.MAX_SIDE && height >= BIG_ISLANDS.MAX_SIDE) break;
     const grow = Math.sqrt(plan.target / Math.max(1, cells));
-    width = clampSide(Math.max(width + 2, Math.ceil(width * grow)));
-    height = plan.parts ? width : clampSide(Math.max(height + 2, Math.ceil(height * grow)));
+    width = clampSide(Math.max(width + 2, Math.ceil(width * grow)), lo);
+    height = plan.parts ? width : clampSide(Math.max(height + 2, Math.ceil(height * grow)), lo);
     cut = cutFor(plan, width, height);
   }
   return cut;

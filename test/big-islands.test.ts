@@ -16,8 +16,8 @@ import {
 const seeds = (level: number, n: number) => Array.from({ length: n }, (_, k) => levelSeed(level, `t${k}`));
 
 describe('which islands are big', () => {
-  it('levels 1 to 6 keep the shared 32x32 ground', () => {
-    for (let level = 1; level <= 6; level++) {
+  it('levels 1 and 2 keep the shared 32x32 ground', () => {
+    for (let level = 1; level <= 2; level++) {
       const seed = levelSeed(level, 'x');
       expect(groundSeed(seed)).toBe(ISLAND_GROUND);
       expect(bigPlan(seed, seedLevel(seed))).toBeNull();
@@ -25,11 +25,26 @@ describe('which islands are big', () => {
     }
   });
 
-  it('from level 7 every island is its own ground', () => {
-    for (let level = 7; level <= RABBIT_LEVELS.MAX; level++) {
+  it('from level 3 every island is its own ground (2026-11-01, 7 before)', () => {
+    for (let level = 3; level <= RABBIT_LEVELS.MAX; level++) {
       const seed = levelSeed(level, 'x');
       expect(groundSeed(seed)).toBe(seed);
       expect(bigPlan(seed, seedLevel(seed))).not.toBeNull();
+    }
+  });
+
+  it('levels 3 to 6 stay small: about their old size, in a box that may be under 32', () => {
+    for (let level = 3; level <= 6; level++) {
+      const [lo, hi] = levelRow(level).big!;
+      let under32 = 0;
+      for (const seed of seeds(level, 8)) {
+        const land = farmableTiles(seed).length;
+        expect(land).toBeGreaterThan(lo * 0.75);
+        expect(land).toBeLessThanOrEqual(Math.ceil(hi * 1.35));
+        const { cols, rows } = gridOf(seed);
+        if (cols < 32 || rows < 32) under32++;
+      }
+      expect(under32).toBeGreaterThan(0);
     }
   });
 
