@@ -938,6 +938,18 @@ export const it: Dict = {
 
   /* ── La tua tana sotto attacco, vista da casa ────────────────────────── */
   defend: {
+    toolDecor: "Decoro",
+    toolTrap: "Bombe",
+    toolFence: "Steccati",
+    planBriefBombs: "Tocca una casella: piazza / riprendi una bomba.",
+    planBriefFences: "Tocca un bordo dell'orto: posa / rimuovi.",
+    planBriefDecor: "Sposta gli oggetti per deviare il predone.",
+    planBriefPick: "Scegli uno strumento qui sotto per la difesa.",
+    planSafe: "Fermato",
+    planOpen: (left) => `Passa · ${left} ⚡`,
+    planTesting: "In corso",
+    planTrail: (steps, bombs) => `${steps} passi · ${bombs} ${bombs === 1 ? "bomba" : "bombe"}`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: 'TOGLI TUTTO',
     cleanSure: 'SICURO?',
     cleaned: (bombs, planks) => `${bombs} ${bombs === 1 ? 'bomba' : 'bombe'} e ${planks} ${planks === 1 ? 'steccato' : 'steccati'} di nuovo nello zaino`,

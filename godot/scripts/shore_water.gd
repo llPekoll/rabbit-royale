@@ -91,7 +91,8 @@ func build(terrain: BurrowTerrain, coast: CoastKit, raised: float = 10.0) -> voi
 	var distance_texture := ImageTexture.create_from_image(distance_image)
 	for mat in [water_material, wet_material]:
 		mat.set_shader_parameter("wave_speed", 2.0)
-		mat.set_shader_parameter("surface_speed", 2.0)
+		mat.set_shader_parameter("surface_speed", 2.1)
+		mat.set_shader_parameter("water_art_scale", 1.25)
 		mat.set_shader_parameter("water_art", SEA_ART)
 		mat.set_shader_parameter("shore_distance", distance_texture)
 		mat.set_shader_parameter("shore_origin", shore_origin)
@@ -279,6 +280,22 @@ func set_foam_enabled(enabled: bool) -> void:
 func set_painted_surface(enabled: bool) -> void:
 	for mat in [water_material, wet_material]:
 		mat.set_shader_parameter("painted_surface", enabled)
+
+func set_art_scale(value: float) -> void:
+	# The submerged cliff uses the same painting as the open sea.
+	for mat in [water_material, wet_material]:
+		mat.set_shader_parameter("water_art_scale", clampf(value, 0.5, 4.0))
+
+func set_surface_speed(value: float, clock_seconds: float) -> void:
+	# Preserve the current phase when the preview slider changes speed.
+	# Foam and sun glints still use the original clock.
+	var previous_speed: float = water_material.get_shader_parameter("surface_speed")
+	var previous_offset = water_material.get_shader_parameter("surface_time_offset")
+	var phase := clock_seconds * previous_speed + (float(previous_offset) if previous_offset != null else 0.0)
+	var speed := clampf(value, 0.0, 4.0)
+	for mat in [water_material, wet_material]:
+		mat.set_shader_parameter("surface_speed", speed)
+		mat.set_shader_parameter("surface_time_offset", phase - clock_seconds * speed)
 
 func sync_transform() -> void:
 	if wet_material == null: return

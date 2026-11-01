@@ -1615,6 +1615,32 @@
   "smoked": "Cortina de fumaça: sem números aqui. Ande às cegas."
  },
  "defend": {
+  "toolDecor": "Decoração",
+  "toolTrap": "Bombas",
+  "toolFence": "Cercas",
+  "planBriefBombs": "Toque numa casa para colocar ou recolher uma bomba.",
+  "planBriefFences": "Toque na borda da horta: coloque / retire.",
+  "planBriefDecor": "Mova o cenário para desviar o saqueador.",
+  "planBriefPick": "Escolha uma ferramenta abaixo para a defesa.",
+  "planSafe": "Parado",
+  "planOpen": {
+   "$t": "Passa · {0} ⚡"
+  },
+  "planTesting": "Testando",
+  "planTrail": {
+   "$t": "{0} passos · {1} bombas",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} passos · 1 bomba"
+    }
+   ]
+  },
+  "planEnergy": {
+   "$t": "KURO · {0}/{1} ⚡"
+  },
   "clean": "TIRAR TUDO",
   "cleanSure": "CERTEZA?",
   "cleaned": {

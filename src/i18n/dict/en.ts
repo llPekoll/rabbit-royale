@@ -1149,6 +1149,18 @@ export const en = {
 
   /* ── Your burrow under attack, watched from home ──────────────────────── */
   defend: {
+    toolDecor: "Decor",
+    toolTrap: "Bombs",
+    toolFence: "Fences",
+    planBriefBombs: "Tap a tile to place or retrieve a bomb.",
+    planBriefFences: "Tap a garden edge to place / remove a fence.",
+    planBriefDecor: "Drag scenery to change the raider's path.",
+    planBriefPick: "Pick a tool below to prepare your defense.",
+    planSafe: "Stopped",
+    planOpen: (left: number) => `Gets through · ${left} ⚡`,
+    planTesting: "Testing",
+    planTrail: (steps: number, bombs: number) => `${steps} step${steps === 1 ? "" : "s"} · ${bombs} bomb${bombs === 1 ? "" : "s"}`,
+    planEnergy: (energy: number, budget: number) => `KURO · ${energy}/${budget} ⚡`,
     /* The clean-base button (Godot chrome, DEFEND): every bomb and plank
        back to the bag. ASCII only, the English face is the pixel atlas. */
     clean: 'CLEAR ALL',

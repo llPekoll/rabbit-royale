@@ -15,29 +15,26 @@ class_name BurrowProps
 
 ## L'ECHELLE DES PLANTES, plus petite que la deco : une carotte n'est pas un
 ## batiment.
-const PLANT_SCALE := 0.34
+const PLANT_SCALE := 0.4
 
-## LA MAISON, par palier de terrier : cinq terriers ISOMETRIQUES sur une
-## planche de 5 x 96x112 (tools/paint_burrows_iso.py), peints sur une emprise
-## de DEUX CASES SUR DEUX (les demi-losanges de 22x12 des tuiles) : murs de
-## terre sur les deux faces que voit la camera, toit de gazon, porte et
-## fenetres dans le plan des murs — et PAS DE SOL : ce sont les quatre tuiles
-## de la maison qui le font (burrow.gd ne leur met pas de motte). Le CENTRE
-## de l'emprise est en (48, 85) de la case : c'est ce point qui se pose sur
-## le milieu des quatre cases (BurrowLayout.house_cells).
-const HOME_SHEET := preload("res://assets/buildings/burrow-iso-levels.png")
-const HOME_FRAME := Vector2(96, 112)
+## Cinq volumes valides dans le banc, du petit trou a la grande maison.
+## Le cadre commun 192x224 conserve les differences de taille. Son pied
+## (96,170), a l'echelle 0.5, garde l'ancien ancrage monde (48,85).
+## Les cinq empreintes sont recentrees dans Aseprite, avec un bord de terre.
+const HOME_SHEET := preload("res://assets/deco/identity/terriers-centres.png")
+const HOME_FRAME := Vector2(192, 224)
 const HOME_CENTRE := Vector2(48, 85)
 const HOME_FRAMES := 5
-## Peinte a la densite des tuiles : un pixel de l'art, un pixel du sol.
-const HOME_SCALE := 1.0
+## Art Aseprite double densite, comme les arbres et petits decors.
+const HOME_SCALE := 0.5
 
-const CARROTS := preload("res://assets/deco/carrote.png")
-## La planche de carottes : douze etapes de croissance sur une grille 4x3, en
-## cellules de 31x50 avec deux pixels de marge.
-const CARROT_CELL := Vector2(31, 50)
-const CARROT_PAD := 2
-const CARROT_COLS := 4
+const CARROTS := preload("res://assets/deco/identity/carottes-pousse-vent.png")
+## Douze rangees de pousse et huit colonnes de vent, pied fixe. Chaque
+## image est cuite dans Aseprite : aucune deformation de shader en jeu.
+const CARROT_CELL := Vector2(64, 80)
+const CARROT_FOOT := Vector2(32, 72)
+const CARROT_WIND_FRAMES := 8
+const CARROT_WIND_SECONDS := 0.16
 
 ## Combien de plants par case de potager. Le web le fait croitre avec le
 ## niveau ; trois suffisent pour que le champ se lise.
@@ -64,6 +61,9 @@ var fill: Callable
 var _plants: Array[Sprite2D] = []
 var _frames: Array[Texture2D] = []
 var _shown_fill := -1.0
+var _wind_frames: Array = []
+var _wind_clock := 0.0
+var _shown_wind := -1
 
 ## LA FETE DU PASSAGE DE NIVEAU (BurrowTerrain.ts `celebrateLevel`) : la
 ## maison saute, un eclair doux s'ouvre derriere elle, dix bouffees de
@@ -125,6 +125,8 @@ func clear() -> void:
 	_props.clear()
 	_plants.clear()
 	_shown_fill = -1.0
+	_shown_wind = -1
+	_wind_frames.clear()
 	field.clear()
 	home = null
 
@@ -174,7 +176,7 @@ func _dress_home() -> void:
 	if home == null:
 		return
 	home.texture = home_art(_level)
-	home.offset = -HOME_CENTRE
+	home.offset = -HOME_CENTRE / HOME_SCALE
 
 
 ## L'ART D'UN NIVEAU, partage avec la carte du terrier (burrow_panel.gd) :
@@ -185,9 +187,8 @@ static func home_art(level: int, trimmed: bool = false) -> AtlasTexture:
 	var frame := AtlasTexture.new()
 	frame.atlas = HOME_SHEET
 	var x := (clampi(level, 1, HOME_FRAMES) - 1) * HOME_FRAME.x
-	# Rogne pour la carte : l'air autour du plus grand terrier (x 5..91,
-	# y 33..109) — mesure sur l'alpha de la planche.
-	frame.region = Rect2(x + 4, 32, 88, 78) if trimmed \
+	# Meme coupe pour chaque niveau : ne pas agrandir les petits terriers.
+	frame.region = Rect2(x, 84, 192, 124) if trimmed \
 		else Rect2(Vector2(x, 0), HOME_FRAME)
 	return frame
 
@@ -272,7 +273,7 @@ func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 			plant.centered = false
 			plant.scale = Vector2(PLANT_SCALE, PLANT_SCALE)
 			# Ancree BAS-CENTRE : la plante touche le sol par sa racine.
-			plant.offset = Vector2(-CARROT_CELL.x * 0.5, -CARROT_CELL.y)
+			plant.offset = -CARROT_FOOT
 			# SUR LE CARRE DE JARDIN, pas dans le sable qu'il couvre : il est
 			# leve de `RAISED_RISE`.
 			plant.position = centre + Vector2(
@@ -294,19 +295,22 @@ func _sow_field(seed_value: int, cells: Array[Vector2i]) -> void:
 	_grow()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_wind_clock += delta
 	_grow()
 
 
 ## Chaque plant a l'etape que le jardin lui donne. Rien a faire tant que le
-## plein n'a pas bouge — il bouge d'une carotte entiere a la fois.
+## plein ni l'image de vent n'ont bouge. La recolte vide le champ aussitot.
 func _grow() -> void:
 	if not fill.is_valid() or _plants.is_empty():
 		return
 	var p := clampf(float(fill.call()), 0.0, 1.0)
-	if p == _shown_fill:
+	var wind := posmod(int(_wind_clock / CARROT_WIND_SECONDS), CARROT_WIND_FRAMES)
+	if p == _shown_fill and wind == _shown_wind:
 		return
 	_shown_fill = p
+	_shown_wind = wind
 	var n := _plants.size()
 	for k in range(n):
 		var start := float(k) / float(n) * (1.0 - GROW_WINDOW)
@@ -314,7 +318,8 @@ func _grow() -> void:
 		var plant := _plants[k]
 		plant.visible = local > 0.0
 		if plant.visible:
-			plant.texture = _frames[mini(GROWTH_STAGES - 1, int(local * GROWTH_STAGES))]
+			var stage := mini(GROWTH_STAGES - 1, int(local * GROWTH_STAGES))
+			plant.texture = _wind_frames[stage][posmod(wind + k * 3, CARROT_WIND_FRAMES)]
 
 
 ## LA RECOLTE (2026-10-01, « fait une petite animation, ajoute un peu de
@@ -465,13 +470,14 @@ func _bit(radius: float, color: Color) -> Node2D:
 ## Les douze etapes de croissance, decoupees de la planche.
 func _carrot_frames() -> Array[Texture2D]:
 	var out: Array[Texture2D] = []
+	_wind_frames.clear()
 	for i in range(GROWTH_STAGES):
-		var frame := AtlasTexture.new()
-		frame.atlas = CARROTS
-		frame.region = Rect2(
-			CARROT_PAD + (i % CARROT_COLS) * (CARROT_CELL.x + CARROT_PAD),
-			CARROT_PAD + (i / CARROT_COLS) * (CARROT_CELL.y + CARROT_PAD),
-			CARROT_CELL.x, CARROT_CELL.y
-		)
-		out.append(frame)
+		var row: Array[Texture2D] = []
+		for wind in CARROT_WIND_FRAMES:
+			var frame := AtlasTexture.new()
+			frame.atlas = CARROTS
+			frame.region = Rect2(Vector2(wind * CARROT_CELL.x, i * CARROT_CELL.y), CARROT_CELL)
+			row.append(frame)
+		_wind_frames.append(row)
+		out.append(row[0])
 	return out

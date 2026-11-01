@@ -931,6 +931,18 @@ export const zh: Dict = {
 
   /* ── 你的洞穴正被袭击，从家里看 ───────────────────────────────────────── */
   defend: {
+    toolDecor: "装饰",
+    toolTrap: "炸弹",
+    toolFence: "围栏",
+    planBriefBombs: "点格子放置或收回炸弹。",
+    planBriefFences: "点菜园边缘放置或收回围栏。",
+    planBriefDecor: "移动装饰，让掠夺者绕路。",
+    planBriefPick: "选择下方工具布置防御。",
+    planSafe: "已拦住",
+    planOpen: (left) => `可通过 · ${left} ⚡`,
+    planTesting: "模拟中",
+    planTrail: (steps, bombs) => `${steps} 步 · ${bombs} 颗炸弹`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: '全部收回',
     cleanSure: '确定？',
     cleaned: (bombs, planks) => `${bombs} 颗炸弹和 ${planks} 道栅栏回到了背包`,

@@ -945,6 +945,18 @@ export const fr: Dict = {
 
   /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */
   defend: {
+    toolDecor: "Décor",
+    toolTrap: "Bombes",
+    toolFence: "Clôtures",
+    planBriefBombs: "Touche une case pour poser ou reprendre une bombe.",
+    planBriefFences: "Potager : touche un bord pour poser / retirer.",
+    planBriefDecor: "Déplace le décor pour détourner le pillard.",
+    planBriefPick: "Choisis un outil en bas pour préparer ta défense.",
+    planSafe: "Arrêté",
+    planOpen: (left) => `Il passe · ${left} ⚡`,
+    planTesting: "En cours",
+    planTrail: (steps, bombs) => `${steps} pas · ${bombs} bombe${bombs === 0 || bombs === 1 ? "" : "s"}`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: 'TOUT RETIRER',
     cleanSure: 'SÛR ?',
     cleaned: (bombs, planks) => `${bombs} bombe${bombs > 1 ? 's' : ''} et ${planks} clôture${planks > 1 ? 's' : ''} de retour dans le sac`,

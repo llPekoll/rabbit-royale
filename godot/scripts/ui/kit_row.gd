@@ -44,6 +44,7 @@ signal inspect
 signal use_shield
 ## Les cases viennent d'etre reposees (`tray_rect` a change).
 signal laid_out
+signal test_requested
 
 ## Les groupes, dans l'ordre du web, avec la case ouverte par defaut.
 ## Un seul groupe aujourd'hui : avec un seul, la rangee ne montre pas
@@ -103,6 +104,8 @@ var _detail_action: PlankButton
 ## Le cadre de la carte, garde pour lui rendre son air sur un ecran court.
 var _detail_style: StyleBoxTexture
 var _action: Callable = Callable()
+var _plan_mode := false
+var _dock: DefenseDock
 
 
 func _ready() -> void:
@@ -120,6 +123,13 @@ func _ready() -> void:
 	_tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	_tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(_tabs)
+	_dock = DefenseDock.new()
+	_dock.visible = false
+	add_child(_dock)
+	_dock.selected.connect(func(kind: String) -> void:
+		var detail := kind != "decor" and (kind == _selected or kind in ["shield", "smoke"])
+		_select(kind, detail))
+	_dock.test_requested.connect(func() -> void: test_requested.emit())
 
 	for index in GROUPS.size():
 		var tab := _build_tab(index)
@@ -190,6 +200,19 @@ func refresh() -> void:
 func selected_kind() -> String:
 	return _selected
 
+func set_plan_mode(on: bool) -> void:
+	_plan_mode = on
+	_measure()
+
+func set_test_enabled(on: bool) -> void:
+	if _dock != null: _dock.test_button.disabled = not on
+
+func set_testing(on: bool) -> void:
+	if _dock != null: _dock.set_testing(on)
+	if on:
+		_expanded = false
+		_detail.hide()
+
 
 # ── La mise en page ──────────────────────────────────────────────────────────
 
@@ -215,6 +238,11 @@ func _measure() -> void:
 	for slot in _slots.values():
 		under = maxf(under, (slot as ItemSlot).extra_height())
 	_column.position = Vector2(floorf((size.x - want.x) * 0.5), size.y - Kit.EDGE - want.y - under)
+	_column.visible = not _plan_mode
+	_dock.visible = _plan_mode
+	if _plan_mode:
+		_dock.reset_size()
+		_dock.position = Vector2(floorf((size.x - _dock.size.x) * 0.5), size.y - Kit.EDGE - _dock.size.y)
 
 	_fit_detail()
 	laid_out.emit()
@@ -222,6 +250,7 @@ func _measure() -> void:
 
 ## Les cases a l'ecran, pour ce qui se pose a cote (CLEAR ALL, chrome.gd).
 func tray_rect() -> Rect2:
+	if _plan_mode and _dock != null and _dock.is_visible_in_tree(): return _dock.get_global_rect()
 	return _tray.get_global_rect() if _tray != null and _tray.is_visible_in_tree() else Rect2()
 
 
@@ -249,7 +278,7 @@ func _fit_detail() -> void:
 
 func _place_detail() -> void:
 	_detail.position = Vector2(floorf((size.x - _detail.size.x) * 0.5),
-		_column.position.y - Kit.PAD_TIGHT - _detail.size.y)
+		(_dock.position.y if _plan_mode else _column.position.y) - Kit.PAD_TIGHT - _detail.size.y)
 
 
 ## Une enseigne : la planche de bois etiree sur toute la boite (le CSS la
@@ -364,9 +393,9 @@ func _on_tab(index: int) -> void:
 
 ## Choisir une case : le piege relance la pose, la cloture le mode cloture,
 ## le reste suspend le plateau.
-func _select(kind: String) -> void:
+func _select(kind: String, detail: bool = true) -> void:
 	_selected = kind
-	_expanded = true
+	_expanded = detail
 	match kind:
 		"trap":
 			start_placing.emit()
@@ -417,6 +446,7 @@ func _refresh() -> void:
 		return
 	var smoke_days := state.held("smoke")
 	var pending := Home.pending or state.busy
+	_dock.refresh(_selected, state)
 
 	for index in _tab_buttons.size():
 		var tab := _tab_buttons[index]

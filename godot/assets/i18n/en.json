@@ -1584,6 +1584,45 @@
   "smoked": "Smoke screen: no numbers here. Walk it blind."
  },
  "defend": {
+  "toolDecor": "Decor",
+  "toolTrap": "Bombs",
+  "toolFence": "Fences",
+  "planBriefBombs": "Tap a tile to place or retrieve a bomb.",
+  "planBriefFences": "Tap a garden edge to place / remove a fence.",
+  "planBriefDecor": "Drag scenery to change the raider's path.",
+  "planBriefPick": "Pick a tool below to prepare your defense.",
+  "planSafe": "Stopped",
+  "planOpen": {
+   "$t": "Gets through · {0} ⚡"
+  },
+  "planTesting": "Testing",
+  "planTrail": {
+   "$t": "{0} steps · {1} bombs",
+   "$v": [
+    {
+     "when": {
+      "0": 1
+     },
+     "t": "1 step · {1} bombs"
+    },
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} steps · 1 bomb"
+    },
+    {
+     "when": {
+      "0": 1,
+      "1": 1
+     },
+     "t": "1 step · 1 bomb"
+    }
+   ]
+  },
+  "planEnergy": {
+   "$t": "KURO · {0}/{1} ⚡"
+  },
   "clean": "CLEAR ALL",
   "cleanSure": "SURE?",
   "cleaned": {

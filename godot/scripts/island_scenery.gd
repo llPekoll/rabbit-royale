@@ -49,6 +49,15 @@ class_name IslandScenery
 ## Les images sont ROGNEES : 244 est la hauteur de la fenetre, pas de la cel
 ## de 256, et les pieds se mesurent contre 244.
 const TREES := preload("res://assets/deco/trees.png")
+const IDENTITY_PINES := preload("res://assets/deco/identity/sapins-sheet.png")
+const IDENTITY_LEAF := preload("res://assets/deco/identity/feuillu-v2-sheet.png")
+const IDENTITY_TREE_MS := 180.0
+## LES SOUCHES DE LA NOUVELLE PLANCHE (2026-11-01) : elle n'en a pas, donc le
+## pied du tronc de la premiere image, coupe juste sous le feuillage (mesure
+## au pixel) — l'ancienne souche de trees.png jurait a cote des nouveaux
+## arbres. Par variante : grand sapin, petit sapin, bouleau, son miroir.
+const IDENTITY_STUMPS := [Rect2(40, 226, 48, 18), Rect2(40, 484, 48, 16),
+	Rect2(44, 186, 46, 26), Rect2(44, 186, 46, 26)]
 const TREE_FRAME := Vector2i(121, 244)
 const TREE_SHEET_COLS := 10
 const TREE_PAD := 2
@@ -548,7 +557,8 @@ func _advance() -> void:
 	var t := _elapsed_ms / FRAME_MS
 	for a in _animated:
 		var n: int = a.count
-		var i := posmod(int(floor(t + float(a.phase))), n)
+		var time := _elapsed_ms / IDENTITY_TREE_MS if int(a.tree) >= 0 else t
+		var i := posmod(int(floor(time + float(a.phase))), n)
 		if i == int(a.shown):
 			continue
 		a.shown = i
@@ -556,7 +566,7 @@ func _advance() -> void:
 		if not is_instance_valid(node):
 			continue
 		if int(a.tree) >= 0:
-			node.region_rect = _tree_rect(int(a.tree) * TREE_VARIANT_STRIDE + i)
+			node.region_rect = _identity_tree_rect(int(a.tree), i)
 		else:
 			node.frame = i
 
@@ -589,13 +599,19 @@ func _wind_phase(cell: Vector2i) -> float:
 func _tree(variant: int) -> Sprite2D:
 	var v := variant % TREE_FOOT_PX.size()
 	var s := Sprite2D.new()
-	s.texture = TREES
+	s.texture = IDENTITY_PINES if v < 2 else IDENTITY_LEAF
 	s.region_enabled = true
-	s.region_rect = _tree_rect(v * TREE_VARIANT_STRIDE)
+	s.region_rect = _identity_tree_rect(v, 0)
 	s.centered = false
-	s.offset = Vector2(-TREE_FRAME.x * 0.5, -float(TREE_FOOT_PX[v]))
+	s.offset = Vector2(-64, -244 if v < 2 else -212)
+	# Un seul feuillu peint : la quatrieme variante est son miroir.
+	s.flip_h = v == 3
 	s.scale = Vector2(DECO_SCALE, DECO_SCALE)
 	return s
+
+static func _identity_tree_rect(variant: int, frame: int) -> Rect2:
+	return Rect2(frame * 128, (variant % 2) * 256 if variant < 2 else 0,
+		128, 256 if variant < 2 else 224)
 
 
 ## LA SOUCHE d'un arbre abattu par la hache d'un pillard (`felled`,
@@ -604,12 +620,17 @@ func _tree(variant: int) -> Sprite2D:
 ## posee exactement ou le tronc se tenait, pin ou bouleau.
 func _stump(variant: int) -> Sprite2D:
 	var v := variant % TREE_FOOT_PX.size()
+	var cut: Rect2 = IDENTITY_STUMPS[v]
 	var s := Sprite2D.new()
-	s.texture = TREES
+	s.texture = IDENTITY_PINES if v < 2 else IDENTITY_LEAF
 	s.region_enabled = true
-	s.region_rect = _tree_rect(v * TREE_VARIANT_STRIDE + TREE_SWAY_FRAMES)
+	s.region_rect = cut
 	s.centered = false
-	s.offset = Vector2(-TREE_FRAME.x * 0.5, -float(TREE_FOOT_PX[v]))
+	# Le meme pied que l'arbre debout (`_tree`) : la souche reste sur SA case.
+	var foot := 244.0 if v < 2 else 212.0
+	var cell_y := fmod(cut.position.y, 256.0) if v < 2 else cut.position.y
+	s.offset = Vector2(cut.position.x - 64.0, cell_y - foot)
+	s.flip_h = v == 3
 	s.scale = Vector2(DECO_SCALE, DECO_SCALE)
 	return s
 

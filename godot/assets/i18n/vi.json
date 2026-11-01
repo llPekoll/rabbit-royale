@@ -1466,6 +1466,24 @@
   "smoked": "Màn khói: không có số ở đây. Đi mò mà tiến."
  },
  "defend": {
+  "toolDecor": "Trang trí",
+  "toolTrap": "Bom",
+  "toolFence": "Hàng rào",
+  "planBriefBombs": "Chạm một ô để đặt hoặc thu lại bom.",
+  "planBriefFences": "Chạm mép vườn để đặt hoặc gỡ hàng rào.",
+  "planBriefDecor": "Di chuyển đồ trang trí để đổi đường kẻ cướp.",
+  "planBriefPick": "Chọn công cụ bên dưới để chuẩn bị phòng thủ.",
+  "planSafe": "Bị chặn",
+  "planOpen": {
+   "$t": "Vượt qua · {0} ⚡"
+  },
+  "planTesting": "Đang thử",
+  "planTrail": {
+   "$t": "{0} bước · {1} bom"
+  },
+  "planEnergy": {
+   "$t": "KURO · {0}/{1} ⚡"
+  },
   "clean": "GỠ HẾT",
   "cleanSure": "CHẮC CHƯA?",
   "cleaned": {

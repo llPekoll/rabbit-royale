@@ -924,6 +924,18 @@ export const es: Dict = {
   },
 
   defend: {
+    toolDecor: "Decoración",
+    toolTrap: "Bombas",
+    toolFence: "Vallas",
+    planBriefBombs: "Toca una casilla para poner o recoger una bomba.",
+    planBriefFences: "Toca un borde del huerto para poner o quitar una valla.",
+    planBriefDecor: "Mueve el decorado para desviar al saqueador.",
+    planBriefPick: "Elige una herramienta abajo para preparar tu defensa.",
+    planSafe: "Detenido",
+    planOpen: (left) => `Pasa · ${left} ⚡`,
+    planTesting: "Probando",
+    planTrail: (steps, bombs) => `${steps} pasos · ${bombs} bomba${bombs === 1 ? "" : "s"}`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: 'QUITAR TODO',
     cleanSure: '¿SEGURO?',
     cleaned: (bombs, planks) => `${bombs} bomba${bombs === 1 ? '' : 's'} y ${planks} valla${planks === 1 ? '' : 's'} de vuelta en tu bolsa`,

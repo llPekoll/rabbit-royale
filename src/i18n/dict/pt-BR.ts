@@ -947,6 +947,18 @@ export const ptBR: Dict = {
 
   /* ── Sua toca sob ataque, vista de casa ──────────────────────────────── */
   defend: {
+    toolDecor: "Decoração",
+    toolTrap: "Bombas",
+    toolFence: "Cercas",
+    planBriefBombs: "Toque numa casa para colocar ou recolher uma bomba.",
+    planBriefFences: "Toque na borda da horta: coloque / retire.",
+    planBriefDecor: "Mova o cenário para desviar o saqueador.",
+    planBriefPick: "Escolha uma ferramenta abaixo para a defesa.",
+    planSafe: "Parado",
+    planOpen: (left) => `Passa · ${left} ⚡`,
+    planTesting: "Testando",
+    planTrail: (steps, bombs) => `${steps} passos · ${bombs} bomba${bombs === 1 ? "" : "s"}`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: 'TIRAR TUDO',
     cleanSure: 'CERTEZA?',
     cleaned: (bombs, planks) => `${bombs} bomba${bombs > 1 ? 's' : ''} e ${planks} cerca${planks > 1 ? 's' : ''} de volta na bolsa`,

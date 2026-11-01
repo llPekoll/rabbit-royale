@@ -1368,6 +1368,24 @@
   "smoked": "烟幕：这里没有数字，只能摸黑前进。"
  },
  "defend": {
+  "toolDecor": "装饰",
+  "toolTrap": "炸弹",
+  "toolFence": "围栏",
+  "planBriefBombs": "点格子放置或收回炸弹。",
+  "planBriefFences": "点菜园边缘放置或收回围栏。",
+  "planBriefDecor": "移动装饰，让掠夺者绕路。",
+  "planBriefPick": "选择下方工具布置防御。",
+  "planSafe": "已拦住",
+  "planOpen": {
+   "$t": "可通过 · {0} ⚡"
+  },
+  "planTesting": "模拟中",
+  "planTrail": {
+   "$t": "{0} 步 · {1} 颗炸弹"
+  },
+  "planEnergy": {
+   "$t": "KURO · {0}/{1} ⚡"
+  },
   "clean": "全部收回",
   "cleanSure": "确定？",
   "cleaned": {

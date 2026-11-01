@@ -7,7 +7,9 @@ uniform float time_override = -1.0;
 uniform bool foam_enabled = true;
 uniform bool painted_surface = true;
 uniform float wave_speed = 2.0;
-uniform float surface_speed = 2.0;
+uniform float surface_speed = 2.1;
+uniform float surface_time_offset = 0.0;
+uniform float water_art_scale : hint_range(0.5, 4.0, 0.25) = 1.25;
 uniform sampler2D water_art : source_color, filter_linear, repeat_disable;
 
 float hash21(vec2 p) {
@@ -28,12 +30,15 @@ vec2 mirror_uv(vec2 uv) {
 vec3 painted_water(vec2 p, float d, float t) {
 	// A quiet painted bed underneath moving, much finer surface reflections.
 	// Only the moving water uses this clock; star glints keep unscaled t.
-	float surface_time = t * surface_speed;
-	vec2 flow = vec2(sin(p.y * 0.014 + surface_time * 0.55) * 2.4,
-		cos(p.x * 0.010 - surface_time * 0.40) * 1.2);
-	vec2 uv = (p + flow + vec2(surface_time * 1.4, -surface_time * 0.45)) / vec2(560.0, 360.0);
+	float surface_time = t * surface_speed + surface_time_offset;
+	// Enlarge the painted motifs only. Shore distances, foam and sun glints
+	// remain in world pixels, including along submerged cliff sprites.
+	vec2 art_p = p / water_art_scale;
+	vec2 flow = vec2(sin(art_p.y * 0.014 + surface_time * 0.55) * 2.4,
+		cos(art_p.x * 0.010 - surface_time * 0.40) * 1.2);
+	vec2 uv = (art_p + flow + vec2(surface_time * 1.4, -surface_time * 0.45)) / vec2(560.0, 360.0);
 	vec3 paint = texture(water_art, mirror_uv(uv)).rgb;
-	vec3 bed = texture(water_art, mirror_uv(p / vec2(970.0, 640.0) + vec2(0.37, 0.61))).rgb;
+	vec3 bed = texture(water_art, mirror_uv(art_p / vec2(970.0, 640.0) + vec2(0.37, 0.61))).rgb;
 	float pools = smoothstep(0.25, 0.72, bed.g);
 	float shallows = 1.0 - smoothstep(4.0, 94.0, d);
 	float depth = clamp(shallows * 0.87 + pools * 0.25, 0.0, 1.0);
@@ -42,7 +47,7 @@ vec3 painted_water(vec2 p, float d, float t) {
 	float pigment = (paint.g - 0.43) * (0.46 + shallows * 0.25);
 	col += vec3(0.025, 0.24, 0.29) * pigment;
 	float light = smoothstep(0.51, 0.84, paint.g);
-	float breathe = 0.55 + 0.45 * sin(p.x * 0.017 + p.y * 0.023 + surface_time * 0.72);
+	float breathe = 0.55 + 0.45 * sin(art_p.x * 0.017 + art_p.y * 0.023 + surface_time * 0.72);
 	float reflection = light * (0.20 + 0.80 * pools) * (0.45 + breathe * 0.55);
 	col = mix(col, vec3(0.18, 0.84, 0.86), reflection * (0.22 + shallows * 0.25));
 	float shelf = (1.0 - smoothstep(3.0, 27.0, d)) * (0.65 + pools * 0.35);
@@ -70,7 +75,7 @@ vec4 shore_water(vec2 world_pixel) {
 	vec2 shore = texture(shore_distance, uv).rg;
 	float d = in_map ? shore.r * distance_range : distance_range;
 	float land = in_map ? shore.g : 0.0;
-	float surface_time = t * surface_speed;
+	float surface_time = t * surface_speed + surface_time_offset;
 	vec2 drift = vec2(surface_time * 0.9, -surface_time * 0.3);
 	float broad = noise((p + drift) / vec2(46.0, 21.0));
 	float small = noise((p + drift * 1.4) / vec2(11.0, 5.0));

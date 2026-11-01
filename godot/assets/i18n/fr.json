@@ -1664,6 +1664,38 @@
   "smoked": "Écran de fumée : pas de chiffres ici. Avance à l’aveugle."
  },
  "defend": {
+  "toolDecor": "Décor",
+  "toolTrap": "Bombes",
+  "toolFence": "Clôtures",
+  "planBriefBombs": "Touche une case pour poser ou reprendre une bombe.",
+  "planBriefFences": "Potager : touche un bord pour poser / retirer.",
+  "planBriefDecor": "Déplace le décor pour détourner le pillard.",
+  "planBriefPick": "Choisis un outil en bas pour préparer ta défense.",
+  "planSafe": "Arrêté",
+  "planOpen": {
+   "$t": "Il passe · {0} ⚡"
+  },
+  "planTesting": "En cours",
+  "planTrail": {
+   "$t": "{0} pas · {1} bombes",
+   "$v": [
+    {
+     "when": {
+      "1": 1
+     },
+     "t": "{0} pas · 1 bombe"
+    },
+    {
+     "when": {
+      "1": 0
+     },
+     "t": "{0} pas · 0 bombe"
+    }
+   ]
+  },
+  "planEnergy": {
+   "$t": "KURO · {0}/{1} ⚡"
+  },
   "clean": "TOUT RETIRER",
   "cleanSure": "SÛR ?",
   "cleaned": {

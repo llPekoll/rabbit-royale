@@ -175,10 +175,17 @@ const DEFEND_FLOOR := 66.0
 ## Le chemin du pillard dessine sur le sol (RaidRoute.cheapest), `{}` = rien.
 var _route := {}
 var _route_view: Node2D
+var _natural_details: NaturalDetails
+## Le pillard attend sur la premiere case avant de lancer la repetition.
+var _route_raider: HomeRabbit
 ## LA REPETITION (TESTER) : un Kuro qui parcourt le chemin, sans serveur.
 var _ghost: HomeRabbit
-const ROUTE_COLOR := Color("#ffb03a")
+const ROUTE_COLOR := Color("#f75b3c")
 const ROUTE_HIT := Color("#ff4a3a")
+const ROUTE_SPACING := 22.0
+const ROUTE_SPEED := 12.0
+var _route_phase := 0.0
+var _route_tick := 0.0
 
 
 func _ready() -> void:
@@ -482,11 +489,11 @@ func _on_incoming() -> void:
 
 	if not _defending:
 		# UN VRAI RAID PASSE DEVANT LA REPETITION (TESTER).
+		_defending = true
 		ghost_clear()
 		# UN RAID ARRIVE PENDANT QU'ON AMENAGE : le brouillon tombe, le sol
 		# revient a celui que le pillard est en train de lire.
 		_release_hold()
-		_defending = true
 		_sprung_seen = int(inc.get("trapsSprung", 0))
 		# LE PLATEAU DEVIENT UN PLATEAU DE RAID : son lapin s'efface (il errerait
 		# sous l'attaque), la camera recule sur tout le domaine.
@@ -585,7 +592,7 @@ func _wear_mine() -> void:
 ## L'INTRUS : le lapin de l'ile, a la meme taille, qui TOMBE sur la case ou
 ## le serveur le dit (`playSpawnDrop`). Il n'erre pas : il ne bouge que quand
 ## une poussee le dit.
-func _spawn_raider(tile: int, look: String) -> HomeRabbit:
+func _spawn_raider(tile: int, look: String, drop_in: bool = true) -> HomeRabbit:
 	var raider := HomeRabbit.new()
 	raider.look = look
 	raider.name = "Raider"
@@ -595,7 +602,7 @@ func _spawn_raider(tile: int, look: String) -> HomeRabbit:
 	add_child(raider)
 	raider.build(0, BurrowLayout.cell_of(tile))
 	var sprite := raider._sprite
-	if sprite != null:
+	if sprite != null and drop_in:
 		sprite.position.y = -60.0
 		sprite.modulate.a = 0.0
 		var drop := raider.create_tween().set_parallel(true)
@@ -634,10 +641,11 @@ func set_plan_room(top: float, bottom: float) -> void:
 	frame_camera()
 
 
-## LE CHEMIN DU PILLARD, des pas orange de la porte au potager, les bombes
+## LE CHEMIN DU PILLARD, des traits et points rouges jusqu'au potager, les bombes
 ## qu'il prend cerclees de rouge. `{}` l'efface.
 func show_route(route: Dictionary) -> void:
 	_route = route
+	_traps.set_route_hits(route.get("hits", []))
 	if _route_view == null:
 		_route_view = Node2D.new()
 		_route_view.name = "Route"
@@ -645,25 +653,108 @@ func show_route(route: Dictionary) -> void:
 		_route_view.z_index = 4000
 		_route_view.draw.connect(_draw_route)
 		add_child(_route_view)
+	_sync_route_raider()
+	_sync_door()
 	_route_view.queue_redraw()
 
 
+func _sync_route_raider() -> void:
+	if _route.is_empty() or _defending or _in_raid:
+		if is_instance_valid(_route_raider): _route_raider.queue_free()
+		_route_raider = null
+		return
+	if _ghost != null:
+		if is_instance_valid(_route_raider): _route_raider.visible = false
+		return
+	var cell := BurrowLayout.cell_of(int(_route.path[0]))
+	if is_instance_valid(_route_raider) and (_route_raider.at() != cell or _route_raider.map != _terrain.map):
+		_route_raider.queue_free()
+		_route_raider = null
+	if not is_instance_valid(_route_raider):
+		_route_raider = _spawn_raider(int(_route.path[0]), Look.DEFAULT, false)
+		_route_raider.name = "WaitingKuro"
+		_paint_kuro(_route_raider)
+		# Seul Kuro QUI ATTEND passe au-dessus du carre de depart (z 4000) ;
+		# il est sur la porte, rien ne se tient devant lui. Pose comme tout
+		# lapin (sans `rise_at`) : il ne saute pas au premier pas.
+		_route_raider._sprite.z_as_relative = false
+		_route_raider._sprite.z_index = 4000
+		if _route.path.size() > 1:
+			var next := BurrowLayout.cell_of(int(_route.path[1]))
+			_route_raider._sprite.flip_h = _terrain.map.screen_of(next.x, next.y).x < _terrain.map.screen_of(cell.x, cell.y).x
+	_route_raider.visible = _ghost == null
+
+
+## Le carre suit la projection du sol ; deux reflets tournent sur son bord.
+## Animation dessinee avec le chemin a 24 Hz, sans nouveau shader.
+func _draw_route_start(centre: Vector2) -> void:
+	var hw := Iso.half_w() * 0.88
+	var hh := Iso.half_h() * 0.88
+	var corners := PackedVector2Array([centre + Vector2(0, -hh), centre + Vector2(hw, 0),
+		centre + Vector2(0, hh), centre + Vector2(-hw, 0)])
+	var pulse := 0.5 + 0.5 * sin(_route_phase / ROUTE_SPACING * TAU)
+	_route_view.draw_colored_polygon(corners, Color(ROUTE_COLOR, 0.16 + pulse * 0.1))
+	var edge := corners.duplicate()
+	edge.append(corners[0])
+	_route_view.draw_polyline(edge, Color("ffefbf"), 4.0)
+	_route_view.draw_polyline(edge, ROUTE_COLOR, 2.5)
+	var side_length := corners[0].distance_to(corners[1])
+	var around := _route_phase / ROUTE_SPACING * side_length * 4.0
+	for offset in [0.0, side_length * 2.0]:
+		var start := fposmod(around + offset, side_length * 4.0)
+		# Clipping each segment keeps the highlight continuous around corners.
+		for lap in [-1, 0]:
+			var from := start + float(lap) * side_length * 4.0
+			for i in 4:
+				var a := maxf(from, float(i) * side_length)
+				var b := minf(from + 8.0, float(i + 1) * side_length)
+				if b <= a: continue
+				var first := edge[i].lerp(edge[i + 1], a / side_length - float(i)).round()
+				var last := edge[i].lerp(edge[i + 1], b / side_length - float(i)).round()
+				_route_view.draw_line(first, last, Color("fff5d6"), 1.5)
+
+
 func _draw_route() -> void:
+	# Pendant la repetition, le chemin s'efface : dessine a z 4000, il
+	# barrerait Kuro qui marche dessus, trie avec les cases.
 	if _route.is_empty() or _ghost != null or _defending:
 		return
 	var pts := PackedVector2Array()
 	for t in _route.path:
 		var c := BurrowLayout.cell_of(int(t))
-		pts.append(_route_view.to_local(_terrain.to_global(_terrain.map.screen_of(c.x, c.y))))
-	if pts.size() >= 2:
-		_route_view.draw_polyline(pts, Color(0, 0, 0, 0.35), 5.0, true)
-		_route_view.draw_polyline(pts, ROUTE_COLOR, 2.5, true)
-	for i in pts.size():
-		_route_view.draw_circle(pts[i], 3.0 if i > 0 else 5.0, ROUTE_COLOR)
-	for t in _route.hits:
-		var i: int = (_route.path as Array).find(t)
-		_route_view.draw_arc(pts[i], 9.0, 0.0, TAU, 24, ROUTE_HIT, 2.5, true)
-	_route_view.draw_arc(pts[pts.size() - 1], 7.0, 0.0, TAU, 24, Color.WHITE, 2.0, true)
+		var centre := _terrain.map.screen_of(c.x, c.y) + Vector2(0, Iso.half_h() - _terrain.rise_at(c))
+		pts.append(_route_view.to_local(_terrain.to_global(centre)))
+	if pts.size() < 2: return
+	_draw_route_start(pts[0])
+	# A moving dash-dot pattern follows one distance through every corner.
+	var travelled := 0.0
+	for i in range(1, pts.size()):
+		var a := pts[i - 1]
+		var b := pts[i]
+		var length := a.distance_to(b)
+		if length < 0.01: continue
+		var start := floorf((travelled - _route_phase) / ROUTE_SPACING) * ROUTE_SPACING + _route_phase
+		while start < travelled + length:
+			var from := maxf(start, travelled)
+			var to := minf(start + 7.0, travelled + length)
+			if to > from:
+				var first := a.lerp(b, (from - travelled) / length).round()
+				var last := a.lerp(b, (to - travelled) / length).round()
+				_route_view.draw_line(first, last, Color("ffefbf"), 4.4)
+				_route_view.draw_line(first, last, ROUTE_COLOR, 3.0)
+			var dot := start + 16.0
+			if dot >= travelled and dot < travelled + length:
+				var point := a.lerp(b, (dot - travelled) / length).round()
+				_route_view.draw_circle(point, 2.2, Color("ffefbf"))
+				_route_view.draw_circle(point, 1.5, ROUTE_COLOR)
+			start += ROUTE_SPACING
+		travelled += length
+	var tip := pts[pts.size() - 1]
+	var direction := (tip - pts[pts.size() - 2]).normalized()
+	var side := direction.orthogonal()
+	var arrow := PackedVector2Array([tip - direction * 7 + side * 4, tip, tip - direction * 7 - side * 4])
+	_route_view.draw_polyline(arrow, Color("ffefbf"), 5.0)
+	_route_view.draw_polyline(arrow, ROUTE_COLOR, 3.0)
 
 
 ## TESTER : Kuro tombe a la porte. Rien ne part au serveur, rien ne passe par
@@ -672,9 +763,18 @@ func _draw_route() -> void:
 func ghost_start(tile: int) -> void:
 	ghost_clear()
 	_rabbit.visible = false
-	_ghost = _spawn_raider(tile, Look.DEFAULT)
+	if is_instance_valid(_route_raider) and _route_raider.at() == BurrowLayout.cell_of(tile):
+		_ghost = _route_raider
+		_route_raider = null
+		# EN MARCHE, il reprend le tri des cases : derriere la maison ou un
+		# arbre, il passe dessous.
+		_ghost._sprite.z_as_relative = true
+		_ghost._sprite.z_index = 0
+	else:
+		_ghost = _spawn_raider(tile, Look.DEFAULT)
+		_paint_kuro(_ghost)
 	_ghost.name = "Rehearsal"
-	_paint_kuro(_ghost)
+	_sync_route_raider()
 	if _route_view != null:
 		_route_view.queue_redraw()
 
@@ -701,6 +801,7 @@ func _paint_kuro(r: HomeRabbit) -> void:
 			black.region = f.region
 			frames.set_frame(anim, i, black, frames.get_frame_duration(anim, i))
 	sprite.sprite_frames = frames
+	sprite.play("idle")
 
 
 ## Un pas ; `hit` : il est sur une bombe, elle saute (le souffle du vrai raid,
@@ -734,10 +835,12 @@ func ghost_end(reached: bool) -> void:
 
 func ghost_clear() -> void:
 	if _ghost == null:
+		_sync_route_raider()
 		return
 	_ghost.queue_free()
 	_ghost = null
 	_rabbit.visible = not _defending
+	_sync_route_raider()
 	if _route_view != null:
 		_route_view.queue_redraw()
 
@@ -1268,7 +1371,7 @@ func _on_raid_sprung(tile: int) -> void:
 ## La fleche de la porte : pendant la pose, et pendant un raid des deux cotes.
 func _sync_door() -> void:
 	if _raid_board != null:
-		_raid_board.show_door(_placing or _raiding)
+		_raid_board.show_door((_placing or _raiding) and (_route.is_empty() or _defending))
 
 
 ## LA TAPE TOUCHE-T-ELLE L'INTRUS ? Son CORPS seulement — 14x14 de l'art a
@@ -1340,14 +1443,11 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	var in_field := {}
 	for c in _props.field:
 		in_field[c] = true
-	# LA COUR DE LA MAISON, ses quatre cases : de la terre, et pas de motte —
-	# la maison se pose a plat sur elles.
-	var yard := BurrowLayout.house_cells(_layout.building)
-	_terrain.paint_yard(yard)
+	# Les petites maisons laissent voir le gazon de leurs quatre cases.
 	var sod_cells: Array[Vector2i] = []
 	for t in _layout.walkable_tiles():
 		var c := BurrowLayout.cell_of(t)
-		if not in_field.has(c) and not yard.has(c):
+		if not in_field.has(c):
 			sod_cells.append(c)
 	_terrain.lay_sods(sod_cells)
 	# LE RIVAGE APRES LES MOTTES (voir island.gd).
@@ -1360,6 +1460,10 @@ func show_ground(seed_value: String, edits: Dictionary = {}, keep_cam: bool = fa
 	_scenery.terrain = _terrain
 	# Avec ses buissons : le terrier n'a pas de TileView pour les poser.
 	_scenery.build(standing, {}, true)
+	if _natural_details == null:
+		_natural_details = NaturalDetails.new()
+		_terrain.add_child(_natural_details)
+	_natural_details.build(_layout, _terrain)
 	# La mer borde la terre qu'on vient de poser — meme graine que le web
 	# (`${seed}:ducks`) : la mare d'un joueur est toujours la meme.
 	# AUTOUR DES ILOTS AUSSI : la carte de la mer les englobe.
@@ -2533,6 +2637,12 @@ func _refusal_text(code: String) -> String:
 ## La regle entiere juge les cases allumees, quelques ms par image ; et le
 ## maintien au doigt arme le glisser.
 func _process(delta: float) -> void:
+	if not _route.is_empty() and not _defending and is_visible_in_tree():
+		_route_phase = fposmod(_route_phase + delta * ROUTE_SPEED, ROUTE_SPACING)
+		_route_tick += delta
+		if _route_tick >= 1.0 / 24.0:
+			_route_tick = 0.0
+			if _route_view != null: _route_view.queue_redraw()
 	# LES PLANCHES DES BATIMENTS : chez soi, hors de tout mode, rien en main.
 	_landmarks.set_live(Chrome.islets and _own_ground() and not _in_raid and not _raiding
 		and not _placing and not _walling and _arrange == null and not _dragging_decor)

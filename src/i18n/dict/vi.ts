@@ -940,6 +940,18 @@ export const vi: Dict = {
 
   /* ── Ton terrier attaqué, vu de chez toi ─────────────────────────────── */
   defend: {
+    toolDecor: "Trang trí",
+    toolTrap: "Bom",
+    toolFence: "Hàng rào",
+    planBriefBombs: "Chạm một ô để đặt hoặc thu lại bom.",
+    planBriefFences: "Chạm mép vườn để đặt hoặc gỡ hàng rào.",
+    planBriefDecor: "Di chuyển đồ trang trí để đổi đường kẻ cướp.",
+    planBriefPick: "Chọn công cụ bên dưới để chuẩn bị phòng thủ.",
+    planSafe: "Bị chặn",
+    planOpen: (left) => `Vượt qua · ${left} ⚡`,
+    planTesting: "Đang thử",
+    planTrail: (steps, bombs) => `${steps} bước · ${bombs} bom`,
+    planEnergy: (energy, budget) => `KURO · ${energy}/${budget} ⚡`,
     clean: 'GỠ HẾT',
     cleanSure: 'CHẮC CHƯA?',
     cleaned: (bombs, planks) => `${bombs} bom và ${planks} hàng rào đã về lại túi`,

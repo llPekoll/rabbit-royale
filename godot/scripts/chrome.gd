@@ -291,6 +291,8 @@ func _mount_place() -> void:
 	_kit.start_placing.connect(_switch_mode.bind("placing"))
 	_kit.start_walling.connect(_switch_mode.bind("walling"))
 	_kit.inspect.connect(_switch_mode.bind("inspect"))
+	_kit.test_requested.connect(func() -> void:
+		if is_instance_valid(_plan): _plan._run_test())
 	_kit.laid_out.connect(func() -> void: _place_clean.call_deferred())
 	# LA RANGEE SUIT L'ETAL : une bombe ou une planche posee passe par
 	# ShopState, qui relit le serveur — la carte du kit, elle, gardait sa
@@ -874,6 +876,7 @@ func _start_mode(mode: String, expanded: bool = true) -> void:
 	# tape sur une case la rouvre. Pas de plan pendant un vrai raid
 	# (`expanded` faux, `defend`).
 	var plan := expanded and _hud != null
+	_kit.set_plan_mode(plan)
 	_kit.open(mode, expanded and not plan)
 	if _loop != null:
 		_loop.set_away(true)
@@ -899,6 +902,8 @@ func _mount_plan(mode: String) -> void:
 		return
 	_plan = BuryPlan.new()
 	_plan.burrow = burrow
+	_plan.external_test = true
+	_plan.test_available.connect(_kit.set_test_enabled)
 	# Le sol est une bande de hauteur nulle : le panneau se pose a l'ecran.
 	_plan.top_level = true
 	floor_host.add_child(_plan)
@@ -914,6 +919,7 @@ func _mount_plan(mode: String) -> void:
 
 func _drop_plan() -> void:
 	_plan_testing = false
+	if _kit != null: _kit.set_testing(false)
 	if is_instance_valid(_plan):
 		_plan.queue_free()
 		_plan = null
@@ -944,6 +950,7 @@ func _plan_room() -> void:
 ## TESTER : Kuro marche, la pose se suspend ; elle reprend la case choisie.
 func _on_plan_testing(on: bool) -> void:
 	_plan_testing = on
+	_kit.set_testing(on)
 	var burrow := Screens.at(Screens.Place.BURROW)
 	if burrow == null or not burrow.has_method("set_placing") or _mode.is_empty():
 		return
@@ -1026,6 +1033,9 @@ func _place_clean() -> void:
 	var x := tray.end.x + KitRow.GAP
 	if x + sz.x > view.x - Kit.EDGE:
 		x = tray.position.x - KitRow.GAP - sz.x
+	if x < Kit.EDGE:
+		_clean.global_position = Vector2(Kit.EDGE, tray.position.y - Kit.PAD_TIGHT - sz.y).round()
+		return
 	_clean.global_position = Vector2(x, tray.get_center().y - sz.y * 0.5).round()
 
 
@@ -1097,11 +1107,12 @@ func arrange_tip(at: Vector2, show: bool) -> void:
 ## demander, sa case est deja choisie. « inspect » suspend le plateau (ni pose
 ## ni cloture) mais garde la rangee et le retour.
 func _switch_mode(mode: String) -> void:
-	if _kit == null or _mode.is_empty() or _mode == mode:
+	if _kit == null or _mode.is_empty():
 		return
-	_mode = mode
 	if _plan != null:
-		_plan.set_mode(mode)
+		_plan.set_mode("decor" if _kit.selected_kind() == "decor" else mode)
+	if _mode == mode: return
+	_mode = mode
 	if _plan_testing:
 		return
 	var burrow := Screens.at(Screens.Place.BURROW)
@@ -1121,6 +1132,7 @@ func _end_mode() -> void:
 		_version.visible = true
 	if _kit != null:
 		_kit.close()
+		_kit.set_plan_mode(false)
 		_back.dismiss()
 		_column.set_editing(false)
 	if _loop != null:

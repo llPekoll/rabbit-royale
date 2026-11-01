@@ -35,6 +35,12 @@ def walk(v):
 for f in glob.glob(root + '/godot/assets/i18n/*.json'): walk(json.load(open(f)))
 chars.update(open(root + '/godot/scripts/i18n.gd').read())
 for f in glob.glob(root + '/src/i18n/dict/*.ts'): chars.update(open(f).read())
+# Le WHAT'S NEW du jeu (godot/assets/changelog.json, tire de
+# src/changelog/entries.ts) : ses 7 langues passent par la meme face. Oublie
+# jusqu'au 2026-11-01, il faisait perdre ~60 caracteres chinois a chaque
+# regeneration faite apres le dernier changelog.
+chars.update(open(root + '/godot/assets/changelog.json').read())
+chars.update(open(root + '/src/changelog/entries.ts').read())
 chars.update("’‘“”«»…–—·•×→←↑↓⚡")
 open(out, 'w').write(''.join(sorted(c for c in chars if c.isprintable())))
 PY

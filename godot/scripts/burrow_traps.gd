@@ -48,6 +48,9 @@ const DUST := Color("#c9b48a")
 
 ## z LOCAL au bloc de la case : au-dessus du sol (1) et du losange (2).
 const Z_TRAP := 3
+## Bombs must remain readable above trees, flowers, sky and the route.
+## Only the sprite is lifted in draw order; its marker stays on the ground.
+const Z_BOMB := 4001
 
 var terrain: BurrowTerrain
 ## Le terrier du serveur : `cell_of` d'un index.
@@ -84,6 +87,12 @@ var _ghost_pinned := -1
 
 static var _outline: ImageTexture
 static var _solid: ImageTexture
+static var _ground_markers: Dictionary = {}
+var _route_hits: Array = []
+
+func set_route_hits(hits: Array) -> void:
+	_route_hits = hits
+	for tile in _traps: _paint(tile)
 
 
 func has_trap(tile: int) -> bool:
@@ -164,7 +173,7 @@ func add_trap(tile: int, animate: bool = true, armed: bool = true) -> void:
 	group.name = "trap-%d" % tile
 
 	var marker := Sprite2D.new()
-	marker.texture = _outline_texture()
+	marker.texture = _ground_marker_texture(TRAP_TINT)
 	group.add_child(marker)
 
 	var k := Iso.half_w() * BOMB_WIDTH_OF_HALF_W / float(BOMB.get_width())
@@ -173,6 +182,8 @@ func add_trap(tile: int, animate: bool = true, armed: bool = true) -> void:
 	# pleine est coupee a la ligne d'eau. Meme texture, meme ancre, meme
 	# echelle — les deux se superposent au pixel.
 	var bomb := Sprite2D.new()
+	bomb.z_as_relative = false
+	bomb.z_index = Z_BOMB
 	bomb.texture = BOMB
 	bomb.centered = false
 	bomb.offset = offset
@@ -183,6 +194,8 @@ func add_trap(tile: int, animate: bool = true, armed: bool = true) -> void:
 	# tranche reste la ou elle appartient. Le web y est arrive apres deux
 	# masques rates ; la region de Godot est la meme idee, sans second noeud.
 	var filled := Sprite2D.new()
+	filled.z_as_relative = false
+	filled.z_index = Z_BOMB
 	filled.texture = BOMB
 	filled.centered = false
 	filled.region_enabled = true
@@ -302,8 +315,13 @@ func _mount_ghost(tile: int) -> bool:
 		_ghost_fade.kill()
 	if not is_instance_valid(_ghost):
 		_ghost = Node2D.new()
+		var marker := Sprite2D.new()
+		marker.texture = _ground_marker_texture(Color("66e9ed"))
+		_ghost.add_child(marker)
 		_ghost.name = "ghost-bomb"
 		_ghost_sprite = Sprite2D.new()
+		_ghost_sprite.z_as_relative = false
+		_ghost_sprite.z_index = Z_BOMB
 		_ghost_sprite.texture = BOMB
 		_ghost_sprite.centered = false
 		_ghost_sprite.offset = Vector2(-BOMB.get_width() * 0.5, -BOMB.get_height() * BOMB_ANCHOR_Y)
@@ -403,7 +421,7 @@ func _process(delta: float) -> void:
 		if float(t.total_ms) <= 0.0:
 			continue
 		if tile != _lifted:
-			(t.marker as Sprite2D).modulate = Color(REARM_TINT,
+			(t.marker as Sprite2D).modulate = Color(Color.WHITE,
 				0.6 + 0.35 * sin(_pulse * TAU * REARM_PULSE_HZ))
 		t.left_ms = maxf(0.0, float(t.left_ms) - delta * 1000.0)
 		var charge := minf(0.98, 1.0 - float(t.left_ms) / float(t.total_ms))
@@ -422,8 +440,9 @@ func _paint(tile: int) -> void:
 	var marker: Sprite2D = t.marker
 	var lifting := _lifted == tile
 	var down := float(t.total_ms) > 0.0 and float(t.left_ms) > 0.0
-	marker.modulate = LIFT_TINT if lifting else (REARM_TINT if down else TRAP_TINT)
-	marker.modulate.a = 0.95 if lifting else 0.55 + 0.2 * charge
+	var tint := LIFT_TINT if lifting else (REARM_TINT if down else (Color("ff633d") if _route_hits.has(tile) else Color("ffa834")))
+	marker.texture = _ground_marker_texture(tint)
+	marker.modulate = Color(Color.WHITE, 0.95 if lifting else 0.82 + 0.18 * charge)
 	var bomb: Sprite2D = t.bomb
 	bomb.modulate.a = REARMING_ALPHA
 
@@ -557,3 +576,18 @@ static func _solid_texture() -> ImageTexture:
 				img.set_pixel(x, y, Color(1, 1, 1, 1))
 	_solid = ImageTexture.create_from_image(img)
 	return _solid
+
+## A small ellipse in the ground plane: cream rim, coloured inner ring and
+## a restrained fill. Baked once per state, shared by every bomb.
+static func _ground_marker_texture(tint: Color) -> ImageTexture:
+	var key := tint.to_html()
+	if _ground_markers.has(key): return _ground_markers[key]
+	var img := Image.create(44, 24, false, Image.FORMAT_RGBA8)
+	for y in 24:
+		for x in 44:
+			var r := Vector2((x + 0.5 - 22) / 17.5, (y + 0.5 - 12) / 8.0).length()
+			if r > 1.0: continue
+			img.set_pixel(x, y, Color("fff0c7") if r > 0.84 else (tint if r > 0.62 else Color(tint, 0.16)))
+	var texture := ImageTexture.create_from_image(img)
+	_ground_markers[key] = texture
+	return texture
