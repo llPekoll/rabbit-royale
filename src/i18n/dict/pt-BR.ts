@@ -685,6 +685,7 @@ export const ptBR: Dict = {
     fallback: 'Não deu certo.',
     insufficient_carrots: 'Cenouras insuficientes.',
     insufficient_gold: 'Gold insuficiente.',
+    gold_debt: 'Uma compra reembolsada retirou Gold que você já tinha gastado: compre Gold para desbloquear compras e melhorias.',
     inventory_full: 'Sua bolsa está cheia desses.',
     bag_full: 'Um dos itens não cabe mais na sua bolsa.',
     daily_energy_limit: 'Sem mais recargas hoje. A horta continua crescendo.',

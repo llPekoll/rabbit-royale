@@ -1140,6 +1140,7 @@
   "fallback": "Non ha funzionato.",
   "insufficient_carrots": "Carote insufficienti.",
   "insufficient_gold": "Gold insufficiente.",
+  "gold_debt": "Un acquisto rimborsato ha ripreso Gold già speso: compra Gold per sbloccare acquisti e potenziamenti.",
   "inventory_full": "Il tuo zaino ne è pieno.",
   "bag_full": "Uno di quegli oggetti non entra nel tuo zaino.",
   "daily_energy_limit": "Niente più ricariche oggi. L’orto cresce lo stesso.",

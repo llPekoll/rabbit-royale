@@ -681,6 +681,7 @@ export const fr: Dict = {
     fallback: 'Ça n’a pas marché.',
     insufficient_carrots: 'Pas assez de carottes.',
     insufficient_gold: 'Pas assez de Gold.',
+    gold_debt: 'Un achat remboursé a repris du Gold déjà dépensé : rachète du Gold pour débloquer les achats et les améliorations.',
     inventory_full: 'Ton sac en est plein.',
     bag_full: 'Un des objets ne tient plus dans ton sac.',
     daily_energy_limit: 'Plus de recharge aujourd’hui. Le potager pousse quand même.',

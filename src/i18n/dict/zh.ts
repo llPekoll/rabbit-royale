@@ -681,6 +681,7 @@ export const zh: Dict = {
     fallback: '没成功。',
     insufficient_carrots: '胡萝卜不够。',
     insufficient_gold: 'Gold 不足。',
+    gold_debt: '一笔已退款的购买收回了你已花掉的 Gold：购买 Gold 即可解锁购买和升级。',
     inventory_full: '你的背包装满了。',
     bag_full: '有一件东西背包装不下。',
     daily_energy_limit: '今天不能再补了。菜园照样在长。',

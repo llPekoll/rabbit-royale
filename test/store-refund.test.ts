@@ -10,6 +10,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { players, storePurchases } from '@/lib/db/schema';
 import { creditStorePurchase, takeBackStorePurchase } from '@/lib/pay/store';
+import { signSession } from '@/lib/auth/jwt';
 
 describe.skipIf(!process.env.RR_AUTH_DB_TEST)('store refunds', () => {
   const ids: string[] = [];
@@ -59,5 +60,26 @@ describe.skipIf(!process.env.RR_AUTH_DB_TEST)('store refunds', () => {
     expect(await takeBackStorePurchase('stripe', { orderId: `pi_${randomUUID()}` })).toBeNull();
     expect(await takeBackStorePurchase('play', { orderId: order })).toBeNull();
     expect(await goldOf(id)).toBe(550);
+  });
+
+  it('blocks every purchase and the upgrade while the gold is below zero, not at zero', async () => {
+    const { POST: shop } = await import('@/app/api/shop/route');
+    const { POST: burrow } = await import('@/app/api/burrow/route');
+    const id = await player(-500);
+    await db.update(players).set({ stock: 100_000 }).where(eq(players.id, id));
+    const token = await signSession({ sub: id, wallet: null, name: 'RefundTest' });
+    const post = (body: unknown) => new Request('http://localhost/api', {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    for (const res of [await shop(post({ kind: 'trap' })), await burrow(post({ action: 'upgrade' }))]) {
+      expect(res.status).toBe(403);
+      expect((await res.json()).error).toBe('gold_debt');
+    }
+    const after = await db.query.players.findFirst({ where: eq(players.id, id) });
+    expect(after).toMatchObject({ stock: 100_000, burrowLevel: 1 });
+
+    // A refund of gold never spent leaves zero: nothing blocked.
+    await db.update(players).set({ gold: 0 }).where(eq(players.id, id));
+    expect((await burrow(post({ action: 'upgrade' }))).status).toBe(200);
   });
 });

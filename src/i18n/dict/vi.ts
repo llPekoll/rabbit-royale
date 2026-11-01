@@ -688,6 +688,7 @@ export const vi: Dict = {
     fallback: 'Không được rồi.',
     insufficient_carrots: 'Không đủ cà rốt.',
     insufficient_gold: 'Không đủ Gold.',
+    gold_debt: 'Một giao dịch được hoàn tiền đã thu lại Gold bạn đã tiêu: hãy mua Gold để mở khóa mua sắm và nâng cấp.',
     inventory_full: 'Túi của bạn đầy món này rồi.',
     bag_full: 'Một món trong gói không còn chỗ trong túi.',
     daily_energy_limit: 'Hôm nay hết lượt nạp. Vườn vẫn lớn.',

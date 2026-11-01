@@ -17,6 +17,7 @@ import {
   energyPacksLeft, extendGardenBoost, gardenBoostBlocker, holdings, refillBlocker, shieldBlocker, type GardenKind,
 } from '@/lib/game/inventory';
 import { refillEnergy } from '@/lib/game/grant';
+import { GOLD_DEBT, inGoldDebt } from '@/lib/game/gold';
 import { OUT_OF_RUN_ENERGY, RAID, upgradeCost } from '@/lib/tuning/tables';
 import { clientOverrides } from '@/lib/tuning/live';
 import { RABBIT_LEVELS, TUTORIAL_REWARD, nextSkip } from '@config/tuning';
@@ -150,6 +151,7 @@ export async function POST(req: Request) {
   }
 
   if (action === 'upgrade') {
+    if (inGoldDebt(player)) return Response.json({ error: GOLD_DEBT }, { status: 403 });
     const blocker = upgradeBlocker(player);
     if (blocker) {
       return Response.json(
@@ -159,10 +161,14 @@ export async function POST(req: Request) {
     }
     const cost = upgradeCost(player.burrowLevel);
 
-    await db.update(players).set({
+    // The debt is checked again by the UPDATE: a refund landing between the
+    // read and the write does not let the upgrade through.
+    const upgraded = await db.update(players).set({
       stock: raw`${players.stock} - ${cost}`,
       burrowLevel: raw`${players.burrowLevel} + 1`,
-    }).where(eq(players.id, session.sub));
+    }).where(and(eq(players.id, session.sub), raw`${players.gold} >= 0`))
+      .returning({ id: players.id });
+    if (upgraded.length === 0) return Response.json({ error: GOLD_DEBT }, { status: 403 });
 
     const after = (await ownerView(session.sub))!;
     return Response.json({

@@ -23,6 +23,19 @@ import { isSkinKind, skinForKind, type SkinKind } from './skins';
 
 export const GOLD_PER_USD = 100;
 
+/**
+ * IN DEBT (2026-11-01): a refund took back gold the player had already spent
+ * (lib/pay/store.ts), and the balance is below zero. Until a sachet covers it
+ * nothing is bought — in gold OR carrots — and the burrow is not upgraded.
+ * A refund of gold never spent leaves the balance at zero or above: no debt,
+ * nothing blocked (a mistaken purchase, given back).
+ */
+export const GOLD_DEBT = 'gold_debt';
+
+export function inGoldDebt(p: { gold: number }): boolean {
+  return p.gold < 0;
+}
+
 export type GoldKind = ShopKind | PackKind | SkinKind;
 
 export function isGoldKind(v: unknown): v is GoldKind {

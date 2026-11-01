@@ -1140,6 +1140,7 @@
   "fallback": "That did not work.",
   "insufficient_carrots": "Not enough carrots.",
   "insufficient_gold": "Not enough Gold.",
+  "gold_debt": "A refunded purchase took back Gold you had already spent: buy Gold to unlock purchases and upgrades.",
   "inventory_full": "Your bag is full of those.",
   "bag_full": "One of those would not fit in your bag.",
   "daily_energy_limit": "No more refills today. The garden still grows.",

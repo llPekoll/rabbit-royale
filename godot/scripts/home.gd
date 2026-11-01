@@ -231,6 +231,8 @@ func _refuse(code: String, res: Dictionary) -> void:
 			noted.emit(I18N.t("notes.gardenEmpty"), true)
 		"max_level":
 			noted.emit(I18N.t("notes.maxDepth"), true)
+		"gold_debt":
+			noted.emit(I18N.t("shopErrors.gold_debt"), true)
 		"already_shielded":
 			noted.emit(I18N.t("notes.shieldAlready"), true)
 		"none_held":

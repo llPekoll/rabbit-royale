@@ -223,6 +223,15 @@ func refresh() -> void:
 	changed.emit()
 
 
+## A L'OUVERTURE DE L'ETAL : relire, et dire tout de suite une dette de Gold
+## (un remboursement a repris du Gold deja depense, lib/game/gold.ts : plus
+## aucun achat, ni en Gold ni en carottes) plutot qu'au premier achat refuse.
+func refresh_on_open() -> void:
+	await refresh()
+	if gold() < 0:
+		_say(message("gold_debt"), true)
+
+
 ## RECLAMER ce qui a ete paye sans etre confirme (l'app fermee entre la
 ## signature et la confirmation). Une fois, a l'ouverture de la boutique : c'est
 ## la seule route qui lit la chaine, et /api/shop, lu de six endroits, ne le

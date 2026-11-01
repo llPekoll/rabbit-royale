@@ -679,6 +679,7 @@ export const es: Dict = {
     fallback: 'Eso no funcionó.',
     insufficient_carrots: 'No tienes zanahorias suficientes.',
     insufficient_gold: 'No tienes suficiente Gold.',
+    gold_debt: 'Una compra reembolsada retiró Gold que ya habías gastado: compra Gold para desbloquear compras y mejoras.',
     inventory_full: 'Tu bolsa ya está llena de eso.',
     bag_full: 'Uno de esos objetos no cabe en tu bolsa.',
     daily_energy_limit: 'No quedan recargas hoy. El huerto sigue creciendo.',

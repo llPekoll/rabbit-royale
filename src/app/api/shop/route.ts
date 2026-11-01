@@ -28,7 +28,7 @@ import { treasuryAddress } from '@/lib/pay/solana';
 import { playEnabled } from '@/lib/pay/play';
 import { STRIPE_CURRENCY, stripeEnabled, stripeTestMode } from '@/lib/pay/stripe';
 import { isWeb2 } from '@/lib/world';
-import { goldPrice, isGoldKind, type GoldKind } from '@/lib/game/gold';
+import { GOLD_DEBT, goldPrice, inGoldDebt, isGoldKind, type GoldKind } from '@/lib/game/gold';
 import { isSkinKind, ownsSkin, skinForKind, skinSaleBlocker } from '@/lib/game/skins';
 import { STORE_PRODUCTS } from '@config/store';
 
@@ -179,6 +179,7 @@ export async function POST(req: Request) {
 
   const player = await db.query.players.findFirst({ where: eq(players.id, session.sub) });
   if (!player) return Response.json({ error: 'unknown player' }, { status: 404 });
+  if (inGoldDebt(player)) return Response.json({ error: GOLD_DEBT, have: player.stock }, { status: 403 });
 
   const rows = await db.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) });
   const bag = holdings(rows, player);
@@ -209,7 +210,7 @@ export async function POST(req: Request) {
       await tx.query.inventory.findMany({ where: eq(inventory.playerId, session.sub) }),
       locked,
     );
-    const late = blockerOf(lockedBag, locked.stock);
+    const late = inGoldDebt(locked) ? GOLD_DEBT : blockerOf(lockedBag, locked.stock);
     if (late) return { error: late, have: locked.stock } as const;
 
     const [charged] = await tx
@@ -254,6 +255,7 @@ async function buyWithGold(playerId: string, rawKind: unknown, rawQty: unknown) 
   const outcome = await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(players).where(eq(players.id, playerId)).for('update');
     if (!locked) return { error: 'unknown player' } as const;
+    if (inGoldDebt(locked)) return { error: GOLD_DEBT, have: locked.gold } as const;
     const bag = holdings(await tx.query.inventory.findMany({ where: eq(inventory.playerId, playerId) }), locked);
     const blocker = isSkinKind(kind)
       ? skinSaleBlocker(qty, await ownsSkin(playerId, skinForKind(kind).key, tx), skinForKind(kind).onSale)

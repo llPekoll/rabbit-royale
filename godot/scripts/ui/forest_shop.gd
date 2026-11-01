@@ -137,7 +137,7 @@ func _ready() -> void:
 		Analytics.track("shop_open")
 		# Relire a chaque ouverture : les avoirs ont pu bouger (bombe posee,
 		# eclair lance, coffre). Le rattrapage des paiements, une fois.
-		_state.refresh()
+		_state.refresh_on_open()
 		if not _web2:
 			_state.claim()
 		_skin_state.refresh()
