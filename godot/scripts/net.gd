@@ -23,8 +23,11 @@ extends Node
 ## a vide.
 var HOST := ""
 
-## Le serveur de test (branche `stage`), hors des regions.
+## Les serveurs de test (branche `stage`), hors des regions : un par monde,
+## chacun dans son projet Coolify (2026-11-01). La page web3 du stage est
+## stage-sol.rabbit.rip, celle du web2 stage.rabbit.rip.
 const STAGE_HOST := "https://ws-stage.rabbit.rip"
+const WEB2_STAGE_HOST := "https://ws2-stage.rabbit.rip"
 
 ## LES REGIONS : un serveur de jeu sur chaque continent (deploy/region).
 ## Elles etaient des jeux entiers, chacune ses comptes (2026-10-02) ; depuis
@@ -102,11 +105,11 @@ static func _override() -> String:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--server="):
 			return arg.trim_prefix("--server=").trim_suffix("/")
-	# LE STAGE (2026-10-16) : la page servie par stage.rabbit.rip parle a
-	# son propre serveur, sur sa propre base (une copie de l'Europe). L'APK
-	# de stage, lui, passe `--server=` dans ses arguments.
-	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hostname", true)).begins_with("stage."):
-		return STAGE_HOST
+	# LE STAGE (2026-10-16) : une page servie par stage.rabbit.rip (web2) ou
+	# stage-sol.rabbit.rip (web3) parle au serveur de stage de SON monde, sur
+	# sa propre base. L'APK de stage, lui, passe `--server=` dans ses arguments.
+	if OS.has_feature("web") and str(JavaScriptBridge.eval("location.hostname", true)).begins_with("stage"):
+		return WEB2_STAGE_HOST if _world() == "web2" else STAGE_HOST
 	return OS.get_environment("RR_SERVER").trim_suffix("/")
 
 

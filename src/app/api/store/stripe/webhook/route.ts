@@ -10,7 +10,7 @@
  * Endpoint to declare in Stripe (Developers → Webhooks), events
  * checkout.session.completed and checkout.session.async_payment_succeeded:
  *   https://ws2.rabbit.rip/api/store/stripe/webhook        (prod, live key)
- *   https://ws-stage.rabbit.rip/api/store/stripe/webhook   (stage, test key)
+ *   https://ws2-stage.rabbit.rip/api/store/stripe/webhook  (stage, test key)
  * Its signing secret goes in STRIPE_WEBHOOK_SECRET.
  *
  * Always 200 once signed, even for a session it cannot credit: a non-2xx makes
