@@ -270,6 +270,16 @@ func set_capture_time(seconds: float) -> void:
 	water_material.set_shader_parameter("time_override", seconds)
 	wet_material.set_shader_parameter("time_override", seconds)
 
+## LA COTE QUI SE NOIE : 1 = le rivage dessine, 0 = le large partout, sans
+## la trace de l'ile. Le naufrage la descend avec l'ile (island.gd).
+func set_shore_presence(value: float) -> void:
+	for mat in [water_material, wet_material]:
+		mat.set_shader_parameter("shore_presence", clampf(value, 0.0, 1.0))
+
+func get_shore_presence() -> float:
+	var v: Variant = water_material.get_shader_parameter("shore_presence") if water_material != null else null
+	return float(v) if v != null else 1.0
+
 func set_contact_enabled(enabled: bool) -> void:
 	wet_material.set_shader_parameter("enabled", enabled)
 

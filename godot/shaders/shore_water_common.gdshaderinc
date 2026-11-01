@@ -11,6 +11,10 @@ uniform float surface_speed = 2.1;
 uniform float surface_time_offset = 0.0;
 uniform float water_art_scale : hint_range(0.5, 4.0, 0.25) = 1.25;
 uniform sampler2D water_art : source_color, filter_linear, repeat_disable;
+// LA COTE PRESENTE (1) OU NOYEE (0). Quand l'ile coule, ecume, hauts-fonds et
+// pied sombre suivent la carte des distances, qui garde la silhouette : sans
+// ce fondu il restait le contour de l'ile sur la mer (bug #1, 2026-11-01).
+uniform float shore_presence : hint_range(0.0, 1.0) = 1.0;
 
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -119,6 +123,13 @@ vec4 shore_water(vec2 world_pixel) {
 		col = mix(col, vec3(0.78, 0.97, 0.93), outer * 0.88);
 		col = mix(col, vec3(0.90, 1.0, 0.95), line * 0.94);
 		coverage = max(line * 0.94, max(outer * 0.88, wash * 0.65));
+	}
+	if (shore_presence < 1.0) {
+		// Le large, sans rivage : la meme eau, a distance maximale de toute terre.
+		vec3 far = painted_surface ? painted_water(p, distance_range, t)
+			: vec3(0.025, 0.36, 0.56) + vec3(0.015, 0.12, 0.14) * patch;
+		col = mix(far, col, shore_presence);
+		coverage *= shore_presence;
 	}
 	return vec4(col, coverage);
 }

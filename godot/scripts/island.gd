@@ -271,6 +271,7 @@ func play_eruption(duration_ms: int, heave: bool = true, shake: float = 1.0) -> 
 		_eruption.tween_callback(_tiles.plain_blend).set_delay(s * 0.1)
 		_eruption.tween_property(self, "modulate:a", 0.0, s * 0.7).set_delay(s * 0.15) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		_drown_shore(s * 0.7, s * 0.15)
 		return
 	# Le son d'eau commence a la descente, apres le dernier coffre.
 	# LE SOULEVEMENT : un aller-retour toutes les 50 ms, sur 55 % de la duree.
@@ -287,6 +288,27 @@ func play_eruption(duration_ms: int, heave: bool = true, shake: float = 1.0) -> 
 	_eruption.tween_callback(_tiles.plain_blend).set_delay(s * 0.05)
 	_eruption.tween_property(self, "modulate:a", 0.0, s * 0.4).set_delay(s * 0.05) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_drown_shore(s * 0.4, s * 0.05)
+
+
+## LA COTE SE NOIE AVEC L'ILE (bug #1, 2026-11-01). La mer peinte dessine
+## ecume, hauts-fonds et pied sombre d'apres sa carte des distances, qui garde
+## la silhouette de l'ile : l'ile fondue, son contour restait sur l'eau et on
+## aurait dit un ecran casse. Le meme fondu, dans le meme tween : il ne reste
+## que la houle du large.
+func _drown_shore(seconds: float, delay: float) -> void:
+	var shore := _shore()
+	if shore == null:
+		return
+	shore.set_shore_presence(1.0)
+	_eruption.tween_method(shore.set_shore_presence, 1.0, 0.0, seconds).set_delay(delay) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func _shore() -> ShoreWater:
+	if _terrain != null and _terrain.has_method("water"):
+		return _terrain.call("water") as ShoreWater
+	return null
 
 
 ## L'ILE REVIENT (`resetEruption`) : une nouvelle ile, ou la manche finie.
@@ -298,6 +320,9 @@ func reset_eruption() -> void:
 	if _eruption != null and _eruption.is_valid():
 		_eruption.kill()
 	_eruption = null
+	var shore := _shore()
+	if shore != null and shore.get_shore_presence() < 1.0:
+		shore.set_shore_presence(1.0)
 	if not sinking:
 		return
 	if _fade != null and _fade.is_valid():
