@@ -70,6 +70,10 @@ func _ready() -> void:
 	_dark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_dark.stretch_mode = TextureRect.STRETCH_SCALE
 	_dark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# DERRIERE L'ECUME : les gouttes sont le `_draw` de ce noeud, et un enfant
+	# se peint par-dessus son parent — le voile les avalait (2026-11-01, le
+	# user : « avant y avait des particules qui montaient »).
+	_dark.show_behind_parent = true
 	Kit.fill(_dark)
 	add_child(_dark)
 
