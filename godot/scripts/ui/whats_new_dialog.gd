@@ -19,6 +19,8 @@ signal see_all
 const WIDTH := 500.0
 const BUTTON_H := 40.0
 const MAX_LINES := 5
+## L'air laisse au-dessus et au-dessous du dialogue (TargetList.DIALOG_AIR).
+const DIALOG_AIR := 27.0
 ## L'etiquette de chaque sorte : fond, encre. Le mot vient de Changelog.ui.
 const KINDS := {
 	"new": [Palette.LEAF, Palette.INK],
@@ -34,6 +36,13 @@ var fixes := 0
 ## SEE ALL ouvre le site en ligne (VersionTag.URL). Faux dans un banc, qui
 ## ouvre son brouillon local a la place.
 var open_page := true
+
+## LES LIGNES DEFILENT, LE PIED RESTE (2026-11-01) : cinq longues lignes en
+## francais montaient le dialogue plus haut que les 400 px du Seeker, et
+## TOUT VOIR / DISCORD / JOUER sortaient de l'ecran.
+var _scroll: ScrollContainer
+var _list: VBoxContainer
+var _fit_queued := false
 
 
 func _init(v: String = "", d: String = "", list: Array = [], fix_count: int = 0) -> void:
@@ -57,6 +66,16 @@ func _ready() -> void:
 	var stamp := "%s · %s" % [version, date] if not date.is_empty() else version
 	body.add_child(Kit.note(stamp, Palette.BARK, 11))
 
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(_scroll)
+	_list = Kit.vbox(Kit.PAD_TIGHT)
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_list)
+	TouchScroll.attach(_scroll)
+	ScrollFade.attach(_scroll)
+
 	var shown := 0
 	var chips: Array[Control] = []
 	for item in items:
@@ -64,7 +83,7 @@ func _ready() -> void:
 			break
 		var row := _row(String(item.get("kind", "new")), String(item.get("text", "")))
 		chips.append(row.get_child(0))
-		body.add_child(row)
+		_list.add_child(row)
 		shown += 1
 	# UNE COLONNE D'ETIQUETTES : toutes a la largeur de la plus longue, pour
 	# que les textes partent du meme bord (CORRECTIF, CÂN BẰNG...).
@@ -109,6 +128,34 @@ func _ready() -> void:
 	play.pressed.connect(func() -> void: closed.emit())
 	row.add_child(play)
 	add_footer(row)
+	get_viewport().size_changed.connect(_queue_fit)
+	_queue_fit()
+
+
+## A L'IMAGE SUIVANTE, comme TargetList : les lignes viennent d'etre posees
+## et ne se sont pas encore mesurees.
+func _queue_fit() -> void:
+	if not _fit_queued and is_inside_tree():
+		_fit_queued = true
+		get_tree().process_frame.connect(_fit_scroll, CONNECT_ONE_SHOT)
+
+
+## Toutes les lignes si l'ecran les tient ; sinon la place qui reste, et
+## elles defilent au doigt.
+func _fit_scroll() -> void:
+	_fit_queued = false
+	if not is_inside_tree():
+		return
+	var want := _list.get_combined_minimum_size().y
+	# Le creux tel qu'il pese MAINTENANT (bloque, il pese toutes ses lignes).
+	var others := get_combined_minimum_size().y - _scroll.get_combined_minimum_size().y
+	var room := get_viewport_rect().size.y - DIALOG_AIR - others
+	var fits := want <= room
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if fits \
+		else ScrollContainer.SCROLL_MODE_AUTO
+	var h := floorf(want if fits else maxf(60.0, room))
+	if absf(_scroll.custom_minimum_size.y - h) >= 1.0:
+		_scroll.custom_minimum_size.y = h
 
 
 func _row(kind: String, text: String) -> HBoxContainer:

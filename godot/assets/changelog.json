@@ -109,30 +109,104 @@
   "releases": [
     {
       "version": "v1.23",
-      "date": "2026-11-02",
+      "date": "2026-11-01",
       "items": [
         {
           "kind": "tune",
           "text": {
-            "en": "Raiding now costs your own shield: 3 h off it for your first raid of the day, an hour more for each one after. The raid list tells you before you step in.",
-            "fr": "Raider coûte maintenant ton propre bouclier : 3 h en moins pour ton premier raid du jour, une heure de plus pour chacun des suivants. La liste des raids te le dit avant d’entrer.",
-            "zh": "现在掠夺会消耗你自己的护盾：当天第一次掠夺让护盾少 3 小时，之后每次再多少 1 小时。进入前，掠夺列表会提醒你。",
-            "pt-BR": "Saquear agora custa o seu próprio escudo: 3 h a menos no primeiro saque do dia, uma hora a mais em cada um dos seguintes. A lista de saques avisa antes de você entrar.",
-            "vi": "Giờ đi cướp sẽ tốn khiên của chính bạn: trừ 3 giờ cho lần cướp đầu tiên trong ngày, mỗi lần sau trừ thêm một giờ. Danh sách cướp báo cho bạn trước khi vào.",
-            "es": "Saquear ahora cuesta tu propio escudo: 3 h menos en tu primer saqueo del día y una hora más en cada uno de los siguientes. La lista de saqueos te lo dice antes de entrar.",
-            "it": "Razziare ora costa il tuo scudo: 3 h in meno per la prima razzia del giorno, un’ora in più per ognuna delle successive. La lista delle razzie te lo dice prima di entrare."
+            "en": "Raiding now costs your own shield: 3 h for the first raid of the day, 1 h more for each one after.",
+            "fr": "Raider coûte ton bouclier : 3 h pour le premier raid du jour, 1 h de plus pour chaque suivant.",
+            "zh": "现在掠夺会消耗你自己的护盾：当天第一次少 3 小时，之后每次再多少 1 小时。",
+            "pt-BR": "Saquear agora custa o seu escudo: 3 h no primeiro saque do dia, 1 h a mais em cada um dos seguintes.",
+            "vi": "Đi cướp giờ tốn khiên của bạn: 3 giờ cho lần đầu trong ngày, mỗi lần sau thêm 1 giờ.",
+            "es": "Saquear ahora cuesta tu escudo: 3 h en el primer saqueo del día y 1 h más en cada uno de los siguientes.",
+            "it": "Razziare ora costa il tuo scudo: 3 h per la prima razzia del giorno, 1 h in più per ognuna delle successive."
           }
         },
         {
           "kind": "new",
           "text": {
-            "en": "Revenge goes through the shield: for 12 h after someone raids you, their shield won’t stop you, once. Look for “pierced” on the REVENGE card.",
-            "fr": "La revanche passe le bouclier : pendant 12 h après qu’on t’a pillé, son bouclier ne t’arrête pas, une fois. Cherche « percé » sur la carte REVANCHE.",
-            "zh": "复仇可以穿过护盾：有人掠夺你后的 12 小时内，他的护盾挡不住你一次。看复仇卡片上的「击穿」。",
-            "pt-BR": "A vingança passa pelo escudo: por 12 h depois que alguém te saqueia, o escudo dele não te para, uma vez. Procure “furado” no cartão VINGANÇA.",
-            "vi": "Trả thù xuyên qua khiên: trong 12 giờ sau khi ai đó cướp bạn, khiên của họ không cản được bạn một lần. Tìm chữ “thủng” trên thẻ TRẢ THÙ.",
-            "es": "La venganza atraviesa el escudo: durante 12 h después de que alguien te saquee, su escudo no te frena, una vez. Busca «perforado» en la carta VENGANZA.",
-            "it": "La vendetta passa lo scudo: per 12 h dopo che qualcuno ti ha razziato, il suo scudo non ti ferma, una volta. Cerca «perforato» sulla carta VENDETTA."
+            "en": "Revenge pierces the shield: for 12 h after a raid on you, the raider’s shield won’t stop you, once.",
+            "fr": "La revanche perce le bouclier : 12 h après un pillage, celui du pilleur ne t’arrête pas, une fois.",
+            "zh": "复仇可以击穿护盾：有人掠夺你后的 12 小时内，他的护盾挡不住你一次。",
+            "pt-BR": "A vingança fura o escudo: por 12 h depois de um saque, o escudo do saqueador não te para, uma vez.",
+            "vi": "Trả thù xuyên khiên: 12 giờ sau khi bị cướp, khiên của kẻ cướp không cản được bạn một lần.",
+            "es": "La venganza perfora el escudo: 12 h tras un saqueo, el escudo del saqueador no te frena, una vez.",
+            "it": "La vendetta perfora lo scudo: per 12 h dopo una razzia, lo scudo del predone non ti ferma, una volta."
+          }
+        },
+        {
+          "kind": "new",
+          "text": {
+            "en": "A new burrow: new trees and decor, and a defence dock for bombs and fences.",
+            "fr": "Un nouveau terrier : arbres et décors neufs, et un dock de défense pour bombes et clôtures.",
+            "zh": "洞穴焕然一新：新的树木和装饰，还有放置炸弹和围栏的防御面板。",
+            "pt-BR": "Uma toca nova: árvores e decoração novas e um painel de defesa para bombas e cercas.",
+            "vi": "Hang mới: cây và đồ trang trí mới, cùng bảng phòng thủ để đặt bom và hàng rào.",
+            "es": "Una madriguera nueva: árboles y decoración nuevos y un panel de defensa para bombas y vallas.",
+            "it": "Una tana nuova: alberi e decorazioni nuovi e un pannello di difesa per bombe e recinti."
+          }
+        },
+        {
+          "kind": "new",
+          "text": {
+            "en": "From level 3, every island has a shape of its own: atolls, twin islands, horseshoes, archipelagos, snakes.",
+            "fr": "Dès le niveau 3, chaque île a sa propre forme : atolls, îles jumelles, fers à cheval, archipels, serpents.",
+            "zh": "从 3 级开始，每座岛都有自己的形状：环礁、双子岛、马蹄形、群岛、长蛇形。",
+            "pt-BR": "A partir do nível 3, cada ilha tem uma forma própria: atóis, ilhas gêmeas, ferraduras, arquipélagos, serpentes.",
+            "vi": "Từ cấp 3, mỗi hòn đảo có hình dạng riêng: đảo san hô vòng, đảo đôi, móng ngựa, quần đảo, hình rắn.",
+            "es": "Desde el nivel 3, cada isla tiene su propia forma: atolones, islas gemelas, herraduras, archipiélagos, serpientes.",
+            "it": "Dal livello 3 ogni isola ha una forma tutta sua: atolli, isole gemelle, ferri di cavallo, arcipelaghi, serpenti."
+          }
+        },
+        {
+          "kind": "new",
+          "web3": true,
+          "text": {
+            "en": "Playing as a guest, a Genesis piece from a crown chest is kept for you for 30 days: connect a wallet and it is sent there.",
+            "fr": "En invité, une pièce Genesis d’un coffre couronne t’est gardée 30 jours : connecte un wallet et elle y part.",
+            "zh": "以游客身份游玩时，王冠宝箱里的 Genesis 藏品会为你保留 30 天：连接钱包后就会发送过去。",
+            "pt-BR": "Jogando como convidado, uma peça Genesis de um baú da coroa fica guardada por 30 dias: conecte uma carteira e ela vai para lá.",
+            "vi": "Khi chơi với tư cách khách, mảnh Genesis từ rương vương miện được giữ cho bạn 30 ngày: kết nối ví và nó sẽ được gửi đến đó.",
+            "es": "Si juegas como invitado, una pieza Genesis de un cofre corona se guarda para ti 30 días: conecta una billetera y se envía allí.",
+            "it": "Giocando come ospite, un pezzo Genesis da un forziere della corona resta tuo per 30 giorni: collega un wallet e ti viene inviato."
+          }
+        },
+        {
+          "kind": "fix",
+          "text": {
+            "en": "When the last chest sinks the island, the round now always ends and brings you home, and the sea no longer keeps the island’s outline.",
+            "fr": "Quand le dernier coffre fait couler l’île, la manche se termine toujours et te ramène chez toi, et la mer ne garde plus le contour de l’île.",
+            "zh": "最后一个宝箱让岛屿沉没时，这一局现在总会结束并带你回家，海面也不再留下岛屿的轮廓。",
+            "pt-BR": "Quando o último baú afunda a ilha, a rodada agora sempre termina e te leva para casa, e o mar não guarda mais o contorno da ilha.",
+            "vi": "Khi rương cuối cùng làm đảo chìm, ván chơi giờ luôn kết thúc và đưa bạn về nhà, và biển không còn giữ lại đường viền của đảo.",
+            "es": "Cuando el último cofre hunde la isla, la ronda ahora siempre termina y te lleva a casa, y el mar ya no conserva el contorno de la isla.",
+            "it": "Quando l’ultimo forziere fa affondare l’isola, la manche ora finisce sempre e ti riporta a casa, e il mare non tiene più il contorno dell’isola."
+          }
+        },
+        {
+          "kind": "fix",
+          "web3": true,
+          "text": {
+            "en": "Backpack works again to sign in, and the game says why when a wallet refuses.",
+            "fr": "Backpack remarche pour se connecter, et le jeu dit pourquoi quand un wallet refuse.",
+            "zh": "Backpack 又可以用来登录了，钱包拒绝时游戏会说明原因。",
+            "pt-BR": "O Backpack voltou a funcionar para entrar, e o jogo diz o motivo quando uma carteira recusa.",
+            "vi": "Backpack lại dùng được để đăng nhập, và trò chơi cho biết lý do khi ví từ chối.",
+            "es": "Backpack vuelve a funcionar para iniciar sesión, y el juego dice por qué cuando una billetera se niega.",
+            "it": "Backpack funziona di nuovo per accedere, e il gioco dice perché quando un wallet rifiuta."
+          }
+        },
+        {
+          "kind": "fix",
+          "text": {
+            "en": "LOG OUT is also at the bottom of the settings, for every kind of account.",
+            "fr": "DÉCONNECTER est aussi en bas des réglages, pour tous les comptes.",
+            "zh": "设置底部现在也有「退出登录」，适用于所有账号。",
+            "pt-BR": "SAIR também fica no fim das configurações, para todo tipo de conta.",
+            "vi": "Nút ĐĂNG XUẤT giờ cũng có ở cuối phần cài đặt, cho mọi loại tài khoản.",
+            "es": "CERRAR SESIÓN también está al final de los ajustes, para todo tipo de cuenta.",
+            "it": "ESCI si trova anche in fondo alle impostazioni, per ogni tipo di account."
           }
         }
       ]
