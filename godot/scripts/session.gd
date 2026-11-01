@@ -616,5 +616,5 @@ func import_moved(frag: String, dir: String) -> PackedStringArray:
 		if took:
 			cfg.save(path)
 			taken.append(fname)
-			print("[session] %s repris de rabbit.rip/play/" % fname)
+			print("[session] %s repris d'une autre adresse du jeu" % fname)
 	return taken

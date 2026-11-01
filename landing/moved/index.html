@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  WEB3.RABBIT.RIP/PLAY/ -> SOL.RABBIT.RIP/PLAY/ (2026-11-01).
+
+  Les deux noms servaient le meme jeu, mais un navigateur garde une session
+  PAR ADRESSE : un joueur passe par les deux avait deux comptes. Desormais
+  web3.rabbit.rip renvoie tout vers sol (docker/nginx.conf.template), et le
+  jeu passe par cette page pour emporter son terrier : un terrier d'invite
+  n'existe QUE dans le stockage de cette origine.
+
+  Comme site/play/move.js : base IndexedDB de Godot (/userfs, FILE_DATA),
+  session.cfg et consent.cfg passes dans le FRAGMENT (#rr_move=, jamais
+  envoye a un serveur), lus par godot/scripts/session.gd (import_moved), qui
+  ne remplit que ce qui manque : une session deja ouverte sur sol gagne.
+  Rien n'est efface ici.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Rabbit Royale</title>
+<style>html,body{margin:0;height:100%;background:#10222b}</style>
+</head>
+<body>
+<script>
+(() => {
+  const DIR = '/userfs/godot/app_userdata/Rabbit Royale/';
+  const NAMES = ['session.cfg', 'consent.cfg'];
+  const TARGET = 'https://sol.rabbit.rip/play/' + location.search;
+  let done = false;
+  const go = (files) => {
+    if (done) return;
+    done = true;
+    if (!files || files['session.cfg'] === undefined) return location.replace(TARGET);
+    const bytes = new TextEncoder().encode(JSON.stringify(files));
+    let bin = '';
+    bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    location.replace(TARGET + '#rr_move='
+      + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+  };
+  // Une base qui ne repond pas (navigation privee, stockage bloque) ne doit
+  // pas retenir le joueur ici.
+  setTimeout(() => go(null), 1500);
+  try {
+    const open = indexedDB.open('/userfs');
+    // Ouvrir une base absente la cree, vide : on annule.
+    open.onupgradeneeded = () => open.transaction.abort();
+    open.onerror = () => go(null);
+    open.onsuccess = () => {
+      const db = open.result;
+      if (!db.objectStoreNames.contains('FILE_DATA')) { db.close(); return go(null); }
+      const store = db.transaction('FILE_DATA').objectStore('FILE_DATA');
+      const files = {};
+      let left = NAMES.length;
+      const settle = () => { if (--left === 0) { db.close(); go(files); } };
+      for (const name of NAMES) {
+        const req = store.get(DIR + name);
+        req.onsuccess = () => {
+          const v = req.result;
+          if (v && v.contents) {
+            files[name] = new TextDecoder().decode(new Uint8Array(v.contents.buffer, v.contents.byteOffset, v.contents.byteLength));
+          }
+          settle();
+        };
+        req.onerror = settle;
+      }
+    };
+  } catch (e) {
+    go(null);
+  }
+})();
+</script>
+</body>
+</html>
