@@ -13,6 +13,11 @@ extends Control
 ## d'autre ne bouge.
 const M := 0.8175
 
+## DECONNECTER, au pied (2026-11-01, « ya pas le logout avec le wallet ») :
+## on le cherche dans les reglages, pas sous la grille des lapins. Le profil
+## fait la sortie (Profile._on_leave), ce panneau ne connait pas la session.
+signal leave
+
 var _k := 0.7
 var _music: CampSwitch
 var _effects: CampSwitch
@@ -35,7 +40,10 @@ var _server_words: Label
 var _words: Dictionary = {}
 
 
-func _init(k: float = 0.7) -> void:
+## `account` : un compte lie (wallet, Google, e-mail) — le pied dit
+## DECONNECTER. Un invite garde le Discord : son depart est un ABANDON, qui
+## reste dans l'onglet profil avec sa double pression.
+func _init(k: float = 0.7, account: bool = false) -> void:
 	_k = k
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	AudioSettings.restore()
@@ -131,14 +139,30 @@ func _init(k: float = 0.7) -> void:
 	_solo_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_solo_note.clip_text = false
 
-	# Le pied : le Discord a gauche (a la place du filet de 05), rien a
+	# Le pied : le Discord a gauche (a la place du filet de 05) — DECONNECTER
+	# pour un compte, le Discord ayant deja son bouton en haut —, rien a
 	# valider au milieu, la confidentialite a droite.
-	var discord := CampStyle.hit("Discord")
-	_place(discord, 35, 596, 250, 30)
-	var invite := CampStyle.text("Discord", 17 * M * _k, CampStyle.COPPER)
-	Kit.fill(invite)
-	discord.add_child(invite)
-	discord.pressed.connect(func() -> void: OS.shell_open(Changelog.DISCORD_URL))
+	if account:
+		var out := CampStyle.hit("Disconnect")
+		_place(out, 35, 596, 250, 30)
+		var exit := CampStyle.picture(CampStyle.tex("icon-exit"))
+		exit.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		exit.size = Vector2(26, 24) * M * _k
+		exit.position = Vector2(0, (out.size.y - exit.size.y) * 0.5)
+		out.add_child(exit)
+		_words["disconnect"] = CampStyle.text("", 17 * M * _k, CampStyle.DANGER)
+		_words["disconnect"].position = Vector2(34 * M * _k, 0)
+		_words["disconnect"].size = out.size - Vector2(34 * M * _k, 0)
+		_words["disconnect"].vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		out.add_child(_words["disconnect"])
+		out.pressed.connect(func() -> void: leave.emit())
+	else:
+		var discord := CampStyle.hit("Discord")
+		_place(discord, 35, 596, 250, 30)
+		var invite := CampStyle.text("Discord", 17 * M * _k, CampStyle.COPPER)
+		Kit.fill(invite)
+		discord.add_child(invite)
+		discord.pressed.connect(func() -> void: OS.shell_open(Changelog.DISCORD_URL))
 	_icon("icon-check-small", 300, 598, 28, 26)
 	_words["autosaved"] = _say(17, 338, 598, 570, 26, Color("#8fb3bd"))
 	if Analytics.backend() != "none" or Consent.needed:
@@ -281,6 +305,8 @@ func _relabel() -> void:
 	_words["soloMode"].text = I18N.t("sound.soloMode")
 	_words["soloPlay"].text = I18N.t("sound.soloPlay")
 	_words["autosaved"].text = I18N.t("sound.autosaved")
+	if _words.has("disconnect"):
+		_words["disconnect"].text = I18N.t("profile.disconnect")
 	_server_caption.text = I18N.t("auth.region.label")
 	for i in _cards.size():
 		(_cards[i].get_node("Name") as Label).text = I18N.t(["sound.smooth", "sound.pretty"][i]).capitalize()

@@ -401,8 +401,9 @@ func _show_tab(which: Tab) -> void:
 			GameSocket.unwatch_presence()
 		Tab.SETTINGS:
 			_page_header("icon-gear", Rect2(314, 128, 48, 48), I18N.t("sound.settings"), "")
-			var pane := SettingsPane.new(_k)
+			var pane := SettingsPane.new(_k, not bool(_player.get("guest", false)))
 			pane.name = "Settings"
+			pane.leave.connect(_on_leave)
 			_put(pane, 294, 123, 982, 508)
 			GameSocket.unwatch_presence()
 		_:
