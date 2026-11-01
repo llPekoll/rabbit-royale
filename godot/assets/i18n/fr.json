@@ -1545,11 +1545,15 @@
   "choose": "Choisis un terrier",
   "whose": "QUEL TERRIER ?",
   "pickRevenge": "REVANCHE — il t’a pillé",
+  "pierced": "percé",
   "pickRichest": "LE PLUS RICHE",
   "pickUnguarded": "SANS GARDE — il creuse",
   "owedTag": "REVANCHE",
   "cost": {
    "$t": "La traversée d’un pillage coûte {0} d’énergie, {1} au plus."
+  },
+  "shieldCost": {
+   "$t": "Raider retire {0} à ton bouclier (reste {1})"
   },
   "allShielded": "TOUS LES TERRIERS PROTÉGÉS",
   "nobody": "PERSONNE À VOLER",

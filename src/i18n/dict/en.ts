@@ -1068,12 +1068,18 @@ export const en = {
     /* The three picks on top of the RAID list (Godot TargetList): each one
        says why it is there. */
     pickRevenge: 'REVENGE — they raided you',
+    /* REVENGE GOES THROUGH THE SHIELD (2026-11-01): beside the shield of the
+       one who raided me, on the REVENGE card and row. One short word. */
+    pierced: 'pierced',
     pickRichest: 'THE RICHEST',
     pickUnguarded: 'UNGUARDED — out digging',
     owedTag: 'REVENGE',
     /* The toll, on the list's footer: a raid draws on the one tank, and the
        list is where the player decides to spend it. */
     cost: (toll: number, stake: number) => `A raid crossing costs ${toll} energy, ${stake} at most.`,
+    /* RAIDING SPENDS YOUR OWN SHIELD (2026-11-01): the list's header, while
+       I am shielded, says what the next raid takes off it. */
+    shieldCost: (cost: string, left: string) => `Raiding takes ${cost} off your shield (${left} left)`,
     allShielded: 'ALL BURROWS SHIELDED',
     nobody: 'NOBODY TO ROB',
     shielded: 'Shielded',

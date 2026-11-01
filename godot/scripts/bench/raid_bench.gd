@@ -69,6 +69,14 @@ func _ready() -> void:
 			shut.append(c)
 		RaidState.current.fake({"targets": shut})
 
+	# `--revenge-shield` (2026-11-01) : JE suis sous bouclier (5 h, un raid en
+	# retire 3), et celui qui m'a pille est sous le sien, que la vengeance passe.
+	if "--revenge-shield" in OS.get_cmdline_user_args():
+		var through: Array = RaidState.current.targets.duplicate(true)
+		through[0] = {"id": "t0", "name": "Abols", "avatar": "gray", "stock": 24078, "garden": 0, "owed": true,
+			"revenge": true, "door": "open", "doorWaitMs": 0, "shielded": false, "shieldedFor": 0, "presence": "home"}
+		RaidState.current.fake({"targets": through, "myShield": {"leftMs": 5.0 * 3600000.0, "costMs": 3.0 * 3600000.0}})
+
 	var panel := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--panel="):

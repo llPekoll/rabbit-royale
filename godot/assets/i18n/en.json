@@ -1477,11 +1477,15 @@
   "choose": "Choose a burrow",
   "whose": "WHOSE BURROW?",
   "pickRevenge": "REVENGE — they raided you",
+  "pierced": "pierced",
   "pickRichest": "THE RICHEST",
   "pickUnguarded": "UNGUARDED — out digging",
   "owedTag": "REVENGE",
   "cost": {
    "$t": "A raid crossing costs {0} energy, {1} at most."
+  },
+  "shieldCost": {
+   "$t": "Raiding takes {0} off your shield ({1} left)"
   },
   "allShielded": "ALL BURROWS SHIELDED",
   "nobody": "NOBODY TO ROB",

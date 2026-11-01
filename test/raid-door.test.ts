@@ -27,6 +27,12 @@ describe('the raid door', () => {
   it('counts my cooldown on them as a shield', () => {
     expect(doorOf(rich, 20 * 60_000, NOW)).toEqual({ state: 'shield', waitMs: 20 * 60_000 });
   });
+  it('revenge goes through the shield, and through nothing else', () => {
+    const shielded = { ...rich, shieldedUntil: new Date(NOW + 5 * H), revenge: true };
+    expect(doorOf(shielded, 0, NOW)).toEqual({ state: 'open', waitMs: 0 });
+    expect(doorOf(shielded, H, NOW)).toEqual({ state: 'shield', waitMs: H });
+    expect(doorOf({ ...shielded, stock: 0, garden: 0 }, 0, NOW).state).toBe('bare');
+  });
   it('a lapsed shield is no shield', () => {
     expect(doorOf({ ...rich, shieldedUntil: new Date(NOW - 1) }, 0, NOW).state).toBe('open');
   });

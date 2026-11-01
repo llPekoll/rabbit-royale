@@ -227,6 +227,12 @@ func _rebuild() -> void:
 	if not state.note.is_empty():
 		_foot.text = state.note
 		_foot.add_theme_color_override("font_color", Palette.BAD_ON_WOOD)
+	elif _my_shield_left(state) > 0.0:
+		# RAIDER RETIRE DE MON BOUCLIER (2026-11-01, la regle de Clash of
+		# Clans) : dit AVANT le premier pas, a la place du peage.
+		_foot.text = I18N.f("raid.shieldCost", [I18N.wait(float(state.my_shield.get("costMs", 0))),
+			I18N.wait(_my_shield_left(state))])
+		_foot.add_theme_color_override("font_color", Palette.CARROT_DEEP)
 	else:
 		_foot.text = I18N.f("raid.cost", [Tuning.i("RAID_RUN.TOLL"), Tuning.i("RAID_RUN.STAKE")])
 		_foot.add_theme_color_override("font_color", Palette.INK)
@@ -273,6 +279,13 @@ func _choose(targets: Array) -> Array[Dictionary]:
 			take.call(t, I18N.t("raid.pickUnguarded"), WHERE_INK["digging"])
 			break
 	return out
+
+
+## Ce qui reste de MON bouclier, decompte comme les leurs.
+func _my_shield_left(state: RaidState) -> float:
+	if state.my_shield.is_empty():
+		return 0.0
+	return maxf(0.0, float(state.my_shield.get("leftMs", 0)) - _elapsed_ms)
 
 
 ## Ce qui reste de leur bouclier maintenant. Une cible sans `shieldedFor`
@@ -405,6 +418,11 @@ func _carrots(target: Dictionary, px: int) -> HBoxContainer:
 		return row
 	row.add_child(Kit.label(I18N.group_digits(int(target.get("stock", 0))), px, Palette.CREAM, true))
 	row.add_child(Kit.icon(Kit.ICONS["carrot"], px + 2))
+	# LA VENGEANCE PASSE LE BOUCLIER (2026-11-01) : le serveur l'ouvre
+	# (`revenge`) ; son bouclier est la, perce, a cote de ce qu'il garde.
+	if bool(target.get("revenge", false)):
+		row.add_child(Kit.icon(Kit.ICONS["shield"], px + 2))
+		row.add_child(Kit.label(I18N.t("raid.pierced"), px - 1, OWED_INK, true))
 	return row
 
 

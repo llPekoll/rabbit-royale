@@ -1370,6 +1370,23 @@ export const RAID = {
    */
   AUTO_SHIELD_LOSS: 300,
   AUTO_SHIELD_WINDOW_MS: 2 * 60 * 60 * 1000,
+  /**
+   * RAIDING SPENDS YOUR OWN SHIELD (2026-11-01, Clash of Clans' rule). The
+   * richest raiders sat behind a shield and raided from it: nobody could hit
+   * back. A raid's first STEP (looking is free) takes ATTACK_SHIELD_COST_MS
+   * off the raider's shield, plus ATTACK_SHIELD_STEP_MS for every other raid
+   * they walked in the last 24 h — 3 h, 4 h, 5 h... A shield that runs out
+   * this way is simply down. 0 turns it off.
+   */
+  ATTACK_SHIELD_COST_MS: 3 * 60 * 60 * 1000,
+  ATTACK_SHIELD_STEP_MS: 1 * 60 * 60 * 1000,
+  /**
+   * REVENGE GOES THROUGH THE SHIELD (2026-11-01, Coin Master's rule): for this
+   * long after someone took from me, and until I have paid them back once,
+   * their shield does not keep ME out. The burrow's own guard (breather, daily
+   * ceiling, one raider at a time) still holds. 0 turns it off.
+   */
+  REVENGE_PIERCES_MS: 12 * 60 * 60 * 1000,
   /** Damage reduction while shielded (1 = immune). */
   SHIELD_REDUCTION: 1,
 } as const;

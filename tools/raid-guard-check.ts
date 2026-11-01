@@ -125,6 +125,47 @@ const meanwhile = await api(abols.token, 'POST', '/api/raid', { defenderId: othe
 check('while Zicels is inside, Abols cannot open the same burrow', meanwhile.json?.error === 'target_shielded' && meanwhile.json.busy === true, meanwhile.json);
 await api(zicels.token, 'DELETE', '/api/raid');
 
+// 7. RAIDING SPENDS YOUR OWN SHIELD, REVENGE GOES THROUGH IT (2026-11-01).
+const H = 3_600_000;
+const shieldLeft = async (id: string) => {
+  const [p] = await sql`select shielded_until from players where id = ${id}`;
+  return p.shielded_until ? (p.shielded_until as Date).getTime() - Date.now() : 0;
+};
+const raider = await guest(), v1 = await guest(), v2 = await guest();
+for (const p of [raider, v1, v2]) {
+  await sql`update players set stock = 6000 where id = ${p.id}`;
+  await sql`delete from traps where owner_id = ${p.id}`;
+  await sql`delete from fences where owner_id = ${p.id}`;
+}
+await sql`update players set shielded_until = now() + interval '10 hours' where id = ${raider.id}`;
+const r1 = await walk(raider.token, v1.id);
+check('a shielded raider can still raid', !!r1.outcome && r1.outcome.loot > 0, r1);
+const left1 = await shieldLeft(raider.id);
+check('…and the first raid took 3 h off the shield', Math.abs(left1 - 7 * H) < 60_000, left1 / H);
+const r2 = await walk(raider.token, v2.id);
+check('a second raid the same day', !!r2.outcome, r2);
+const left2 = await shieldLeft(raider.id);
+check('…took 4 h more', Math.abs(left2 - 3 * H) < 60_000, left2 / H);
+const mine = await api(raider.token, 'GET', '/api/raid');
+check('the list tells the raider: 3 h left, the next raid takes 5 h',
+  Math.abs((mine.json?.myShield?.leftMs ?? 0) - 3 * H) < 60_000 && mine.json?.myShield?.costMs === 5 * H, mine.json?.myShield);
+const theirs = await api(v1.token, 'GET', '/api/raid');
+const back = (theirs.json?.targets ?? []).find((t: any) => t.id === raider.id);
+check('the victim sees the raider OPEN, as a revenge through the shield',
+  back?.revenge === true && back.shielded === false && back.door === 'open', back && { revenge: back.revenge, shielded: back.shielded, door: back.door });
+const stranger = await api(abols.token, 'GET', '/api/raid');
+const seen = (stranger.json?.targets ?? []).find((t: any) => t.id === raider.id);
+check('anyone else still finds the raider shielded', !seen || (seen.shielded === true && seen.door === 'shield'), seen && { shielded: seen.shielded, door: seen.door });
+const strangerTry = await walk(abols.token, raider.id);
+check('…and is refused', strangerTry.refused?.error === 'target_shielded', strangerTry);
+const revenge = await walk(v1.token, raider.id);
+check('the victim\'s revenge goes through the shield, and takes carrots', !!revenge.outcome && revenge.outcome.loot > 0, revenge);
+// Two hours on (no cooldown, no breather): the debt is paid, the shield holds again.
+await sql`update raid_runs set ended_at = ended_at - interval '2 hours', started_at = started_at - interval '2 hours'
+  where attacker_id = ${raider.id} or defender_id = ${raider.id}`;
+const again = await walk(v1.token, raider.id);
+check('one revenge per raid: the second is refused by the shield', again.refused?.error === 'target_shielded', again);
+
 await sql.end();
 console.log(failed ? `\n${failed} FAILED` : '\nall good');
 process.exit(failed ? 1 : 0);

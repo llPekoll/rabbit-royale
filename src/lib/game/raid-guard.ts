@@ -105,3 +105,68 @@ export async function autoShield(tx: Tx, defenderId: string, shieldedUntil: Date
   await tx.update(players).set({ shieldedUntil: until }).where(eq(players.id, defenderId));
   return until;
 }
+
+/**
+ * RAIDING SPENDS YOUR OWN SHIELD (2026-11-01) — what the next raid would take
+ * off it, after `walked` other raids walked in the last 24 h. Pure, for the
+ * tests and for the list, which says it before the raider steps in.
+ */
+export function attackShieldCostMs(walked: number): number {
+  if (RAID.ATTACK_SHIELD_COST_MS <= 0) return 0;
+  return Math.min(DAY_MS, RAID.ATTACK_SHIELD_COST_MS + RAID.ATTACK_SHIELD_STEP_MS * Math.max(0, walked));
+}
+
+/** Raids `attackerId` walked (a step past the entrance) in the last 24 h. */
+export async function walkedToday(attackerId: string, now = Date.now(), exceptRunId?: string): Promise<number> {
+  const [row] = await db.select({ n: raw<number>`count(*)::int` }).from(raidRuns).where(and(
+    eq(raidRuns.attackerId, attackerId),
+    gt(raidRuns.startedAt, new Date(now - DAY_MS)),
+    raw`coalesce(array_length(${raidRuns.visited}, 1), 0) > 1`,
+    exceptRunId ? ne(raidRuns.id, exceptRunId) : undefined,
+  ));
+  return row?.n ?? 0;
+}
+
+/**
+ * The raid's FIRST STEP takes its cost off the raider's shield — once, from
+ * the step that claimed the run (or inside the settling transaction when that
+ * step is also the last). A shield cut to nothing is down: `shieldedUntil`
+ * becomes now. No shield, nothing written.
+ */
+export async function spendRaiderShield(exec: Tx | typeof db, attackerId: string, runId: string, now: Date): Promise<void> {
+  if (RAID.ATTACK_SHIELD_COST_MS <= 0) return;
+  const cost = attackShieldCostMs(await walkedToday(attackerId, now.getTime(), runId));
+  if (cost <= 0) return;
+  const at = now.toISOString();
+  await exec.update(players)
+    .set({ shieldedUntil: raw`greatest(${at}::timestamptz, ${players.shieldedUntil} - make_interval(secs => ${cost / 1000}))` })
+    .where(and(eq(players.id, attackerId), gt(players.shieldedUntil, now)));
+}
+
+/**
+ * REVENGE GOES THROUGH THE SHIELD (2026-11-01): of `ids`, those who took
+ * carrots from `viewerId`'s burrow in the last RAID.REVENGE_PIERCES_MS and
+ * have not been walked on by the viewer since — one revenge per offence.
+ * Their shield does not keep the viewer out; everything else still does.
+ */
+export async function revengeThrough(
+  viewerId: string,
+  ids: readonly string[],
+  now = Date.now(),
+  /** The revenge raid itself, when asked at its settling: it does not pay its own debt. */
+  ownRunId?: string,
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (RAID.REVENGE_PIERCES_MS <= 0 || !ids.length) return out;
+  const rows = await db.selectDistinct({ id: raidRuns.attackerId }).from(raidRuns).where(and(
+    eq(raidRuns.defenderId, viewerId),
+    inArray(raidRuns.attackerId, [...ids]),
+    gt(raidRuns.endedAt, new Date(now - RAID.REVENGE_PIERCES_MS)),
+    gt(raidRuns.carrotsLooted, 0),
+    // Qualified by hand, as in raid-door: inside the subquery a bare column
+    // would be the alias's own.
+    raw`not exists (select 1 from raid_runs back where back.attacker_id = ${viewerId} and back.defender_id = "raid_runs"."attacker_id" and back.started_at > "raid_runs"."ended_at" and coalesce(array_length(back.visited, 1), 0) > 1${ownRunId ? raw` and back.id <> ${ownRunId}` : raw``})`,
+  ));
+  for (const r of rows) out.add(r.id);
+  return out;
+}

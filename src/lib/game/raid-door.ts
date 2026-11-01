@@ -10,7 +10,8 @@
  * The verdict MIRRORS POST /api/raid's refusals, in the same order, so a row
  * that says "raid" is a door that opens:
  *
- *   self → level (both ways) → solo (both ways) → shield → nothing to take /
+ *   self → level (both ways) → solo (both ways) → shield (not against a
+ *   revenge, RAID.REVENGE_PIERCES_MS) → nothing to take /
  *   asleep and already taken → my per-victim cooldown, and the burrow's own
  *   breather and daily ceiling (raid-guard), both read as a shield.
  *
@@ -23,7 +24,7 @@ import { players, raidRuns } from '@/lib/db/schema';
 import { connectedAmong, onlineAmong } from '@/lib/presence';
 import { asleep, nothingToTake } from '@/lib/game/raid';
 import { gardenYield } from '@/lib/game/regen';
-import { restOf } from '@/lib/game/raid-guard';
+import { restOf, revengeThrough } from '@/lib/game/raid-guard';
 import { RABBIT_LEVELS } from '@config/tuning';
 import { RAID_RUN } from '@/lib/tuning/tables';
 
@@ -56,6 +57,8 @@ type Target = {
   garden: number;
   sleeping: boolean;
   takenWhileAsleep: boolean;
+  /** They took from me lately: their shield does not keep me out (2026-11-01). */
+  revenge?: boolean;
 };
 
 /** The verdict for one target, from what was read. Pure, for the tests. */
@@ -63,7 +66,7 @@ export function doorOf(t: Target, cooldownLeftMs: number, now = Date.now()): Omi
   if (t.level < RABBIT_LEVELS.RAID_MIN) return { state: 'locked', waitMs: 0 };
   if (t.solo) return { state: 'solo', waitMs: 0 };
   const shieldMs = t.shieldedUntil ? Math.max(0, t.shieldedUntil.getTime() - now) : 0;
-  if (shieldMs > 0) return { state: 'shield', waitMs: Math.max(shieldMs, cooldownLeftMs) };
+  if (shieldMs > 0 && !t.revenge) return { state: 'shield', waitMs: Math.max(shieldMs, cooldownLeftMs) };
   if (nothingToTake(t.stock, t.garden, t.sleeping)) return { state: 'bare', waitMs: 0 };
   if (t.sleeping && t.takenWhileAsleep) return { state: 'asleep', waitMs: 0 };
   if (cooldownLeftMs > 0) return { state: 'shield', waitMs: cooldownLeftMs };
@@ -81,7 +84,7 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
   // The viewer is read WITH the doors, not before them: one round trip to a
   // database that may be a continent away. A viewer who cannot raid wasted
   // two small reads; everyone else saved a trip on every list.
-  const [me, rows, recent, connected, digging, rest] = await Promise.all([
+  const [me, rows, recent, connected, digging, rest, through] = await Promise.all([
     db.query.players.findFirst({ where: eq(players.id, viewerId), columns: { level: true, solo: true } }),
     db.select({
       id: players.id,
@@ -115,6 +118,7 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
     // The burrow's own breather and daily ceiling (raid-guard): a wait like
     // my cooldown, whoever raided them.
     restOf(others, now),
+    revengeThrough(viewerId, others, now),
   ]);
   if (!me || me.level < RABBIT_LEVELS.RAID_MIN || me.solo) return null;
   const doors = new Map<string, RaidDoor>();
@@ -130,6 +134,7 @@ export async function raidDoors(viewerId: string, ids: string[]): Promise<Map<st
       garden: gardenYield(p, now),
       sleeping: asleep(p.lastSeenAt, now) && !connected.has(p.id),
       takenWhileAsleep: p.takenSinceSeen,
+      revenge: through.has(p.id),
     }, cooldownLeft, now);
     doors.set(p.id, {
       ...door,

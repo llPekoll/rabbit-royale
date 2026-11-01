@@ -1491,11 +1491,15 @@
   "choose": "Elige una madriguera",
   "whose": "¿QUÉ MADRIGUERA?",
   "pickRevenge": "VENGANZA — te saqueó",
+  "pierced": "perforado",
   "pickRichest": "LA MÁS RICA",
   "pickUnguarded": "SIN VIGILANCIA — está cavando",
   "owedTag": "VENGANZA",
   "cost": {
    "$t": "La travesía de un saqueo cuesta {0} de energía, {1} como máximo."
+  },
+  "shieldCost": {
+   "$t": "Saquear quita {0} a tu escudo (quedan {1})"
   },
   "allShielded": "TODAS LAS MADRIGUERAS CON ESCUDO",
   "nobody": "NADIE A QUIEN ROBAR",

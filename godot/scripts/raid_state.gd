@@ -101,6 +101,9 @@ var raid: Dictionary = {}
 ## Les cibles (use-raid.ts `Target`) : id, name, avatar, stock, garden,
 ## shielded, shieldedFor, presence, digging. Classees par le serveur.
 var targets: Array = []
+## MON bouclier quand la liste a ete lue, et ce qu'un raid lui retire
+## (2026-11-01, `myShield` : leftMs, costMs). Vide sans bouclier.
+var my_shield: Dictionary = {}
 ## Une lecture des cibles est deja rentree (ou a echoue) : avant, une liste
 ## vide veut dire « pas encore lu », pas « personne ».
 var targets_read := false
@@ -208,6 +211,7 @@ func refresh() -> void:
 		_adopt_raid(next)
 	if answer.body.get("targets") is Array:
 		targets = answer.body["targets"]
+		my_shield = answer.body.get("myShield", {}) if answer.body.get("myShield") is Dictionary else {}
 		targets_changed.emit()
 		changed.emit()
 		# Les cibles sont SUIVIES : la liste dit ou chacune se tient au moment
@@ -717,6 +721,7 @@ func _on_session_changed() -> void:
 	raid = {}
 	axe_armed = false
 	targets = []
+	my_shield = {}
 	targets_read = false
 	outcome = {}
 	note = ""
@@ -752,6 +757,7 @@ func fake(state: Dictionary) -> void:
 	if not can_cut():
 		axe_armed = false
 	targets = state.get("targets", targets)
+	my_shield = state.get("myShield", my_shield)
 	incoming = state.get("incoming", incoming)
 	outcome = state.get("outcome", outcome)
 	lightning_held = int(state.get("lightning", lightning_held))

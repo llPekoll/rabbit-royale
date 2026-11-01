@@ -1493,11 +1493,15 @@
   "choose": "Scegli una tana",
   "whose": "QUALE TANA?",
   "pickRevenge": "VENDETTA — ti ha razziato",
+  "pierced": "perforato",
   "pickRichest": "IL PIÙ RICCO",
   "pickUnguarded": "SENZA GUARDIA — fuori a scavare",
   "owedTag": "VENDETTA",
   "cost": {
    "$t": "La traversata di una razzia costa {0} di energia, {1} al massimo."
+  },
+  "shieldCost": {
+   "$t": "Razziare toglie {0} al tuo scudo (restano {1})"
   },
   "allShielded": "TUTTE LE TANE PROTETTE",
   "nobody": "NESSUNO DA DERUBARE",

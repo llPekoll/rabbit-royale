@@ -108,6 +108,36 @@
   },
   "releases": [
     {
+      "version": "v1.23",
+      "date": "2026-11-02",
+      "items": [
+        {
+          "kind": "tune",
+          "text": {
+            "en": "Raiding now costs your own shield: 3 h off it for your first raid of the day, an hour more for each one after. The raid list tells you before you step in.",
+            "fr": "Raider coûte maintenant ton propre bouclier : 3 h en moins pour ton premier raid du jour, une heure de plus pour chacun des suivants. La liste des raids te le dit avant d’entrer.",
+            "zh": "现在掠夺会消耗你自己的护盾：当天第一次掠夺让护盾少 3 小时，之后每次再多少 1 小时。进入前，掠夺列表会提醒你。",
+            "pt-BR": "Saquear agora custa o seu próprio escudo: 3 h a menos no primeiro saque do dia, uma hora a mais em cada um dos seguintes. A lista de saques avisa antes de você entrar.",
+            "vi": "Giờ đi cướp sẽ tốn khiên của chính bạn: trừ 3 giờ cho lần cướp đầu tiên trong ngày, mỗi lần sau trừ thêm một giờ. Danh sách cướp báo cho bạn trước khi vào.",
+            "es": "Saquear ahora cuesta tu propio escudo: 3 h menos en tu primer saqueo del día y una hora más en cada uno de los siguientes. La lista de saqueos te lo dice antes de entrar.",
+            "it": "Razziare ora costa il tuo scudo: 3 h in meno per la prima razzia del giorno, un’ora in più per ognuna delle successive. La lista delle razzie te lo dice prima di entrare."
+          }
+        },
+        {
+          "kind": "new",
+          "text": {
+            "en": "Revenge goes through the shield: for 12 h after someone raids you, their shield won’t stop you, once. Look for “pierced” on the REVENGE card.",
+            "fr": "La revanche passe le bouclier : pendant 12 h après qu’on t’a pillé, son bouclier ne t’arrête pas, une fois. Cherche « percé » sur la carte REVANCHE.",
+            "zh": "复仇可以穿过护盾：有人掠夺你后的 12 小时内，他的护盾挡不住你一次。看复仇卡片上的「击穿」。",
+            "pt-BR": "A vingança passa pelo escudo: por 12 h depois que alguém te saqueia, o escudo dele não te para, uma vez. Procure “furado” no cartão VINGANÇA.",
+            "vi": "Trả thù xuyên qua khiên: trong 12 giờ sau khi ai đó cướp bạn, khiên của họ không cản được bạn một lần. Tìm chữ “thủng” trên thẻ TRẢ THÙ.",
+            "es": "La venganza atraviesa el escudo: durante 12 h después de que alguien te saquee, su escudo no te frena, una vez. Busca «perforado» en la carta VENGANZA.",
+            "it": "La vendetta passa lo scudo: per 12 h dopo che qualcuno ti ha razziato, il suo scudo non ti ferma, una volta. Cerca «perforato» sulla carta VENDETTA."
+          }
+        }
+      ]
+    },
+    {
       "version": "v1.22",
       "date": "2026-11-01",
       "items": [

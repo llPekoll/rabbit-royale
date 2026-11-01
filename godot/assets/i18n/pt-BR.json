@@ -1508,11 +1508,15 @@
   "choose": "Escolha uma toca",
   "whose": "TOCA DE QUEM?",
   "pickRevenge": "VINGANÇA — ele te saqueou",
+  "pierced": "furado",
   "pickRichest": "O MAIS RICO",
   "pickUnguarded": "SEM GUARDA — está cavando",
   "owedTag": "VINGANÇA",
   "cost": {
    "$t": "A travessia de um saque custa {0} de energia, no máximo {1}."
+  },
+  "shieldCost": {
+   "$t": "Saquear tira {0} do seu escudo (restam {1})"
   },
   "allShielded": "TODAS AS TOCAS COM ESCUDO",
   "nobody": "NINGUÉM PARA ROUBAR",

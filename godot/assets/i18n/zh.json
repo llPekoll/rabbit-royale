@@ -1277,11 +1277,15 @@
   "choose": "选一个兔窝",
   "whose": "掠夺谁的兔窝？",
   "pickRevenge": "复仇 — 他掠夺过你",
+  "pierced": "击穿",
   "pickRichest": "最富有",
   "pickUnguarded": "无人看守 — 正在挖掘",
   "owedTag": "复仇",
   "cost": {
    "$t": "掠夺渡海花 {0} 能量，最多 {1}。"
+  },
+  "shieldCost": {
+   "$t": "掠夺会让你的护盾少 {0}（剩 {1}）"
   },
   "allShielded": "所有兔窝都有护盾",
   "nobody": "没人可抢",

@@ -30,7 +30,9 @@ import {
 } from '@/lib/game/raid';
 import { isOnIsland } from '@/lib/game/live-seats';
 import { raidDoors } from '@/lib/game/raid-door';
-import { autoShield, burrowBusy, restOf } from '@/lib/game/raid-guard';
+import {
+  attackShieldCostMs, autoShield, burrowBusy, restOf, revengeThrough, spendRaiderShield, walkedToday,
+} from '@/lib/game/raid-guard';
 import { burrowNeighbors, entranceTile, burrowCell, setBurrowEdits } from '@/game/burrow/board';
 import { loadBurrowEdits } from '@/lib/game/burrowEdits';
 import { raiderSteps } from '@/game/burrow/fence';
@@ -313,7 +315,7 @@ export async function GET(req: Request) {
       orderBy: desc(raidRuns.startedAt),
     }),
     recentlyStruck(session.sub),
-    db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true } }),
+    db.query.players.findFirst({ where: eq(players.id, session.sub), columns: { level: true, solo: true, shieldedUntil: true } }),
     owedTo(session.sub),
     connectedIds(),
   ]);
@@ -425,11 +427,20 @@ export async function GET(req: Request) {
    * silence the list had before any of this existed.
    */
   const ids = targets.map((t) => t.id);
-  const [connected, digging, doors] = await Promise.all([
+  const [connected, digging, doors, through, walked] = await Promise.all([
     connectedAmong(ids), onlineAmong(ids), raidDoors(session.sub, ids),
+    revengeThrough(session.sub, [...owing], now),
+    me?.shieldedUntil && me.shieldedUntil.getTime() > now ? walkedToday(session.sub, now) : Promise.resolve(0),
   ]);
+  const myShieldMs = me?.shieldedUntil ? Math.max(0, me.shieldedUntil.getTime() - now) : 0;
   return Response.json({
     raid: null,
+    /**
+     * MY OWN SHIELD, and what raiding takes off it (2026-11-01): the list says
+     * it before the first step, the way Clash of Clans warns before an attack.
+     * Absent when I have no shield.
+     */
+    ...(myShieldMs > 0 ? { myShield: { leftMs: myShieldMs, costMs: attackShieldCostMs(walked) } } : {}),
     targets: targets.map((t) => ({
       id: t.id,
       name: t.name,
@@ -442,14 +453,17 @@ export async function GET(req: Request) {
       asleep: sleeping(t),
       /** Shielded targets are LISTED but not attackable — hiding them would
        *  make the board look empty for no visible reason. */
-      shielded: !!t.shieldedUntil && t.shieldedUntil.getTime() > now,
+      shielded: !!t.shieldedUntil && t.shieldedUntil.getTime() > now && !through.has(t.id),
+      /** They took from me in the last RAID.REVENGE_PIERCES_MS: their shield
+       *  does not keep ME out, once (2026-11-01). */
+      revenge: through.has(t.id) && !!t.shieldedUntil && t.shieldedUntil.getTime() > now,
       /** How long that shield still has to run, in ms — 0 when there is none.
        *  A raider's question about a shielded burrow is never "is it shielded"
        *  (the row already says so) but "is it worth coming back tonight", and
        *  a shield here lasts anywhere from 6h to 48h. Sent as a DURATION and
        *  not as the timestamp, so a client whose clock is wrong still counts
        *  down correctly from the moment the list arrived. */
-      shieldedFor: t.shieldedUntil ? Math.max(0, t.shieldedUntil.getTime() - now) : 0,
+      shieldedFor: t.shieldedUntil && !through.has(t.id) ? Math.max(0, t.shieldedUntil.getTime() - now) : 0,
       /**
        * Where the owner is: `away`, `home`, or `digging`. See the block above
        * the sets for what each one costs a raider.
@@ -534,7 +548,9 @@ export async function POST(req: Request) {
   }
 
   const now = Date.now();
-  if (defender.shieldedUntil && defender.shieldedUntil.getTime() > now) {
+  // REVENGE GOES THROUGH (RAID.REVENGE_PIERCES_MS): asked only of a shield.
+  if (defender.shieldedUntil && defender.shieldedUntil.getTime() > now
+    && !(await revengeThrough(session.sub, [defender.id], now)).has(defender.id)) {
     return Response.json({ error: 'target_shielded' }, { status: 400 });
   }
   // Nothing worth taking is a shield too (RAID.NOTHING_TO_TAKE_BELOW) — the
@@ -849,6 +865,8 @@ async function step(attackerId: string, live: LiveRaid, to: number, tankChecked 
     }
     const [paid] = await Promise.all([
       payEnergy(attackerId, { cost: charge.cost, need: 0, floor: true }, heldRaid(attackerId)?.tankRow),
+      // RAIDING SPENDS YOUR OWN SHIELD — once, from the step that claimed it.
+      run.visited.length <= 1 ? spendRaiderShield(db, attackerId, run.id, now) : null,
       trap ? db.update(traps).set({ sprungAt: now }).where(eq(traps.id, trap.id)) : null,
       push && !toldHere ? pushToPlayer(sql, push) : null,
     ]);
@@ -893,6 +911,10 @@ async function settleLastStep(
     // names a player, and holding a row lock across a scan of the table is how
     // two raids deadlock. Sent now, so it is in by the time the lock is asked.
     const crownedRead = crownHolderId().catch(() => null);
+    // A REVENGE through the defender's shield (RAID.REVENGE_PIERCES_MS) is
+    // settled as if there were none: the door let it in for exactly that.
+    const revengeRead = revengeThrough(attackerId, [run.defenderId], now.getTime(), run.id)
+      .then((s) => s.has(run.defenderId)).catch(() => false);
     // The steps before this one land in the row first (THE ROW FOLLOWS above):
     // at a player's pace they are in already.
     await raidWritten(attackerId);
@@ -930,6 +952,7 @@ async function settleLastStep(
      */
     const settled = await db.transaction(async (tx) => {
       const crowned = (await crownedRead) === run.defenderId;
+      const revenge = await revengeRead;
       // Close and lock in one trip: the statements of a transaction share one
       // connection, so sent together they go out back to back (pipelined) and
       // still run in this order. A close that finds the raid already ended
@@ -966,12 +989,16 @@ async function settleLastStep(
         defenderStock: defender.stock,
         defenderGarden: gardenPending,
         defenderLevel: defender.burrowLevel,
-        shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime(),
+        shielded: !!defender.shieldedUntil && defender.shieldedUntil.getTime() > now.getTime() && !revenge,
         crowned,
         // Asleep when the raid STARTED: an owner who comes back mid-crossing
         // does not turn a tenth into a full haul under the raider's feet.
         asleep: asleep(defender.lastSeenAt, run.startedAt.getTime()),
       }, Math.random, distanceToField(run.defenderId));
+
+      // The shield this raid leaves the defender, if it takes something.
+      const shieldAfter = new Date(now.getTime() + (reachedField ? RAID.BROKEN_SHIELD_MS : RAID_RUN.SHIELD_AFTER_RAID_MS));
+      const shieldNow = defender.shieldedUntil && defender.shieldedUntil > shieldAfter ? defender.shieldedUntil : shieldAfter;
 
       // The writes below touch nothing the others read: pipelined, one trip.
       await Promise.all([
@@ -989,10 +1016,12 @@ async function settleLastStep(
           // Keyed on the raider reaching the carrot field, and ONLY WHEN SOMETHING
           // WAS TAKEN (21 September 2026): a shield for a raid that took nothing is
           // a reward for having nothing worth stealing.
+          //
+          // NEVER SHORTER THAN IT WAS (2026-11-01): a revenge goes through a
+          // shield (RAID.REVENGE_PIERCES_MS) and must not break it — with both
+          // durations at 0 in every base, writing `now` wiped what was left.
           ...(outcome.loot > 0 ? {
-            shieldedUntil: reachedField
-              ? new Date(now.getTime() + RAID.BROKEN_SHIELD_MS)
-              : new Date(now.getTime() + RAID_RUN.SHIELD_AFTER_RAID_MS),
+            shieldedUntil: raw`greatest(coalesce(${players.shieldedUntil}, ${shieldAfter.toISOString()}::timestamptz), ${shieldAfter.toISOString()}::timestamptz)`,
           } : {}),
         }).where(eq(players.id, run.defenderId)),
 
@@ -1031,12 +1060,12 @@ async function settleLastStep(
           scoreTransferred: outcome.lootFromStock,
         }),
       ]);
+      // A first step that is also the last still spends the raider's shield.
+      if (run.visited.length <= 1) await spendRaiderShield(tx, attackerId, run.id, now);
       // A SHIELD FROM THEIR BAG, if the window's raids have now taken enough
       // (RAID.AUTO_SHIELD_LOSS) — after this haul is on its row, so it counts.
       if (outcome.loot > 0) {
-        await autoShield(tx, run.defenderId, new Date(now.getTime() + (reachedField
-          ? RAID.BROKEN_SHIELD_MS
-          : RAID_RUN.SHIELD_AFTER_RAID_MS)), now);
+        await autoShield(tx, run.defenderId, shieldNow, now);
       }
       return { outcome, tank };
     });

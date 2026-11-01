@@ -1375,11 +1375,15 @@
   "choose": "Chọn một hang",
   "whose": "HANG CỦA AI?",
   "pickRevenge": "TRẢ THÙ — họ đã cướp bạn",
+  "pierced": "thủng",
   "pickRichest": "GIÀU NHẤT",
   "pickUnguarded": "KHÔNG CANH — đang đào",
   "owedTag": "TRẢ THÙ",
   "cost": {
    "$t": "Một lần cướp tốn {0} năng lượng để qua biển, tối đa {1}."
+  },
+  "shieldCost": {
+   "$t": "Đi cướp trừ {0} khiên của bạn (còn {1})"
   },
   "allShielded": "MỌI HANG ĐỀU CÓ KHIÊN",
   "nobody": "KHÔNG CÓ AI ĐỂ CƯỚP",
