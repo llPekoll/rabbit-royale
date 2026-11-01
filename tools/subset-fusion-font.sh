@@ -50,6 +50,8 @@ for v in latin zh_hans; do
   uvx --from 'fonttools[woff]' pyftsubset "$src10" \
     --text-file="$CHARS" --layout-features='*' --output-file="$out"
   uvx --from fonttools --with skia-pathops python "$ROOT/tools/fusion-godot.py" "$out"
+  # Les signes d'argent que Fusion n'a pas (« € », « ≈ », « ₫ »...).
+  uvx --from fonttools --with skia-pathops python "$ROOT/tools/fusion-currency.py" "$out"
   # Le meme sous-ensemble pour le web (src/components/pixel-font.tsx).
   uvx --from 'fonttools[woff]' pyftsubset "$SRC/fusion-pixel-12px-proportional-$v.ttf" \
     --text-file="$CHARS" --layout-features='*' --flavor=woff2 \

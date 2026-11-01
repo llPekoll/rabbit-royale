@@ -641,7 +641,7 @@ func _on_google() -> void:
 	_busy(false)
 	if ok:
 		Analytics.track("login", {"method": "google"})
-		_enter()
+		_signed_in()
 	elif _status.text == I18N.t("auth.googleWaiting"):
 		_say("", false)
 
@@ -655,7 +655,7 @@ func _on_apple() -> void:
 	_busy(false)
 	if ok:
 		Analytics.track("login", {"method": "apple"})
-		_enter()
+		_signed_in()
 
 
 ## EMAIL : le dialogue demande l'adresse puis le code, et adopte la session.
@@ -665,7 +665,19 @@ func _on_email() -> void:
 	var ok: bool = await EmailDialog.ask_on(self).done
 	if ok:
 		Analytics.track("login", {"method": "email"})
-		_enter()
+		_signed_in()
+
+
+## CONNECTE PAR UNE PAGE OU UNE FEUILLE (Google, Apple, email) : l'ecran
+## devient celui d'une reprise — portes cachees, « Loading... » et la carotte
+## — le temps que le terrier charge. Sans ca, de retour de l'onglet Google, le
+## joueur retrouvait l'accueil tel qu'il l'avait laisse, sans signe que ca
+## chargeait (2026-11-01) : la planche Google redevenue « Google », la ligne
+## vide.
+func _signed_in() -> void:
+	_set_restoring(true, I18N.t("chrome.loading") + "...")
+	_measure()
+	_enter()
 
 
 ## HORS LIGNE : le terrier de l'appareil, sans compte ni reseau
